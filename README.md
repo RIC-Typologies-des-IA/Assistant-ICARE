@@ -1,6 +1,6 @@
 # ICARE — Un assistant pour penser et transformer les systèmes
 
-ICARE est une approche de modélisation systémique.
+L'assistant ICARE a pour but d'accompagner la modélisation systémique.
 
 L’ambition de cet assistant n’est pas de fournir un expert qui décide à la place de l’utilisateur, mais de construire un **partenaire intellectuel exigeant et non directif**.
 
