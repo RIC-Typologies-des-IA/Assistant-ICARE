@@ -171,7 +171,7 @@ async function refreshModelCatalog() {
   if (!models.length) throw new Error("Le catalogue Lemonade ne contient aucun modèle de conversation.");
   const modelConfigs = models.map(m => ({ id: m.id, name: m.name || m.id, api: "openai-completions", reasoning: Boolean(m.labels?.includes("reasoning")), input: ["text"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: Number(m.context_length || m.max_context_window || 32768), maxTokens: Number(m.max_output_tokens || m.max_completion_tokens || 4096) }));
   const provider = { name: "Lemonade local", baseUrl: BASE_URL, api: "openai-completions", models: modelConfigs };
-  if (API_KEY) { provider.apiKey = "$LEMONADE_API_KEY"; provider.authHeader = true; }
+  provider.apiKey = "$LEMONADE_API_KEY"; provider.authHeader = true;
   await writeFile(path.join(AGENT_DIR, "models.json"), JSON.stringify({ providers: { lemonade: provider } }, null, 2));
   const nextRuntime = await piModules.ModelRuntime.create();
   const currentId = selectedModel?.id || process.env.ICARE_MODEL;
@@ -186,7 +186,7 @@ async function initializePi() {
   const { createAgentSession, DefaultResourceLoader, ModelRuntime, SessionManager } = await import("@earendil-works/pi-coding-agent");
   const { Type } = await import("@earendil-works/pi-ai");
   piModules = { createAgentSession, SessionManager, DefaultResourceLoader, ModelRuntime, Type };
-  if (API_KEY) process.env.LEMONADE_API_KEY = API_KEY;
+  process.env.LEMONADE_API_KEY = API_KEY || "local";
   await refreshModelCatalog();
   if (process.env.ICARE_MODEL && !catalogModels.some(m => m.id === process.env.ICARE_MODEL)) throw new Error("Le modèle demandé n'apparaît pas dans le catalogue Lemonade.");
   const chosen = catalogModels.find(m => m.id === selectedModel.id);
