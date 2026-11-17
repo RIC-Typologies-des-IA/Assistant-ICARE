@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, rm, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -59,4 +59,14 @@ test("Pi SDK loads a custom Lemonade OpenAI-compatible model", async () => {
     else process.env.LEMONADE_API_KEY = previousApiKey;
     await rm(dir, { recursive: true, force: true });
   }
+});
+
+
+test("ICARE ontology defines dimensions in canonical I-C-A-R-E order", async () => {
+  const ontology = JSON.parse(await readFile(new URL("../reference/icare.json", import.meta.url), "utf8"));
+  assert.deepEqual(Object.keys(ontology.dimensions), ["I", "C", "A", "R", "E"]);
+  assert.deepEqual(ontology.exploration_status, ["unexplored", "insufficient", "sufficient", "not_applicable"]);
+  assert.ok(ontology.temporal.includes("past"));
+  assert.ok(ontology.epistemic.includes("hypothesis"));
+  assert.ok(ontology.practical.includes("committed"));
 });
