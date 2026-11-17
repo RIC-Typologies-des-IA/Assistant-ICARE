@@ -1,4 +1,4 @@
-description = "ICARE — agent Pi, Lemonade et VM QEMU sandboxée par nono";
+description = "ICARE — Pi, Lemonade, VM QEMU et confinement nono";
 inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 outputs = { self, nixpkgs }:
   let
@@ -10,12 +10,47 @@ outputs = { self, nixpkgs }:
       modules = [ ./nixos/icare-vm.nix ];
     };
     vmRunner = vm.config.system.build.vm;
+    hostPkgs = import nixpkgs { system = vmSystem; };
+    vmLauncher = hostPkgs.writeShellApplication {
+      name = "icare-vm";
+      runtimeInputs = [ hostPkgs.nodejs_24 hostPkgs.nono hostPkgs.coreutils hostPkgs.netcat-openbsd ];
+      text = ''
+        APP_DIR="''${XDG_DATA_HOME:-$HOME/.local/share}/icare-vm/runtime"
+        mkdir -p "$APP_DIR"
+        cp -R ${./pi-runtime}/. "$APP_DIR/"
+        cd "$APP_DIR"
+        if [ ! -d node_modules/@earendil-works/pi-coding-agent ]; then
+          npm install --ignore-scripts --no-audit --no-fund
+        fi
+        export ICARE_RUNTIME_DIR="$APP_DIR"
+        # Proxy hôte : seuls Lemonade et les points d'accès Discord sont autorisés.
+        nono proxy --listen 127.0.0.1 --port 43128 --no-auth \
+          --allow-domain 'http://127.0.0.1:13305/v1/**' \
+          --allow-domain discord.com \
+          --allow-domain gateway.discord.gg &
+        PROXY_PID=$!
+        cleanup() { kill "$PROXY_PID" 2>/dev/null || true; }
+        trap cleanup EXIT INT TERM
+        READY=0
+        for _ in $(seq 1 30); do
+          if nc -z 127.0.0.1 43128; then READY=1; break; fi
+          sleep 1
+        done
+        if [ "$READY" -ne 1 ]; then
+          echo "Le proxy nono n'a pas démarré sur 127.0.0.1:43128." >&2
+          exit 1
+        fi
+        "${vmRunner}/bin/run-icare-vm"
+      '';
+    };
   in {
     nixosConfigurations.icare-vm = vm;
     packages = forAllSystems (system:
       let pkgs = import nixpkgs { inherit system; };
       in {
-        default = pkgs.writeShellApplication {
+        default = vmLauncher;
+        vm = vmRunner;
+        host = pkgs.writeShellApplication {
           name = "icare-host-runtime";
           runtimeInputs = [ pkgs.nodejs_24 pkgs.coreutils ];
           text = ''
@@ -23,30 +58,20 @@ outputs = { self, nixpkgs }:
             mkdir -p "$APP_DIR"
             cp -R ${./pi-runtime}/. "$APP_DIR/"
             cd "$APP_DIR"
-            if [ ! -d node_modules/@earendil-works/pi-coding-agent ]; then
-              npm install --ignore-scripts --no-audit --no-fund
-            fi
+            if [ ! -d node_modules/@earendil-works/pi-coding-agent ]; then npm install --ignore-scripts --no-audit --no-fund; fi
             export ICARE_DATA_DIR="''${ICARE_DATA_DIR:-$APP_DIR/data}"
             export PI_CODING_AGENT_DIR="''${PI_CODING_AGENT_DIR:-$APP_DIR/pi-agent}"
             export LEMONADE_BASE_URL="''${LEMONADE_BASE_URL:-http://127.0.0.1:13305/v1}"
             export ICARE_HOST="''${ICARE_HOST:-127.0.0.1}"
             export ICARE_PORT="''${ICARE_PORT:-8765}"
             exec node src/server.js
-          ''
+          '';
         };
       }
     );
     apps = forAllSystems (system: {
-      default = {
-        type = "app";
-        program = "${vmRunner}/bin/run-icare-vm";
-        meta.description = "Lancer ICARE dans une VM QEMU, avec nono et Lemonade sur l’hôte";
-      };
-      host = {
-        type = "app";
-        program = "${self.packages.${system}.default}/bin/icare-host-runtime";
-        meta.description = "Ancien lancement direct du runtime ICARE sur l’hôte";
-      };
+      default = { type = "app"; program = "${vmLauncher}/bin/icare-vm"; meta.description = "Lancer ICARE dans une VM QEMU, avec réseau filtré par nono"; };
+      host = { type = "app"; program = "${self.packages.${system}.host}/bin/icare-host-runtime"; meta.description = "Ancien lancement direct sur l'hôte"; };
     });
   };
 }
