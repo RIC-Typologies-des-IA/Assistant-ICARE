@@ -36,10 +36,13 @@ Le choix dynamique s'appuie sur le catalogue Lemonade et le changement de modèl
 
 ## Outils ICARE fournis à Pi
 
-- `get_exploration_state` : consulter l'état des cinq dimensions.
+- `get_ontology` : consulter l'ontologie structurée complète, source de vérité des dimensions et des vocabulaires de classification.
+- `get_exploration_state` : consulter l'état des cinq dimensions dans l'ordre canonique I, C, A, R, E.
 - `search_reference_documents` : rechercher dans le corpus documentaire local.
 - `list_propositions` : consulter les propositions et leur statut.
 - `propose_observation` : enregistrer une observation comme candidate, jamais comme fait accepté.
+
+À chaque tour apportant une information nouvelle et substantielle, le prompt système demande explicitement à Pi de qualifier les éléments et d'appeler `propose_observation` sans attendre une demande d'enregistrement. Les propositions alimentent le panneau latéral et les compteurs de chaque dimension ; elles restent candidates jusqu'à validation humaine. Le modèle doit déclarer la capacité `tool-calling` dans le catalogue Lemonade pour garantir l'exécution de ces outils. L'interface signale clairement lorsqu'un modèle sélectionné ne déclare pas cette capacité.
 - `list_available_models` : consulter le catalogue des modèles de conversation Lemonade.
 
 Le contrôleur conserve le dernier mot : les propositions attendent une validation humaine ; les statuts d'exploration sont modifiés explicitement dans l'interface. Les statuts « suffisamment explorée » et « non applicable » exigent une justification.
