@@ -8,7 +8,7 @@ Depuis le dépôt, après installation de Nix :
 
     nix --extra-experimental-features "nix-command flakes" run .#default
 
-Le README racine donne une commande unique qui installe Nix si nécessaire et lance la VM depuis GitHub. Le port hôte `127.0.0.1:8765` est transféré vers le serveur web de la VM ; il n'est pas exposé sur le réseau local.
+Le README racine donne une commande unique qui installe Nix si nécessaire et lance la VM depuis GitHub. Le lanceur ouvre le navigateur hôte lorsque possible. En mode sans interface graphique, l'URL locale de secours est `http://127.0.0.1:8765` ; elle n'est pas exposée sur le réseau local.
 
 Le disque QCOW2 de la VM est créé dans le répertoire courant. Il contient les données persistantes ; ne le supprime pas si tu souhaites conserver les conversations et la mémoire.
 
