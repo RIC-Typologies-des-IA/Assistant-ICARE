@@ -11,7 +11,11 @@ on:
   pull_request:
     paths:
       - "pi-runtime/**"
+      - "prompt/**"
+      - "tools/**"
+      - "nixos/**"
       - "flake.nix"
+      - "README.md"
       - ".github/workflows/pi-runtime-tests.yml"
 
 jobs:
