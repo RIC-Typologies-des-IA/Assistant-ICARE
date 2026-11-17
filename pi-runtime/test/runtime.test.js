@@ -76,6 +76,8 @@ test("ICARE ontology defines dimensions in canonical I-C-A-R-E order", async () 
   assert.ok(ontology.evaluation.includes("preferred"));
   assert.ok(ontology.modality.includes("necessary"));
   assert.ok(ontology.epistemic.includes("reported"));
+  assert.ok(ontology.epistemic.includes("observed"));
+  assert.ok(ontology.proposition_model.optional.includes("predicate"));
   assert.ok(ontology.relations.includes("target_state_of"));
   assert.ok(ontology.proposition_model.required.includes("source"));
   assert.match(ontology.proposition_model.confidenceSemantics, /certitude de la source/);
