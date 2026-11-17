@@ -69,4 +69,16 @@ test("ICARE ontology defines dimensions in canonical I-C-A-R-E order", async () 
   assert.ok(ontology.temporal.includes("past"));
   assert.ok(ontology.epistemic.includes("hypothesis"));
   assert.ok(ontology.practical.includes("committed"));
+  assert.deepEqual(ontology.architecture.layers.map(layer => layer.id), [
+    "icare", "state_time", "evaluation_modality", "epistemic_provenance", "practical_status", "proposition_relations"
+  ]);
+  assert.ok(ontology.temporal_qualifiers.valid_time);
+  assert.ok(ontology.evaluation.includes("preferred"));
+  assert.ok(ontology.modality.includes("necessary"));
+  assert.ok(ontology.epistemic.includes("reported"));
+  assert.ok(ontology.relations.includes("target_state_of"));
+  assert.ok(ontology.proposition_model.required.includes("source"));
+  assert.match(ontology.proposition_model.confidenceSemantics, /certitude de la source/);
+  assert.ok(ontology.reference_frameworks.some(item => item.name === "PROV-O"));
+  assert.ok(ontology.reference_frameworks.some(item => item.name === "Allen interval algebra"));
 });
