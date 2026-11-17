@@ -8,7 +8,8 @@
       isLinux = system: nixpkgs.lib.hasSuffix "-linux" system;
       packages = forAllSystems (system:
         let
-          pkgs = import nixpkgs { inherit system; };
+          packageSet = if system == "x86_64-darwin" then nixpkgs-darwin-intel else nixpkgs;
+          pkgs = import packageSet { inherit system; };
           macLauncher = pkgs.writeShellApplication {
             name = "icare";
             runtimeInputs = [ pkgs.nodejs_24 pkgs.nono pkgs.coreutils pkgs.curl ];
