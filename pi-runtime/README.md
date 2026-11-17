@@ -69,3 +69,23 @@ Le workflow GitHub Actions vérifie les tests Node.js et construit la VM NixOS. 
 - Le bootstrap npm doit être remplacé par une installation reproductible verrouillée avant un usage de production.
 
 Cette version est une base expérimentale à éprouver, pas encore une version de production.
+
+## Ontologies complémentaires
+
+ICARE reste la couche descriptive du système et conserve exactement cinq dimensions dans l'ordre I, C, A, R, E. Les autres couches ne sont pas des dimensions supplémentaires : elles qualifient les propositions et les relations entre elles.
+
+Le référentiel `reference/icare.json` formalise désormais six couches :
+- **ICARE descriptive** : intention, contexte, action, régulation/organisation, évolution.
+- **États et temporalité** : temps d'énonciation, période de validité, période d'événement, horizon cible et temps de réalisation. Ces repères ne sont pas ramenés à une simple étiquette passé/présent/futur.
+- **Évaluation et modalités** : souhaité, non souhaité, redouté, préférable ou défavorable, distingués de possible, impossible, nécessaire, permis ou interdit.
+- **Épistémique et provenance** : affirmation, information rapportée, inférence, hypothèse ou prévision ; auteur, agent/source, interaction et justification lorsqu'ils sont connus.
+- **Statut pratique** : envisagé, proposé, décidé, engagé, en cours, réalisé ou abandonné.
+- **Relations et historique** : confirmation, précision, complément, nuance, contradiction, révision, succession temporelle, état antérieur/actuel/cible, contribution, empêchement ou condition.
+
+Les propositions peuvent conserver leurs périodes et qualifications sans écraser les versions antérieures. La confiance enregistrée correspond à la confiance du système dans l'extraction, et non à la certitude de la personne ou de la source. Les champs inconnus restent inconnus : le modèle ne doit pas inventer de dates, d'auteurs ou de preuves.
+
+Les relations sont proposées par l'outil `propose_relation` et restent candidates à validation humaine, comme les observations. Elles sont exposées dans `/api/state`. Les migrations SQLite ajoutent les champs complémentaires aux bases existantes sans supprimer les données précédentes.
+
+### Références conceptuelles
+
+Le modèle réutilise sélectivement des distinctions issues de DOLCE, BFO et UFO, de l'algèbre des intervalles de James Allen, de PROV-O et de la théorie des intentions et plans de Michael Bratman. Ces références sont des inspirations ; le runtime n'embarque pas intégralement ces ontologies et ne dépend pas d'une infrastructure RDF/OWL. Le format de référence reste un JSON léger et inspectable.
