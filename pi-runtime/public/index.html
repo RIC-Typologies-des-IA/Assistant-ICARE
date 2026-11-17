@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ICARE — Dialogue méthodologique</title>
+<style>
+:root{font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#202733;background:#f3f5f8;font-synthesis:none}
+*{box-sizing:border-box}body{margin:0}header{background:#172b4d;color:white;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;gap:16px}
+header h1{font-size:20px;margin:0}header p{font-size:12px;margin:4px 0 0;color:#c8d4e5}.badge{font-size:12px;background:#29476f;border-radius:20px;padding:7px 11px}
+main{max-width:1320px;margin:22px auto;padding:0 18px;display:grid;grid-template-columns:minmax(0,1.6fr) minmax(310px,1fr);gap:18px}
+.panel{background:white;border:1px solid #e1e6ed;border-radius:14px;box-shadow:0 2px 10px #1c2b3a0a;overflow:hidden}.panel h2{font-size:15px;margin:0;padding:15px 17px;border-bottom:1px solid #edf0f4}
+.chat{display:flex;flex-direction:column;min-height:72vh}.messages{padding:18px;display:flex;flex-direction:column;gap:13px;flex:1;overflow:auto;max-height:62vh}
+.msg{max-width:88%;padding:12px 14px;border-radius:13px;line-height:1.5;font-size:14px;white-space:pre-wrap}.user{align-self:flex-end;background:#e5efff}.assistant{align-self:flex-start;background:#f1f3f6}.composer{padding:14px;border-top:1px solid #edf0f4;display:flex;gap:9px}
+textarea,input,select{font:inherit;border:1px solid #d6dde7;border-radius:9px;padding:10px;background:#fff;color:#202733}textarea{resize:vertical;min-height:54px;flex:1}
+button{border:0;border-radius:9px;padding:10px 14px;background:#2458a6;color:white;font-weight:600;cursor:pointer}button:disabled{opacity:.5;cursor:wait}.secondary{background:#e8edf5;color:#25354c}.danger{background:#fae9e8;color:#8b2b27}
+.side{display:flex;flex-direction:column;gap:18px}.dimension{padding:12px 15px;border-bottom:1px solid #f0f2f5}.dimtop{display:flex;justify-content:space-between;align-items:center;gap:10px}.dimtop strong{font-size:14px}.dimtop small{color:#758195}.dimmeta{font-size:12px;color:#657287;margin:6px 0}.dimension select{padding:6px;font-size:12px;max-width:150px}.just{width:100%;font-size:12px;margin-top:7px}
+.proposition{padding:12px 15px;border-bottom:1px solid #f0f2f5}.proposition p{font-size:13px;line-height:1.45;margin:0 0 7px}.tags{font-size:11px;color:#657287}.actions{display:flex;gap:7px;margin-top:8px}.actions button{font-size:11px;padding:6px 9px}
+.docs{padding:14px}.docs input{width:100%;margin-bottom:7px}.docs textarea{width:100%;min-height:80px;margin-bottom:7px}.hint{font-size:12px;color:#718096;line-height:1.5;padding:0 15px 14px}
+#status{font-size:12px;color:#dbeafe}#error{color:#9b2828;font-size:13px;padding:0 16px}
+@media(max-width:850px){main{grid-template-columns:1fr}.chat{min-height:65vh}.messages{max-height:52vh}header{padding:15px}}
+</style>
+</head>
+<body>
+<header><div><h1>ICARE</h1><p>Dialogue maïeutique · représentation évolutive d'un système</p></div><div class="badge" id="status">Connexion à Pi / Lemonade…</div></header>
+<main>
+<section class="panel chat"><h2>Conversation</h2><div class="messages" id="messages"><div class="msg assistant">Bonjour. Quel système souhaites-tu explorer ? Nous allons construire sa représentation progressivement, sans dérouler un questionnaire rigide.</div></div><div id="error"></div><form class="composer" id="chatForm"><textarea id="message" placeholder="Décris une situation, une évolution, une difficulté…" required></textarea><button id="send">Envoyer</button></form></section>
+<aside class="side">
+<section class="panel"><h2>État d'exploration ICARE</h2><div id="dimensions"></div><p class="hint">Les statuts sont pilotés par l'humain. Une absence d'information ne signifie pas « non applicable ». Une dimension ne passe à « suffisamment explorée » qu'avec une justification.</p></section>
+<section class="panel"><h2>Propositions à valider</h2><div id="propositions"><p class="hint">Aucune proposition en attente.</p></div></section>
+<section class="panel"><h2>Mémoire documentaire</h2><div class="docs"><form id="docForm"><input id="docTitle" placeholder="Titre du document" required><textarea id="docContent" placeholder="Colle ici un extrait ou un document de référence…" required></textarea><button class="secondary" type="submit">Ajouter à la mémoire</button></form></div><p class="hint">Les documents enrichissent la référence méthodologique locale. Ils ne sont pas utilisés comme preuves sur le système étudié.</p></section>
+</aside>
+</main>
+<script>
+const $=s=>document.querySelector(s);
+const sessionKey="icare-pi-session";
+let sessionId=localStorage.getItem(sessionKey)||crypto.randomUUID();localStorage.setItem(sessionKey,sessionId);
+function addMessage(role,text){const el=document.createElement("div");el.className="msg "+role;el.textContent=text;$("#messages").append(el);$("#messages").scrollTop=$("#messages").scrollHeight;return el}
+async function refresh(){
+ const r=await fetch("/api/state");const data=await r.json();
+ $("#dimensions").innerHTML="";
+ for(const d of data.dimensions){
+  const row=document.createElement("div");row.className="dimension";
+  const label=document.createElement("div");label.className="dimtop";
+  const name=document.createElement("strong");name.textContent=d.code+" — "+d.label;
+  const sel=document.createElement("select");
+  for(const [v,t] of [["unexplored","Non explorée"],["insufficient","Insuffisamment documentée"],["sufficient","Suffisamment explorée"],["not_applicable","Non applicable"]]){const o=document.createElement("option");o.value=v;o.textContent=t;o.selected=d.status===v;sel.append(o)}
+  label.append(name,sel);row.append(label);
+  const meta=document.createElement("div");meta.className="dimmeta";meta.textContent=d.accepted+" validée(s) · "+d.candidates+" en attente";row.append(meta);
+  const just=document.createElement("input");just.className="just";just.placeholder="Justification (obligatoire pour les deux derniers statuts)";just.value=d.justification||"";row.append(just);
+  sel.addEventListener("change",async()=>{const rr=await fetch("/api/dimensions/"+d.code,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({status:sel.value,justification:just.value})});const x=await rr.json();if(!rr.ok){alert(x.error);sel.value=d.status}else refresh()});
+  $("#dimensions").append(row);
+ }
+ $("#propositions").innerHTML="";
+ const pending=data.propositions.filter(p=>p.review_status==="candidate");
+ if(!pending.length){$("#propositions").innerHTML='<p class="hint">Aucune proposition en attente.</p>';return}
+ for(const p of pending){
+  const row=document.createElement("div");row.className="proposition";
+  const text=document.createElement("p");text.textContent=p.text;row.append(text);
+  const tags=document.createElement("div");tags.className="tags";tags.textContent=p.dimensions.join(" + ")+" · "+p.temporal+" · "+p.epistemic+" · "+p.practical;row.append(tags);
+  const actions=document.createElement("div");actions.className="actions";
+  for(const [status,label,cls] of [["accepted","Valider",""],["rejected","Rejeter","danger"]]){
+   const b=document.createElement("button");b.textContent=label;if(cls)b.className=cls;
+   b.onclick=async()=>{await fetch("/api/propositions/"+p.id,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({review_status:status})});refresh()};actions.append(b)
+  }
+  row.append(actions);$("#propositions").append(row)
+ }
+}
+$("#chatForm").addEventListener("submit",async e=>{
+ e.preventDefault();const text=$("#message").value.trim();if(!text)return;
+ $("#message").value="";addMessage("user",text);const bubble=addMessage("assistant","");$("#send").disabled=true;$("#error").textContent="";
+ try{
+  const response=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sessionId,message:text})});
+  if(!response.ok){const x=await response.json();throw new Error(x.error||"Erreur serveur")}
+  const reader=response.body.getReader(),decoder=new TextDecoder();let buffer="";
+  while(true){const {value,done}=await reader.read();if(done)break;buffer+=decoder.decode(value,{stream:true});let cut;
+   while((cut=buffer.indexOf("\n\n"))>=0){const frame=buffer.slice(0,cut);buffer=buffer.slice(cut+2);const lines=frame.split("\n");const event=lines.find(l=>l.startsWith("event:"))?.slice(6).trim();const data=lines.find(l=>l.startsWith("data:"))?.slice(5).trim();if(!data)continue;const payload=JSON.parse(data);
+    if(event==="delta"){bubble.textContent+=payload.text;$("#messages").scrollTop=$("#messages").scrollHeight}
+    if(event==="error")throw new Error(payload.message);
+   }
+  }
+  await refresh();
+ }catch(err){$("#error").textContent=err.message||String(err);if(!bubble.textContent)bubble.textContent="Je n'ai pas pu produire de réponse."}
+ finally{$("#send").disabled=false;$("#message").focus()}
+});
+$("#docForm").addEventListener("submit",async e=>{e.preventDefault();const r=await fetch("/api/references",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({title:$("#docTitle").value,content:$("#docContent").value})});const x=await r.json();if(!r.ok){alert(x.error);return}$("#docTitle").value="";$("#docContent").value="";alert("Document ajouté à la mémoire ICARE.")});
+(async()=>{try{const s=await fetch("/api/status").then(r=>r.json());$("#status").textContent="Pi · "+s.model+" · Lemonade";await refresh()}catch(e){$("#status").textContent="Serveur indisponible"}})();
+</script>
+</body></html>
