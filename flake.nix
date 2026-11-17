@@ -13,18 +13,18 @@
             name = "icare";
             runtimeInputs = [ pkgs.nodejs_24 pkgs.coreutils ];
             text = ''
-              APP_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/icare-pi"
+              APP_DIR="''${XDG_DATA_HOME:-$HOME/.local/share}/icare-pi"
               mkdir -p "$APP_DIR"
               cp -R ${./pi-runtime}/. "$APP_DIR/"
               cd "$APP_DIR"
               if [ ! -d node_modules/@earendil-works/pi-coding-agent ]; then
                 npm install --ignore-scripts --no-audit --no-fund
               fi
-              export ICARE_DATA_DIR="${ICARE_DATA_DIR:-$APP_DIR/data}"
-              export PI_CODING_AGENT_DIR="${PI_CODING_AGENT_DIR:-$APP_DIR/pi-agent}"
-              export LEMONADE_BASE_URL="${LEMONADE_BASE_URL:-http://127.0.0.1:13305/v1}"
-              export ICARE_HOST="${ICARE_HOST:-127.0.0.1}"
-              export ICARE_PORT="${ICARE_PORT:-8765}"
+              export ICARE_DATA_DIR="''${ICARE_DATA_DIR:-$APP_DIR/data}"
+              export PI_CODING_AGENT_DIR="''${PI_CODING_AGENT_DIR:-$APP_DIR/pi-agent}"
+              export LEMONADE_BASE_URL="''${LEMONADE_BASE_URL:-http://127.0.0.1:13305/v1}"
+              export ICARE_HOST="''${ICARE_HOST:-127.0.0.1}"
+              export ICARE_PORT="''${ICARE_PORT:-8765}"
               exec node src/server.js
             '';
           };
