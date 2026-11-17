@@ -35,5 +35,5 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@main
-      - name: Evaluate and build the Nix application
-        run: nix build --no-link .#default
+      - name: Evaluate and build the QEMU VM image
+        run: nix build --no-link .#nixosConfigurations.icare-vm.config.system.build.vm
