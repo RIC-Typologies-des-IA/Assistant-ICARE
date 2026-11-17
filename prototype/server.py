@@ -11,6 +11,7 @@ DATA=ROOT/"data"; DOCS=DATA/"documents"; DB=DATA/"icare.sqlite3"; STATIC=ROOT/"s
 DOCS.mkdir(parents=True,exist_ok=True); STATIC.mkdir(parents=True,exist_ok=True)
 OLLAMA_URL=os.environ.get("ICARE_OLLAMA_URL","").rstrip("/")
 EMBED_MODEL=os.environ.get("ICARE_EMBED_MODEL","nomic-embed-text")
+CHAT_MODEL=os.environ.get("ICARE_CHAT_MODEL","")
 ONTOLOGY={"I":"Intention / finalité","C":"Contexte / situation","A":"Action / opération","R":"Régulation / organisation","E":"Évolution / temporalité"}
 KEYWORDS={
 "I":["objectif","but","finalité","intention","souhaite","souhaitons","voulons","veut","mission"],
@@ -58,6 +59,55 @@ def embed(text):
 def cosine(a,b):
  dot=sum(x*y for x,y in zip(a,b)); na=math.sqrt(sum(x*x for x in a)); nb=math.sqrt(sum(y*y for y in b))
  return dot/(na*nb) if na and nb else 0
+def retrieve_docs(query,limit=4):
+ c=db(); rows=list(c.execute("SELECT * FROM documents")); c.close()
+ qv=embed(query) if OLLAMA_URL else None; terms=set(re.findall(r"\\w+",query.lower())); hits=[]
+ for r in rows:
+  text=(r["title"]+" "+r["content"]+" "+(r["caption"] or "")).lower()
+  lexical=sum(1 for t in terms if t in text)/max(1,len(terms)); semantic=0
+  if qv and r["embedding"]:
+   try: semantic=cosine(qv,json.loads(r["embedding"]))
+   except Exception: pass
+  score=semantic if qv and r["embedding"] else lexical
+  if score>0: hits.append({"id":r["id"],"title":r["title"],"kind":r["kind"],"content":r["content"][:3500],"caption":r["caption"],"score":score})
+ hits.sort(key=lambda x:x["score"],reverse=True); return hits[:limit]
+
+def llm_extract(text,source,documents):
+ if not (OLLAMA_URL and CHAT_MODEL): return None
+ system=("Tu es le moteur d'analyse du prototype ICARE. Tu extrais des propositions, sans inventer. "
+ "ICARE: I=Intention/finalité, C=Contexte/situation, A=Action/opération, "
+ "R=Régulation/organisation (dimension unique), E=Évolution/temporalité. "
+ "Une proposition peut avoir plusieurs dimensions. Distingue temporalité (past,present,future,unknown), "
+ "évaluation (desired,undesired,feared,neutral,unknown), statut pratique "
+ "(proposed,considered,decided,committed,in_progress,completed,abandoned,unspecified) "
+ "et statut épistémique (asserted,reported,inferred,hypothesis,predicted,unknown). "
+ "Ne confonds jamais souhaité, décidé et réalisé. Ne transforme pas une évolution en contradiction. "
+ "Les documents fournis sont des références méthodologiques, pas des faits sur le cas analysé. "
+ "Retourne uniquement un JSON: {proposals:[{text,dimensions,primary_dimension,temporal,evaluation,practical,epistemic,confidence,aspect}]}."
+ )
+ user={"contribution":text,"source":source,"documents_de_reference":documents,
+       "rappel":"Ne complète pas les informations absentes. Si incertain, utilise unknown/unspecified. confidence entre 0 et 1."}
+ payload=json.dumps({"model":CHAT_MODEL,"stream":False,"format":"json","messages":[{"role":"system","content":system},{"role":"user","content":json.dumps(user,ensure_ascii=False)}]}).encode()
+ req=urllib.request.Request(OLLAMA_URL+"/api/chat",data=payload,headers={"Content-Type":"application/json"})
+ try:
+  with urllib.request.urlopen(req,timeout=90) as res: data=json.loads(res.read().decode())
+  result=json.loads(data.get("message",{}).get("content","{}")); raw=result.get("proposals",[])
+  clean=[]
+  for x in raw:
+   dims=[d for d in x.get("dimensions",[]) if d in ONTOLOGY]
+   if not dims: dims=["E"]
+   clean.append({"id":str(uuid.uuid4())[:8],"text":str(x.get("text","")).strip() or text,
+    "dimensions":dims,"primary_dimension":x.get("primary_dimension") if x.get("primary_dimension") in dims else dims[0],
+    "temporal":x.get("temporal","unknown") if x.get("temporal") in ["past","present","future","unknown"] else "unknown",
+    "evaluation":x.get("evaluation","unknown") if x.get("evaluation") in ["desired","undesired","feared","neutral","unknown"] else "unknown",
+    "practical":x.get("practical","unspecified") if x.get("practical") in ["proposed","considered","decided","committed","in_progress","completed","abandoned","unspecified"] else "unspecified",
+    "epistemic":x.get("epistemic","unknown") if x.get("epistemic") in ["asserted","reported","inferred","hypothesis","predicted","unknown"] else "unknown",
+    "confidence":max(0,min(1,float(x.get("confidence",0.5)))),"source":source,"created_at":now(),
+    "aspect":str(x.get("aspect",""))[:120],"relations":[]})
+  return clean or None
+ except Exception as e:
+  print("[ICARE] Local LLM unavailable, using heuristic extraction:",e); return None
+
 def prop(r):
  d=dict(r); d["dimensions"]=json.loads(d["dimensions"]); d["relations"]=json.loads(d["relations"]); return d
 
@@ -100,13 +150,17 @@ class Handler(SimpleHTTPRequestHandler):
   if path=="/api/analyze":
    text=data.get("text","").strip()
    if not text: return self.send_json({"error":"Saisis un discours à analyser."},400)
-   ps=extract(text,data.get("source","human")); c=db()
+   source=data.get("source","human"); docs=retrieve_docs(text)
+   ps=llm_extract(text,source,docs) if CHAT_MODEL else None
+   mode="ollama-local-llm" if ps else "heuristic-fallback"
+   if not ps: ps=extract(text,source)
+   c=db()
    for x in ps:
     c.execute("INSERT INTO propositions VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",(x["id"],x["text"],json.dumps(x["dimensions"]),x["primary_dimension"],x["temporal"],x["evaluation"],x["practical"],x["epistemic"],x["confidence"],x["source"],x["created_at"],x["aspect"],json.dumps(x["relations"])))
    c.commit()
    old=[prop(r) for r in c.execute("SELECT * FROM propositions WHERE id NOT IN ("+",".join("?"*len(ps))+")",[x["id"] for x in ps])]
    for x in ps: x["suggested_relations"]=[{"id":o["id"],"text":o["text"],"relation":"same_dimension_candidate"} for o in old if set(o["dimensions"])&set(x["dimensions"])][:3]
-   c.close(); return self.send_json({"proposals":ps,"note":"Extraction heuristique : vérifie les qualifications avant de les interpréter comme acquises."})
+   c.close(); return self.send_json({"proposals":ps,"mode":mode,"documents_used":[{"id":d["id"],"title":d["title"]} for d in docs],"note":"Vérifie les qualifications proposées avant de les interpréter comme acquises." if mode=="heuristic-fallback" else "Analyse par modèle local ; les documents de référence pertinents ont été fournis au modèle."})
   if path=="/api/relation":
    c=db(); sid=data.get("source_id"); tid=data.get("target_id"); row=c.execute("SELECT relations FROM propositions WHERE id=?",(sid,)).fetchone()
    if not row or not c.execute("SELECT id FROM propositions WHERE id=?",(tid,)).fetchone(): c.close(); return self.send_json({"error":"Proposition introuvable."},404)
@@ -135,4 +189,5 @@ if __name__=="__main__":
  host=os.environ.get("ICARE_HOST","127.0.0.1"); port=int(os.environ.get("ICARE_PORT","8765"))
  print("ICARE prototype: http://%s:%s"%(host,port))
  print("Embeddings: Ollama local" if OLLAMA_URL else "Embeddings: recherche lexicale (Ollama optionnel)")
+ print("LLM: "+CHAT_MODEL if CHAT_MODEL else "LLM: extraction heuristique (configurer ICARE_CHAT_MODEL pour Ollama)")
  ThreadingHTTPServer((host,port),Handler).serve_forever()
