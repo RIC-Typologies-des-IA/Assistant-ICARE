@@ -14,7 +14,7 @@ outputs = { self, nixpkgs }:
     hostPkgs = import nixpkgs { system = vmSystem; };
     vmLauncher = hostPkgs.writeShellApplication {
       name = "icare-vm";
-      runtimeInputs = [ hostPkgs.nodejs_24 hostPkgs.nono hostPkgs.coreutils hostPkgs.netcat-openbsd ];
+      runtimeInputs = [ hostPkgs.nodejs_24 hostPkgs.nono hostPkgs.coreutils hostPkgs.netcat-openbsd hostPkgs.curl hostPkgs.xdg-utils ];
       text = ''
         APP_DIR="''${XDG_DATA_HOME:-$HOME/.local/share}/icare-vm/runtime"
         mkdir -p "$APP_DIR"
@@ -40,6 +40,18 @@ outputs = { self, nixpkgs }:
         if [ "$READY" -ne 1 ]; then
           echo "Le proxy nono n'a pas démarré sur 127.0.0.1:43128." >&2
           exit 1
+        fi
+        echo "Interface ICARE : http://127.0.0.1:8765"
+        if [ -n "$DISPLAY$WAYLAND_DISPLAY" ] && command -v xdg-open >/dev/null 2>&1; then
+          (for _ in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:8765/api/status >/dev/null 2>&1; then
+              xdg-open http://127.0.0.1:8765 >/dev/null 2>&1 || true
+              exit 0
+            fi
+            sleep 1
+          done) &
+          BROWSER_PID=$!
+          trap 'kill "$BROWSER_PID" "$PROXY_PID" 2>/dev/null || true' EXIT INT TERM
         fi
         "${vmRunner}/bin/run-icare-vm"
       '';
