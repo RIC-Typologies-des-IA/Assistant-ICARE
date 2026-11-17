@@ -25,12 +25,10 @@ test("Pi SDK loads a custom Lemonade OpenAI-compatible model", async () => {
           name: "Lemonade local",
           baseUrl: "http://127.0.0.1:13305/v1",
           api: "openai-completions",
-          models: [{
-            id: "test-chat-model", name: "Test chat model",
-            input: ["text"], reasoning: false,
-            cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-            contextWindow: 8192, maxTokens: 1024
-          }]
+          models: [
+            { id: "test-chat-model", name: "Test chat model", input: ["text"], reasoning: false, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 8192, maxTokens: 1024 },
+            { id: "test-chat-model-2", name: "Second test model", input: ["text"], reasoning: true, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 16384, maxTokens: 2048 }
+          ]
         }
       }
     }));
@@ -40,6 +38,16 @@ test("Pi SDK loads a custom Lemonade OpenAI-compatible model", async () => {
     assert.ok(model);
     assert.equal(model.provider, "lemonade");
     assert.equal(model.id, "test-chat-model");
+    const { createAgentSession, SessionManager } = await import("@earendil-works/pi-coding-agent");
+    const { session } = await createAgentSession({ model, modelRuntime: runtime, sessionManager: SessionManager.inMemory(), noTools: "builtin" });
+    try {
+      const second = runtime.getModel("lemonade", "test-chat-model-2");
+      assert.ok(second);
+      await session.setModel(second);
+      assert.equal(session.model.id, "test-chat-model-2");
+    } finally {
+      session.dispose();
+    }
   } finally {
     if (previous === undefined) delete process.env.PI_CODING_AGENT_DIR;
     else process.env.PI_CODING_AGENT_DIR = previous;
