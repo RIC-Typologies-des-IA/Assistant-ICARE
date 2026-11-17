@@ -258,7 +258,7 @@ async function initializePi() {
     pi.registerTool({
       name: "get_ontology",
       label: "Ontologie ICARE",
-      description: "Renvoie l'ontologie structurée complète utilisée par ICARE : dimensions dans l'ordre I,C,A,R,E, statuts d'exploration, temporalité, évaluation, statut épistémique, statut pratique et relations.",
+      description: "Renvoie l'ontologie structurée complète : dimensions ICARE et couches complémentaires des états/temps, de l'évaluation/modalité, de l'épistémique/provenance, des statuts pratiques et des relations historiques.",
       parameters: Type.Object({}),
       execute: async () => ({ content: [{ type: "text", text: JSON.stringify(ONTOLOGY, null, 2) }], details: {} })
     });
