@@ -1,48 +1,37 @@
 #!/usr/bin/env bash
 set -euo pipefail
-
 REPO="github:RIC-Typologies-des-IA/Assistant-ICARE"
 NIX_DAEMON_PROFILE="/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh"
 NIX_USER_PROFILE="$HOME/.nix-profile/etc/profile.d/nix.sh"
+die() { echo "ICARE : $*" >&2; exit 1; }
 
-if [[ "$(uname -s)" != "Linux" ]]; then
-  echo "ICARE VM : cette version du lanceur cible Linux." >&2
-  exit 1
-fi
-if [[ "$(uname -m)" != "x86_64" ]]; then
-  echo "ICARE VM : la VM QEMU fournie cible actuellement x86_64." >&2
-  exit 1
-fi
+OS="$(uname -s)"
+ARCH="$(uname -m)"
+case "$OS" in
+  Linux) case "$ARCH" in x86_64|aarch64) ;; *) die "architecture Linux non prise en charge : $ARCH (x86_64 ou aarch64 requis)." ;; esac ;;
+  Darwin) case "$ARCH" in x86_64|arm64) ;; *) die "architecture macOS non prise en charge : $ARCH." ;; esac ;;
+  *) die "système non pris en charge : $OS. ICARE cible Linux et macOS." ;;
+esac
 
 load_nix_profile() {
-  if [[ -r "$NIX_DAEMON_PROFILE" ]]; then
-    # shellcheck disable=SC1090
-    . "$NIX_DAEMON_PROFILE"
-  fi
-  if [[ -r "$NIX_USER_PROFILE" ]]; then
-    # shellcheck disable=SC1090
-    . "$NIX_USER_PROFILE"
+  if [[ -r "$NIX_DAEMON_PROFILE" ]]; then . "$NIX_DAEMON_PROFILE"; fi
+  if [[ -r "$NIX_USER_PROFILE" ]]; then . "$NIX_USER_PROFILE"; fi
+  if [[ -d /nix/var/nix/profiles/default/bin ]]; then
+    PATH="/nix/var/nix/profiles/default/bin:$PATH"
+    export PATH
   fi
 }
-
 load_nix_profile
 if ! command -v nix >/dev/null 2>&1; then
-  if ! command -v curl >/dev/null 2>&1; then
-    echo "curl est requis pour installer Nix." >&2
-    exit 1
-  fi
-  echo "Nix n'est pas installé : lancement de l'installateur officiel."
+  command -v curl >/dev/null 2>&1 || die "curl est requis pour installer Nix."
+  echo "Nix n'est pas installé : installation officielle pour $OS/$ARCH."
   curl --proto "=https" --tlsv1.2 -fsSL https://install.determinate.systems/nix | sh -s -- install --no-confirm
   load_nix_profile
 fi
-
-if ! command -v nix >/dev/null 2>&1; then
-  echo "Nix est installé mais n'est pas disponible dans ce shell. Ouvre un nouveau terminal puis relance cette commande." >&2
-  exit 1
+command -v nix >/dev/null 2>&1 || die "Nix n'est pas disponible après l'installation. Ferme puis rouvre le terminal et relance cette commande."
+if [[ "$OS" == "Darwin" ]]; then
+  echo "Lancement d'ICARE sur macOS (sandbox nono/Seatbelt)."
+else
+  echo "Lancement d'ICARE dans une VM NixOS/QEMU (sandbox nono/Landlock)."
 fi
-
-echo "Lancement d'ICARE dans QEMU ; Lemonade doit déjà fonctionner sur l'hôte."
-# Les fonctionnalités expérimentales sont activées uniquement pour cette
-# invocation : aucune modification de la configuration Nix de l'utilisateur.
-# --refresh force la récupération de la dernière version de la branche distante.
-exec nix --extra-experimental-features "nix-command flakes" run --refresh "${REPO}#default"
+exec nix --extra-experimental-features "nix-command flakes" run "$REPO#default"
