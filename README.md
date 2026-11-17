@@ -69,34 +69,46 @@ La micro-synthèse aide à maintenir une continuité explicite ; elle ne garanti
 
 Dans ce mode, le prompt doit rester autonome : ne supposez pas que le modèle peut accéder au dépôt ou au référentiel, sauf si vous lui fournissez effectivement le document.
 
-## Application expérimentale avec Pi et Lemonade
+## Application expérimentale avec Pi, Lemonade, QEMU et nono
 
-Une première application conversationnelle fondée sur le SDK de **Pi (P-I)** est en cours d'implémentation dans `pi-runtime/`. Contrairement aux prompts seuls, cette version associe un moteur agentique, des outils ICARE contrôlés par le serveur, une mémoire documentaire et un registre de propositions persisté en SQLite.
+Une application conversationnelle fondée sur le SDK de **Pi (P-I)** est lancée par défaut dans une VM Linux **QEMU**. Le processus ICARE est sandboxé par **nono** à l'intérieur de la VM. Lemonade reste sur la machine hôte afin de conserver l'accès au NPU.
 
-### Installation et lancement sous Linux avec une seule commande
+### Installation et lancement sous Linux
 
-La commande ci-dessous installe Nix si nécessaire, puis construit et lance ICARE. Elle suppose que **Lemonade Server est déjà démarré** sur le port local standard.
+Une seule commande installe Nix si nécessaire, construit la VM NixOS et la démarre :
 
 ```bash
-bash -c '[ -r /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh ] && . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh; [ -r "$HOME/.nix-profile/etc/profile.d/nix.sh" ] && . "$HOME/.nix-profile/etc/profile.d/nix.sh"; if ! command -v nix >/dev/null 2>&1; then curl --proto '=https' --tlsv1.2 -fsSL https://install.determinate.systems/nix | sh -s -- install --no-confirm; [ -r /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh ] && . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh; [ -r "$HOME/.nix-profile/etc/profile.d/nix.sh" ] && . "$HOME/.nix-profile/etc/profile.d/nix.sh"; fi; nix --extra-experimental-features "nix-command flakes" run "github:RIC-Typologies-des-IA/Assistant-ICARE?ref=implementation/pi-runtime"'
+bash -c '[ -r /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh ] && . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh; [ -r "$HOME/.nix-profile/etc/profile.d/nix.sh" ] && . "$HOME/.nix-profile/etc/profile.d/nix.sh"; if ! command -v nix >/dev/null 2>&1; then curl --proto "=https" --tlsv1.2 -fsSL https://install.determinate.systems/nix | sh -s -- install --no-confirm; [ -r /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh ] && . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh; [ -r "$HOME/.nix-profile/etc/profile.d/nix.sh" ] && . "$HOME/.nix-profile/etc/profile.d/nix.sh"; fi; nix --extra-experimental-features "nix-command flakes" run "github:RIC-Typologies-des-IA/Assistant-ICARE?ref=implementation/pi-runtime#default"'
 ```
 
-Une fois le serveur démarré, ouvrir **http://127.0.0.1:8765** dans le navigateur. Pi se connecte à Lemonade via son API compatible OpenAI (`http://127.0.0.1:13305/v1` par défaut) et sélectionne automatiquement le premier modèle de chat disponible. Pour imposer un modèle, définir `ICARE_MODEL` avant le lancement. Si Lemonade utilise une autre adresse, définir `LEMONADE_BASE_URL`.
+Le navigateur hôte accède à l'interface via le port QEMU transféré, lié au loopback de l'hôte : `http://127.0.0.1:8765`. Ce n'est pas une adresse à configurer dans Lemonade ni une exposition sur le réseau local. Le disque QCOW2 de la VM est créé dans le répertoire de lancement ; le conserver pour garder les données entre deux démarrages.
 
-Nix fournit Node.js et les dépendances de l'application ; le premier démarrage télécharge le SDK Pi depuis npm. L'installation de Nix peut demander une autorisation administrateur. Les données ICARE sont conservées dans `~/.local/share/icare-pi/data`.
+### Répartition des composants
 
-### Architecture et limites de cette première version
+- **Hôte Linux** : exécute Lemonade Server et conserve l'accès au NPU. Il n'est pas nécessaire de l'installer dans la VM.
+- **QEMU / NixOS** : fournit un environnement Linux dédié à ICARE. Le transfert QEMU vers `127.0.0.1:13305` permet à la VM d'atteindre le Lemonade de l'hôte sans demander à Lemonade d'écouter sur toutes les interfaces.
+- **nono** : sandboxe le processus ICARE avec une politique réseau par défaut restrictive. Le processus est autorisé à joindre l'API Lemonade via le transfert QEMU, ainsi que les points d'accès Discord prévus pour l'adaptateur. Le serveur web ne peut écouter que sur le port 8765.
+- **Pi (P-I)** : tourne dans le backend Node.js de la VM. Aucun shell, navigateur, outil de fichiers arbitraires, MCP ou recherche Web n'est exposé au modèle.
+- **Interface web** : le navigateur reste sur l'hôte ; seul le port local de l'interface est transféré vers la VM.
 
-- Le SDK Pi est intégré **dans le backend** ; le navigateur ne communique qu'avec le serveur ICARE.
-- Lemonade fournit le modèle local. Aucun accès Ollama n'est requis.
-- Le modèle ne reçoit que des outils ICARE explicitement enregistrés : consulter l'état d'exploration, rechercher dans les références locales, consulter les propositions et proposer une observation.
-- Les outils shell, fichiers arbitraires, navigateur et recherche Web de Pi sont désactivés.
-- Les observations produites par l'agent restent des **propositions candidates** jusqu'à validation humaine.
-- Les statuts « suffisamment explorée » et « non applicable » exigent une justification et sont pilotés par l'humain.
-- Le dialogue est conservé dans la session Pi pendant l'exécution ; les propositions, statuts et documents sont persistés dans SQLite. La restauration automatique du fil conversationnel après redémarrage reste à finaliser.
-- La mémoire documentaire initiale est textuelle ; l'ajout d'images, la recherche vectorielle, le multi-utilisateur et l'intégration Discord ne sont pas encore inclus.
+La politique nono concerne le processus ICARE sandboxé. Le réseau de la VM est utilisé par les services système et par l'installation initiale des dépendances npm ; cette phase d'amorçage précède le lancement du processus sandboxé. En production, il faudra également figer les dépendances npm avec un lockfile et vérifier les règles réseau sur la machine cible.
 
-Cette application est expérimentale et ne remplace pas les prompts et le référentiel présentés plus haut. Voir [pi-runtime/README.md](pi-runtime/README.md) pour les détails techniques.
+### Dialogue Pi ↔ Lemonade et choix du modèle
+
+ICARE ne fige plus un identifiant de modèle dans la configuration. Au démarrage, Pi récupère le catalogue `GET /v1/models?show_all=true` de Lemonade et enregistre dans son runtime les modèles de conversation annoncés. Le tableau de bord permet d'actualiser ce catalogue et de changer de modèle sans redémarrer le service ; Pi peut également consulter le catalogue avec son outil ICARE dédié.
+
+Les modèles portant le label `tool-calling` sont à privilégier, car les outils ICARE sont nécessaires à la consultation de l'état et à l'enregistrement des propositions. Le choix reste explicite : Pi peut examiner le catalogue et conseiller un modèle, mais ne bascule pas silencieusement sur un autre modèle.
+
+### Données et limites
+
+- Les données ICARE, la mémoire documentaire et les sessions Pi sont persistées dans le disque de la VM.
+- Les observations de l'agent restent des propositions candidates jusqu'à validation humaine.
+- Les statuts « suffisamment explorée » et « non applicable » exigent une justification.
+- La mémoire documentaire initiale est textuelle ; la recherche vectorielle, l'analyse visuelle, le multi-utilisateur et l'adaptateur Discord restent à développer.
+- Le catalogue Lemonade et le changement de modèle sont intégrés, mais un test d'inférence réelle avec les modèles installés sur la machine cible reste nécessaire.
+- L'application reste expérimentale et n'est pas encore une version de production.
+
+Voir [pi-runtime/README.md](pi-runtime/README.md) et [nixos/icare-vm.nix](nixos/icare-vm.nix) pour les détails techniques.
 
 ## Principes communs aux trois versions
 
