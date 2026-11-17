@@ -21,13 +21,13 @@
     ];
     # Code + node_modules installés sur l'hôte, montés en lecture seule dans la VM.
     sharedDirectories.icare-runtime = {
-      source = ''"''${ICARE_RUNTIME_DIR:-$HOME/.local/share/icare-vm/runtime}"'';
+      source = ''"${ICARE_RUNTIME_DIR:-$HOME/.local/share/icare-vm/runtime}"'';
       target = "/opt/icare-runtime";
       writable = false;
     };
     # Journaux du service accessibles sur l'hôte, sans connexion à la console VM.
     sharedDirectories.icare-logs = {
-      source = ''"''${ICARE_LOG_DIR:-$HOME/.local/share/icare-vm/logs}"'';
+      source = ''"${ICARE_LOG_DIR:-$HOME/.local/share/icare-vm/logs}"'';
       target = "/var/log/icare-export";
       writable = true;
     };
@@ -40,6 +40,13 @@
     createHome = true;
   };
   users.groups.icare = { };
+
+  # Précrée le répertoire autorisé par nono avant le lancement du service.
+  # nono ignore --allow si le chemin n'existe pas encore.
+  systemd.tmpfiles.rules = [
+    "d /var/lib/icare 0700 icare icare -"
+    "d /var/lib/icare/data 0700 icare icare -"
+  ];
 
   environment.systemPackages = [ pkgs.nodejs_24 pkgs.nono pkgs.cacert ];
 
