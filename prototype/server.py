@@ -156,6 +156,7 @@ class Handler(SimpleHTTPRequestHandler):
    return self.send_json({"query":q,"results":hits[:8],"mode":"ollama-vector" if qv else "lexical-fallback"})
   if p.path.startswith("/files/"):
    name=Path(p.path.removeprefix("/files/")).name; f=DOCS/name
+   if not f.exists(): f=ROOT/"reference"/name
    if f.exists():
     b=f.read_bytes(); self.send_response(200); self.send_header("Content-Type",mimetypes.guess_type(str(f))[0] or "application/octet-stream"); self.send_header("Content-Length",str(len(b))); self.end_headers(); self.wfile.write(b); return
   return super().do_GET()
