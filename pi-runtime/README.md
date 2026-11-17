@@ -14,10 +14,10 @@ Le disque QCOW2 de la VM est créé dans le répertoire courant. Il contient les
 
 ## Réseau et confinement
 
-- Lemonade reste sur l'hôte, par exemple sur `127.0.0.1:13305`. QEMU crée un transfert ciblé du port invité `10.0.2.100:13305` vers ce service hôte. Lemonade n'a donc pas besoin d'écouter sur `0.0.0.0`.
+- Lemonade reste sur l'hôte, par exemple sur `127.0.0.1:13305`. Le proxy nono de l'hôte y accède directement ; Lemonade n'a donc pas besoin d'écouter sur `0.0.0.0`.
 - QEMU transfère le port de l'interface web de l'hôte vers la VM, en liant le port hôte à `127.0.0.1`.
-- Le service ICARE est lancé par `nono run` dans la VM. Le mode proxy de nono filtre les sorties du processus : seule l'API Lemonade et les domaines Discord explicitement autorisés sont accessibles.
-- Le port d'écoute 8765 est explicitement accordé à nono pour le serveur web. Le serveur écoute sur l'interface réseau de la VM, mais QEMU n'expose le port correspondant que sur le loopback de l'hôte.
+- Le service ICARE est lancé par `nono run --block-net` dans la VM. Deux ports sont explicitement autorisés : le port du proxy QEMU vers l'hôte et le port d'écoute web. Le réseau QEMU est lui-même restreint : la VM ne peut pas établir d'autre connexion.
+- Le proxy nono de l'hôte écoute sur `127.0.0.1:43128` et autorise seulement `http://127.0.0.1:13305/v1/**`, `discord.com` et `gateway.discord.gg`. QEMU transfère le port proxy vers l'invité et expose le port web 8765 uniquement sur le loopback hôte.
 - Aucun outil shell, navigateur, accès arbitraire aux fichiers, MCP ou recherche Web n'est fourni au modèle.
 
 Le réseau NAT de la VM reste disponible au système invité pour le fonctionnement du proxy nono et l'installation initiale des dépendances npm. L'application ICARE elle-même tourne dans le sandbox nono. Le provisionnement npm est une étape de bootstrap exécutée avant le lancement sandboxé ; il devra être rendu reproductible avec un lockfile avant une diffusion de production.
