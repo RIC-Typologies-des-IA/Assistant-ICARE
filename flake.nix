@@ -1,7 +1,9 @@
 {
   description = "ICARE — runtime Pi, Lemonade et sandbox nono (Linux VM / macOS natif)";
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-  outputs = { self, nixpkgs }:
+  # Nixpkgs 26.11+ a supprimé x86_64-darwin ; conserver la dernière branche compatible.
+  inputs.nixpkgs-darwin-intel.url = "github:NixOS/nixpkgs/nixpkgs-26.05-darwin";
+  outputs = { self, nixpkgs, nixpkgs-darwin-intel }:
     let
       systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
