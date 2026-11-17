@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="650" viewBox="0 0 1100 650">
+<title>Les couches de représentation ICARE</title>
+<desc>Schéma de référence : ICARE décrit les cinq dimensions du système. Les couches complémentaires qualifient temporalité et états, positions évaluatives et modalités, provenance et connaissance. Un registre de propositions conserve les informations et leurs relations, tandis qu'une synthèse révisable est reconstruite pour guider le dialogue.</desc>
+<rect width="1100" height="650" rx="24" fill="#f5f7fa"/>
+<text x="550" y="54" text-anchor="middle" font-family="Arial" font-size="30" font-weight="bold" fill="#1f2937">Représenter un système avec ICARE</text>
+<rect x="70" y="100" width="960" height="125" rx="18" fill="#dbeafe" stroke="#3b82f6" stroke-width="2"/>
+<text x="550" y="137" text-anchor="middle" font-family="Arial" font-size="22" font-weight="bold" fill="#1e3a8a">Ontologie descriptive ICARE</text>
+<g font-family="Arial" font-size="19" text-anchor="middle" fill="#1e3a8a">
+<rect x="105" y="157" width="165" height="48" rx="9" fill="#fff"/><text x="187" y="187">I · Intention</text>
+<rect x="294" y="157" width="165" height="48" rx="9" fill="#fff"/><text x="376" y="187">C · Contexte</text>
+<rect x="483" y="157" width="165" height="48" rx="9" fill="#fff"/><text x="565" y="187">A · Action</text>
+<rect x="672" y="157" width="165" height="48" rx="9" fill="#fff"/><text x="754" y="187">R · Organisation</text>
+<rect x="861" y="157" width="135" height="48" rx="9" fill="#fff"/><text x="928" y="187">E · Évolution</text>
+</g>
+<g font-family="Arial" text-anchor="middle">
+<rect x="70" y="255" width="300" height="115" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+<text x="220" y="291" font-size="20" font-weight="bold" fill="#14532d">États & temporalité</text><text x="220" y="326" font-size="16" fill="#14532d">Passé · présent · futur</text><text x="220" y="350" font-size="16" fill="#14532d">État actuel · état cible</text>
+<rect x="400" y="255" width="300" height="115" rx="16" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+<text x="550" y="291" font-size="20" font-weight="bold" fill="#78350f">Positions & modalités</text><text x="550" y="326" font-size="16" fill="#78350f">Souhaité · rejeté · possible</text><text x="550" y="350" font-size="16" fill="#78350f">Proposé · décidé · réalisé</text>
+<rect x="730" y="255" width="300" height="115" rx="16" fill="#f3e8ff" stroke="#9333ea" stroke-width="2"/>
+<text x="880" y="291" font-size="20" font-weight="bold" fill="#581c87">Connaissance & provenance</text><text x="880" y="326" font-size="16" fill="#581c87">Source · auteur · certitude</text><text x="880" y="350" font-size="16" fill="#581c87">Interaction · justification</text>
+</g>
+<path d="M550 225 V245 M220 370 V405 H550 V425 M550 370 V425 M880 370 V405 H550" stroke="#64748b" stroke-width="3" fill="none"/>
+<rect x="170" y="425" width="760" height="80" rx="16" fill="#e5e7eb" stroke="#64748b" stroke-width="2"/>
+<text x="550" y="458" text-anchor="middle" font-family="Arial" font-size="21" font-weight="bold" fill="#1f2937">Registre historique des propositions & relations</text>
+<text x="550" y="484" text-anchor="middle" font-family="Arial" font-size="16" fill="#374151">Ajouter · relier · préciser · réviser · conserver les divergences</text>
+<path d="M550 505 V535" stroke="#64748b" stroke-width="3"/>
+<rect x="250" y="535" width="600" height="75" rx="16" fill="#e0e7ff" stroke="#4f46e5" stroke-width="2"/>
+<text x="550" y="567" text-anchor="middle" font-family="Arial" font-size="21" font-weight="bold" fill="#312e81">Synthèse révisable & question maïeutique suivante</text>
+<text x="550" y="591" text-anchor="middle" font-family="Arial" font-size="15" fill="#3730a3">La synthèse est reconstruite ; l'historique reste la référence</text>
+</svg>
