@@ -2,7 +2,7 @@ description = "ICARE — Pi, Lemonade, VM QEMU et confinement nono";
 inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 outputs = { self, nixpkgs }:
   let
-    systems = [ "x86_64-linux" "aarch64-linux" ];
+    systems = [ "x86_64-linux" ];
     forAllSystems = nixpkgs.lib.genAttrs systems;
     vmSystem = "x86_64-linux";
     vm = nixpkgs.lib.nixosSystem {
