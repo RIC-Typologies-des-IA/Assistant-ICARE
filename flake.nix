@@ -34,7 +34,7 @@ outputs = { self, nixpkgs }:
         trap cleanup EXIT INT TERM
         READY=0
         for _ in $(seq 1 30); do
-          if nc -z 127.0.0.1 43128; then READY=1; break; fi
+          if kill -0 "$PROXY_PID" 2>/dev/null && nc -z 127.0.0.1 43128; then READY=1; break; fi
           sleep 1
         done
         if [ "$READY" -ne 1 ]; then
