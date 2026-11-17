@@ -167,7 +167,7 @@ async function refreshModelCatalog() {
   const response = await fetch(BASE_URL + "/models?show_all=true", { headers: API_KEY ? { Authorization: "Bearer " + API_KEY } : {} });
   if (!response.ok) throw new Error("Impossible de lire le catalogue Lemonade (HTTP " + response.status + ").");
   const payload = await response.json();
-  const models = (payload.data || []).filter(m => m.labels?.includes("chat") || !m.labels?.length);
+  const models = (payload.data || []).filter(m => m.labels?.includes("chat"));
   if (!models.length) throw new Error("Le catalogue Lemonade ne contient aucun modèle de conversation.");
   const modelConfigs = models.map(m => ({ id: m.id, name: m.name || m.id, api: "openai-completions", reasoning: Boolean(m.labels?.includes("reasoning")), input: ["text"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: Number(m.context_length || m.max_context_window || 32768), maxTokens: Number(m.max_output_tokens || m.max_completion_tokens || 4096) }));
   const provider = { name: "Lemonade local", baseUrl: BASE_URL, api: "openai-completions", models: modelConfigs };
