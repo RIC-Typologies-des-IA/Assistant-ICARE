@@ -95,7 +95,7 @@ La politique réseau est appliquée à deux niveaux : QEMU interdit les sorties 
 
 ### Dialogue Pi ↔ Lemonade et choix du modèle
 
-ICARE ne fige plus un identifiant de modèle dans la configuration. Au démarrage, Pi récupère le catalogue `GET /v1/models?show_all=true` de Lemonade et enregistre dans son runtime les modèles de conversation annoncés. Le tableau de bord permet d'actualiser ce catalogue et de changer de modèle sans redémarrer le service ; Pi peut également consulter le catalogue avec son outil ICARE dédié.
+ICARE ne fige plus un identifiant de modèle dans la configuration. Au démarrage, Pi récupère le catalogue `GET /v1/models?show_all=true` de Lemonade et enregistre dans son runtime les modèles de conversation annoncés. Le tableau de bord permet d'actualiser ce catalogue et de changer de modèle sans redémarrer le service ; les modèles non téléchargés sont visibles mais désactivés jusqu'à leur installation dans Lemonade. Pi peut également consulter le catalogue avec son outil ICARE dédié.
 
 Les modèles portant le label `tool-calling` sont à privilégier, car les outils ICARE sont nécessaires à la consultation de l'état et à l'enregistrement des propositions. Le choix reste explicite : Pi peut examiner le catalogue et conseiller un modèle, mais ne bascule pas silencieusement sur un autre modèle.
 
