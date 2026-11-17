@@ -69,6 +69,35 @@ La micro-synthèse aide à maintenir une continuité explicite ; elle ne garanti
 
 Dans ce mode, le prompt doit rester autonome : ne supposez pas que le modèle peut accéder au dépôt ou au référentiel, sauf si vous lui fournissez effectivement le document.
 
+## Application expérimentale avec Pi et Lemonade
+
+Une première application conversationnelle fondée sur le SDK de **Pi (P-I)** est en cours d'implémentation dans `pi-runtime/`. Contrairement aux prompts seuls, cette version associe un moteur agentique, des outils ICARE contrôlés par le serveur, une mémoire documentaire et un registre de propositions persisté en SQLite.
+
+### Installation et lancement sous Linux avec une seule commande
+
+La commande ci-dessous installe Nix si nécessaire, puis construit et lance ICARE. Elle suppose que **Lemonade Server est déjà démarré** sur le port local standard.
+
+```bash
+bash -c '[ -r /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh ] && . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh; if ! command -v nix >/dev/null 2>&1; then curl -fsSL https://install.determinate.systems/nix | sh -s -- install --no-confirm; [ -r /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh ] && . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh; fi; nix --extra-experimental-features "nix-command flakes" run "github:RIC-Typologies-des-IA/Assistant-ICARE?ref=implementation/pi-runtime"'
+```
+
+Une fois le serveur démarré, ouvrir **http://127.0.0.1:8765** dans le navigateur. Pi se connecte à Lemonade via son API compatible OpenAI (`http://127.0.0.1:13305/v1` par défaut) et sélectionne automatiquement le premier modèle de chat disponible. Pour imposer un modèle, définir `ICARE_MODEL` avant le lancement. Si Lemonade utilise une autre adresse, définir `LEMONADE_BASE_URL`.
+
+Nix fournit Node.js et les dépendances de l'application ; le premier démarrage télécharge le SDK Pi depuis npm. L'installation de Nix peut demander une autorisation administrateur. Les données ICARE sont conservées dans `~/.local/share/icare-pi/data`.
+
+### Architecture et limites de cette première version
+
+- Le SDK Pi est intégré **dans le backend** ; le navigateur ne communique qu'avec le serveur ICARE.
+- Lemonade fournit le modèle local. Aucun accès Ollama n'est requis.
+- Le modèle ne reçoit que des outils ICARE explicitement enregistrés : consulter l'état d'exploration, rechercher dans les références locales, consulter les propositions et proposer une observation.
+- Les outils shell, fichiers arbitraires, navigateur et recherche Web de Pi sont désactivés.
+- Les observations produites par l'agent restent des **propositions candidates** jusqu'à validation humaine.
+- Les statuts « suffisamment explorée » et « non applicable » exigent une justification et sont pilotés par l'humain.
+- Le dialogue est conservé dans la session Pi pendant l'exécution ; les propositions, statuts et documents sont persistés dans SQLite. La restauration automatique du fil conversationnel après redémarrage reste à finaliser.
+- La mémoire documentaire initiale est textuelle ; l'ajout d'images, la recherche vectorielle, le multi-utilisateur et l'intégration Discord ne sont pas encore inclus.
+
+Cette application est expérimentale et ne remplace pas les prompts et le référentiel présentés plus haut. Voir [pi-runtime/README.md](pi-runtime/README.md) pour les détails techniques.
+
 ## Principes communs aux trois versions
 
 - L'utilisateur reste l'auteur de l'intention et le décideur.
