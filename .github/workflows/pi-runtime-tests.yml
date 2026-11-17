@@ -29,3 +29,11 @@ jobs:
       - name: Run runtime tests
         working-directory: pi-runtime
         run: npm test
+
+  nix-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - name: Evaluate and build the Nix application
+        run: nix build --no-link .#default
