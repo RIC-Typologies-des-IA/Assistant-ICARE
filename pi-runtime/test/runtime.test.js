@@ -80,7 +80,7 @@ test("ICARE ontology defines dimensions in canonical I-C-A-R-E order", async () 
   assert.ok(ontology.proposition_model.optional.includes("predicate"));
   assert.ok(ontology.relations.includes("target_state_of"));
   assert.ok(ontology.proposition_model.required.includes("source"));
-  assert.match(ontology.proposition_model.confidenceSemantics, /certitude de la source/);
+  assert.match(ontology.proposition_model.confidenceSemantics, /certitude exprimée par la source/);
   assert.ok(ontology.reference_frameworks.some(item => item.name === "PROV-O"));
   assert.ok(ontology.reference_frameworks.some(item => item.name === "Allen interval algebra"));
 });
