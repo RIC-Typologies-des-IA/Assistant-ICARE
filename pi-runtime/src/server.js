@@ -62,7 +62,7 @@ const propositionColumns = new Set(db.prepare("PRAGMA table_info(propositions)")
 for (const [name, type] of [
   ["utterance_time", "TEXT"], ["valid_time_start", "TEXT"], ["valid_time_end", "TEXT"],
   ["event_period_start", "TEXT"], ["event_period_end", "TEXT"], ["target_horizon", "TEXT"],
-  ["realization_time", "TEXT"], ["modality", "TEXT"], ["author", "TEXT"],
+  ["realization_time", "TEXT"], ["modality", "TEXT"], ["subject", "TEXT"], ["predicate", "TEXT"], ["value", "TEXT"], ["author", "TEXT"],
   ["source_agent", "TEXT"], ["source_interaction", "TEXT"], ["justification", "TEXT"]
 ]) {
   if (!propositionColumns.has(name)) db.exec(`ALTER TABLE propositions ADD COLUMN ${name} ${type}`);
@@ -100,6 +100,7 @@ RÈGLES DE DIALOGUE
 - Une proposition peut relever de plusieurs dimensions. N'impose pas une classification exclusive.
 - ICARE est la couche descriptive : les couches temporelle, évaluative/modale, épistémique/provenance, pratique et relationnelle la complètent sans créer de nouvelles dimensions.
 - Pour chaque proposition, distingue si possible le temps d'énonciation, la période de validité, la période d'un événement, l'horizon cible et le temps de réalisation. Laisse les champs inconnus vides ; n'invente jamais de date.
+- Si cela clarifie l'information, structure la proposition autour d'un sujet, d'une propriété/predicat et d'une valeur, sans perdre le texte fidèle à la source.
 - Distingue les évaluations (souhaité, non souhaité, redouté, préférable, défavorable) des modalités (possible, impossible, nécessaire, permis, interdit).
 - Distingue constaté/affirmé, rapporté, inféré, hypothétique et prévisionnel ; conserve la source et le contexte d'origine. La confiance d'extraction n'est pas la certitude de la source.
 - Distingue toujours le passé, le présent, le futur souhaité, les hypothèses, les décisions, les engagements et les réalisations.
@@ -190,15 +191,15 @@ function recordCandidate(input) {
   db.prepare(`INSERT INTO propositions
     (id,text,dimensions,primary_dimension,temporal,evaluation,epistemic,practical,confidence,source,aspect,review_status,created_at,
      utterance_time,valid_time_start,valid_time_end,event_period_start,event_period_end,target_horizon,realization_time,modality,
-     author,source_agent,source_interaction,justification)
-    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+     subject,predicate,value,author,source_agent,source_interaction,justification)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
       id, observationText, JSON.stringify(dimensions), primary,
       temporal, evaluation, epistemic, practical, confidence, String(input.source || "conversation").slice(0,300),
       String(input.aspect || "").slice(0,300), "candidate", now(),
       optionalText("utterance_time"), optionalText("valid_time_start"), optionalText("valid_time_end"),
       optionalText("event_period_start"), optionalText("event_period_end"), optionalText("target_horizon"),
-      optionalText("realization_time"), modality, optionalText("author"), optionalText("source_agent"),
-      optionalText("source_interaction"), optionalText("justification")
+      optionalText("realization_time"), modality, optionalText("subject"), optionalText("predicate"), optionalText("value"),
+      optionalText("author"), optionalText("source_agent"), optionalText("source_interaction"), optionalText("justification")
     );
   return db.prepare("SELECT * FROM propositions WHERE id=?").get(id);
 }
@@ -302,6 +303,9 @@ async function initializePi() {
         confidence: Type.Optional(Type.Number({ description: "Confiance du système dans l'extraction, pas certitude de la source." })),
         source: Type.Optional(Type.String()),
         aspect: Type.Optional(Type.String()),
+        subject: Type.Optional(Type.String()),
+        predicate: Type.Optional(Type.String()),
+        value: Type.Optional(Type.String()),
         utterance_time: Type.Optional(Type.String()),
         valid_time_start: Type.Optional(Type.String()),
         valid_time_end: Type.Optional(Type.String()),
