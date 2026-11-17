@@ -169,13 +169,15 @@ async function refreshModelCatalog() {
   const payload = await response.json();
   const models = (payload.data || []).filter(m => m.labels?.includes("chat"));
   if (!models.length) throw new Error("Le catalogue Lemonade ne contient aucun modèle de conversation.");
-  const modelConfigs = models.map(m => ({ id: m.id, name: m.name || m.id, api: "openai-completions", reasoning: Boolean(m.labels?.includes("reasoning")), input: ["text"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: Number(m.context_length || m.max_context_window || 32768), maxTokens: Number(m.max_output_tokens || m.max_completion_tokens || 4096) }));
+  const availableModels = models.filter(m => m.downloaded === true);
+  if (!availableModels.length) throw new Error("Aucun modèle de conversation n’est téléchargé dans Lemonade. Installe un modèle puis actualise le catalogue.");
+  const modelConfigs = availableModels.map(m => ({ id: m.id, name: m.name || m.id, api: "openai-completions", reasoning: Boolean(m.labels?.includes("reasoning")), input: ["text"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: Number(m.context_length || m.max_context_window || 32768), maxTokens: Number(m.max_output_tokens || m.max_completion_tokens || 4096) }));
   const provider = { name: "Lemonade local", baseUrl: BASE_URL, api: "openai-completions", models: modelConfigs };
   provider.apiKey = "$LEMONADE_API_KEY"; provider.authHeader = true;
   await writeFile(path.join(AGENT_DIR, "models.json"), JSON.stringify({ providers: { lemonade: provider } }, null, 2));
   const nextRuntime = await piModules.ModelRuntime.create();
   const currentId = selectedModel?.id || process.env.ICARE_MODEL;
-  const choice = models.find(m => m.id === currentId) || models.find(m => m.downloaded !== false && m.labels?.includes("tool-calling")) || models.find(m => m.downloaded !== false) || models.find(m => m.labels?.includes("tool-calling")) || models[0];
+  const choice = availableModels.find(m => m.id === currentId) || availableModels.find(m => m.labels?.includes("tool-calling")) || availableModels[0];
   const nextModel = nextRuntime.getModel("lemonade", choice.id);
   if (!nextModel) throw new Error("Pi n'a pas pu charger le modèle Lemonade « " + choice.id + " ».");
   modelRuntime = nextRuntime; selectedModel = nextModel; catalogModels = models;
