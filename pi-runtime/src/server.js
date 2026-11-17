@@ -281,6 +281,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && url.pathname === "/api/models/refresh") {
       if (sessionBusy.size) return json(res, 409, { error: "Attends la fin des réponses en cours avant d’actualiser le catalogue." });
       await refreshModelCatalog();
+      for (const session of sessions.values()) await session.setModel(selectedModel);
       return json(res, 200, { models: catalogModels.map(m => ({ id: m.id, name: m.name || m.id, labels: m.labels || [], downloaded: m.downloaded !== false, context_length: m.context_length || m.max_context_window || null, suggested: Boolean(m.suggested) })), selected: selectedModel.id });
     }
     if (req.method === "POST" && url.pathname === "/api/models/select") {
