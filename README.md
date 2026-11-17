@@ -37,7 +37,7 @@ Un premier banc d'essai fonctionnel est disponible dans le dossier prototype/.
 
 Puis ouvrir http://127.0.0.1:8765
 
-Voir prototype/README.md pour les options d'embeddings locaux avec Ollama, les fonctions disponibles et les limites connues.
+Voir prototype/README.md pour connecter un serveur local compatible OpenAI, notamment Lemonade, ainsi que les fonctions disponibles et les limites connues.
 
 ## État du projet
 
