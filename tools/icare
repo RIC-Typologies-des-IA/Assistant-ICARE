@@ -24,8 +24,13 @@ load_nix_profile() {
 load_nix_profile
 if ! command -v nix >/dev/null 2>&1; then
   command -v curl >/dev/null 2>&1 || die "curl est requis pour installer Nix."
-  echo "Nix n'est pas installé : installation officielle pour $OS/$ARCH."
-  curl --proto "=https" --tlsv1.2 -fsSL https://install.determinate.systems/nix | sh -s -- install --no-confirm
+  echo "Nix n'est pas installé : installation pour $OS/$ARCH."
+  if [[ "$OS" == "Linux" && ! -d /run/systemd/system ]]; then
+    echo "Aucun systemd détecté : installation Nix mono-utilisateur (sans daemon)."
+    curl --proto "=https" --tlsv1.2 -fsSL https://nixos.org/nix/install | sh -s -- --no-daemon
+  else
+    curl --proto "=https" --tlsv1.2 -fsSL https://install.determinate.systems/nix | sh -s -- install --no-confirm
+  fi
   load_nix_profile
 fi
 command -v nix >/dev/null 2>&1 || die "Nix n'est pas disponible après l'installation. Ferme puis rouvre le terminal et relance cette commande."
