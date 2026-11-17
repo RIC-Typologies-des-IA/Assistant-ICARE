@@ -102,6 +102,7 @@ STYLE
 let piModules;
 let modelRuntime;
 let selectedModel;
+let catalogModels = [];
 const sessions = new Map();
 const sessionBusy = new Set();
 
@@ -192,6 +193,13 @@ async function initializePi() {
   if (!chosen?.labels?.includes("tool-calling")) console.warn("[ICARE] Le modèle choisi n'est pas signalé comme compatible tool-calling.");
   const extensionFactory = (pi) => {
     pi.registerTool({
+      name: "list_available_models",
+      label: "Catalogue des modèles Lemonade",
+      description: "Consulte les modèles de conversation Lemonade, leurs capacités et leur disponibilité. Ne change pas le modèle actif.",
+      parameters: Type.Object({}),
+      execute: async () => ({ content: [{ type: "text", text: JSON.stringify(catalogModels.map(m => ({ id: m.id, name: m.name || m.id, labels: m.labels || [], downloaded: m.downloaded !== false, context_length: m.context_length || m.max_context_window || null, suggested: Boolean(m.suggested) })), null, 2) }], details: {} })
+    });
+    pi.registerTool({
       name: "get_exploration_state",
       label: "État d'exploration ICARE",
       description: "Consulte l'état documenté des cinq dimensions ICARE et les volumes de propositions validées ou en attente.",
@@ -237,7 +245,7 @@ async function initializePi() {
       }
     });
   };
-  piModules = { createAgentSession, SessionManager, DefaultResourceLoader, registerTools: extensionFactory };
+  piModules.registerTools = extensionFactory;
   return { modelId, modelName: selected?.name || modelId };
 }
 async function getSession(id) {
@@ -269,6 +277,22 @@ const server = http.createServer(async (req, res) => {
   try {
     if (req.method === "GET" && url.pathname === "/") return sendStatic(res, path.join(HERE, "..", "public", "index.html"), "text/html; charset=utf-8");
     if (req.method === "GET" && url.pathname === "/api/status") return json(res, 200, { ok: true, model: selectedModel.id, provider: "Lemonade via Pi SDK" });
+    if (req.method === "GET" && url.pathname === "/api/models") return json(res, 200, { models: catalogModels.map(m => ({ id: m.id, name: m.name || m.id, labels: m.labels || [], downloaded: m.downloaded !== false, context_length: m.context_length || m.max_context_window || null, suggested: Boolean(m.suggested) })), selected: selectedModel.id });
+    if (req.method === "POST" && url.pathname === "/api/models/refresh") {
+      if (sessionBusy.size) return json(res, 409, { error: "Attends la fin des réponses en cours avant d’actualiser le catalogue." });
+      await refreshModelCatalog();
+      return json(res, 200, { models: catalogModels.map(m => ({ id: m.id, name: m.name || m.id, labels: m.labels || [], downloaded: m.downloaded !== false, context_length: m.context_length || m.max_context_window || null, suggested: Boolean(m.suggested) })), selected: selectedModel.id });
+    }
+    if (req.method === "POST" && url.pathname === "/api/models/select") {
+      if (sessionBusy.size) return json(res, 409, { error: "Attends la fin des réponses en cours avant de changer de modèle." });
+      const body = await readBody(req);
+      const info = catalogModels.find(m => m.id === body.model);
+      const next = info && modelRuntime.getModel("lemonade", info.id);
+      if (!next) return json(res, 400, { error: "Modèle inconnu de Pi. Actualise le catalogue." });
+      for (const session of sessions.values()) await session.setModel(next);
+      selectedModel = next;
+      return json(res, 200, { ok: true, selected: selectedModel.id, toolCalling: Boolean(info.labels?.includes("tool-calling")) });
+    }
     if (req.method === "GET" && url.pathname === "/api/state") return json(res, 200, { dimensions: getState(), propositions: getPropositions(), documents: db.prepare("SELECT id,title,created_at FROM reference_docs ORDER BY title").all() });
     if (req.method === "POST" && url.pathname === "/api/chat") {
       const body = await readBody(req);
