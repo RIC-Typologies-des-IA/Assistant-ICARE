@@ -51,9 +51,11 @@
               trap 'kill "$BROWSER_PID" "$PROXY_PID" 2>/dev/null || true' EXIT INT TERM
               export HTTP_PROXY=http://127.0.0.1:43128 HTTPS_PROXY=http://127.0.0.1:43128
               export http_proxy="$HTTP_PROXY" https_proxy="$HTTPS_PROXY" NO_PROXY= no_proxy= NODE_USE_ENV_PROXY=1
-              exec nono run --read "$APP_DIR" --read /nix/store \
+              nono run --read "$APP_DIR" --read /nix/store \
                 --allow "$DATA_DIR" --allow "$LOG_DIR" --block-net \
-                --open-port 43128 --open-port 8765 -- node src/server.js
+                --open-port 43128 --open-port 8765 -- node src/server.js &
+              RUNTIME_PID=$!
+              wait "$RUNTIME_PID"
             '';
           };
         in
@@ -103,8 +105,9 @@
           else { default = macLauncher; macos = macLauncher; }
       );
     in {
-      nixosConfigurations = forAllSystems (system:
-        if isLinux system then { icare-vm = nixpkgs.lib.nixosSystem { inherit system; modules = [ ./nixos/icare-vm.nix ]; }; } else { });
+      nixosConfigurations = (forAllSystems (system:
+        if isLinux system then { icare-vm = nixpkgs.lib.nixosSystem { inherit system; modules = [ ./nixos/icare-vm.nix ]; }; } else { }))
+        // { icare-vm = nixpkgs.lib.nixosSystem { system = "x86_64-linux"; modules = [ ./nixos/icare-vm.nix ]; }; };
       inherit packages;
       apps = forAllSystems (system: {
         default = {
