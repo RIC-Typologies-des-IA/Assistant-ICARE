@@ -40,7 +40,8 @@ Le choix dynamique s'appuie sur le catalogue Lemonade et le changement de modèl
 - `get_exploration_state` : consulter l'état des cinq dimensions dans l'ordre canonique I, C, A, R, E.
 - `search_reference_documents` : rechercher dans le corpus documentaire local.
 - `list_propositions` : consulter les propositions et leur statut.
-- `propose_observation` : enregistrer une observation comme candidate, jamais comme fait accepté.
+- `propose_observation` : enregistrer une observation comme candidate, avec ses qualifications temporelles, évaluatives, modales, épistémiques et sa provenance lorsqu'elles sont connues.
+- `propose_relation` : proposer une relation historisée entre deux observations existantes ; elle reste candidate à validation humaine.
 
 À chaque tour apportant une information nouvelle et substantielle, le prompt système demande explicitement à Pi de qualifier les éléments et d'appeler `propose_observation` sans attendre une demande d'enregistrement. Les propositions alimentent le panneau latéral et les compteurs de chaque dimension ; elles restent candidates jusqu'à validation humaine. Le modèle doit déclarer la capacité `tool-calling` dans le catalogue Lemonade pour garantir l'exécution de ces outils. L'interface signale clairement lorsqu'un modèle sélectionné ne déclare pas cette capacité.
 - `list_available_models` : consulter le catalogue des modèles de conversation Lemonade.
@@ -84,7 +85,7 @@ Le référentiel `reference/icare.json` formalise désormais six couches :
 
 Les propositions peuvent conserver leurs périodes et qualifications sans écraser les versions antérieures. La confiance enregistrée correspond à la confiance du système dans l'extraction, et non à la certitude de la personne ou de la source. Les champs inconnus restent inconnus : le modèle ne doit pas inventer de dates, d'auteurs ou de preuves.
 
-Les relations sont proposées par l'outil `propose_relation` et restent candidates à validation humaine, comme les observations. Elles sont exposées dans `/api/state`. Les migrations SQLite ajoutent les champs complémentaires aux bases existantes sans supprimer les données précédentes.
+Les relations sont proposées par l'outil `propose_relation` et restent candidates à validation humaine, comme les observations. Elles sont exposées dans `/api/state`, affichées dans le panneau « Relations à valider » et peuvent être validées ou rejetées séparément via `/api/relations/:id`. Les migrations SQLite ajoutent les champs complémentaires aux bases existantes sans supprimer les données précédentes.
 
 ### Références conceptuelles
 
