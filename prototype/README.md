@@ -28,11 +28,10 @@ La base SQLite et les fichiers sont créés dans prototype/data/ au premier lanc
 
 Le prototype utilise l'API HTTP compatible OpenAI. Lemonade expose cette API ; aucune bibliothèque Python supplémentaire n'est nécessaire.
 
-Sur une installation Lemonade Server standard, l'adresse de base est généralement `http://127.0.0.1:13305/api/v1`. Vérifie l'adresse et les identifiants de modèles disponibles dans l'interface ou avec `GET /v1/models` sur ton serveur. Les noms de modèles doivent correspondre exactement à ceux exposés par Lemonade.
+Sur une installation Lemonade Server standard, le prototype utilise par défaut `http://127.0.0.1:13305/api/v1`. Vérifie les identifiants de modèles disponibles dans l'interface Lemonade ou avec `GET /v1/models` sur ton serveur. Les noms de modèles doivent correspondre exactement à ceux exposés par Lemonade. Si ton serveur utilise une autre adresse, surcharge `ICARE_API_BASE_URL`.
 
 Exemple Linux, depuis le dossier `prototype` :
 
-    export ICARE_API_BASE_URL="http://127.0.0.1:13305/api/v1"
     export ICARE_API_KEY="lemonade"
     export ICARE_CHAT_MODEL="NOM_EXACT_DU_MODELE_CHAT"
     export ICARE_EMBED_MODEL="NOM_EXACT_DU_MODELE_EMBEDDING"
@@ -46,7 +45,7 @@ Pour vérifier les modèles exposés par Lemonade :
 
     curl http://127.0.0.1:13305/api/v1/models
 
-Si ton installation utilise une autre adresse ou un autre port, adapte simplement `ICARE_API_BASE_URL`. Le prototype ne dépend pas du port de Lemonade et n'utilise plus les routes spécifiques à Ollama.
+Si ton installation utilise une autre adresse ou un autre port, adapte simplement `ICARE_API_BASE_URL`. Le prototype ne dépend pas du port de Lemonade et utilise ses routes compatibles OpenAI, pas les routes spécifiques à Ollama.
 
 Sans `ICARE_API_BASE_URL` et `ICARE_CHAT_MODEL`, le prototype fonctionne en mode heuristique. Les documents pertinents sont retrouvés et transmis comme références méthodologiques au modèle local lors de l'analyse. Le prototype ne lance aucune recherche Web. Les images sont stockées ; leur légende/description est indexée. L'analyse visuelle automatique des images n'est pas encore incluse.
 
