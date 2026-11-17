@@ -9,8 +9,9 @@ from datetime import datetime, timezone
 ROOT=Path(__file__).resolve().parent
 DATA=ROOT/"data"; DOCS=DATA/"documents"; DB=DATA/"icare.sqlite3"; STATIC=ROOT/"static"
 DOCS.mkdir(parents=True,exist_ok=True); STATIC.mkdir(parents=True,exist_ok=True)
-OLLAMA_URL=os.environ.get("ICARE_OLLAMA_URL","").rstrip("/")
-EMBED_MODEL=os.environ.get("ICARE_EMBED_MODEL","nomic-embed-text")
+API_BASE_URL=os.environ.get("ICARE_API_BASE_URL","").rstrip("/")
+API_KEY=os.environ.get("ICARE_API_KEY","lemonade")
+EMBED_MODEL=os.environ.get("ICARE_EMBED_MODEL","")
 CHAT_MODEL=os.environ.get("ICARE_CHAT_MODEL","")
 ONTOLOGY={"I":"Intention / finalité","C":"Contexte / situation","A":"Action / opération","R":"Régulation / organisation","E":"Évolution / temporalité"}
 KEYWORDS={
@@ -63,19 +64,21 @@ def extract(text,source="human"):
    "aspect":re.sub(r"[^a-z0-9 ]","",t)[:80],"relations":[]})
  return out
 def embed(text):
- if not OLLAMA_URL: return None
+ if not (API_BASE_URL and EMBED_MODEL): return None
  try:
   raw=json.dumps({"model":EMBED_MODEL,"input":text}).encode()
-  req=urllib.request.Request(OLLAMA_URL+"/api/embed",data=raw,headers={"Content-Type":"application/json"})
-  with urllib.request.urlopen(req,timeout=20) as res: data=json.loads(res.read().decode())
-  vectors=data.get("embeddings") or []; return vectors[0] if vectors else None
+  headers={"Content-Type":"application/json"}
+  if API_KEY: headers["Authorization"]="Bearer "+API_KEY
+  req=urllib.request.Request(API_BASE_URL+"/embeddings",data=raw,headers=headers)
+  with urllib.request.urlopen(req,timeout=30) as res: data=json.loads(res.read().decode())
+  vectors=data.get("data") or []; return vectors[0].get("embedding") if vectors else None
  except Exception: return None
 def cosine(a,b):
  dot=sum(x*y for x,y in zip(a,b)); na=math.sqrt(sum(x*x for x in a)); nb=math.sqrt(sum(y*y for y in b))
  return dot/(na*nb) if na and nb else 0
 def retrieve_docs(query,limit=4):
  c=db(); rows=list(c.execute("SELECT * FROM documents")); c.close()
- qv=embed(query) if OLLAMA_URL else None; terms=set(re.findall(r"\w+",query.lower())); hits=[]
+ qv=embed(query) if API_BASE_URL and EMBED_MODEL else None; terms=set(re.findall(r"\w+",query.lower())); hits=[]
  for r in rows:
   text=(r["title"]+" "+r["content"]+" "+(r["caption"] or "")).lower()
   lexical=sum(1 for t in terms if t in text)/max(1,len(terms)); semantic=0
@@ -87,7 +90,7 @@ def retrieve_docs(query,limit=4):
  hits.sort(key=lambda x:x["score"],reverse=True); return hits[:limit]
 
 def llm_extract(text,source,documents):
- if not (OLLAMA_URL and CHAT_MODEL): return None
+ if not (API_BASE_URL and CHAT_MODEL): return None
  system=("Tu es le moteur d'analyse du prototype ICARE. Tu extrais des propositions, sans inventer. "
  "ICARE: I=Intention/finalité, C=Contexte/situation, A=Action/opération, "
  "R=Régulation/organisation (dimension unique), E=Évolution/temporalité. "
@@ -101,11 +104,14 @@ def llm_extract(text,source,documents):
  )
  user={"contribution":text,"source":source,"documents_de_reference":documents,
        "rappel":"Ne complète pas les informations absentes. Si incertain, utilise unknown/unspecified. confidence entre 0 et 1."}
- payload=json.dumps({"model":CHAT_MODEL,"stream":False,"format":"json","messages":[{"role":"system","content":system},{"role":"user","content":json.dumps(user,ensure_ascii=False)}]}).encode()
- req=urllib.request.Request(OLLAMA_URL+"/api/chat",data=payload,headers={"Content-Type":"application/json"})
+ payload=json.dumps({"model":CHAT_MODEL,"stream":False,"response_format":{"type":"json_object"},"messages":[{"role":"system","content":system},{"role":"user","content":json.dumps(user,ensure_ascii=False)}]}).encode()
+ headers={"Content-Type":"application/json"}
+  if API_KEY: headers["Authorization"]="Bearer "+API_KEY
+  req=urllib.request.Request(API_BASE_URL+"/chat/completions",data=payload,headers=headers)
  try:
   with urllib.request.urlopen(req,timeout=90) as res: data=json.loads(res.read().decode())
-  result=json.loads(data.get("message",{}).get("content","{}")); raw=result.get("proposals",[])
+  content=data.get("choices",[{}])[0].get("message",{}).get("content","{}")
+  result=json.loads(content); raw=result.get("proposals",[])
   clean=[]
   for x in raw:
    dims=[d for d in x.get("dimensions",[]) if d in ONTOLOGY]
@@ -140,7 +146,7 @@ class Handler(SimpleHTTPRequestHandler):
    st={}
    for k,label in ONTOLOGY.items():
     n=sum(1 for x in ps if k in x["dimensions"]); st[k]={"label":label,"count":n,"status":"unexplored" if n==0 else "insufficient"}
-   c.close(); return self.send_json({"ontology":ONTOLOGY,"propositions":ps,"documents":ds,"statuses":st,"embedding_enabled":bool(OLLAMA_URL),"embedding_model":EMBED_MODEL if OLLAMA_URL else None})
+   c.close(); return self.send_json({"ontology":ONTOLOGY,"propositions":ps,"documents":ds,"statuses":st,"embedding_enabled":bool(API_BASE_URL and EMBED_MODEL),"embedding_model":EMBED_MODEL if API_BASE_URL and EMBED_MODEL else None})
   if p.path=="/api/search":
    q=parse_qs(p.query).get("q",[""])[0].strip(); c=db(); rows=list(c.execute("SELECT * FROM documents")); qv=embed(q) if q else None
    terms=set(re.findall(r"\w+",q.lower())); hits=[]
@@ -153,7 +159,7 @@ class Handler(SimpleHTTPRequestHandler):
     score=sem if qv and r["embedding"] else lex
     if score>0: hits.append({"id":r["id"],"title":r["title"],"kind":r["kind"],"caption":r["caption"],"excerpt":r["content"][:420],"score":round(score,3)})
    hits.sort(key=lambda x:x["score"],reverse=True); c.close()
-   return self.send_json({"query":q,"results":hits[:8],"mode":"ollama-vector" if qv else "lexical-fallback"})
+   return self.send_json({"query":q,"results":hits[:8],"mode":"semantic-vector" if qv else "lexical-fallback"})
   if p.path.startswith("/files/"):
    name=Path(p.path.removeprefix("/files/")).name; f=DOCS/name
    if not f.exists(): f=ROOT/"reference"/name
@@ -167,7 +173,7 @@ class Handler(SimpleHTTPRequestHandler):
    if not text: return self.send_json({"error":"Saisis un discours à analyser."},400)
    source=data.get("source","human"); docs=retrieve_docs(text)
    ps=llm_extract(text,source,docs) if CHAT_MODEL else None
-   mode="ollama-local-llm" if ps else "heuristic-fallback"
+   mode="local-api-llm" if ps else "heuristic-fallback"
    if not ps: ps=extract(text,source)
    c=db()
    for x in ps:
@@ -188,7 +194,7 @@ class Handler(SimpleHTTPRequestHandler):
    if not content and not caption: return self.send_json({"error":"Ajoute du texte ou une description/caption pour indexer ce document."},400)
    v=embed(title+"\n"+caption+"\n"+content); ident=str(uuid.uuid4())[:8]; c=db()
    c.execute("INSERT INTO documents VALUES(?,?,?,?,?,?,?,?)",(ident,title,kind,content,fp,caption,now(),json.dumps(v) if v else None)); c.commit(); c.close()
-   return self.send_json({"ok":True,"id":ident,"embedding":"ollama" if v else "lexical-fallback"})
+   return self.send_json({"ok":True,"id":ident,"embedding":"semantic-vector" if v else "lexical-fallback"})
   if path=="/api/reset":
    c=db(); c.execute("DELETE FROM propositions"); c.execute("DELETE FROM documents"); c.commit(); c.close()
    for f in DOCS.iterdir():
@@ -203,6 +209,7 @@ class Handler(SimpleHTTPRequestHandler):
 if __name__=="__main__":
  host=os.environ.get("ICARE_HOST","127.0.0.1"); port=int(os.environ.get("ICARE_PORT","8765"))
  print("ICARE prototype: http://%s:%s"%(host,port))
- print("Embeddings: Ollama local" if OLLAMA_URL else "Embeddings: recherche lexicale (Ollama optionnel)")
- print("LLM: "+CHAT_MODEL if CHAT_MODEL else "LLM: extraction heuristique (configurer ICARE_CHAT_MODEL pour Ollama)")
+ print("API locale: "+API_BASE_URL if API_BASE_URL else "API locale: désactivée (mode heuristique)")
+ print("Embeddings: "+EMBED_MODEL if API_BASE_URL and EMBED_MODEL else "Embeddings: recherche lexicale")
+ print("LLM: "+CHAT_MODEL if API_BASE_URL and CHAT_MODEL else "LLM: extraction heuristique (configurer ICARE_CHAT_MODEL)")
  ThreadingHTTPServer((host,port),Handler).serve_forever()
