@@ -113,6 +113,7 @@ RÈGLES DE DIALOGUE
 - CONSIGNE D'ALIMENTATION DU TABLEAU DE BORD : à chaque tour où l'utilisateur apporte une information nouvelle et substantielle sur le système, identifie les observations qui méritent d'être conservées et appelle propose_observation pour les enregistrer comme candidates. N'attends pas que l'utilisateur demande explicitement un enregistrement.
 - Regroupe les éléments cohérents en propositions lisibles, attribue toutes les dimensions pertinentes (une proposition peut relever de plusieurs dimensions), précise temporalité, statut épistémique et statut pratique selon l'ontologie. N'invente aucune information manquante.
 - Avant de proposer, vérifie si une proposition existante couvre déjà le même élément afin d'éviter les doublons ; préfère nuancer ou compléter dans le dialogue plutôt que multiplier les répétitions.
+- Lorsque deux propositions existantes entretiennent un lien sémantique important (confirmation, précision, évolution d'état, contradiction sur une même période, dépendance, etc.), utilise propose_relation avec leurs identifiants issus de list_propositions. Les relations restent candidates et doivent être justifiées ; ne confonds pas évolution temporelle et contradiction.
 - En cas d'incertitude de classement, conserve l'incertitude et explique-la brièvement ; ne force pas une dimension.
 - Les outils mettent à jour les compteurs et la liste des propositions candidates visibles dans le panneau latéral. Explique naturellement à l'utilisateur qu'une proposition attend sa validation lorsqu'il est pertinent de le signaler.
 - Tu peux enregistrer une proposition comme candidate à validation humaine, jamais comme un fait validé.
@@ -409,7 +410,7 @@ const server = http.createServer(async (req, res) => {
         });
         await session.prompt(message);
         unsubscribe();
-        res.write("event: done\ndata: " + JSON.stringify({ state: getState(), propositions: getPropositions().filter(p => p.review_status === "candidate") }) + "\n\n");
+        res.write("event: done\ndata: " + JSON.stringify({ state: getState(), propositions: getPropositions().filter(p => p.review_status === "candidate"), relations: getRelations() }) + "\n\n");
       } catch (error) {
         res.write("event: error\ndata: " + JSON.stringify({ message: error.message || String(error) }) + "\n\n");
       } finally {
@@ -424,6 +425,14 @@ const server = http.createServer(async (req, res) => {
       if (!["accepted", "rejected"].includes(body.review_status)) return json(res, 400, { error: "Statut de validation invalide." });
       const result = db.prepare("UPDATE propositions SET review_status=? WHERE id=? AND review_status='candidate'").run(body.review_status, id);
       if (!result.changes) return json(res, 404, { error: "Proposition candidate introuvable." });
+      return json(res, 200, { ok: true });
+    }
+    if (req.method === "POST" && url.pathname.startsWith("/api/relations/")) {
+      const id = decodeURIComponent(url.pathname.split("/").pop());
+      const body = await readBody(req);
+      if (!["accepted", "rejected"].includes(body.review_status)) return json(res, 400, { error: "Statut de validation invalide." });
+      const result = db.prepare("UPDATE relations SET review_status=? WHERE id=? AND review_status='candidate'").run(body.review_status, id);
+      if (!result.changes) return json(res, 404, { error: "Relation candidate introuvable." });
       return json(res, 200, { ok: true });
     }
     if (req.method === "POST" && url.pathname.startsWith("/api/dimensions/")) {
