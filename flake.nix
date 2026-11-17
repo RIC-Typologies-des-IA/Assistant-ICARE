@@ -17,7 +17,12 @@ outputs = { self, nixpkgs }:
       runtimeInputs = [ hostPkgs.nodejs_24 hostPkgs.nono hostPkgs.coreutils hostPkgs.netcat-openbsd hostPkgs.curl hostPkgs.xdg-utils ];
       text = ''
         APP_DIR="''${XDG_DATA_HOME:-$HOME/.local/share}/icare-vm/runtime"
-        mkdir -p "$APP_DIR"
+        LOG_DIR="''${XDG_DATA_HOME:-$HOME/.local/share}/icare-vm/logs"
+        mkdir -p "$APP_DIR" "$LOG_DIR"
+        # Le répertoire parent est privé dans le home ; le sticky bit permet
+        # au compte de service invité d'écrire les journaux via virtiofs.
+        chmod 1777 "$LOG_DIR"
+        export ICARE_LOG_DIR="$LOG_DIR"
         cp -R ${./pi-runtime}/. "$APP_DIR/"
         cd "$APP_DIR"
         if [ ! -d node_modules/@earendil-works/pi-coding-agent ]; then
