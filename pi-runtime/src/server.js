@@ -57,6 +57,16 @@ db.exec(`
     review_status TEXT NOT NULL DEFAULT 'candidate', created_at TEXT NOT NULL
   );
 `);
+// Migrations additives : les bases déjà créées sont mises à niveau sans perte d'historique.
+const propositionColumns = new Set(db.prepare("PRAGMA table_info(propositions)").all().map(column => column.name));
+for (const [name, type] of [
+  ["utterance_time", "TEXT"], ["valid_time_start", "TEXT"], ["valid_time_end", "TEXT"],
+  ["event_period_start", "TEXT"], ["event_period_end", "TEXT"], ["target_horizon", "TEXT"],
+  ["realization_time", "TEXT"], ["modality", "TEXT"], ["author", "TEXT"],
+  ["source_agent", "TEXT"], ["source_interaction", "TEXT"], ["justification", "TEXT"]
+]) {
+  if (!propositionColumns.has(name)) db.exec(`ALTER TABLE propositions ADD COLUMN ${name} ${type}`);
+}
 const now = () => new Date().toISOString();
 const insertDimension = db.prepare("INSERT OR IGNORE INTO dimensions(code,status,justification,updated_at) VALUES(?,?,?,?)");
 for (const code of Object.keys(DIMENSIONS)) insertDimension.run(code, "unexplored", "", now());
@@ -88,6 +98,10 @@ RÈGLES DE DIALOGUE
 - Tu choisis la question suivante selon ce qui manque réellement à la compréhension, les ambiguïtés, les tensions, les relations et les transformations.
 - Tu gardes les cinq dimensions comme grille de vigilance, même quand la conversation approfondit une seule d'entre elles.
 - Une proposition peut relever de plusieurs dimensions. N'impose pas une classification exclusive.
+- ICARE est la couche descriptive : les couches temporelle, évaluative/modale, épistémique/provenance, pratique et relationnelle la complètent sans créer de nouvelles dimensions.
+- Pour chaque proposition, distingue si possible le temps d'énonciation, la période de validité, la période d'un événement, l'horizon cible et le temps de réalisation. Laisse les champs inconnus vides ; n'invente jamais de date.
+- Distingue les évaluations (souhaité, non souhaité, redouté, préférable, défavorable) des modalités (possible, impossible, nécessaire, permis, interdit).
+- Distingue constaté/affirmé, rapporté, inféré, hypothétique et prévisionnel ; conserve la source et le contexte d'origine. La confiance d'extraction n'est pas la certitude de la source.
 - Distingue toujours le passé, le présent, le futur souhaité, les hypothèses, les décisions, les engagements et les réalisations.
 - Souhaité ne signifie pas décidé ; décidé ne signifie pas engagé ; engagé ne signifie pas réalisé.
 - Une évolution temporelle n'est pas automatiquement une contradiction.
@@ -167,14 +181,36 @@ function recordCandidate(input) {
   const observationText = String(input.text || "").trim().slice(0,4000);
   if (!observationText) throw new Error("Le texte de l'observation ne peut pas être vide.");
   const id = randomUUID();
+  const modality = ONTOLOGY.modality.includes(input.modality) ? input.modality : "unknown";
+  const optionalText = key => input[key] == null || input[key] === "" ? null : String(input[key]).slice(0, 500);
   db.prepare(`INSERT INTO propositions
-    (id,text,dimensions,primary_dimension,temporal,evaluation,epistemic,practical,confidence,source,aspect,review_status,created_at)
-    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+    (id,text,dimensions,primary_dimension,temporal,evaluation,epistemic,practical,confidence,source,aspect,review_status,created_at,
+     utterance_time,valid_time_start,valid_time_end,event_period_start,event_period_end,target_horizon,realization_time,modality,
+     author,source_agent,source_interaction,justification)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
       id, observationText, JSON.stringify(dimensions), primary,
       temporal, evaluation, epistemic, practical, confidence, String(input.source || "conversation").slice(0,300),
-      String(input.aspect || "").slice(0,300), "candidate", now()
+      String(input.aspect || "").slice(0,300), "candidate", now(),
+      optionalText("utterance_time"), optionalText("valid_time_start"), optionalText("valid_time_end"),
+      optionalText("event_period_start"), optionalText("event_period_end"), optionalText("target_horizon"),
+      optionalText("realization_time"), modality, optionalText("author"), optionalText("source_agent"),
+      optionalText("source_interaction"), optionalText("justification")
     );
   return db.prepare("SELECT * FROM propositions WHERE id=?").get(id);
+}
+function recordRelationCandidate(input) {
+  const allowed = new Set(ONTOLOGY.relations);
+  const relation = String(input.relation || "");
+  if (!allowed.has(relation)) throw new Error("Relation inconnue dans l'ontologie complémentaire.");
+  const fromId = String(input.from_id || "");
+  const toId = String(input.to_id || "");
+  if (!fromId || !toId || fromId === toId) throw new Error("Deux identifiants de propositions distincts sont requis.");
+  const exists = db.prepare("SELECT id FROM propositions WHERE id IN (?,?)").all(fromId, toId);
+  if (exists.length !== 2) throw new Error("Les deux propositions doivent exister.");
+  const id = randomUUID();
+  db.prepare("INSERT INTO relations(id,from_id,to_id,relation,note,review_status,created_at) VALUES(?,?,?,?,?,?,?)")
+    .run(id, fromId, toId, relation, String(input.note || "").slice(0,1000), "candidate", now());
+  return { id, from_id: fromId, to_id: toId, relation, review_status: "candidate" };
 }
 
 async function refreshModelCatalog() {
@@ -256,15 +292,42 @@ async function initializePi() {
         primary_dimension: Type.Optional(Type.String()),
         temporal: Type.Optional(Type.String()),
         evaluation: Type.Optional(Type.String()),
+        modality: Type.Optional(Type.String()),
         epistemic: Type.Optional(Type.String()),
         practical: Type.Optional(Type.String()),
-        confidence: Type.Optional(Type.Number()),
+        confidence: Type.Optional(Type.Number({ description: "Confiance du système dans l'extraction, pas certitude de la source." })),
         source: Type.Optional(Type.String()),
-        aspect: Type.Optional(Type.String())
+        aspect: Type.Optional(Type.String()),
+        utterance_time: Type.Optional(Type.String()),
+        valid_time_start: Type.Optional(Type.String()),
+        valid_time_end: Type.Optional(Type.String()),
+        event_period_start: Type.Optional(Type.String()),
+        event_period_end: Type.Optional(Type.String()),
+        target_horizon: Type.Optional(Type.String()),
+        realization_time: Type.Optional(Type.String()),
+        author: Type.Optional(Type.String()),
+        source_agent: Type.Optional(Type.String()),
+        source_interaction: Type.Optional(Type.String()),
+        justification: Type.Optional(Type.String())
       }),
       execute: async (_id, params) => {
         const p = recordCandidate(params);
         return { content: [{ type: "text", text: `Proposition candidate enregistrée (${p.id}). Elle attend une validation humaine dans le tableau de bord ; elle n'est pas considérée comme un fait validé.` }], details: { id: p.id } };
+      }
+    });
+    pi.registerTool({
+      name: "propose_relation",
+      label: "Proposer une relation entre observations",
+      description: "Enregistre une relation candidate entre deux propositions existantes. La relation attend une validation humaine et ne modifie jamais les propositions sources.",
+      parameters: Type.Object({
+        from_id: Type.String({ description: "Identifiant de la proposition source." }),
+        to_id: Type.String({ description: "Identifiant de la proposition cible." }),
+        relation: Type.String({ description: "Type de relation défini dans l'ontologie complémentaire." }),
+        note: Type.Optional(Type.String({ description: "Justification concise de la relation." }))
+      }),
+      execute: async (_id, params) => {
+        const relation = recordRelationCandidate(params);
+        return { content: [{ type: "text", text: `Relation candidate enregistrée (${relation.id}) ; elle attend une validation humaine.` }], details: relation };
       }
     });
   };
