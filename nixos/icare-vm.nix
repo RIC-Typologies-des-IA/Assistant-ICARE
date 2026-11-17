@@ -25,6 +25,12 @@
       target = "/opt/icare-runtime";
       writable = false;
     };
+    # Journaux du service accessibles sur l'hôte, sans connexion à la console VM.
+    sharedDirectories.icare-logs = {
+      source = ''"''${ICARE_LOG_DIR:-$HOME/.local/share/icare-vm/logs}"'';
+      target = "/var/log/icare-export";
+      writable = true;
+    };
   };
 
   users.users.icare = {
@@ -51,6 +57,9 @@
       RestartSec = 5;
       StateDirectory = "icare";
       StateDirectoryMode = "0700";
+      # Conserve stdout/stderr, y compris les erreurs d'initialisation de Pi.
+      StandardOutput = "append:/var/log/icare-export/icare.log";
+      StandardError = "append:/var/log/icare-export/icare.log";
     };
     script = ''
       export HOME=/var/lib/icare

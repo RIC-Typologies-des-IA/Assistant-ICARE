@@ -50,6 +50,8 @@ Le script [tools/icare](tools/icare) est le lanceur du dépôt. Il installe Nix 
 
 Si aucun navigateur graphique n'est disponible, l'interface locale de secours est `http://127.0.0.1:8765`. Cette adresse est liée au loopback de l'hôte ; elle n'est pas à configurer dans Lemonade et n'est pas exposée sur le réseau local.
 
+Les journaux du service sont également exportés sur la machine hôte dans `~/.local/share/icare-vm/logs/icare.log` (ou dans le répertoire `$XDG_DATA_HOME/icare-vm/logs/` si cette variable est définie). En cas de problème de démarrage, ce fichier permet de consulter l'erreur sans se connecter à la console de la VM.
+
 #### Choix du modèle
 
 Aucun identifiant de modèle n'est imposé dans le dépôt. Pi interroge le catalogue Lemonade, repère les modèles de conversation téléchargés et les rend disponibles dans l'interface. Les modèles non téléchargés restent visibles mais ne sont pas sélectionnables. L'utilisateur peut actualiser le catalogue et changer de modèle sans redémarrer le service. Les modèles annoncés comme compatibles avec l'appel d'outils sont à privilégier pour utiliser toutes les fonctions ICARE.
