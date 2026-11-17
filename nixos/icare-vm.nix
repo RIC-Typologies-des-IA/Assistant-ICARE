@@ -41,6 +41,13 @@
   };
   users.groups.icare = { };
 
+  # Précrée le répertoire autorisé par nono avant le lancement du service.
+  # nono ignore --allow si le chemin n'existe pas encore.
+  systemd.tmpfiles.rules = [
+    "d /var/lib/icare 0700 icare icare -"
+    "d /var/lib/icare/data 0700 icare icare -"
+  ];
+
   environment.systemPackages = [ pkgs.nodejs_24 pkgs.nono pkgs.cacert ];
 
   systemd.services.icare = {
@@ -77,7 +84,7 @@
       export no_proxy=
       export NODE_USE_ENV_PROXY=1
       exec nono run --read /opt/icare-runtime --read /nix/store \
-        --allow /var/lib/icare --block-net \
+        --allow /var/lib/icare/data --block-net \
         --open-port 43128 --open-port 8765 \
         -- node src/server.js
     '';
