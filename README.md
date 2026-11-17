@@ -39,6 +39,7 @@ Le lanceur détecte automatiquement le système et l'architecture, installe Nix 
 
 - **Linux x86_64 et ARM64** : application exécutée dans une VM Linux NixOS/QEMU. Le processus ICARE est sandboxé par **nono/Landlock**. Lemonade reste sur la machine hôte pour garder l'accès au NPU.
 - **macOS Intel et Apple Silicon** : application exécutée nativement dans un sandbox **nono/Seatbelt**. Il n'est pas nécessaire d'installer QEMU ni de créer une VM Linux.
+  - Pour Intel, le flake utilise la branche Nixpkgs 26.05-darwin, car Nixpkgs 26.11 a abandonné x86_64-darwin. Cette branche reçoit les correctifs de sécurité annoncés jusqu'à la fin de 2026 ; la continuité au-delà devra être réévaluée.
 
 Sur les deux plateformes, le réseau du runtime est bloqué par défaut ; les échanges autorisés passent par le proxy filtré de nono. L'interface est liée au loopback et s'ouvre automatiquement lorsque le service est prêt.
 
