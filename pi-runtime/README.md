@@ -26,7 +26,7 @@ Le réseau NAT de la VM reste disponible au système invité pour le fonctionnem
 
 Au démarrage et à la demande, le backend lit `GET /v1/models?show_all=true`. Il expose les modèles de conversation à Pi et au tableau de bord, avec leurs labels, leur contexte et leur disponibilité.
 
-- Le tableau de bord propose un sélecteur de modèle et un bouton d'actualisation du catalogue.
+- Le tableau de bord propose un sélecteur de modèle et un bouton d'actualisation du catalogue. Les modèles non téléchargés restent visibles mais ne peuvent pas être sélectionnés avant leur installation dans Lemonade.
 - Pi dispose de l'outil `list_available_models` pour consulter les modèles connus de Lemonade et peut recommander un modèle selon le besoin exprimé.
 - L'utilisateur garde la décision de changement ; le backend appelle `session.setModel()` sur les sessions Pi existantes.
 - Les modèles portant le label `tool-calling` sont recommandés. Sans cette capacité, les outils ICARE peuvent ne pas fonctionner correctement.
