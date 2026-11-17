@@ -87,7 +87,7 @@ Le navigateur hôte accède à l'interface via le port QEMU transféré, lié au
 
 - **Hôte Linux** : exécute Lemonade Server et conserve l'accès au NPU. Il n'est pas nécessaire de l'installer dans la VM.
 - **QEMU / NixOS** : fournit un environnement Linux dédié à ICARE. Le réseau de la VM est restreint au niveau QEMU : aucun accès Internet direct n'est possible. Un seul transfert sortant relie la VM au proxy nono de l'hôte ; un autre transfert entrant expose l'interface web uniquement sur le loopback hôte.
-- **nono** : sandboxe le processus ICARE dans la VM avec `--block-net` et deux exceptions de port strictes : le proxy d'egress QEMU et le port d'écoute web. Sur l'hôte, le proxy nono n'autorise que l'API Lemonade (`127.0.0.1:13305/v1/**`) et les domaines Discord (`discord.com`, `gateway.discord.gg`).
+- **nono** : sandboxe le processus ICARE dans la VM avec `--block-net` et deux exceptions de port strictes : le proxy d'egress QEMU et le port d'écoute web. Sur l'hôte, le proxy nono n'autorise que l'API Lemonade (`127.0.0.1:13305/v1/**`) et les domaines Discord (`https://discord.com/api/**`, `gateway.discord.gg`).
 - **Pi (P-I)** : tourne dans le backend Node.js de la VM. Aucun shell, navigateur, outil de fichiers arbitraires, MCP ou recherche Web n'est exposé au modèle.
 - **Interface web** : le navigateur reste sur l'hôte ; seul le port local de l'interface est transféré vers la VM.
 
