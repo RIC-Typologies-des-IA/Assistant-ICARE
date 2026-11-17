@@ -41,7 +41,7 @@ async function loadModels(force=false){
  const select=$("#modelSelect");select.innerHTML="";
  for(const m of data.models){const o=document.createElement("option");o.value=m.id;
   const caps=(m.labels||[]).includes("tool-calling")?" · outils":" · sans garantie outils";
-  o.textContent=(m.name||m.id)+(m.downloaded?"":" · à télécharger")+caps;select.append(o)}
+  o.disabled=!m.downloaded;o.textContent=(m.name||m.id)+(m.downloaded?"":" · à télécharger")+caps;select.append(o)}
  select.value=data.selected;$("#status").textContent="Pi · "+data.selected+" · Lemonade";
 }
 $("#refreshModels").addEventListener("click",async()=>{try{await loadModels(true)}catch(e){$("#error").textContent=e.message}});
