@@ -162,42 +162,34 @@ function recordCandidate(input) {
   return db.prepare("SELECT * FROM propositions WHERE id=?").get(id);
 }
 
-async function initializePi() {
-  const modelsResponse = await fetch(BASE_URL + "/models", {
-    headers: API_KEY ? { Authorization: "Bearer " + API_KEY } : {}
-  });
-  if (!modelsResponse.ok) throw new Error(`Lemonade ne répond pas sur ${BASE_URL} (HTTP ${modelsResponse.status}). Vérifie que Lemonade Server est démarré.`);
-  const catalog = await modelsResponse.json();
-  const models = catalog.data || [];
-  const toolModels = models.filter(m => m.labels?.includes("chat") && m.labels.includes("tool-calling"));
-  const chatModels = models.filter(m => !m.labels || m.labels.includes("chat"));
-  const modelId = process.env.ICARE_MODEL || toolModels[0]?.id || chatModels[0]?.id;
-  if (!modelId) throw new Error("Aucun modèle de chat n'est disponible dans Lemonade. Charge d'abord un modèle de langage.");
-  const selected = models.find(m => m.id === modelId);
-  if (process.env.ICARE_MODEL && !selected) throw new Error(`Le modèle demandé « ${modelId} » n'apparaît pas dans GET /v1/models.`);
-  if (selected?.labels && !selected.labels.includes("tool-calling")) {
-    console.warn("[ICARE] Attention : le catalogue Lemonade ne signale pas le support du tool-calling pour ce modèle. Les outils Pi peuvent ne pas fonctionner.");
-  }
-  const modelConfig = {
-    id: modelId, name: selected?.name || modelId, api: "openai-completions",
-    reasoning: Boolean(selected?.labels?.includes("reasoning")), input: ["text"],
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: Number(selected?.context_length || 32768), maxTokens: 4096
-  };
-  const provider = {
-    name: "Lemonade local", baseUrl: BASE_URL, api: "openai-completions",
-    models: [modelConfig]
-  };
+async function refreshModelCatalog() {
+  const response = await fetch(BASE_URL + "/models?show_all=true", { headers: API_KEY ? { Authorization: "Bearer " + API_KEY } : {} });
+  if (!response.ok) throw new Error("Impossible de lire le catalogue Lemonade (HTTP " + response.status + ").");
+  const payload = await response.json();
+  const models = (payload.data || []).filter(m => m.labels?.includes("chat") || !m.labels?.length);
+  if (!models.length) throw new Error("Le catalogue Lemonade ne contient aucun modèle de conversation.");
+  const modelConfigs = models.map(m => ({ id: m.id, name: m.name || m.id, api: "openai-completions", reasoning: Boolean(m.labels?.includes("reasoning")), input: ["text"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: Number(m.context_length || m.max_context_window || 32768), maxTokens: Number(m.max_output_tokens || m.max_completion_tokens || 4096) }));
+  const provider = { name: "Lemonade local", baseUrl: BASE_URL, api: "openai-completions", models: modelConfigs };
   if (API_KEY) { provider.apiKey = "$LEMONADE_API_KEY"; provider.authHeader = true; }
   await writeFile(path.join(AGENT_DIR, "models.json"), JSON.stringify({ providers: { lemonade: provider } }, null, 2));
-  process.env.LEMONADE_API_KEY = API_KEY;
-  const { createAgentSession, DefaultResourceLoader, ModelRuntime, SessionManager } =
-    await import("@earendil-works/pi-coding-agent");
-  const { Type } = await import("@earendil-works/pi-ai");
-  modelRuntime = await ModelRuntime.create();
-  selectedModel = modelRuntime.getModel("lemonade", modelId);
-  if (!selectedModel) throw new Error(`Pi n'a pas pu charger le modèle Lemonade « ${modelId} » depuis models.json.`);
+  const nextRuntime = await piModules.ModelRuntime.create();
+  const currentId = selectedModel?.id || process.env.ICARE_MODEL;
+  const choice = models.find(m => m.id === currentId) || models.find(m => m.downloaded !== false && m.labels?.includes("tool-calling")) || models.find(m => m.downloaded !== false) || models.find(m => m.labels?.includes("tool-calling")) || models[0];
+  const nextModel = nextRuntime.getModel("lemonade", choice.id);
+  if (!nextModel) throw new Error("Pi n'a pas pu charger le modèle Lemonade « " + choice.id + " ».");
+  modelRuntime = nextRuntime; selectedModel = nextModel; catalogModels = models;
+  return models;
+}
 
+async function initializePi() {
+  const { createAgentSession, DefaultResourceLoader, ModelRuntime, SessionManager } = await import("@earendil-works/pi-coding-agent");
+  const { Type } = await import("@earendil-works/pi-ai");
+  piModules = { createAgentSession, SessionManager, DefaultResourceLoader, ModelRuntime, Type };
+  if (API_KEY) process.env.LEMONADE_API_KEY = API_KEY;
+  await refreshModelCatalog();
+  if (process.env.ICARE_MODEL && !catalogModels.some(m => m.id === process.env.ICARE_MODEL)) throw new Error("Le modèle demandé n'apparaît pas dans le catalogue Lemonade.");
+  const chosen = catalogModels.find(m => m.id === selectedModel.id);
+  if (!chosen?.labels?.includes("tool-calling")) console.warn("[ICARE] Le modèle choisi n'est pas signalé comme compatible tool-calling.");
   const extensionFactory = (pi) => {
     pi.registerTool({
       name: "get_exploration_state",
