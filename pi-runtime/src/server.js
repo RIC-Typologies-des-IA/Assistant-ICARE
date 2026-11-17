@@ -246,7 +246,7 @@ async function initializePi() {
     });
   };
   piModules.registerTools = extensionFactory;
-  return { modelId: selectedModel.id, modelName: selected?.name || selectedModel.id };
+  return { modelId: selectedModel.id, modelName: chosen?.name || selectedModel.id };
 }
 async function getSession(id) {
   if (sessions.has(id)) return sessions.get(id);
