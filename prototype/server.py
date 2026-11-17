@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 ROOT=Path(__file__).resolve().parent
 DATA=ROOT/"data"; DOCS=DATA/"documents"; DB=DATA/"icare.sqlite3"; STATIC=ROOT/"static"
 DOCS.mkdir(parents=True,exist_ok=True); STATIC.mkdir(parents=True,exist_ok=True)
-API_BASE_URL=os.environ.get("ICARE_API_BASE_URL","").rstrip("/")
+API_BASE_URL=os.environ.get("ICARE_API_BASE_URL","http://127.0.0.1:13305/api/v1").rstrip("/")
 API_KEY=os.environ.get("ICARE_API_KEY","lemonade")
 EMBED_MODEL=os.environ.get("ICARE_EMBED_MODEL","")
 CHAT_MODEL=os.environ.get("ICARE_CHAT_MODEL","")
