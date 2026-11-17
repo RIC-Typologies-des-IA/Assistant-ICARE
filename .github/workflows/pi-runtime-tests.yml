@@ -6,6 +6,7 @@ on:
     paths:
       - "pi-runtime/**"
       - "flake.nix"
+      - "nixos/**"
       - ".github/workflows/pi-runtime-tests.yml"
   pull_request:
     paths:
