@@ -257,7 +257,7 @@ async function getSession(id) {
   });
   await resourceLoader.reload();
   const created = await createAgentSession({
-    model: selectedModel, modelRuntime, resourceLoader, noTools: "all",
+    model: selectedModel, modelRuntime, resourceLoader, noTools: "builtin",
     sessionManager: SessionManager.create(ROOT)
   });
   sessions.set(id, created.session);
