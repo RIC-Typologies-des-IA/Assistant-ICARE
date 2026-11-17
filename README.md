@@ -1,126 +1,72 @@
-# ICARE — Un assistant pour penser et transformer les systèmes
+# ICARE — Penser et transformer les systèmes
 
-ICARE est un cadre de dialogue et de réflexion systémique. Il aide une personne à comprendre une situation, un projet ou une organisation dans ses interactions, puis à penser les transformations possibles.
+ICARE est une méthode de dialogue et de réflexion systémique. Elle aide à comprendre une situation, un projet ou une organisation dans ses interactions, puis à penser les transformations possibles.
 
-L'assistant ICARE n'est pas un expert qui décide à la place de l'utilisateur. Il agit comme un **partenaire intellectuel exigeant et non directif**, inspiré de la maïeutique : il questionne, reformule, met à l'épreuve les hypothèses et aide à faire émerger la pensée. L'utilisateur reste l'architecte de la démarche et conserve la maîtrise de l'intention, des arbitrages et des décisions.
+L'assistant ICARE est un partenaire intellectuel exigeant et non directif, inspiré de la maïeutique. Il questionne, reformule et met les hypothèses à l'épreuve. L'utilisateur reste maître de l'intention, des arbitrages et des décisions.
 
 ## La boussole ICARE
 
-Les cinq dimensions sont indissociables et en interaction permanente :
+Les cinq dimensions sont interdépendantes ; elles ne forment ni une checklist ni une séquence linéaire :
 
-- **I — Intention :** pourquoi travaille-t-on sur ce système et quelle transformation recherche-t-on ?
-- **C — Contexte :** dans quel environnement le système existe-t-il et interagit-il ?
-- **A — Action :** que veut-on faire advenir et par quelles actions ?
-- **R — Régulation / organisation :** comment les acteurs, les responsabilités, les processus et les flux s'organisent-ils ?
-- **E — Évolution :** comment le système apprend-il, se transforme-t-il et réorganise-t-il ses relations internes et avec son environnement ?
+- **I — Intention** : pourquoi travailler sur ce système et quelle finalité poursuivre ?
+- **C — Contexte** : dans quel environnement le système existe-t-il et interagit-il ?
+- **A — Action** : que veut-on faire advenir, et par quelles actions ?
+- **R — Régulation / organisation** : comment les acteurs, responsabilités, processus et flux s'organisent-ils ?
+- **E — Évolution** : comment le système apprend-il, se transforme-t-il et réorganise-t-il ses relations ?
 
-ICARE n'est ni une procédure rigide ni une grille à remplir mécaniquement. Les dimensions ne sont pas des étapes linéaires : elles s'influencent mutuellement. La profondeur de l'analyse doit rester proportionnée à la demande.
+Le référentiel commun est décrit dans [ICARE_referentiel.md](ICARE_referentiel.md).
 
-## Choisir une version
+## Deux façons d'utiliser ICARE
 
-Les trois prompts proposés sont des **adaptations opérationnelles d'une même méthode**, et non trois variantes conceptuelles d'ICARE. Le fichier [ICARE_referentiel.md](ICARE_referentiel.md) demeure le socle commun.
+Le dépôt conserve deux approches complémentaires. Elles partagent la même méthode, mais ne répondent pas aux mêmes besoins.
 
-| Version | À choisir si… | Installation habituelle |
-|---|---|---|
-| [Standard](prompts/ICARE_instructions_standard.md) | Vous utilisez un agent configurable ou un espace de travail avec instructions persistantes et documents de référence. Vous privilégiez la lisibilité et la richesse des consignes. | Instructions permanentes / instructions du projet ; ajouter le référentiel comme document de connaissance si possible. |
-| [Locale](prompts/ICARE_instructions_locale.md) | Vous exécutez un modèle sur votre ordinateur ou votre propre infrastructure et pouvez définir un prompt système. | Champ « system prompt » ou configuration équivalente ; conserver des micro-synthèses pour les conversations longues. |
-| [Web compacte](prompts/ICARE_prompt_web_compact.md) | Vous utilisez un service web gratuit ou une interface qui ne permet pas de configurer durablement l'assistant, avec un budget de contexte limité. | Coller le prompt au début d'une nouvelle conversation. |
+### 1. Approche par prompt — la forme initiale
 
-**En cas d'hésitation, commencez par la version Standard.** Elle expose plus explicitement les nuances de la méthode. Les versions Locale et Web compacte cherchent à rendre le même cadre utilisable dans des environnements plus contraints.
+La méthode est portée par des instructions données à un modèle conversationnel. Elle est simple à déployer et ne nécessite pas d'application dédiée.
 
-## Contenu du dépôt
+Trois niveaux sont conservés :
+- **Standard** : agent configurable ou projet ChatGPT ;
+- **Local** : modèle exécuté sur une machine ou une infrastructure maîtrisée ;
+- **Web compacte** : prompt court à coller au début d'une conversation.
 
-- [ICARE_referentiel.md](ICARE_referentiel.md) — fondements, posture maïeutique, définitions, interactions systémiques et principes de qualité.
-- [prompts/ICARE_instructions_standard.md](prompts/ICARE_instructions_standard.md) — instructions détaillées pour agent configurable et projet ChatGPT.
-- [prompts/ICARE_instructions_locale.md](prompts/ICARE_instructions_locale.md) — prompt système structuré pour modèle local.
-- [prompts/ICARE_prompt_web_compact.md](prompts/ICARE_prompt_web_compact.md) — prompt court à coller dans une conversation web.
+Consulter le [README de l'approche par prompt](prompt/README.md) pour choisir et installer la bonne version.
 
-## Installation dans ChatGPT
+### 2. Approche agentique — application Pi, Lemonade, QEMU et nono
 
-La méthode s'installe de préférence dans un **projet ChatGPT**, afin de réserver cette posture aux échanges qui nécessitent un accompagnement systémique.
+Cette approche ajoute un runtime applicatif à la méthode : **Pi (P-I)** dialogue avec les modèles servis par **Lemonade**, tandis qu'un backend conserve l'état d'exploration, les propositions et les documents dans SQLite.
 
-1. Téléchargez ou ouvrez le fichier [ICARE_instructions_standard.md](prompts/ICARE_instructions_standard.md).
-2. Dans ChatGPT, créez un projet depuis la barre latérale.
-3. Ouvrez les paramètres du projet et copiez l'intégralité du fichier Standard dans le champ **Instructions du projet**.
-4. Ajoutez [ICARE_referentiel.md](ICARE_referentiel.md) aux sources ou fichiers du projet.
-5. Démarrez une conversation dans ce projet et présentez le système ou la transformation que vous souhaitez travailler.
+L'application s'exécute dans une VM Linux **QEMU/NixOS**. Le processus ICARE y est sandboxé par **nono**. Lemonade reste sur la machine hôte pour garder l'accès au NPU. Le réseau de la VM est fermé par défaut ; les échanges autorisés passent par le proxy filtré de l'hôte. L'interface est ouverte automatiquement dans le navigateur lorsque l'environnement graphique le permet.
 
-Le dépôt n'est pas une application à installer : il fournit des documents de référence et des prompts à copier dans l'environnement conversationnel choisi. L'ajout du référentiel aux sources ne remplace pas les instructions du projet ; les deux documents ont des fonctions complémentaires.
+#### Installation et lancement sous Linux x86_64
 
-### Exemple de premier message
-
-> Je souhaite travailler sur un système avec la méthode ICARE. Je vais te présenter progressivement la situation, ce que je cherche à transformer et les difficultés que je rencontre. Accompagne-moi dans une démarche maïeutique : aide-moi à construire une représentation systémique pertinente, questionne mes hypothèses avec exigence et laisse-moi la maîtrise de l'intention et des décisions. Ne cherche pas à produire immédiatement une solution.
-
-## Installation dans un environnement local
-
-1. Ouvrez [ICARE_instructions_locale.md](prompts/ICARE_instructions_locale.md).
-2. Copiez son contenu dans le champ de prompt système de votre interface ou de votre configuration de modèle.
-3. Si votre interface prend en charge les documents de référence, ajoutez [ICARE_referentiel.md](ICARE_referentiel.md).
-4. Pour les conversations longues, demandez une micro-synthèse et sauvegardez-la afin de pouvoir la réinjecter si le contexte est perdu ou réinitialisé.
-
-La micro-synthèse aide à maintenir une continuité explicite ; elle ne garantit pas que l'interface conserve automatiquement l'historique ou une mémoire persistante.
-
-## Installation dans une interface web avec prompt de conversation
-
-1. Ouvrez [ICARE_prompt_web_compact.md](prompts/ICARE_prompt_web_compact.md).
-2. Copiez son contenu.
-3. Collez-le au début d'une nouvelle conversation avec le modèle choisi.
-4. Présentez ensuite votre sujet et échangez normalement.
-
-Dans ce mode, le prompt doit rester autonome : ne supposez pas que le modèle peut accéder au dépôt ou au référentiel, sauf si vous lui fournissez effectivement le document.
-
-## Application expérimentale avec Pi, Lemonade, QEMU et nono
-
-Une application conversationnelle fondée sur le SDK de **Pi (P-I)** est lancée par défaut dans une VM Linux **QEMU**. Le processus ICARE est sandboxé par **nono** à l'intérieur de la VM. Lemonade reste sur la machine hôte afin de conserver l'accès au NPU.
-
-### Installation et lancement sous Linux
-
-Une seule commande installe Nix si nécessaire, construit la VM NixOS et la démarre :
+1. Démarrer **Lemonade Server sur la machine hôte** et vérifier que son API est disponible sur `http://127.0.0.1:13305/v1`.
+2. Exécuter cette unique commande dans un terminal :
 
 ```bash
-bash -c '[ -r /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh ] && . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh; [ -r "$HOME/.nix-profile/etc/profile.d/nix.sh" ] && . "$HOME/.nix-profile/etc/profile.d/nix.sh"; if ! command -v nix >/dev/null 2>&1; then curl --proto "=https" --tlsv1.2 -fsSL https://install.determinate.systems/nix | sh -s -- install --no-confirm; [ -r /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh ] && . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh; [ -r "$HOME/.nix-profile/etc/profile.d/nix.sh" ] && . "$HOME/.nix-profile/etc/profile.d/nix.sh"; fi; nix --extra-experimental-features "nix-command flakes" run "github:RIC-Typologies-des-IA/Assistant-ICARE?ref=implementation/pi-runtime#default"'
+curl -fsSL https://raw.githubusercontent.com/RIC-Typologies-des-IA/Assistant-ICARE/main/tools/icare | bash
 ```
 
-Le lanceur ouvre automatiquement l'interface dans le navigateur par défaut lorsqu'un environnement graphique est détecté. Sinon, l'adresse locale de secours est `http://127.0.0.1:8765`, via le port QEMU transféré et lié au loopback de l'hôte. Ce n'est pas une adresse à configurer dans Lemonade ni une exposition sur le réseau local. Le lanceur démarre également un proxy nono sur l'hôte, limité à Lemonade et aux domaines Discord autorisés. Le disque QCOW2 de la VM est créé dans le répertoire de lancement ; le conserver pour garder les données entre deux démarrages.
+Le script [tools/icare](tools/icare) est le lanceur du dépôt. Il installe Nix si nécessaire, puis exécute le flake Nix qui construit et démarre la VM. L'installation de Nix peut demander une autorisation système. Au premier lancement, le téléchargement et la construction de la VM peuvent prendre quelques minutes.
 
-### Répartition des composants
+Si aucun navigateur graphique n'est disponible, l'interface locale de secours est `http://127.0.0.1:8765`. Cette adresse est liée au loopback de l'hôte ; elle n'est pas à configurer dans Lemonade et n'est pas exposée sur le réseau local.
 
-- **Hôte Linux** : exécute Lemonade Server et conserve l'accès au NPU. Il n'est pas nécessaire de l'installer dans la VM.
-- **QEMU / NixOS** : fournit un environnement Linux dédié à ICARE. Le réseau de la VM est restreint au niveau QEMU : aucun accès Internet direct n'est possible. Un seul transfert sortant relie la VM au proxy nono de l'hôte ; un autre transfert entrant expose l'interface web uniquement sur le loopback hôte.
-- **nono** : sandboxe le processus ICARE dans la VM avec `--block-net` et deux exceptions de port strictes : le proxy d'egress QEMU et le port d'écoute web. Sur l'hôte, le proxy nono n'autorise que l'API Lemonade (`127.0.0.1:13305/v1/**`) et les domaines Discord (`https://discord.com/api/**`, `gateway.discord.gg`).
-- **Pi (P-I)** : tourne dans le backend Node.js de la VM. Aucun shell, navigateur, outil de fichiers arbitraires, MCP ou recherche Web n'est exposé au modèle.
-- **Interface web** : le navigateur reste sur l'hôte ; seul le port local de l'interface est transféré vers la VM.
+#### Choix du modèle
 
-La politique réseau est appliquée à deux niveaux : QEMU interdit les sorties réseau de la VM sauf le transfert vers le proxy ; nono limite les ports accessibles au processus ICARE ; le proxy nono de l'hôte filtre ensuite les destinations HTTP(S) autorisées. Les dépendances npm sont installées sur l'hôte avant le démarrage de la VM puis montées en lecture seule dans le système invité. Cette phase de bootstrap ne donne aucun accès réseau à l'agent dans la VM. En production, il faudra également figer les dépendances npm avec un lockfile et vérifier les règles réseau sur la machine cible.
+Aucun identifiant de modèle n'est imposé dans le dépôt. Pi interroge le catalogue Lemonade, repère les modèles de conversation téléchargés et les rend disponibles dans l'interface. Les modèles non téléchargés restent visibles mais ne sont pas sélectionnables. L'utilisateur peut actualiser le catalogue et changer de modèle sans redémarrer le service. Les modèles annoncés comme compatibles avec l'appel d'outils sont à privilégier pour utiliser toutes les fonctions ICARE.
 
-### Dialogue Pi ↔ Lemonade et choix du modèle
+#### État et limites de l'approche agentique
 
-ICARE ne fige plus un identifiant de modèle dans la configuration. Au démarrage, Pi récupère le catalogue `GET /v1/models?show_all=true` de Lemonade et enregistre dans son runtime les modèles de conversation annoncés. Le tableau de bord permet d'actualiser ce catalogue et de changer de modèle sans redémarrer le service ; les modèles non téléchargés sont visibles mais désactivés jusqu'à leur installation dans Lemonade. Pi peut également consulter le catalogue avec son outil ICARE dédié.
-
-Les modèles portant le label `tool-calling` sont à privilégier, car les outils ICARE sont nécessaires à la consultation de l'état et à l'enregistrement des propositions. Le choix reste explicite : Pi peut examiner le catalogue et conseiller un modèle, mais ne bascule pas silencieusement sur un autre modèle.
-
-### Données et limites
-
-- Les données ICARE, la mémoire documentaire et les sessions Pi sont persistées dans le disque de la VM.
-- Les observations de l'agent restent des propositions candidates jusqu'à validation humaine.
+- Les observations proposées par Pi restent des candidates jusqu'à leur validation humaine.
 - Les statuts « suffisamment explorée » et « non applicable » exigent une justification.
-- La mémoire documentaire initiale est textuelle ; la recherche vectorielle, l'analyse visuelle, le multi-utilisateur et l'adaptateur Discord restent à développer.
-- Le catalogue Lemonade et le changement de modèle sont intégrés, mais un test d'inférence réelle avec les modèles installés sur la machine cible reste nécessaire.
-- L'application reste expérimentale et n'est pas encore une version de production.
+- Les données ICARE et la base SQLite sont conservées sur le disque virtuel de la VM.
+- L'adaptateur Discord n'est pas encore implémenté ; les autorisations réseau sont préparées, mais aucun échange Discord applicatif n'est actif.
+- La restauration automatique d'une conversation Pi après redémarrage et le test d'inférence réel sur la machine cible restent à valider.
+- Cette version est expérimentale ; la CI vérifie les tests Node.js et la construction de la VM, pas l'intégration réelle avec le NPU de chaque machine.
 
-Voir [pi-runtime/README.md](pi-runtime/README.md) et [nixos/icare-vm.nix](nixos/icare-vm.nix) pour les détails techniques.
+Les détails techniques et les limites sont décrits dans [pi-runtime/README.md](pi-runtime/README.md) et [nixos/icare-vm.nix](nixos/icare-vm.nix).
 
-## Principes communs aux trois versions
+## Faire évoluer ICARE
 
-- L'utilisateur reste l'auteur de l'intention et le décideur.
-- L'assistant questionne et éclaire ; il ne prescrit pas par défaut.
-- Les faits, perceptions, hypothèses et interprétations sont distingués.
-- Les cinq dimensions sont reliées, jamais traitées comme cinq cases indépendantes.
-- La profondeur de l'analyse est proportionnée à l'enjeu et à la demande.
-- Les représentations restent provisoires, discutables et révisables.
-
-## Faire évoluer le projet
-
-Les prompts traduisent le référentiel dans des contraintes d'usage différentes. Lorsqu'une évolution substantielle de la méthode est décidée, mettre d'abord à jour le référentiel, puis vérifier la cohérence des trois prompts. Les retours d'expérience et propositions d'adaptation peuvent être discutés dans les [issues du dépôt](https://github.com/RIC-Typologies-des-IA/Assistant-ICARE/issues).
+Les deux approches doivent rester cohérentes avec le référentiel commun. Une évolution méthodologique se discute d'abord au niveau du référentiel, puis se répercute sur les prompts et sur le comportement de l'agent. Les propositions d'adaptation peuvent être discutées dans les [issues du dépôt](https://github.com/RIC-Typologies-des-IA/Assistant-ICARE/issues).
 
 **ICARE aide à voir plus largement, relier plus finement, questionner plus rigoureusement et apprendre de ce qui advient, sans retirer à l'utilisateur la maîtrise de son intention ni de ses décisions.**
