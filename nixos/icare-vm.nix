@@ -21,13 +21,13 @@
     ];
     # Code + node_modules installés sur l'hôte, montés en lecture seule dans la VM.
     sharedDirectories.icare-runtime = {
-      source = ''"${ICARE_RUNTIME_DIR:-$HOME/.local/share/icare-vm/runtime}"'';
+      source = ''"''${ICARE_RUNTIME_DIR:-$HOME/.local/share/icare-vm/runtime}"'';
       target = "/opt/icare-runtime";
       writable = false;
     };
     # Journaux du service accessibles sur l'hôte, sans connexion à la console VM.
     sharedDirectories.icare-logs = {
-      source = ''"${ICARE_LOG_DIR:-$HOME/.local/share/icare-vm/logs}"'';
+      source = ''"''${ICARE_LOG_DIR:-$HOME/.local/share/icare-vm/logs}"'';
       target = "/var/log/icare-export";
       writable = true;
     };
