@@ -36,10 +36,14 @@ Le choix dynamique s'appuie sur le catalogue Lemonade et le changement de modèl
 
 ## Outils ICARE fournis à Pi
 
-- `get_exploration_state` : consulter l'état des cinq dimensions.
+- `get_ontology` : consulter l'ontologie structurée complète, source de vérité des dimensions et des vocabulaires de classification.
+- `get_exploration_state` : consulter l'état des cinq dimensions dans l'ordre canonique I, C, A, R, E.
 - `search_reference_documents` : rechercher dans le corpus documentaire local.
 - `list_propositions` : consulter les propositions et leur statut.
-- `propose_observation` : enregistrer une observation comme candidate, jamais comme fait accepté.
+- `propose_observation` : enregistrer une observation comme candidate, avec ses qualifications temporelles, évaluatives, modales, épistémiques et sa provenance lorsqu'elles sont connues.
+- `propose_relation` : proposer une relation historisée entre deux observations existantes ; elle reste candidate à validation humaine.
+
+À chaque tour apportant une information nouvelle et substantielle, le prompt système demande explicitement à Pi de qualifier les éléments et d'appeler `propose_observation` sans attendre une demande d'enregistrement. Les propositions alimentent le panneau latéral et les compteurs de chaque dimension ; elles restent candidates jusqu'à validation humaine. Le modèle doit déclarer la capacité `tool-calling` dans le catalogue Lemonade pour garantir l'exécution de ces outils. L'interface signale clairement lorsqu'un modèle sélectionné ne déclare pas cette capacité.
 - `list_available_models` : consulter le catalogue des modèles de conversation Lemonade.
 
 Le contrôleur conserve le dernier mot : les propositions attendent une validation humaine ; les statuts d'exploration sont modifiés explicitement dans l'interface. Les statuts « suffisamment explorée » et « non applicable » exigent une justification.
@@ -66,3 +70,23 @@ Le workflow GitHub Actions vérifie les tests Node.js et construit la VM NixOS. 
 - Le bootstrap npm doit être remplacé par une installation reproductible verrouillée avant un usage de production.
 
 Cette version est une base expérimentale à éprouver, pas encore une version de production.
+
+## Ontologies complémentaires
+
+ICARE reste la couche descriptive du système et conserve exactement cinq dimensions dans l'ordre I, C, A, R, E. Les autres couches ne sont pas des dimensions supplémentaires : elles qualifient les propositions et les relations entre elles.
+
+Le référentiel `reference/icare.json` formalise désormais six couches :
+- **ICARE descriptive** : intention, contexte, action, régulation/organisation, évolution.
+- **États et temporalité** : temps d'énonciation, période de validité, période d'événement, horizon cible et temps de réalisation. Ces repères ne sont pas ramenés à une simple étiquette passé/présent/futur.
+- **Évaluation et modalités** : souhaité, non souhaité, redouté, préférable ou défavorable, distingués de possible, impossible, nécessaire, permis ou interdit.
+- **Épistémique et provenance** : affirmation, information rapportée, inférence, hypothèse ou prévision ; auteur, agent/source, interaction et justification lorsqu'ils sont connus.
+- **Statut pratique** : envisagé, proposé, décidé, engagé, en cours, réalisé ou abandonné.
+- **Relations et historique** : confirmation, précision, complément, nuance, contradiction, révision, succession temporelle, état antérieur/actuel/cible, contribution, empêchement ou condition.
+
+Les propositions peuvent conserver leurs périodes et qualifications sans écraser les versions antérieures. La confiance enregistrée correspond à la confiance du système dans l'extraction, et non à la certitude de la personne ou de la source. Les champs inconnus restent inconnus : le modèle ne doit pas inventer de dates, d'auteurs ou de preuves.
+
+Les relations sont proposées par l'outil `propose_relation` et restent candidates à validation humaine, comme les observations. Elles sont exposées dans `/api/state`, affichées dans le panneau « Relations à valider » et peuvent être validées ou rejetées séparément via `/api/relations/:id`. Les migrations SQLite ajoutent les champs complémentaires aux bases existantes sans supprimer les données précédentes.
+
+### Références conceptuelles
+
+Le modèle réutilise sélectivement des distinctions issues de DOLCE, BFO et UFO, de l'algèbre des intervalles de James Allen, de PROV-O et de la théorie des intentions et plans de Michael Bratman. Ces références sont des inspirations ; le runtime n'embarque pas intégralement ces ontologies et ne dépend pas d'une infrastructure RDF/OWL. Le format de référence reste un JSON léger et inspectable.

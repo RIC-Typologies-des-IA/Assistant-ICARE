@@ -15,18 +15,21 @@ const BASE_URL = (process.env.LEMONADE_BASE_URL || "http://127.0.0.1:13305/v1").
 const API_KEY = process.env.LEMONADE_API_KEY || "";
 const HOST = process.env.ICARE_HOST || "127.0.0.1";
 const PORT = Number(process.env.ICARE_PORT || 8765);
-const DIMENSIONS = {
-  I: "Intention / finalité",
-  C: "Contexte / situation",
-  A: "Action / opération",
-  R: "Régulation / organisation",
-  E: "Évolution / temporalité"
-};
-const TEMPORAL = ["past", "present", "future", "unknown"];
-const EVALUATION = ["desired", "undesired", "feared", "neutral", "unknown"];
-const EPISTEMIC = ["asserted", "reported", "inferred", "hypothesis", "predicted", "unknown"];
-const PRACTICAL = ["proposed", "considered", "decided", "committed", "in_progress", "completed", "abandoned", "unspecified"];
-const EXPLORATION = ["unexplored", "insufficient", "sufficient", "not_applicable"];
+// L'ontologie JSON est la source de vérité des dimensions et des catégories.
+const ONTOLOGY = JSON.parse(await readFile(path.join(ROOT, "reference", "icare.json"), "utf8"));
+const DIMENSION_ORDER = ["I", "C", "A", "R", "E"];
+const DIMENSIONS = Object.fromEntries(
+  DIMENSION_ORDER.map(code => [code, ONTOLOGY.dimensions[code]])
+);
+if (DIMENSION_ORDER.some(code => !DIMENSIONS[code]) ||
+    Object.keys(ONTOLOGY.dimensions).length !== DIMENSION_ORDER.length) {
+  throw new Error("L'ontologie ICARE doit définir exactement les dimensions I, C, A, R et E.");
+}
+const TEMPORAL = ONTOLOGY.temporal;
+const EVALUATION = ONTOLOGY.evaluation;
+const EPISTEMIC = ONTOLOGY.epistemic;
+const PRACTICAL = ONTOLOGY.practical;
+const EXPLORATION = ONTOLOGY.exploration_status;
 
 await mkdir(DATA_DIR, { recursive: true });
 await mkdir(AGENT_DIR, { recursive: true });
@@ -54,6 +57,16 @@ db.exec(`
     review_status TEXT NOT NULL DEFAULT 'candidate', created_at TEXT NOT NULL
   );
 `);
+// Migrations additives : les bases déjà créées sont mises à niveau sans perte d'historique.
+const propositionColumns = new Set(db.prepare("PRAGMA table_info(propositions)").all().map(column => column.name));
+for (const [name, type] of [
+  ["utterance_time", "TEXT"], ["valid_time_start", "TEXT"], ["valid_time_end", "TEXT"],
+  ["event_period_start", "TEXT"], ["event_period_end", "TEXT"], ["target_horizon", "TEXT"],
+  ["realization_time", "TEXT"], ["modality", "TEXT"], ["subject", "TEXT"], ["predicate", "TEXT"], ["value", "TEXT"], ["author", "TEXT"],
+  ["source_agent", "TEXT"], ["source_interaction", "TEXT"], ["justification", "TEXT"]
+]) {
+  if (!propositionColumns.has(name)) db.exec(`ALTER TABLE propositions ADD COLUMN ${name} ${type}`);
+}
 const now = () => new Date().toISOString();
 const insertDimension = db.prepare("INSERT OR IGNORE INTO dimensions(code,status,justification,updated_at) VALUES(?,?,?,?)");
 for (const code of Object.keys(DIMENSIONS)) insertDimension.run(code, "unexplored", "", now());
@@ -68,6 +81,11 @@ for (const [id, title, filename] of [
 
 const SYSTEM_PROMPT = `Tu es ICARE, un agent méthodologique maïeutique. Tu aides un humain à comprendre et décrire un système par un dialogue ouvert, non linéaire et progressif.
 
+ONTOLOGIE STRUCTURÉE DE RÉFÉRENCE
+Le fichier reference/icare.json est la source de vérité. Voici son contenu complet :
+${JSON.stringify(ONTOLOGY, null, 2)}
+Respecte ses catégories et ses distinctions. En cas de doute, consulte l'outil get_ontology.
+
 RÉFÉRENTIEL ICARE — les cinq dimensions restent toujours présentes dans ton analyse :
 I — Intention / finalité
 C — Contexte / situation
@@ -80,6 +98,11 @@ RÈGLES DE DIALOGUE
 - Tu choisis la question suivante selon ce qui manque réellement à la compréhension, les ambiguïtés, les tensions, les relations et les transformations.
 - Tu gardes les cinq dimensions comme grille de vigilance, même quand la conversation approfondit une seule d'entre elles.
 - Une proposition peut relever de plusieurs dimensions. N'impose pas une classification exclusive.
+- ICARE est la couche descriptive : les couches temporelle, évaluative/modale, épistémique/provenance, pratique et relationnelle la complètent sans créer de nouvelles dimensions.
+- Pour chaque proposition, distingue si possible le temps d'énonciation, la période de validité, la période d'un événement, l'horizon cible et le temps de réalisation. Laisse les champs inconnus vides ; n'invente jamais de date.
+- Si cela clarifie l'information, structure la proposition autour d'un sujet, d'une propriété/predicat et d'une valeur, sans perdre le texte fidèle à la source.
+- Distingue les évaluations (souhaité, non souhaité, redouté, préférable, défavorable) des modalités (possible, impossible, nécessaire, permis, interdit).
+- Distingue constaté/affirmé, rapporté, inféré, hypothétique et prévisionnel ; conserve la source et le contexte d'origine. La confiance d'extraction n'est pas la certitude de la source.
 - Distingue toujours le passé, le présent, le futur souhaité, les hypothèses, les décisions, les engagements et les réalisations.
 - Souhaité ne signifie pas décidé ; décidé ne signifie pas engagé ; engagé ne signifie pas réalisé.
 - Une évolution temporelle n'est pas automatiquement une contradiction.
@@ -87,9 +110,15 @@ RÈGLES DE DIALOGUE
 - Une information absente n'est pas « non applicable ».
 - Tu proposes des interprétations avec prudence et expliques brièvement les incertitudes.
 - N'invente jamais de faits, d'acteurs, de relations ou de décisions.
-- Tu peux consulter la mémoire documentaire ICARE et l'état d'exploration avec les outils fournis.
+- Tu consultes l'ontologie structurée et l'état d'exploration avec les outils fournis lorsque cela aide à qualifier une information.
+- CONSIGNE D'ALIMENTATION DU TABLEAU DE BORD : à chaque tour où l'utilisateur apporte une information nouvelle et substantielle sur le système, identifie les observations qui méritent d'être conservées et appelle propose_observation pour les enregistrer comme candidates. N'attends pas que l'utilisateur demande explicitement un enregistrement.
+- Regroupe les éléments cohérents en propositions lisibles, attribue toutes les dimensions pertinentes (une proposition peut relever de plusieurs dimensions), précise temporalité, statut épistémique et statut pratique selon l'ontologie. N'invente aucune information manquante.
+- Avant de proposer, vérifie si une proposition existante couvre déjà le même élément afin d'éviter les doublons ; préfère nuancer ou compléter dans le dialogue plutôt que multiplier les répétitions.
+- Lorsque deux propositions existantes entretiennent un lien sémantique important (confirmation, précision, évolution d'état, contradiction sur une même période, dépendance, etc.), utilise propose_relation avec leurs identifiants issus de list_propositions. Les relations restent candidates et doivent être justifiées ; ne confonds pas évolution temporelle et contradiction.
+- En cas d'incertitude de classement, conserve l'incertitude et explique-la brièvement ; ne force pas une dimension.
+- Les outils mettent à jour les compteurs et la liste des propositions candidates visibles dans le panneau latéral. Explique naturellement à l'utilisateur qu'une proposition attend sa validation lorsqu'il est pertinent de le signaler.
 - Tu peux enregistrer une proposition comme candidate à validation humaine, jamais comme un fait validé.
-- Ne marque jamais une dimension comme suffisamment explorée ou non applicable de ta propre initiative.
+- Tu ne modifies jamais le statut d'exploration d'une dimension : l'utilisateur seul décide si elle est insuffisamment documentée, suffisamment explorée ou non applicable, et justifie les deux derniers statuts.
 - Le corpus documentaire est une référence méthodologique, pas une source de faits sur le système discuté.
 - Tu n'as aucun outil de navigation Web, de shell, de fichiers arbitraires ou de réseau externe. Ne prétends pas avoir effectué une recherche Web.
 
@@ -119,7 +148,8 @@ async function readBody(req) {
   return raw ? JSON.parse(raw) : {};
 }
 function getState() {
-  const rows = db.prepare("SELECT * FROM dimensions ORDER BY code").all();
+  const rows = db.prepare("SELECT * FROM dimensions").all()
+    .sort((a, b) => DIMENSION_ORDER.indexOf(a.code) - DIMENSION_ORDER.indexOf(b.code));
   const counts = db.prepare("SELECT dimensions, review_status FROM propositions").all();
   return rows.map(row => {
     const related = counts.filter(p => JSON.parse(p.dimensions).includes(row.code));
@@ -130,6 +160,9 @@ function getState() {
 function getPropositions() {
   return db.prepare("SELECT * FROM propositions ORDER BY created_at DESC LIMIT 100").all()
     .map(p => ({ ...p, dimensions: JSON.parse(p.dimensions) }));
+}
+function getRelations() {
+  return db.prepare("SELECT * FROM relations ORDER BY created_at DESC LIMIT 200").all();
 }
 function searchDocs(query) {
   const terms = String(query || "").toLowerCase().split(/\W+/).filter(t => t.length > 2);
@@ -153,14 +186,36 @@ function recordCandidate(input) {
   const observationText = String(input.text || "").trim().slice(0,4000);
   if (!observationText) throw new Error("Le texte de l'observation ne peut pas être vide.");
   const id = randomUUID();
+  const modality = ONTOLOGY.modality.includes(input.modality) ? input.modality : "unknown";
+  const optionalText = key => input[key] == null || input[key] === "" ? null : String(input[key]).slice(0, 500);
   db.prepare(`INSERT INTO propositions
-    (id,text,dimensions,primary_dimension,temporal,evaluation,epistemic,practical,confidence,source,aspect,review_status,created_at)
-    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+    (id,text,dimensions,primary_dimension,temporal,evaluation,epistemic,practical,confidence,source,aspect,review_status,created_at,
+     utterance_time,valid_time_start,valid_time_end,event_period_start,event_period_end,target_horizon,realization_time,modality,
+     subject,predicate,value,author,source_agent,source_interaction,justification)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
       id, observationText, JSON.stringify(dimensions), primary,
       temporal, evaluation, epistemic, practical, confidence, String(input.source || "conversation").slice(0,300),
-      String(input.aspect || "").slice(0,300), "candidate", now()
+      String(input.aspect || "").slice(0,300), "candidate", now(),
+      optionalText("utterance_time"), optionalText("valid_time_start"), optionalText("valid_time_end"),
+      optionalText("event_period_start"), optionalText("event_period_end"), optionalText("target_horizon"),
+      optionalText("realization_time"), modality, optionalText("subject"), optionalText("predicate"), optionalText("value"),
+      optionalText("author"), optionalText("source_agent"), optionalText("source_interaction"), optionalText("justification")
     );
   return db.prepare("SELECT * FROM propositions WHERE id=?").get(id);
+}
+function recordRelationCandidate(input) {
+  const allowed = new Set(ONTOLOGY.relations);
+  const relation = String(input.relation || "");
+  if (!allowed.has(relation)) throw new Error("Relation inconnue dans l'ontologie complémentaire.");
+  const fromId = String(input.from_id || "");
+  const toId = String(input.to_id || "");
+  if (!fromId || !toId || fromId === toId) throw new Error("Deux identifiants de propositions distincts sont requis.");
+  const exists = db.prepare("SELECT id FROM propositions WHERE id IN (?,?)").all(fromId, toId);
+  if (exists.length !== 2) throw new Error("Les deux propositions doivent exister.");
+  const id = randomUUID();
+  db.prepare("INSERT INTO relations(id,from_id,to_id,relation,note,review_status,created_at) VALUES(?,?,?,?,?,?,?)")
+    .run(id, fromId, toId, relation, String(input.note || "").slice(0,1000), "candidate", now());
+  return { id, from_id: fromId, to_id: toId, relation, review_status: "candidate" };
 }
 
 async function refreshModelCatalog() {
@@ -202,6 +257,13 @@ async function initializePi() {
       execute: async () => ({ content: [{ type: "text", text: JSON.stringify(catalogModels.map(m => ({ id: m.id, name: m.name || m.id, labels: m.labels || [], downloaded: m.downloaded !== false, context_length: m.context_length || m.max_context_window || null, suggested: Boolean(m.suggested) })), null, 2) }], details: {} })
     });
     pi.registerTool({
+      name: "get_ontology",
+      label: "Ontologie ICARE",
+      description: "Renvoie l'ontologie structurée complète : dimensions ICARE et couches complémentaires des états/temps, de l'évaluation/modalité, de l'épistémique/provenance, des statuts pratiques et des relations historiques.",
+      parameters: Type.Object({}),
+      execute: async () => ({ content: [{ type: "text", text: JSON.stringify(ONTOLOGY, null, 2) }], details: {} })
+    });
+    pi.registerTool({
       name: "get_exploration_state",
       label: "État d'exploration ICARE",
       description: "Consulte l'état documenté des cinq dimensions ICARE et les volumes de propositions validées ou en attente.",
@@ -235,15 +297,45 @@ async function initializePi() {
         primary_dimension: Type.Optional(Type.String()),
         temporal: Type.Optional(Type.String()),
         evaluation: Type.Optional(Type.String()),
+        modality: Type.Optional(Type.String()),
         epistemic: Type.Optional(Type.String()),
         practical: Type.Optional(Type.String()),
-        confidence: Type.Optional(Type.Number()),
+        confidence: Type.Optional(Type.Number({ description: "Confiance du système dans l'extraction, pas certitude de la source." })),
         source: Type.Optional(Type.String()),
-        aspect: Type.Optional(Type.String())
+        aspect: Type.Optional(Type.String()),
+        subject: Type.Optional(Type.String()),
+        predicate: Type.Optional(Type.String()),
+        value: Type.Optional(Type.String()),
+        utterance_time: Type.Optional(Type.String()),
+        valid_time_start: Type.Optional(Type.String()),
+        valid_time_end: Type.Optional(Type.String()),
+        event_period_start: Type.Optional(Type.String()),
+        event_period_end: Type.Optional(Type.String()),
+        target_horizon: Type.Optional(Type.String()),
+        realization_time: Type.Optional(Type.String()),
+        author: Type.Optional(Type.String()),
+        source_agent: Type.Optional(Type.String()),
+        source_interaction: Type.Optional(Type.String()),
+        justification: Type.Optional(Type.String())
       }),
       execute: async (_id, params) => {
         const p = recordCandidate(params);
         return { content: [{ type: "text", text: `Proposition candidate enregistrée (${p.id}). Elle attend une validation humaine dans le tableau de bord ; elle n'est pas considérée comme un fait validé.` }], details: { id: p.id } };
+      }
+    });
+    pi.registerTool({
+      name: "propose_relation",
+      label: "Proposer une relation entre observations",
+      description: "Enregistre une relation candidate entre deux propositions existantes. La relation attend une validation humaine et ne modifie jamais les propositions sources.",
+      parameters: Type.Object({
+        from_id: Type.String({ description: "Identifiant de la proposition source." }),
+        to_id: Type.String({ description: "Identifiant de la proposition cible." }),
+        relation: Type.String({ description: "Type de relation défini dans l'ontologie complémentaire." }),
+        note: Type.Optional(Type.String({ description: "Justification concise de la relation." }))
+      }),
+      execute: async (_id, params) => {
+        const relation = recordRelationCandidate(params);
+        return { content: [{ type: "text", text: `Relation candidate enregistrée (${relation.id}) ; elle attend une validation humaine.` }], details: relation };
       }
     });
   };
@@ -278,7 +370,14 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, "http://" + req.headers.host);
   try {
     if (req.method === "GET" && url.pathname === "/") return sendStatic(res, path.join(HERE, "..", "public", "index.html"), "text/html; charset=utf-8");
-    if (req.method === "GET" && url.pathname === "/api/status") return json(res, 200, { ok: true, model: selectedModel.id, provider: "Lemonade via Pi SDK" });
+    if (req.method === "GET" && url.pathname === "/api/status") {
+      const modelInfo = catalogModels.find(m => m.id === selectedModel.id);
+      return json(res, 200, {
+        ok: true, model: selectedModel.id, provider: "Lemonade via Pi SDK",
+        toolCalling: Boolean(modelInfo?.labels?.includes("tool-calling")),
+        dimensionsOrder: DIMENSION_ORDER
+      });
+    }
     if (req.method === "GET" && url.pathname === "/api/models") return json(res, 200, { models: catalogModels.map(m => ({ id: m.id, name: m.name || m.id, labels: m.labels || [], downloaded: m.downloaded !== false, context_length: m.context_length || m.max_context_window || null, suggested: Boolean(m.suggested) })), selected: selectedModel.id });
     if (req.method === "POST" && url.pathname === "/api/models/refresh") {
       if (sessionBusy.size) return json(res, 409, { error: "Attends la fin des réponses en cours avant d’actualiser le catalogue." });
@@ -296,7 +395,7 @@ const server = http.createServer(async (req, res) => {
       selectedModel = next;
       return json(res, 200, { ok: true, selected: selectedModel.id, toolCalling: Boolean(info.labels?.includes("tool-calling")) });
     }
-    if (req.method === "GET" && url.pathname === "/api/state") return json(res, 200, { dimensions: getState(), propositions: getPropositions(), documents: db.prepare("SELECT id,title,created_at FROM reference_docs ORDER BY title").all() });
+    if (req.method === "GET" && url.pathname === "/api/state") return json(res, 200, { dimensions: getState(), propositions: getPropositions(), relations: getRelations(), documents: db.prepare("SELECT id,title,created_at FROM reference_docs ORDER BY title").all() });
     if (req.method === "POST" && url.pathname === "/api/chat") {
       const body = await readBody(req);
       const message = String(body.message || "").trim();
@@ -315,7 +414,7 @@ const server = http.createServer(async (req, res) => {
         });
         await session.prompt(message);
         unsubscribe();
-        res.write("event: done\ndata: " + JSON.stringify({ state: getState(), propositions: getPropositions().filter(p => p.review_status === "candidate") }) + "\n\n");
+        res.write("event: done\ndata: " + JSON.stringify({ state: getState(), propositions: getPropositions().filter(p => p.review_status === "candidate"), relations: getRelations() }) + "\n\n");
       } catch (error) {
         res.write("event: error\ndata: " + JSON.stringify({ message: error.message || String(error) }) + "\n\n");
       } finally {
@@ -330,6 +429,14 @@ const server = http.createServer(async (req, res) => {
       if (!["accepted", "rejected"].includes(body.review_status)) return json(res, 400, { error: "Statut de validation invalide." });
       const result = db.prepare("UPDATE propositions SET review_status=? WHERE id=? AND review_status='candidate'").run(body.review_status, id);
       if (!result.changes) return json(res, 404, { error: "Proposition candidate introuvable." });
+      return json(res, 200, { ok: true });
+    }
+    if (req.method === "POST" && url.pathname.startsWith("/api/relations/")) {
+      const id = decodeURIComponent(url.pathname.split("/").pop());
+      const body = await readBody(req);
+      if (!["accepted", "rejected"].includes(body.review_status)) return json(res, 400, { error: "Statut de validation invalide." });
+      const result = db.prepare("UPDATE relations SET review_status=? WHERE id=? AND review_status='candidate'").run(body.review_status, id);
+      if (!result.changes) return json(res, 404, { error: "Relation candidate introuvable." });
       return json(res, 200, { ok: true });
     }
     if (req.method === "POST" && url.pathname.startsWith("/api/dimensions/")) {

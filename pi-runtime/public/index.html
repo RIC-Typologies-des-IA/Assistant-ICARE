@@ -27,6 +27,7 @@ button{border:0;border-radius:9px;padding:10px 14px;background:#2458a6;color:whi
 <aside class="side">
 <section class="panel"><h2>État d'exploration ICARE</h2><div id="dimensions"></div><p class="hint">Les statuts sont pilotés par l'humain. Une absence d'information ne signifie pas « non applicable ». Une dimension ne passe à « suffisamment explorée » qu'avec une justification.</p></section>
 <section class="panel"><h2>Propositions à valider</h2><div id="propositions"><p class="hint">Aucune proposition en attente.</p></div></section>
+<section class="panel"><h2>Relations à valider</h2><div id="relations"><p class="hint">Aucune relation en attente.</p></div><p class="hint">Les relations entre propositions (évolution, précision, contradiction, dépendance…) sont elles aussi soumises à validation humaine.</p></section>
 <section class="panel"><h2>Mémoire documentaire</h2><div class="docs"><form id="docForm"><input id="docTitle" placeholder="Titre du document" required><textarea id="docContent" placeholder="Colle ici un extrait ou un document de référence…" required></textarea><button class="secondary" type="submit">Ajouter à la mémoire</button></form></div><p class="hint">Les documents enrichissent la référence méthodologique locale. Ils ne sont pas utilisés comme preuves sur le système étudié.</p></section>
 </aside>
 </main>
@@ -35,6 +36,14 @@ const $=s=>document.querySelector(s);
 const sessionKey="icare-pi-session";
 let sessionId=localStorage.getItem(sessionKey)||crypto.randomUUID();localStorage.setItem(sessionKey,sessionId);
 function addMessage(role,text){const el=document.createElement("div");el.className="msg "+role;el.textContent=text;$("#messages").append(el);$("#messages").scrollTop=$("#messages").scrollHeight;return el}
+function updateModelStatus(modelId, models){
+ const model=models.find(m=>m.id===modelId);
+ const tools=Boolean(model?.labels?.includes("tool-calling"));
+ $("#status").textContent="Pi · "+modelId+(tools?" · outils actifs":" · ⚠ sans tool-calling");
+ $("#status").title=tools
+  ?"Le modèle annonce la prise en charge des outils : l'agent peut alimenter les propositions ICARE."
+  :"Ce modèle ne déclare pas le tool-calling. L'alimentation automatique des propositions ICARE n'est pas garantie ; choisis un modèle compatible.";
+}
 async function loadModels(force=false){
  const r=await fetch(force?"/api/models/refresh":"/api/models",force?{method:"POST"}:{});
  const data=await r.json();if(!r.ok)throw new Error(data.error||"Catalogue Lemonade indisponible");
@@ -42,17 +51,20 @@ async function loadModels(force=false){
  for(const m of data.models){const o=document.createElement("option");o.value=m.id;
   const caps=(m.labels||[]).includes("tool-calling")?" · outils":" · sans garantie outils";
   o.disabled=!m.downloaded;o.textContent=(m.name||m.id)+(m.downloaded?"":" · à télécharger")+caps;select.append(o)}
- select.value=data.selected;$("#status").textContent="Pi · "+data.selected+" · Lemonade";
+ select.value=data.selected;updateModelStatus(data.selected,data.models);
 }
 $("#refreshModels").addEventListener("click",async()=>{try{await loadModels(true)}catch(e){$("#error").textContent=e.message}});
 $("#modelSelect").addEventListener("change",async()=>{
  try{const r=await fetch("/api/models/select",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:$("#modelSelect").value})});const x=await r.json();if(!r.ok)throw new Error(x.error);
-  $("#status").textContent="Pi · "+x.selected+" · Lemonade";if(!x.toolCalling)$("#error").textContent="Attention : Lemonade ne signale pas le tool-calling pour ce modèle ; les outils ICARE peuvent ne pas fonctionner.";
+  const current=await fetch("/api/models").then(r=>r.json());updateModelStatus(x.selected,current.models);
+  if(!x.toolCalling)$("#error").textContent="Attention : Lemonade ne signale pas le tool-calling pour ce modèle ; l'alimentation automatique du panneau ICARE n'est pas garantie.";
  }catch(e){$("#error").textContent=e.message;await loadModels()}
 });
 async function refresh(){
  const r=await fetch("/api/state");const data=await r.json();
  $("#dimensions").innerHTML="";
+ const order=["I","C","A","R","E"];
+ data.dimensions.sort((a,b)=>order.indexOf(a.code)-order.indexOf(b.code));
  for(const d of data.dimensions){
   const row=document.createElement("div");row.className="dimension";
   const label=document.createElement("div");label.className="dimtop";
@@ -67,17 +79,37 @@ async function refresh(){
  }
  $("#propositions").innerHTML="";
  const pending=data.propositions.filter(p=>p.review_status==="candidate");
- if(!pending.length){$("#propositions").innerHTML='<p class="hint">Aucune proposition en attente.</p>';return}
+ if(!pending.length){$("#propositions").innerHTML='<p class="hint">Aucune proposition en attente.</p>'}
  for(const p of pending){
   const row=document.createElement("div");row.className="proposition";
   const text=document.createElement("p");text.textContent=p.text;row.append(text);
-  const tags=document.createElement("div");tags.className="tags";tags.textContent=p.dimensions.join(" + ")+" · "+p.temporal+" · "+p.epistemic+" · "+p.practical;row.append(tags);
+  const tags=document.createElement("div");tags.className="tags";
+  const qualifiers=[p.dimensions.join(" + "),p.temporal,p.evaluation,p.modality,p.epistemic,p.practical].filter(Boolean);
+  if(p.valid_time_start||p.valid_time_end)qualifiers.push("validité : "+(p.valid_time_start||"?")+" → "+(p.valid_time_end||"?"));
+  if(p.target_horizon)qualifiers.push("horizon : "+p.target_horizon);
+  if(p.source)qualifiers.push("source : "+p.source);
+  tags.textContent=qualifiers.join(" · ");row.append(tags);
   const actions=document.createElement("div");actions.className="actions";
   for(const [status,label,cls] of [["accepted","Valider",""],["rejected","Rejeter","danger"]]){
    const b=document.createElement("button");b.textContent=label;if(cls)b.className=cls;
    b.onclick=async()=>{await fetch("/api/propositions/"+p.id,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({review_status:status})});refresh()};actions.append(b)
   }
   row.append(actions);$("#propositions").append(row)
+ }
+ $("#relations").innerHTML="";
+ const pendingRelations=(data.relations||[]).filter(r=>r.review_status==="candidate");
+ if(!pendingRelations.length)$("#relations").innerHTML='<p class="hint">Aucune relation en attente.</p>';
+ for(const rel of pendingRelations){
+  const row=document.createElement("div");row.className="proposition";
+  const from=data.propositions.find(p=>p.id===rel.from_id),to=data.propositions.find(p=>p.id===rel.to_id);
+  const title=document.createElement("p");title.textContent=(from?.text||rel.from_id)+" → "+rel.relation+" → "+(to?.text||rel.to_id);row.append(title);
+  if(rel.note){const note=document.createElement("div");note.className="tags";note.textContent=rel.note;row.append(note)}
+  const actions=document.createElement("div");actions.className="actions";
+  for(const [status,label,cls] of [["accepted","Valider",""],["rejected","Rejeter","danger"]]){
+   const b=document.createElement("button");b.textContent=label;if(cls)b.className=cls;
+   b.onclick=async()=>{await fetch("/api/relations/"+rel.id,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({review_status:status})});refresh()};actions.append(b)
+  }
+  row.append(actions);$("#relations").append(row)
  }
 }
 $("#chatForm").addEventListener("submit",async e=>{
@@ -98,6 +130,8 @@ $("#chatForm").addEventListener("submit",async e=>{
  finally{$("#send").disabled=false;$("#message").focus()}
 });
 $("#docForm").addEventListener("submit",async e=>{e.preventDefault();const r=await fetch("/api/references",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({title:$("#docTitle").value,content:$("#docContent").value})});const x=await r.json();if(!r.ok){alert(x.error);return}$("#docTitle").value="";$("#docContent").value="";alert("Document ajouté à la mémoire ICARE.")});
-(async()=>{try{const s=await fetch("/api/status").then(r=>r.json());$("#status").textContent="Pi · "+s.model+" · Lemonade";await loadModels();await refresh()}catch(e){$("#status").textContent="Serveur indisponible"}})();
+(async()=>{try{const s=await fetch("/api/status").then(r=>r.json());await loadModels();await refresh();
+ if(!s.toolCalling)$("#error").textContent="Le modèle actif ne déclare pas le tool-calling : les propositions automatiques du LLM peuvent ne pas apparaître dans le panneau latéral. Sélectionne un modèle compatible.";
+ }catch(e){$("#status").textContent="Serveur indisponible"}})();
 </script>
 </body></html>
