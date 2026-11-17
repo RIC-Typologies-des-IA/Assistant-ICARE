@@ -1,49 +1,38 @@
-# Runtime ICARE avec Pi
+# Runtime ICARE avec Pi, Lemonade, QEMU et nono
 
-Cette application est le premier runtime agentique d'ICARE. Pi est intégré au serveur Node.js via son SDK TypeScript/JavaScript ; Lemonade est le fournisseur de modèles local.
+Cette application est le runtime expérimental ICARE. Pi (P-I) est intégré au backend Node.js via son SDK. Le backend tourne dans une VM NixOS/QEMU et son processus est sandboxé par nono. Lemonade reste sur l'hôte Linux pour conserver l'accès au NPU.
 
 ## Lancement
 
-Depuis la racine du dépôt, après installation de Nix :
+Depuis le dépôt, après installation de Nix :
 
-    nix --extra-experimental-features "nix-command flakes" run .
+    nix --extra-experimental-features "nix-command flakes" run .#default
 
-Le README racine fournit une commande unique qui installe Nix si nécessaire et lance directement cette application depuis GitHub. Le serveur écoute par défaut sur http://127.0.0.1:8765.
+Le README racine donne une commande unique qui installe Nix si nécessaire et lance la VM depuis GitHub. Le port hôte `127.0.0.1:8765` est transféré vers le serveur web de la VM ; il n'est pas exposé sur le réseau local.
 
-L'application suppose que Lemonade Server est déjà actif sur http://127.0.0.1:13305. Elle appelle GET /v1/models pour découvrir les modèles puis sélectionne le premier modèle portant le label chat. Pour forcer un identifiant précis :
+Le disque QCOW2 de la VM est créé dans le répertoire courant. Il contient les données persistantes ; ne le supprime pas si tu souhaites conserver les conversations et la mémoire.
 
-    ICARE_MODEL="identifiant-exact" nix --extra-experimental-features "nix-command flakes" run .
+## Réseau et confinement
 
-Variables configurables :
+- Lemonade reste sur l'hôte, par exemple sur `127.0.0.1:13305`. QEMU crée un transfert ciblé du port invité `10.0.2.100:13305` vers ce service hôte. Lemonade n'a donc pas besoin d'écouter sur `0.0.0.0`.
+- QEMU transfère le port de l'interface web de l'hôte vers la VM, en liant le port hôte à `127.0.0.1`.
+- Le service ICARE est lancé par `nono run` dans la VM. Le mode proxy de nono filtre les sorties du processus : seule l'API Lemonade et les domaines Discord explicitement autorisés sont accessibles.
+- Le port d'écoute 8765 est explicitement accordé à nono pour le serveur web. Le serveur écoute sur l'interface réseau de la VM, mais QEMU n'expose le port correspondant que sur le loopback de l'hôte.
+- Aucun outil shell, navigateur, accès arbitraire aux fichiers, MCP ou recherche Web n'est fourni au modèle.
 
-- `LEMONADE_BASE_URL` : URL de base OpenAI-compatible, défaut `http://127.0.0.1:13305/v1`.
-- `LEMONADE_API_KEY` : clé API si Lemonade est configuré pour en exiger une.
-- `ICARE_MODEL` : identifiant de modèle chat exposé par `GET /v1/models`.
-- `ICARE_HOST` : adresse d'écoute, défaut `127.0.0.1`.
-- `ICARE_PORT` : port du serveur web, défaut `8765`.
-- `ICARE_DATA_DIR` : dossier de données, défaut `~/.local/share/icare-pi/data`.
-- `PI_CODING_AGENT_DIR` : configuration et sessions Pi, défaut `~/.local/share/icare-pi/pi-agent`.
+Le réseau NAT de la VM reste disponible au système invité pour le fonctionnement du proxy nono et l'installation initiale des dépendances npm. L'application ICARE elle-même tourne dans le sandbox nono. Le provisionnement npm est une étape de bootstrap exécutée avant le lancement sandboxé ; il devra être rendu reproductible avec un lockfile avant une diffusion de production.
 
-Le premier lancement installe le SDK Pi depuis npm dans le dossier de données local. Nix fournit Node.js 24 et les outils nécessaires. Les dépendances npm du runtime sont épinglées dans package.json.
+## Dialogue Pi ↔ Lemonade : catalogue dynamique
 
-## Architecture
+Au démarrage et à la demande, le backend lit `GET /v1/models?show_all=true`. Il expose les modèles de conversation à Pi et au tableau de bord, avec leurs labels, leur contexte et leur disponibilité.
 
-    Navigateur
-       │ HTTP / SSE
-       ▼
-    Backend ICARE (Node.js)
-       ├── Contrôleur HTTP et validation
-       ├── SQLite : propositions, statuts, références
-       ├── Outils ICARE explicitement autorisés
-       └── Pi SDK (session et boucle agentique)
-                 │ API OpenAI-compatible
-                 ▼
-             Lemonade Server
-                 │
-                 ▼
-              Modèle local
+- Le tableau de bord propose un sélecteur de modèle et un bouton d'actualisation du catalogue.
+- Pi dispose de l'outil `list_available_models` pour consulter les modèles connus de Lemonade et peut recommander un modèle selon le besoin exprimé.
+- L'utilisateur garde la décision de changement ; le backend appelle `session.setModel()` sur les sessions Pi existantes.
+- Les modèles portant le label `tool-calling` sont recommandés. Sans cette capacité, les outils ICARE peuvent ne pas fonctionner correctement.
+- `ICARE_MODEL` reste disponible comme préférence initiale facultative, mais aucun modèle n'est imposé dans le code.
 
-Le modèle n'a pas d'accès aux outils intégrés dangereux de Pi. Le serveur utilise `noTools: "builtin"` et n'enregistre que les outils ICARE définis dans `src/server.js`. Aucun shell, navigateur, accès arbitraire au système de fichiers, MCP ou recherche Web n'est fourni au modèle.
+Le choix dynamique s'appuie sur le catalogue Lemonade et le changement de modèle du SDK Pi. Il ne délègue pas à l'agent un pouvoir de modifier seul sa configuration.
 
 ## Outils ICARE fournis à Pi
 
@@ -51,14 +40,13 @@ Le modèle n'a pas d'accès aux outils intégrés dangereux de Pi. Le serveur ut
 - `search_reference_documents` : rechercher dans le corpus documentaire local.
 - `list_propositions` : consulter les propositions et leur statut.
 - `propose_observation` : enregistrer une observation comme candidate, jamais comme fait accepté.
+- `list_available_models` : consulter le catalogue des modèles de conversation Lemonade.
 
 Le contrôleur conserve le dernier mot : les propositions attendent une validation humaine ; les statuts d'exploration sont modifiés explicitement dans l'interface. Les statuts « suffisamment explorée » et « non applicable » exigent une justification.
 
-## Données et confidentialité
+## Données
 
-Les données sont locales dans `ICARE_DATA_DIR`. SQLite conserve les propositions, les statuts d'exploration, les relations futures et les documents. Les sessions Pi sont écrites dans le répertoire Pi isolé du runtime. Le serveur écoute sur localhost par défaut ; ne le publie pas sur un réseau sans ajouter au préalable authentification et protections adaptées.
-
-L'application n'envoie pas les données à un service de recherche Web. Le modèle local reçoit les requêtes par l'API de Lemonade.
+Les données sont conservées dans le disque virtuel QCOW2, sous `/var/lib/icare` dans la VM. SQLite conserve les propositions, les statuts d'exploration, les relations et les documents. Les sessions Pi sont conservées dans le répertoire dédié du runtime.
 
 ## Tests
 
@@ -67,14 +55,14 @@ L'application n'envoie pas les données à un service de recherche Web. Le modè
     npm test
     node --check src/server.js
 
-Les tests vérifient la disponibilité de SQLite et la capacité de Pi à charger un modèle configuré avec le protocole OpenAI-compatible de Lemonade. Ils ne remplacent pas un test d'intégration avec un modèle local réel.
+Le workflow GitHub Actions vérifie les tests Node.js et construit la VM NixOS. Ces vérifications ne remplacent pas un test d'intégration sur une machine Linux réelle avec QEMU, nono, Lemonade et un modèle compatible tool-calling.
 
-## Limites de cette première version
+## Limites
 
-- Les sessions sont gardées en mémoire pendant l'exécution du serveur ; les données ICARE sont persistantes, mais la restauration automatique du fil de dialogue après redémarrage reste à implémenter.
-- La mémoire documentaire est initialement textuelle et la recherche lexicale ; les embeddings et l'analyse visuelle ne sont pas encore branchés.
-- L'interface est mono-utilisateur local ; pas encore de comptes, d'isolation multi-utilisateur ni de Discord.
-- Les modèles Lemonade ne prennent pas tous en charge les appels d'outils. Il faut choisir un modèle de chat capable de function/tool calling pour exploiter pleinement les outils ICARE.
-- Le statut d'une proposition, la confiance d'extraction et les qualifications restent révisables ; la confiance n'est pas une probabilité calibrée.
+- L'adaptateur Discord n'est pas encore implémenté ; les destinations Discord sont préparées dans l'allowlist réseau, sans flux applicatif Discord actif.
+- Le dialogue Pi/Lemonade et le changement de modèle sont intégrés au catalogue exposé par Lemonade ; l'inférence réelle doit encore être validée avec les modèles présents sur la machine cible.
+- Les sessions sont maintenues en mémoire pendant l'exécution du serveur ; la restauration automatique du fil de dialogue après redémarrage reste à finaliser.
+- La mémoire documentaire initiale est textuelle et la recherche lexicale ; embeddings et analyse visuelle restent à implémenter.
+- Le bootstrap npm doit être remplacé par une installation reproductible verrouillée avant un usage de production.
 
-Ce runtime constitue une base d'implémentation à éprouver, pas encore une version de production.
+Cette version est une base expérimentale à éprouver, pas encore une version de production.
