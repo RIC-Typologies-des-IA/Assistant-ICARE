@@ -81,17 +81,17 @@ Une seule commande installe Nix si nécessaire, construit la VM NixOS et la dém
 bash -c '[ -r /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh ] && . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh; [ -r "$HOME/.nix-profile/etc/profile.d/nix.sh" ] && . "$HOME/.nix-profile/etc/profile.d/nix.sh"; if ! command -v nix >/dev/null 2>&1; then curl --proto "=https" --tlsv1.2 -fsSL https://install.determinate.systems/nix | sh -s -- install --no-confirm; [ -r /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh ] && . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh; [ -r "$HOME/.nix-profile/etc/profile.d/nix.sh" ] && . "$HOME/.nix-profile/etc/profile.d/nix.sh"; fi; nix --extra-experimental-features "nix-command flakes" run "github:RIC-Typologies-des-IA/Assistant-ICARE?ref=implementation/pi-runtime#default"'
 ```
 
-Le navigateur hôte accède à l'interface via le port QEMU transféré, lié au loopback de l'hôte : `http://127.0.0.1:8765`. Ce n'est pas une adresse à configurer dans Lemonade ni une exposition sur le réseau local. Le disque QCOW2 de la VM est créé dans le répertoire de lancement ; le conserver pour garder les données entre deux démarrages.
+Le navigateur hôte accède à l'interface via le port QEMU transféré, lié au loopback de l'hôte : `http://127.0.0.1:8765`. Ce n'est pas une adresse à configurer dans Lemonade ni une exposition sur le réseau local. Le lanceur démarre également un proxy nono sur l'hôte, limité à Lemonade et aux domaines Discord autorisés. Le disque QCOW2 de la VM est créé dans le répertoire de lancement ; le conserver pour garder les données entre deux démarrages.
 
 ### Répartition des composants
 
 - **Hôte Linux** : exécute Lemonade Server et conserve l'accès au NPU. Il n'est pas nécessaire de l'installer dans la VM.
-- **QEMU / NixOS** : fournit un environnement Linux dédié à ICARE. Le transfert QEMU vers `127.0.0.1:13305` permet à la VM d'atteindre le Lemonade de l'hôte sans demander à Lemonade d'écouter sur toutes les interfaces.
-- **nono** : sandboxe le processus ICARE avec une politique réseau par défaut restrictive. Le processus est autorisé à joindre l'API Lemonade via le transfert QEMU, ainsi que les points d'accès Discord prévus pour l'adaptateur. Le serveur web ne peut écouter que sur le port 8765.
+- **QEMU / NixOS** : fournit un environnement Linux dédié à ICARE. Le réseau de la VM est restreint au niveau QEMU : aucun accès Internet direct n'est possible. Un seul transfert sortant relie la VM au proxy nono de l'hôte ; un autre transfert entrant expose l'interface web uniquement sur le loopback hôte.
+- **nono** : sandboxe le processus ICARE dans la VM avec `--block-net` et deux exceptions de port strictes : le proxy d'egress QEMU et le port d'écoute web. Sur l'hôte, le proxy nono n'autorise que l'API Lemonade (`127.0.0.1:13305/v1/**`) et les domaines Discord (`discord.com`, `gateway.discord.gg`).
 - **Pi (P-I)** : tourne dans le backend Node.js de la VM. Aucun shell, navigateur, outil de fichiers arbitraires, MCP ou recherche Web n'est exposé au modèle.
 - **Interface web** : le navigateur reste sur l'hôte ; seul le port local de l'interface est transféré vers la VM.
 
-La politique nono concerne le processus ICARE sandboxé. Le réseau de la VM est utilisé par les services système et par l'installation initiale des dépendances npm ; cette phase d'amorçage précède le lancement du processus sandboxé. En production, il faudra également figer les dépendances npm avec un lockfile et vérifier les règles réseau sur la machine cible.
+La politique réseau est appliquée à deux niveaux : QEMU interdit les sorties réseau de la VM sauf le transfert vers le proxy ; nono limite les ports accessibles au processus ICARE ; le proxy nono de l'hôte filtre ensuite les destinations HTTP(S) autorisées. Les dépendances npm sont installées sur l'hôte avant le démarrage de la VM puis montées en lecture seule dans le système invité. Cette phase de bootstrap ne donne aucun accès réseau à l'agent dans la VM. En production, il faudra également figer les dépendances npm avec un lockfile et vérifier les règles réseau sur la machine cible.
 
 ### Dialogue Pi ↔ Lemonade et choix du modèle
 
