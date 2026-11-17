@@ -16,15 +16,19 @@ test("Node runtime provides SQLite", () => {
 test("Pi SDK loads a custom Lemonade OpenAI-compatible model", async () => {
   const dir = await mkdtemp(path.join(os.tmpdir(), "icare-pi-test-"));
   const previous = process.env.PI_CODING_AGENT_DIR;
+  const previousApiKey = process.env.LEMONADE_API_KEY;
   try {
     await mkdir(dir, { recursive: true });
     process.env.PI_CODING_AGENT_DIR = dir;
+    process.env.LEMONADE_API_KEY = "test-local-key";
     await writeFile(path.join(dir, "models.json"), JSON.stringify({
       providers: {
         lemonade: {
           name: "Lemonade local",
           baseUrl: "http://127.0.0.1:13305/v1",
           api: "openai-completions",
+          apiKey: "$LEMONADE_API_KEY",
+          authHeader: true,
           models: [
             { id: "test-chat-model", name: "Test chat model", input: ["text"], reasoning: false, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 8192, maxTokens: 1024 },
             { id: "test-chat-model-2", name: "Second test model", input: ["text"], reasoning: true, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 16384, maxTokens: 2048 }
@@ -51,6 +55,8 @@ test("Pi SDK loads a custom Lemonade OpenAI-compatible model", async () => {
   } finally {
     if (previous === undefined) delete process.env.PI_CODING_AGENT_DIR;
     else process.env.PI_CODING_AGENT_DIR = previous;
+    if (previousApiKey === undefined) delete process.env.LEMONADE_API_KEY;
+    else process.env.LEMONADE_API_KEY = previousApiKey;
     await rm(dir, { recursive: true, force: true });
   }
 });
