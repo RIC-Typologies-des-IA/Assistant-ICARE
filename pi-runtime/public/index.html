@@ -27,6 +27,7 @@ button{border:0;border-radius:9px;padding:10px 14px;background:#2458a6;color:whi
 <aside class="side">
 <section class="panel"><h2>État d'exploration ICARE</h2><div id="dimensions"></div><p class="hint">Les statuts sont pilotés par l'humain. Une absence d'information ne signifie pas « non applicable ». Une dimension ne passe à « suffisamment explorée » qu'avec une justification.</p></section>
 <section class="panel"><h2>Propositions à valider</h2><div id="propositions"><p class="hint">Aucune proposition en attente.</p></div></section>
+<section class="panel"><h2>Relations à valider</h2><div id="relations"><p class="hint">Aucune relation en attente.</p></div><p class="hint">Les relations entre propositions (évolution, précision, contradiction, dépendance…) sont elles aussi soumises à validation humaine.</p></section>
 <section class="panel"><h2>Mémoire documentaire</h2><div class="docs"><form id="docForm"><input id="docTitle" placeholder="Titre du document" required><textarea id="docContent" placeholder="Colle ici un extrait ou un document de référence…" required></textarea><button class="secondary" type="submit">Ajouter à la mémoire</button></form></div><p class="hint">Les documents enrichissent la référence méthodologique locale. Ils ne sont pas utilisés comme preuves sur le système étudié.</p></section>
 </aside>
 </main>
@@ -78,17 +79,37 @@ async function refresh(){
  }
  $("#propositions").innerHTML="";
  const pending=data.propositions.filter(p=>p.review_status==="candidate");
- if(!pending.length){$("#propositions").innerHTML='<p class="hint">Aucune proposition en attente.</p>';return}
+ if(!pending.length){$("#propositions").innerHTML='<p class="hint">Aucune proposition en attente.</p>'}
  for(const p of pending){
   const row=document.createElement("div");row.className="proposition";
   const text=document.createElement("p");text.textContent=p.text;row.append(text);
-  const tags=document.createElement("div");tags.className="tags";tags.textContent=p.dimensions.join(" + ")+" · "+p.temporal+" · "+p.epistemic+" · "+p.practical;row.append(tags);
+  const tags=document.createElement("div");tags.className="tags";
+  const qualifiers=[p.dimensions.join(" + "),p.temporal,p.evaluation,p.modality,p.epistemic,p.practical].filter(Boolean);
+  if(p.valid_time_start||p.valid_time_end)qualifiers.push("validité : "+(p.valid_time_start||"?")+" → "+(p.valid_time_end||"?"));
+  if(p.target_horizon)qualifiers.push("horizon : "+p.target_horizon);
+  if(p.source)qualifiers.push("source : "+p.source);
+  tags.textContent=qualifiers.join(" · ");row.append(tags);
   const actions=document.createElement("div");actions.className="actions";
   for(const [status,label,cls] of [["accepted","Valider",""],["rejected","Rejeter","danger"]]){
    const b=document.createElement("button");b.textContent=label;if(cls)b.className=cls;
    b.onclick=async()=>{await fetch("/api/propositions/"+p.id,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({review_status:status})});refresh()};actions.append(b)
   }
   row.append(actions);$("#propositions").append(row)
+ }
+ $("#relations").innerHTML="";
+ const pendingRelations=(data.relations||[]).filter(r=>r.review_status==="candidate");
+ if(!pendingRelations.length)$("#relations").innerHTML='<p class="hint">Aucune relation en attente.</p>';
+ for(const rel of pendingRelations){
+  const row=document.createElement("div");row.className="proposition";
+  const from=data.propositions.find(p=>p.id===rel.from_id),to=data.propositions.find(p=>p.id===rel.to_id);
+  const title=document.createElement("p");title.textContent=(from?.text||rel.from_id)+" → "+rel.relation+" → "+(to?.text||rel.to_id);row.append(title);
+  if(rel.note){const note=document.createElement("div");note.className="tags";note.textContent=rel.note;row.append(note)}
+  const actions=document.createElement("div");actions.className="actions";
+  for(const [status,label,cls] of [["accepted","Valider",""],["rejected","Rejeter","danger"]]){
+   const b=document.createElement("button");b.textContent=label;if(cls)b.className=cls;
+   b.onclick=async()=>{await fetch("/api/relations/"+rel.id,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({review_status:status})});refresh()};actions.append(b)
+  }
+  row.append(actions);$("#relations").append(row)
  }
 }
 $("#chatForm").addEventListener("submit",async e=>{
