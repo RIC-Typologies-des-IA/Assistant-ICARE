@@ -1,0 +1,24 @@
+name: Prototype tests
+
+on:
+  push:
+    branches: [main, "prototype/**"]
+    paths:
+      - "prototype/**"
+      - ".github/workflows/prototype-tests.yml"
+  pull_request:
+    paths:
+      - "prototype/**"
+      - ".github/workflows/prototype-tests.yml"
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run prototype tests
+        working-directory: prototype
+        run: python -m unittest -v
