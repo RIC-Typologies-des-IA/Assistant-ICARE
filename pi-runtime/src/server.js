@@ -236,13 +236,6 @@ async function initializePi() {
       }
     });
   };
-  const resourceLoader = new DefaultResourceLoader({
-    cwd: ROOT, agentDir: AGENT_DIR,
-    systemPromptOverride: () => SYSTEM_PROMPT,
-    appendSystemPromptOverride: () => [],
-    extensionFactories: [extensionFactory]
-  });
-  await resourceLoader.reload();
   piModules = { createAgentSession, SessionManager, DefaultResourceLoader, registerTools: extensionFactory };
   return { modelId, modelName: selected?.name || modelId };
 }
