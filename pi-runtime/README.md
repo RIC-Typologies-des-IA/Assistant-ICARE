@@ -20,7 +20,7 @@ Le disque QCOW2 de la VM est créé dans le répertoire courant. Il contient les
 - Le proxy nono de l'hôte écoute sur `127.0.0.1:43128` et autorise seulement `http://127.0.0.1:13305/v1/**`, `https://discord.com/api/**` et `gateway.discord.gg`. QEMU transfère le port proxy vers l'invité et expose le port web 8765 uniquement sur le loopback hôte.
 - Aucun outil shell, navigateur, accès arbitraire aux fichiers, MCP ou recherche Web n'est fourni au modèle.
 
-Le réseau NAT de la VM reste disponible au système invité pour le fonctionnement du proxy nono et l'installation initiale des dépendances npm. L'application ICARE elle-même tourne dans le sandbox nono. Le provisionnement npm est une étape de bootstrap exécutée avant le lancement sandboxé ; il devra être rendu reproductible avec un lockfile avant une diffusion de production.
+Le réseau invité est restreint par QEMU (`restrictNetwork = true`) : il ne dispose pas d'un accès Internet général. Le code et les dépendances sont préparés sur l'hôte avant le démarrage de la VM, puis montés en lecture seule dans l'invité. Le seul flux sortant prévu passe par le proxy nono de l'hôte. Le provisionnement npm devra être rendu reproductible avec un lockfile avant une diffusion de production.
 
 ## Dialogue Pi ↔ Lemonade : catalogue dynamique
 
