@@ -42,4 +42,7 @@ if ! command -v nix >/dev/null 2>&1; then
 fi
 
 echo "Lancement d'ICARE dans QEMU ; Lemonade doit déjà fonctionner sur l'hôte."
-exec nix --extra-experimental-features "nix-command flakes" run "${REPO}#default"
+# Les fonctionnalités expérimentales sont activées uniquement pour cette
+# invocation : aucune modification de la configuration Nix de l'utilisateur.
+# --refresh force la récupération de la dernière version de la branche distante.
+exec nix --extra-experimental-features "nix-command flakes" run --refresh "${REPO}#default"
