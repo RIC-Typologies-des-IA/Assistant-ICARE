@@ -25,11 +25,11 @@ if (DIMENSION_ORDER.some(code => !DIMENSIONS[code]) ||
     Object.keys(ONTOLOGY.dimensions).length !== DIMENSION_ORDER.length) {
   throw new Error("L'ontologie ICARE doit définir exactement les dimensions I, C, A, R et E.");
 }
-const TEMPORAL = ["past", "present", "future", "unknown"];
-const EVALUATION = ["desired", "undesired", "feared", "neutral", "unknown"];
-const EPISTEMIC = ["asserted", "reported", "inferred", "hypothesis", "predicted", "unknown"];
-const PRACTICAL = ["proposed", "considered", "decided", "committed", "in_progress", "completed", "abandoned", "unspecified"];
-const EXPLORATION = ["unexplored", "insufficient", "sufficient", "not_applicable"];
+const TEMPORAL = ONTOLOGY.temporal;
+const EVALUATION = ONTOLOGY.evaluation;
+const EPISTEMIC = ONTOLOGY.epistemic;
+const PRACTICAL = ONTOLOGY.practical;
+const EXPLORATION = ONTOLOGY.exploration_status;
 
 await mkdir(DATA_DIR, { recursive: true });
 await mkdir(AGENT_DIR, { recursive: true });
