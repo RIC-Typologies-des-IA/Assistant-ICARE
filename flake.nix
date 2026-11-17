@@ -25,7 +25,7 @@
                 npm install --ignore-scripts --no-audit --no-fund
               fi
               export ICARE_DATA_DIR="$DATA_DIR"
-              export PI_CODING_AGENT_DIR="''${PI_CODING_AGENT_DIR:-$APP_DIR/pi-agent}"
+              export PI_CODING_AGENT_DIR="''${PI_CODING_AGENT_DIR:-$DATA_DIR/pi-agent}"
               export LEMONADE_BASE_URL="''${LEMONADE_BASE_URL:-http://127.0.0.1:13305/v1}"
               export ICARE_HOST=127.0.0.1 ICARE_PORT=8765 ICARE_LOG_DIR="$LOG_DIR"
               nono proxy --listen 127.0.0.1 --port 43128 --no-auth \
