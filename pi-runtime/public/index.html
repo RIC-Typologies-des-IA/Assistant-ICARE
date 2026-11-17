@@ -35,6 +35,14 @@ const $=s=>document.querySelector(s);
 const sessionKey="icare-pi-session";
 let sessionId=localStorage.getItem(sessionKey)||crypto.randomUUID();localStorage.setItem(sessionKey,sessionId);
 function addMessage(role,text){const el=document.createElement("div");el.className="msg "+role;el.textContent=text;$("#messages").append(el);$("#messages").scrollTop=$("#messages").scrollHeight;return el}
+function updateModelStatus(modelId, models){
+ const model=models.find(m=>m.id===modelId);
+ const tools=Boolean(model?.labels?.includes("tool-calling"));
+ $("#status").textContent="Pi · "+modelId+(tools?" · outils actifs":" · ⚠ sans tool-calling");
+ $("#status").title=tools
+  ?"Le modèle annonce la prise en charge des outils : l'agent peut alimenter les propositions ICARE."
+  :"Ce modèle ne déclare pas le tool-calling. L'alimentation automatique des propositions ICARE n'est pas garantie ; choisis un modèle compatible.";
+}
 async function loadModels(force=false){
  const r=await fetch(force?"/api/models/refresh":"/api/models",force?{method:"POST"}:{});
  const data=await r.json();if(!r.ok)throw new Error(data.error||"Catalogue Lemonade indisponible");
@@ -42,17 +50,20 @@ async function loadModels(force=false){
  for(const m of data.models){const o=document.createElement("option");o.value=m.id;
   const caps=(m.labels||[]).includes("tool-calling")?" · outils":" · sans garantie outils";
   o.disabled=!m.downloaded;o.textContent=(m.name||m.id)+(m.downloaded?"":" · à télécharger")+caps;select.append(o)}
- select.value=data.selected;$("#status").textContent="Pi · "+data.selected+" · Lemonade";
+ select.value=data.selected;updateModelStatus(data.selected,data.models);
 }
 $("#refreshModels").addEventListener("click",async()=>{try{await loadModels(true)}catch(e){$("#error").textContent=e.message}});
 $("#modelSelect").addEventListener("change",async()=>{
  try{const r=await fetch("/api/models/select",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:$("#modelSelect").value})});const x=await r.json();if(!r.ok)throw new Error(x.error);
-  $("#status").textContent="Pi · "+x.selected+" · Lemonade";if(!x.toolCalling)$("#error").textContent="Attention : Lemonade ne signale pas le tool-calling pour ce modèle ; les outils ICARE peuvent ne pas fonctionner.";
+  const current=await fetch("/api/models").then(r=>r.json());updateModelStatus(x.selected,current.models);
+  if(!x.toolCalling)$("#error").textContent="Attention : Lemonade ne signale pas le tool-calling pour ce modèle ; l'alimentation automatique du panneau ICARE n'est pas garantie.";
  }catch(e){$("#error").textContent=e.message;await loadModels()}
 });
 async function refresh(){
  const r=await fetch("/api/state");const data=await r.json();
  $("#dimensions").innerHTML="";
+ const order=["I","C","A","R","E"];
+ data.dimensions.sort((a,b)=>order.indexOf(a.code)-order.indexOf(b.code));
  for(const d of data.dimensions){
   const row=document.createElement("div");row.className="dimension";
   const label=document.createElement("div");label.className="dimtop";
@@ -98,6 +109,8 @@ $("#chatForm").addEventListener("submit",async e=>{
  finally{$("#send").disabled=false;$("#message").focus()}
 });
 $("#docForm").addEventListener("submit",async e=>{e.preventDefault();const r=await fetch("/api/references",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({title:$("#docTitle").value,content:$("#docContent").value})});const x=await r.json();if(!r.ok){alert(x.error);return}$("#docTitle").value="";$("#docContent").value="";alert("Document ajouté à la mémoire ICARE.")});
-(async()=>{try{const s=await fetch("/api/status").then(r=>r.json());$("#status").textContent="Pi · "+s.model+" · Lemonade";await loadModels();await refresh()}catch(e){$("#status").textContent="Serveur indisponible"}})();
+(async()=>{try{const s=await fetch("/api/status").then(r=>r.json());await loadModels();await refresh();
+ if(!s.toolCalling)$("#error").textContent="Le modèle actif ne déclare pas le tool-calling : les propositions automatiques du LLM peuvent ne pas apparaître dans le panneau latéral. Sélectionne un modèle compatible.";
+ }catch(e){$("#status").textContent="Serveur indisponible"}})();
 </script>
 </body></html>
