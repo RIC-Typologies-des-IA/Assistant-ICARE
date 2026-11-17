@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO="github:RIC-Typologies-des-IA/Assistant-ICARE"
+NIX_DAEMON_PROFILE="/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh"
+NIX_USER_PROFILE="$HOME/.nix-profile/etc/profile.d/nix.sh"
+
+if [[ "$(uname -s)" != "Linux" ]]; then
+  echo "ICARE VM : cette version du lanceur cible Linux." >&2
+  exit 1
+fi
+if [[ "$(uname -m)" != "x86_64" ]]; then
+  echo "ICARE VM : la VM QEMU fournie cible actuellement x86_64." >&2
+  exit 1
+fi
+
+load_nix_profile() {
+  if [[ -r "$NIX_DAEMON_PROFILE" ]]; then
+    # shellcheck disable=SC1090
+    . "$NIX_DAEMON_PROFILE"
+  fi
+  if [[ -r "$NIX_USER_PROFILE" ]]; then
+    # shellcheck disable=SC1090
+    . "$NIX_USER_PROFILE"
+  fi
+}
+
+load_nix_profile
+if ! command -v nix >/dev/null 2>&1; then
+  if ! command -v curl >/dev/null 2>&1; then
+    echo "curl est requis pour installer Nix." >&2
+    exit 1
+  fi
+  echo "Nix n'est pas installé : lancement de l'installateur officiel."
+  curl --proto "=https" --tlsv1.2 -fsSL https://install.determinate.systems/nix | sh -s -- install --no-confirm
+  load_nix_profile
+fi
+
+if ! command -v nix >/dev/null 2>&1; then
+  echo "Nix est installé mais n'est pas disponible dans ce shell. Ouvre un nouveau terminal puis relance cette commande." >&2
+  exit 1
+fi
+
+echo "Lancement d'ICARE dans QEMU ; Lemonade doit déjà fonctionner sur l'hôte."
+exec nix --extra-experimental-features "nix-command flakes" run "${REPO}#default"
