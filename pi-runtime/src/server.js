@@ -15,13 +15,16 @@ const BASE_URL = (process.env.LEMONADE_BASE_URL || "http://127.0.0.1:13305/v1").
 const API_KEY = process.env.LEMONADE_API_KEY || "";
 const HOST = process.env.ICARE_HOST || "127.0.0.1";
 const PORT = Number(process.env.ICARE_PORT || 8765);
-const DIMENSIONS = {
-  I: "Intention / finalité",
-  C: "Contexte / situation",
-  A: "Action / opération",
-  R: "Régulation / organisation",
-  E: "Évolution / temporalité"
-};
+// L'ontologie JSON est la source de vérité des dimensions et des catégories.
+const ONTOLOGY = JSON.parse(await readFile(path.join(ROOT, "reference", "icare.json"), "utf8"));
+const DIMENSION_ORDER = ["I", "C", "A", "R", "E"];
+const DIMENSIONS = Object.fromEntries(
+  DIMENSION_ORDER.map(code => [code, ONTOLOGY.dimensions[code]])
+);
+if (DIMENSION_ORDER.some(code => !DIMENSIONS[code]) ||
+    Object.keys(ONTOLOGY.dimensions).length !== DIMENSION_ORDER.length) {
+  throw new Error("L'ontologie ICARE doit définir exactement les dimensions I, C, A, R et E.");
+}
 const TEMPORAL = ["past", "present", "future", "unknown"];
 const EVALUATION = ["desired", "undesired", "feared", "neutral", "unknown"];
 const EPISTEMIC = ["asserted", "reported", "inferred", "hypothesis", "predicted", "unknown"];
@@ -68,6 +71,11 @@ for (const [id, title, filename] of [
 
 const SYSTEM_PROMPT = `Tu es ICARE, un agent méthodologique maïeutique. Tu aides un humain à comprendre et décrire un système par un dialogue ouvert, non linéaire et progressif.
 
+ONTOLOGIE STRUCTURÉE DE RÉFÉRENCE
+Le fichier reference/icare.json est la source de vérité. Voici son contenu complet :
+${JSON.stringify(ONTOLOGY, null, 2)}
+Respecte ses catégories et ses distinctions. En cas de doute, consulte l'outil get_ontology.
+
 RÉFÉRENTIEL ICARE — les cinq dimensions restent toujours présentes dans ton analyse :
 I — Intention / finalité
 C — Contexte / situation
@@ -87,9 +95,14 @@ RÈGLES DE DIALOGUE
 - Une information absente n'est pas « non applicable ».
 - Tu proposes des interprétations avec prudence et expliques brièvement les incertitudes.
 - N'invente jamais de faits, d'acteurs, de relations ou de décisions.
-- Tu peux consulter la mémoire documentaire ICARE et l'état d'exploration avec les outils fournis.
+- Tu consultes l'ontologie structurée et l'état d'exploration avec les outils fournis lorsque cela aide à qualifier une information.
+- CONSIGNE D'ALIMENTATION DU TABLEAU DE BORD : à chaque tour où l'utilisateur apporte une information nouvelle et substantielle sur le système, identifie les observations qui méritent d'être conservées et appelle propose_observation pour les enregistrer comme candidates. N'attends pas que l'utilisateur demande explicitement un enregistrement.
+- Regroupe les éléments cohérents en propositions lisibles, attribue toutes les dimensions pertinentes (une proposition peut relever de plusieurs dimensions), précise temporalité, statut épistémique et statut pratique selon l'ontologie. N'invente aucune information manquante.
+- Avant de proposer, vérifie si une proposition existante couvre déjà le même élément afin d'éviter les doublons ; préfère nuancer ou compléter dans le dialogue plutôt que multiplier les répétitions.
+- En cas d'incertitude de classement, conserve l'incertitude et explique-la brièvement ; ne force pas une dimension.
+- Les outils mettent à jour les compteurs et la liste des propositions candidates visibles dans le panneau latéral. Explique naturellement à l'utilisateur qu'une proposition attend sa validation lorsqu'il est pertinent de le signaler.
 - Tu peux enregistrer une proposition comme candidate à validation humaine, jamais comme un fait validé.
-- Ne marque jamais une dimension comme suffisamment explorée ou non applicable de ta propre initiative.
+- Tu ne modifies jamais le statut d'exploration d'une dimension : l'utilisateur seul décide si elle est insuffisamment documentée, suffisamment explorée ou non applicable, et justifie les deux derniers statuts.
 - Le corpus documentaire est une référence méthodologique, pas une source de faits sur le système discuté.
 - Tu n'as aucun outil de navigation Web, de shell, de fichiers arbitraires ou de réseau externe. Ne prétends pas avoir effectué une recherche Web.
 
@@ -119,7 +132,8 @@ async function readBody(req) {
   return raw ? JSON.parse(raw) : {};
 }
 function getState() {
-  const rows = db.prepare("SELECT * FROM dimensions ORDER BY code").all();
+  const rows = db.prepare("SELECT * FROM dimensions").all()
+    .sort((a, b) => DIMENSION_ORDER.indexOf(a.code) - DIMENSION_ORDER.indexOf(b.code));
   const counts = db.prepare("SELECT dimensions, review_status FROM propositions").all();
   return rows.map(row => {
     const related = counts.filter(p => JSON.parse(p.dimensions).includes(row.code));
@@ -202,6 +216,13 @@ async function initializePi() {
       execute: async () => ({ content: [{ type: "text", text: JSON.stringify(catalogModels.map(m => ({ id: m.id, name: m.name || m.id, labels: m.labels || [], downloaded: m.downloaded !== false, context_length: m.context_length || m.max_context_window || null, suggested: Boolean(m.suggested) })), null, 2) }], details: {} })
     });
     pi.registerTool({
+      name: "get_ontology",
+      label: "Ontologie ICARE",
+      description: "Renvoie l'ontologie structurée complète utilisée par ICARE : dimensions dans l'ordre I,C,A,R,E, statuts d'exploration, temporalité, évaluation, statut épistémique, statut pratique et relations.",
+      parameters: Type.Object({}),
+      execute: async () => ({ content: [{ type: "text", text: JSON.stringify(ONTOLOGY, null, 2) }], details: {} })
+    });
+    pi.registerTool({
       name: "get_exploration_state",
       label: "État d'exploration ICARE",
       description: "Consulte l'état documenté des cinq dimensions ICARE et les volumes de propositions validées ou en attente.",
@@ -278,7 +299,14 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, "http://" + req.headers.host);
   try {
     if (req.method === "GET" && url.pathname === "/") return sendStatic(res, path.join(HERE, "..", "public", "index.html"), "text/html; charset=utf-8");
-    if (req.method === "GET" && url.pathname === "/api/status") return json(res, 200, { ok: true, model: selectedModel.id, provider: "Lemonade via Pi SDK" });
+    if (req.method === "GET" && url.pathname === "/api/status") {
+      const modelInfo = catalogModels.find(m => m.id === selectedModel.id);
+      return json(res, 200, {
+        ok: true, model: selectedModel.id, provider: "Lemonade via Pi SDK",
+        toolCalling: Boolean(modelInfo?.labels?.includes("tool-calling")),
+        dimensionsOrder: DIMENSION_ORDER
+      });
+    }
     if (req.method === "GET" && url.pathname === "/api/models") return json(res, 200, { models: catalogModels.map(m => ({ id: m.id, name: m.name || m.id, labels: m.labels || [], downloaded: m.downloaded !== false, context_length: m.context_length || m.max_context_window || null, suggested: Boolean(m.suggested) })), selected: selectedModel.id });
     if (req.method === "POST" && url.pathname === "/api/models/refresh") {
       if (sessionBusy.size) return json(res, 409, { error: "Attends la fin des réponses en cours avant d’actualiser le catalogue." });
