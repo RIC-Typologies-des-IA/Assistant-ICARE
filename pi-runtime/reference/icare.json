@@ -1,0 +1,16 @@
+{
+  "version": "0.2.0",
+  "dimensions": {
+    "I": "Intention / finalité",
+    "C": "Contexte / situation",
+    "A": "Action / opération",
+    "R": "Régulation / organisation",
+    "E": "Évolution / temporalité"
+  },
+  "exploration_status": ["unexplored", "insufficient", "sufficient", "not_applicable"],
+  "temporal": ["past", "present", "future", "unknown"],
+  "evaluation": ["desired", "undesired", "feared", "neutral", "unknown"],
+  "epistemic": ["asserted", "reported", "inferred", "hypothesis", "predicted", "unknown"],
+  "practical": ["proposed", "considered", "decided", "committed", "in_progress", "completed", "abandoned", "unspecified"],
+  "relations": ["confirms", "specifies", "complements", "nuances", "contradicts", "revises", "derived_from", "same_aspect", "precedes", "succeeds", "previous_state_of", "current_state_of", "target_state_of", "contributes_to", "prevents", "conditions", "desired_by", "rejected_by", "decided_by", "committed_by", "realized_by"]
+}
