@@ -159,6 +159,9 @@ function getPropositions() {
   return db.prepare("SELECT * FROM propositions ORDER BY created_at DESC LIMIT 100").all()
     .map(p => ({ ...p, dimensions: JSON.parse(p.dimensions) }));
 }
+function getRelations() {
+  return db.prepare("SELECT * FROM relations ORDER BY created_at DESC LIMIT 200").all();
+}
 function searchDocs(query) {
   const terms = String(query || "").toLowerCase().split(/\W+/).filter(t => t.length > 2);
   const docs = db.prepare("SELECT id,title,content FROM reference_docs").all();
@@ -387,7 +390,7 @@ const server = http.createServer(async (req, res) => {
       selectedModel = next;
       return json(res, 200, { ok: true, selected: selectedModel.id, toolCalling: Boolean(info.labels?.includes("tool-calling")) });
     }
-    if (req.method === "GET" && url.pathname === "/api/state") return json(res, 200, { dimensions: getState(), propositions: getPropositions(), documents: db.prepare("SELECT id,title,created_at FROM reference_docs ORDER BY title").all() });
+    if (req.method === "GET" && url.pathname === "/api/state") return json(res, 200, { dimensions: getState(), propositions: getPropositions(), relations: getRelations(), documents: db.prepare("SELECT id,title,created_at FROM reference_docs ORDER BY title").all() });
     if (req.method === "POST" && url.pathname === "/api/chat") {
       const body = await readBody(req);
       const message = String(body.message || "").trim();
