@@ -1,0 +1,91 @@
+{
+  "version": "0.1.0",
+  "name": "ICARE",
+  "description": "Ontologie descriptive des dimensions d'un système, complétée par des qualifications temporelles, évaluatives, épistémiques et pratiques.",
+  "dimensions": {
+    "I": {
+      "label": "Intention / finalité"
+    },
+    "C": {
+      "label": "Contexte / situation"
+    },
+    "A": {
+      "label": "Action / opération"
+    },
+    "R": {
+      "label": "Régulation / organisation"
+    },
+    "E": {
+      "label": "Évolution / temporalité"
+    }
+  },
+  "exploration_status": [
+    "unexplored",
+    "insufficient",
+    "sufficient",
+    "not_applicable"
+  ],
+  "temporal": [
+    "past",
+    "present",
+    "future",
+    "unknown"
+  ],
+  "evaluation": [
+    "desired",
+    "undesired",
+    "feared",
+    "neutral",
+    "unknown"
+  ],
+  "epistemic": [
+    "asserted",
+    "reported",
+    "inferred",
+    "hypothesis",
+    "predicted",
+    "unknown"
+  ],
+  "practical": [
+    "proposed",
+    "considered",
+    "decided",
+    "committed",
+    "in_progress",
+    "completed",
+    "abandoned",
+    "unspecified"
+  ],
+  "relations": [
+    "confirms",
+    "specifies",
+    "complements",
+    "nuances",
+    "contradicts",
+    "revises",
+    "derived_from",
+    "same_aspect",
+    "precedes",
+    "succeeds",
+    "previous_state_of",
+    "current_state_of",
+    "target_state_of",
+    "contributes_to",
+    "prevents",
+    "conditions",
+    "desired_by",
+    "rejected_by",
+    "decided_by",
+    "committed_by",
+    "realized_by"
+  ],
+  "principles": [
+    "Une proposition peut relever de plusieurs dimensions ICARE.",
+    "Souhaité ne signifie pas décidé ni réalisé.",
+    "Une nouvelle proposition ne supprime pas silencieusement une proposition antérieure.",
+    "Une évolution temporelle n'est pas automatiquement une contradiction.",
+    "Une divergence entre sources est conservée et attribuée.",
+    "Une absence d'information ne signifie pas non-applicabilité.",
+    "La confiance d'extraction est distincte de la certitude exprimée par la source."
+  ]
+}
