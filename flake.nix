@@ -26,7 +26,7 @@ outputs = { self, nixpkgs }:
         # Proxy hôte : seuls Lemonade et les points d'accès Discord sont autorisés.
         nono proxy --listen 127.0.0.1 --port 43128 --no-auth \
           --allow-domain 'http://127.0.0.1:13305/v1/**' \
-          --allow-domain discord.com \
+          --allow-domain 'https://discord.com/api/**' \
           --allow-domain gateway.discord.gg &
         PROXY_PID=$!
         cleanup() { kill "$PROXY_PID" 2>/dev/null || true; }
