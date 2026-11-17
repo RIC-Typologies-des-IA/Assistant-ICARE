@@ -40,7 +40,7 @@ def db():
    if m: caption=re.sub(r"<[^>]+>","",m.group(1)).strip()
    kind="image" if ref.suffix.lower()==".svg" else "text"
    title=ref.stem.replace("-"," ").replace("_"," ").title()
-   vec=embed(title+"\\n"+caption+"\\n"+raw)
+   vec=embed(title+"\n"+caption+"\n"+raw)
    c.execute("INSERT INTO documents VALUES(?,?,?,?,?,?,?,?)",(str(uuid.uuid4())[:8],title,kind,raw,ref.name if kind=="image" else None,caption,now(),json.dumps(vec) if vec else None))
   c.commit()
  return c
