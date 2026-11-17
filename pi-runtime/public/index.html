@@ -6,7 +6,7 @@
 <style>
 :root{font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#202733;background:#f3f5f8;font-synthesis:none}
 *{box-sizing:border-box}body{margin:0}header{background:#172b4d;color:white;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;gap:16px}
-header h1{font-size:20px;margin:0}header p{font-size:12px;margin:4px 0 0;color:#c8d4e5}.badge{font-size:12px;background:#29476f;border-radius:20px;padding:7px 11px}
+header h1{font-size:20px;margin:0}header p{font-size:12px;margin:4px 0 0;color:#c8d4e5}.badge{font-size:12px;background:#29476f;border-radius:20px;padding:7px 11px}.modelbar{display:flex;align-items:center;gap:8px}.modelbar select{max-width:290px;font-size:12px}.modelbar button{font-size:12px;padding:8px 10px}
 main{max-width:1320px;margin:22px auto;padding:0 18px;display:grid;grid-template-columns:minmax(0,1.6fr) minmax(310px,1fr);gap:18px}
 .panel{background:white;border:1px solid #e1e6ed;border-radius:14px;box-shadow:0 2px 10px #1c2b3a0a;overflow:hidden}.panel h2{font-size:15px;margin:0;padding:15px 17px;border-bottom:1px solid #edf0f4}
 .chat{display:flex;flex-direction:column;min-height:72vh}.messages{padding:18px;display:flex;flex-direction:column;gap:13px;flex:1;overflow:auto;max-height:62vh}
@@ -21,7 +21,7 @@ button{border:0;border-radius:9px;padding:10px 14px;background:#2458a6;color:whi
 </style>
 </head>
 <body>
-<header><div><h1>ICARE</h1><p>Dialogue maïeutique · représentation évolutive d'un système</p></div><div class="badge" id="status">Connexion à Pi / Lemonade…</div></header>
+<header><div><h1>ICARE</h1><p>Dialogue maïeutique · représentation évolutive d'un système</p></div><div class="modelbar"><select id="modelSelect" aria-label="Modèle Lemonade"><option>Chargement du catalogue…</option></select><button class="secondary" id="refreshModels" type="button">Actualiser</button><div class="badge" id="status">Connexion à Pi / Lemonade…</div></div></header>
 <main>
 <section class="panel chat"><h2>Conversation</h2><div class="messages" id="messages"><div class="msg assistant">Bonjour. Quel système souhaites-tu explorer ? Nous allons construire sa représentation progressivement, sans dérouler un questionnaire rigide.</div></div><div id="error"></div><form class="composer" id="chatForm"><textarea id="message" placeholder="Décris une situation, une évolution, une difficulté…" required></textarea><button id="send">Envoyer</button></form></section>
 <aside class="side">
@@ -35,6 +35,21 @@ const $=s=>document.querySelector(s);
 const sessionKey="icare-pi-session";
 let sessionId=localStorage.getItem(sessionKey)||crypto.randomUUID();localStorage.setItem(sessionKey,sessionId);
 function addMessage(role,text){const el=document.createElement("div");el.className="msg "+role;el.textContent=text;$("#messages").append(el);$("#messages").scrollTop=$("#messages").scrollHeight;return el}
+async function loadModels(force=false){
+ const r=await fetch(force?"/api/models/refresh":"/api/models",force?{method:"POST"}:{});
+ const data=await r.json();if(!r.ok)throw new Error(data.error||"Catalogue Lemonade indisponible");
+ const select=$("#modelSelect");select.innerHTML="";
+ for(const m of data.models){const o=document.createElement("option");o.value=m.id;
+  const caps=(m.labels||[]).includes("tool-calling")?" · outils":" · sans garantie outils";
+  o.textContent=(m.name||m.id)+(m.downloaded?"":" · à télécharger")+caps;select.append(o)}
+ select.value=data.selected;$("#status").textContent="Pi · "+data.selected+" · Lemonade";
+}
+$("#refreshModels").addEventListener("click",async()=>{try{await loadModels(true)}catch(e){$("#error").textContent=e.message}});
+$("#modelSelect").addEventListener("change",async()=>{
+ try{const r=await fetch("/api/models/select",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:$("#modelSelect").value})});const x=await r.json();if(!r.ok)throw new Error(x.error);
+  $("#status").textContent="Pi · "+x.selected+" · Lemonade";if(!x.toolCalling)$("#error").textContent="Attention : Lemonade ne signale pas le tool-calling pour ce modèle ; les outils ICARE peuvent ne pas fonctionner.";
+ }catch(e){$("#error").textContent=e.message;await loadModels()}
+});
 async function refresh(){
  const r=await fetch("/api/state");const data=await r.json();
  $("#dimensions").innerHTML="";
@@ -83,6 +98,6 @@ $("#chatForm").addEventListener("submit",async e=>{
  finally{$("#send").disabled=false;$("#message").focus()}
 });
 $("#docForm").addEventListener("submit",async e=>{e.preventDefault();const r=await fetch("/api/references",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({title:$("#docTitle").value,content:$("#docContent").value})});const x=await r.json();if(!r.ok){alert(x.error);return}$("#docTitle").value="";$("#docContent").value="";alert("Document ajouté à la mémoire ICARE.")});
-(async()=>{try{const s=await fetch("/api/status").then(r=>r.json());$("#status").textContent="Pi · "+s.model+" · Lemonade";await refresh()}catch(e){$("#status").textContent="Serveur indisponible"}})();
+(async()=>{try{const s=await fetch("/api/status").then(r=>r.json());$("#status").textContent="Pi · "+s.model+" · Lemonade";await loadModels();await refresh()}catch(e){$("#status").textContent="Serveur indisponible"}})();
 </script>
 </body></html>
