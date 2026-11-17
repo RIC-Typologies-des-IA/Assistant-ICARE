@@ -106,8 +106,8 @@ def llm_extract(text,source,documents):
        "rappel":"Ne complète pas les informations absentes. Si incertain, utilise unknown/unspecified. confidence entre 0 et 1."}
  payload=json.dumps({"model":CHAT_MODEL,"stream":False,"response_format":{"type":"json_object"},"messages":[{"role":"system","content":system},{"role":"user","content":json.dumps(user,ensure_ascii=False)}]}).encode()
  headers={"Content-Type":"application/json"}
-  if API_KEY: headers["Authorization"]="Bearer "+API_KEY
-  req=urllib.request.Request(API_BASE_URL+"/chat/completions",data=payload,headers=headers)
+ if API_KEY: headers["Authorization"]="Bearer "+API_KEY
+ req=urllib.request.Request(API_BASE_URL+"/chat/completions",data=payload,headers=headers)
  try:
   with urllib.request.urlopen(req,timeout=90) as res: data=json.loads(res.read().decode())
   content=data.get("choices",[{}])[0].get("message",{}).get("content","{}")
