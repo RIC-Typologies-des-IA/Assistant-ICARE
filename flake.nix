@@ -1,3 +1,4 @@
+{
 description = "ICARE — Pi, Lemonade, VM QEMU et confinement nono";
 inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 outputs = { self, nixpkgs }:
