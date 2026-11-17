@@ -24,31 +24,37 @@ La base SQLite et les fichiers sont créés dans prototype/data/ au premier lanc
 - Création manuelle de relations entre propositions.
 - État d'exploration indicatif et première suggestion de question.
 
-## Activer les embeddings et l'analyse par LLM local (facultatif)
+## Connecter un serveur local compatible OpenAI (Lemonade, etc.)
 
-Le prototype fonctionne sans modèle externe : recherche lexicale et extraction heuristique. Pour utiliser un modèle local via Ollama :
+Le prototype utilise l'API HTTP compatible OpenAI. Lemonade expose cette API ; aucune bibliothèque Python supplémentaire n'est nécessaire.
 
-    ollama pull nomic-embed-text
-    ollama pull qwen2.5:3b
+Sur une installation Lemonade Server standard, l'adresse de base est généralement `http://127.0.0.1:13305/api/v1`. Vérifie l'adresse et les identifiants de modèles disponibles dans l'interface ou avec `GET /v1/models` sur ton serveur. Les noms de modèles doivent correspondre exactement à ceux exposés par Lemonade.
 
-Puis, depuis le dossier prototype :
+Exemple Linux, depuis le dossier `prototype` :
 
-    ICARE_OLLAMA_URL=http://127.0.0.1:11434 ICARE_EMBED_MODEL=nomic-embed-text ICARE_CHAT_MODEL=qwen2.5:3b python server.py
-
-Sous PowerShell :
-
-    $env:ICARE_OLLAMA_URL="http://127.0.0.1:11434"
-    $env:ICARE_EMBED_MODEL="nomic-embed-text"
-    $env:ICARE_CHAT_MODEL="qwen2.5:3b"
+    export ICARE_API_BASE_URL="http://127.0.0.1:13305/api/v1"
+    export ICARE_API_KEY="lemonade"
+    export ICARE_CHAT_MODEL="NOM_EXACT_DU_MODELE_CHAT"
+    export ICARE_EMBED_MODEL="NOM_EXACT_DU_MODELE_EMBEDDING"
     python server.py
 
-Les textes, légendes et descriptions sont vectorisés localement. Lors d'une analyse, les documents pertinents sont retrouvés et transmis comme références méthodologiques au modèle local. Le prototype n'effectue aucune recherche Web et n'appelle aucun service distant. Les images sont stockées ; leur légende/description est indexée. L'analyse visuelle automatique des images n'est pas encore incluse.
+Si ton serveur ne demande pas de clé API, la valeur par défaut `lemonade` peut être conservée. Si une clé est configurée dans Lemonade, renseigne-la dans `ICARE_API_KEY`.
 
-Si tu ajoutes des documents avant d'activer Ollama, ils resteront indexés lexicalement ; pour les vectoriser, réinitialise la base de test puis relance le serveur avec Ollama configuré, ou réimporte-les.
+Tu peux aussi ne configurer que le modèle de chat : l'analyse LLM fonctionnera et la recherche documentaire restera lexicale. Pour activer la recherche sémantique, configure un modèle d'embeddings compatible et disponible dans Lemonade. Les modèles ONNX ne prennent pas tous en charge les embeddings ; vérifie la recette du modèle.
+
+Pour vérifier les modèles exposés par Lemonade :
+
+    curl http://127.0.0.1:13305/api/v1/models
+
+Si ton installation utilise une autre adresse ou un autre port, adapte simplement `ICARE_API_BASE_URL`. Le prototype ne dépend pas du port de Lemonade et n'utilise plus les routes spécifiques à Ollama.
+
+Sans `ICARE_API_BASE_URL` et `ICARE_CHAT_MODEL`, le prototype fonctionne en mode heuristique. Les documents pertinents sont retrouvés et transmis comme références méthodologiques au modèle local lors de l'analyse. Le prototype ne lance aucune recherche Web. Les images sont stockées ; leur légende/description est indexée. L'analyse visuelle automatique des images n'est pas encore incluse.
+
+Si tu ajoutes des documents avant d'activer les embeddings, ils resteront indexés lexicalement ; pour les vectoriser, réinitialise la base de test puis relance le serveur avec le modèle d'embeddings configuré, ou réimporte-les.
 
 ## Limites de cette première version
 
-- Sans Ollama, l'extraction est heuristique et ne mobilise pas de LLM. Les propositions doivent être relues.
+- Sans modèle de chat configuré, l'extraction est heuristique et ne mobilise pas de LLM. Les propositions doivent être relues.
 - La confiance est une indication technique grossière, pas une probabilité calibrée.
 - Les relations sont suggérées comme pistes et confirmées manuellement.
 - Les statuts « suffisamment exploré » et « non applicable » ne sont pas attribués automatiquement.
