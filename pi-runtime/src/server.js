@@ -257,12 +257,6 @@ async function getSession(id) {
   sessions.set(id, created.session);
   return created.session;
 }
-function registerSessionTools(pi) {
-  // The same tightly scoped ICARE tools are registered for every conversation session.
-  const register = piModules.registerTools;
-  if (register) register(pi);
-}
-
 function sendStatic(res, file, type) {
   readFile(file).then(body => {
     res.writeHead(200, { "Content-Type": type, "Cache-Control": "no-store" });
