@@ -1,0 +1,13 @@
+{
+  "name": "icare-pi-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Agent conversationnel ICARE construit sur le SDK Pi",
+  "engines": { "node": ">=24.0.0" },
+  "scripts": { "start": "node src/server.js", "test": "node --test" },
+  "dependencies": {
+    "@earendil-works/pi-coding-agent": "1.5.2",
+    "@earendil-works/pi-ai": "1.5.2"
+  }
+}
