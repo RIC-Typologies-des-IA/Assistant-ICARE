@@ -77,7 +77,7 @@
       export no_proxy=
       export NODE_USE_ENV_PROXY=1
       exec nono run --read /opt/icare-runtime --read /nix/store \
-        --allow /var/lib/icare --block-net \
+        --allow /var/lib/icare/data --block-net \
         --open-port 43128 --open-port 8765 \
         -- node src/server.js
     '';
