@@ -29,7 +29,21 @@ def db():
  c=sqlite3.connect(DB); c.row_factory=sqlite3.Row
  c.execute("""CREATE TABLE IF NOT EXISTS propositions(id TEXT PRIMARY KEY,text TEXT NOT NULL,dimensions TEXT NOT NULL,primary_dimension TEXT,temporal TEXT,evaluation TEXT,practical TEXT,epistemic TEXT,confidence REAL,source TEXT,created_at TEXT NOT NULL,aspect TEXT,relations TEXT NOT NULL DEFAULT '[]')""")
  c.execute("""CREATE TABLE IF NOT EXISTS documents(id TEXT PRIMARY KEY,title TEXT NOT NULL,kind TEXT NOT NULL,content TEXT NOT NULL,file_path TEXT,caption TEXT,created_at TEXT NOT NULL,embedding TEXT)""")
- c.commit(); return c
+ c.commit()
+ if c.execute("SELECT COUNT(*) FROM documents").fetchone()[0]==0:
+  refdir=ROOT/"reference"
+  refs=(list(refdir.glob("*.md"))+list(refdir.glob("*.svg"))) if refdir.exists() else []
+  for ref in refs:
+   raw=ref.read_text(encoding="utf-8")
+   caption=""
+   m=re.search(r"<desc[^>]*>(.*?)</desc>",raw,re.I|re.S)
+   if m: caption=re.sub(r"<[^>]+>","",m.group(1)).strip()
+   kind="image" if ref.suffix.lower()==".svg" else "text"
+   title=ref.stem.replace("-"," ").replace("_"," ").title()
+   vec=embed(title+"\\n"+caption+"\\n"+raw)
+   c.execute("INSERT INTO documents VALUES(?,?,?,?,?,?,?,?)",(str(uuid.uuid4())[:8],title,kind,raw,ref.name if kind=="image" else None,caption,now(),json.dumps(vec) if vec else None))
+  c.commit()
+ return c
 def first_match(text,groups,default):
  t=text.lower()
  for label,words in groups:
@@ -61,7 +75,7 @@ def cosine(a,b):
  return dot/(na*nb) if na and nb else 0
 def retrieve_docs(query,limit=4):
  c=db(); rows=list(c.execute("SELECT * FROM documents")); c.close()
- qv=embed(query) if OLLAMA_URL else None; terms=set(re.findall(r"\\w+",query.lower())); hits=[]
+ qv=embed(query) if OLLAMA_URL else None; terms=set(re.findall(r"\w+",query.lower())); hits=[]
  for r in rows:
   text=(r["title"]+" "+r["content"]+" "+(r["caption"] or "")).lower()
   lexical=sum(1 for t in terms if t in text)/max(1,len(terms)); semantic=0
@@ -122,7 +136,7 @@ class Handler(SimpleHTTPRequestHandler):
   p=urlparse(self.path)
   if p.path=="/api/state":
    c=db(); ps=[prop(r) for r in c.execute("SELECT * FROM propositions ORDER BY created_at DESC")]
-   ds=[dict(r) for r in c.execute("SELECT id,title,kind,caption,created_at FROM documents ORDER BY created_at DESC")]
+   ds=[dict(r) for r in c.execute("SELECT id,title,kind,caption,file_path,created_at FROM documents ORDER BY created_at DESC")]
    st={}
    for k,label in ONTOLOGY.items():
     n=sum(1 for x in ps if k in x["dimensions"]); st[k]={"label":label,"count":n,"status":"unexplored" if n==0 else "insufficient"}
