@@ -147,12 +147,15 @@ function recordCandidate(input) {
   const evaluation = EVALUATION.includes(input.evaluation) ? input.evaluation : "unknown";
   const epistemic = EPISTEMIC.includes(input.epistemic) ? input.epistemic : "reported";
   const practical = PRACTICAL.includes(input.practical) ? input.practical : "unspecified";
-  const confidence = Math.max(0, Math.min(1, Number(input.confidence ?? 0.5)));
+  const rawConfidence = Number(input.confidence ?? 0.5);
+  const confidence = Number.isFinite(rawConfidence) ? Math.max(0, Math.min(1, rawConfidence)) : 0.5;
+  const observationText = String(input.text || "").trim().slice(0,4000);
+  if (!observationText) throw new Error("Le texte de l'observation ne peut pas être vide.");
   const id = randomUUID();
   db.prepare(`INSERT INTO propositions
     (id,text,dimensions,primary_dimension,temporal,evaluation,epistemic,practical,confidence,source,aspect,review_status,created_at)
     VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
-      id, String(input.text || "").trim().slice(0,4000), JSON.stringify(dimensions), primary,
+      id, observationText, JSON.stringify(dimensions), primary,
       temporal, evaluation, epistemic, practical, confidence, String(input.source || "conversation").slice(0,300),
       String(input.aspect || "").slice(0,300), "candidate", now()
     );
@@ -166,10 +169,15 @@ async function initializePi() {
   if (!modelsResponse.ok) throw new Error(`Lemonade ne répond pas sur ${BASE_URL} (HTTP ${modelsResponse.status}). Vérifie que Lemonade Server est démarré.`);
   const catalog = await modelsResponse.json();
   const models = catalog.data || [];
+  const toolModels = models.filter(m => m.labels?.includes("chat") && m.labels.includes("tool-calling"));
   const chatModels = models.filter(m => !m.labels || m.labels.includes("chat"));
-  const modelId = process.env.ICARE_MODEL || chatModels[0]?.id;
+  const modelId = process.env.ICARE_MODEL || toolModels[0]?.id || chatModels[0]?.id;
   if (!modelId) throw new Error("Aucun modèle de chat n'est disponible dans Lemonade. Charge d'abord un modèle de langage.");
   const selected = models.find(m => m.id === modelId);
+  if (process.env.ICARE_MODEL && !selected) throw new Error(`Le modèle demandé « ${modelId} » n'apparaît pas dans GET /v1/models.`);
+  if (selected?.labels && !selected.labels.includes("tool-calling")) {
+    console.warn("[ICARE] Attention : le catalogue Lemonade ne signale pas le support du tool-calling pour ce modèle. Les outils Pi peuvent ne pas fonctionner.");
+  }
   const modelConfig = {
     id: modelId, name: selected?.name || modelId, api: "openai-completions",
     reasoning: Boolean(selected?.labels?.includes("reasoning")), input: ["text"],
@@ -180,7 +188,7 @@ async function initializePi() {
     name: "Lemonade local", baseUrl: BASE_URL, api: "openai-completions",
     models: [modelConfig]
   };
-  if (API_KEY) provider.apiKey = "$LEMONADE_API_KEY";
+  if (API_KEY) { provider.apiKey = "$LEMONADE_API_KEY"; provider.authHeader = true; }
   await writeFile(path.join(AGENT_DIR, "models.json"), JSON.stringify({ providers: { lemonade: provider } }, null, 2));
   process.env.LEMONADE_API_KEY = API_KEY;
   const { createAgentSession, DefaultResourceLoader, ModelRuntime, SessionManager } =
