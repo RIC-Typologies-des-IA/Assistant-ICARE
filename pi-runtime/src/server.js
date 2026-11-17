@@ -190,7 +190,7 @@ async function initializePi() {
   piModules = { createAgentSession, SessionManager, DefaultResourceLoader, ModelRuntime, Type };
   process.env.LEMONADE_API_KEY = API_KEY || "local";
   await refreshModelCatalog();
-  if (process.env.ICARE_MODEL && !catalogModels.some(m => m.id === process.env.ICARE_MODEL)) throw new Error("Le modèle demandé n'apparaît pas dans le catalogue Lemonade.");
+  if (process.env.ICARE_MODEL && !catalogModels.some(m => m.id === process.env.ICARE_MODEL && m.downloaded === true)) throw new Error("Le modèle ICARE_MODEL demandé est absent du catalogue ou n’est pas téléchargé dans Lemonade.");
   const chosen = catalogModels.find(m => m.id === selectedModel.id);
   if (!chosen?.labels?.includes("tool-calling")) console.warn("[ICARE] Le modèle choisi n'est pas signalé comme compatible tool-calling.");
   const extensionFactory = (pi) => {
