@@ -42,4 +42,4 @@ if ! command -v nix >/dev/null 2>&1; then
 fi
 
 echo "Lancement d'ICARE dans QEMU ; Lemonade doit déjà fonctionner sur l'hôte."
-exec nix --extra-experimental-features "nix-command flakes" run "${REPO}#default"
+exec nix --extra-experimental-features "nix-command flakes" run --no-write-lock-file "${REPO}#default"
