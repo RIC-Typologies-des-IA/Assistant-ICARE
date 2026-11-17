@@ -243,7 +243,7 @@ async function initializePi() {
     extensionFactories: [extensionFactory]
   });
   await resourceLoader.reload();
-  piModules = { createAgentSession, SessionManager };
+  piModules = { createAgentSession, SessionManager, DefaultResourceLoader, registerTools: extensionFactory };
   return { modelId, modelName: selected?.name || modelId };
 }
 async function getSession(id) {
@@ -253,7 +253,7 @@ async function getSession(id) {
     cwd: ROOT, agentDir: AGENT_DIR,
     systemPromptOverride: () => SYSTEM_PROMPT,
     appendSystemPromptOverride: () => [],
-    extensionFactories: [pi => registerSessionTools(pi)]
+    extensionFactories: [pi => piModules.registerTools(pi)]
   });
   await resourceLoader.reload();
   const created = await createAgentSession({
