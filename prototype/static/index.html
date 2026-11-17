@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ICARE — Prototype</title>
+<style>
+:root{font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#20242b;background:#f5f6f8}*{box-sizing:border-box}body{margin:0}
+header{background:#202c3b;color:white;padding:22px max(20px,calc((100% - 1180px)/2))}header h1{margin:0;font-size:25px}header p{margin:6px 0 0;color:#cbd5e1;font-size:14px}
+main{max-width:1180px;margin:24px auto;padding:0 18px;display:grid;gap:18px;grid-template-columns:minmax(0,1.2fr) minmax(300px,.8fr)}
+section{background:white;border:1px solid #e2e5e9;border-radius:12px;padding:18px;min-width:0}h2{font-size:17px;margin:0 0 12px}h3{font-size:14px;margin:16px 0 8px}
+textarea,input,select{font:inherit;width:100%;border:1px solid #cbd1d9;border-radius:8px;padding:10px;background:white}textarea{min-height:125px;resize:vertical}
+button{border:0;border-radius:8px;padding:10px 14px;background:#245a86;color:white;font-weight:600;cursor:pointer}button.secondary{background:#e9eef3;color:#253444}button.danger{background:#a33333}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.muted{color:#697586;font-size:12px}.pill{display:inline-block;padding:3px 8px;border-radius:20px;background:#edf1f5;font-size:11px;margin:2px}
+.grid5{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}.dim{background:#f3f5f7;padding:10px;border-radius:8px}.dim b{font-size:18px}.dim div{font-size:11px;color:#596474}.dim small{display:block;margin-top:6px;color:#687485}
+.item{border-top:1px solid #edf0f3;padding:12px 0}.item:first-child{border-top:0}.item p{margin:7px 0;font-size:14px;line-height:1.45}.meta{font-size:11px;color:#647184;display:flex;gap:5px;flex-wrap:wrap}
+.doc{padding:10px;background:#f7f8fa;border-radius:8px;margin-top:8px}.doc strong{font-size:13px}.doc p{font-size:12px;margin:5px 0}#notice{margin-top:10px;font-size:13px;color:#24613b}
+@media(max-width:850px){main{grid-template-columns:1fr}.grid5{grid-template-columns:repeat(3,1fr)}}
+</style></head><body>
+<header><h1>ICARE — prototype fonctionnel</h1><p>Exploration structurée · mémoire documentaire · propositions historisées</p></header>
+<main><div>
+<section><h2>1. Analyser une contribution</h2><p class="muted">Colle un extrait de conversation. Le prototype segmente le texte, propose des dimensions et qualifie les propositions. Cette première extraction est heuristique, vérifiable et ne remplace pas encore un LLM.</p>
+<textarea id="speech" placeholder="Ex. : Avant, toutes les décisions remontaient à la direction. Aujourd'hui, certaines équipes sont autonomes. Nous souhaitons que toutes les équipes puissent décider seules. Nous avons décidé de tester cette organisation au prochain trimestre."></textarea>
+<div class="actions"><button onclick="analyze()">Analyser et enregistrer</button><button class="secondary" onclick="document.getElementById('speech').value=''">Effacer</button></div><div id="notice"></div></section>
+<section style="margin-top:18px"><h2>2. État d'exploration ICARE</h2><div class="grid5" id="dimensions"></div><p class="muted">Une mention ne suffit pas à déclarer une dimension suffisamment explorée.</p></section>
+<section style="margin-top:18px"><h2>3. Registre des propositions</h2><div id="propositions"></div></section>
+</div><div>
+<section><h2>4. Mémoire documentaire de référence</h2><p class="muted">Ajoute des documents destinés aux humains : textes, guides, PDF convertis en texte, images et schémas. Pour une image, renseigne une légende ou une description : c'est ce texte qui est indexé dans cette version.</p>
+<input id="docTitle" placeholder="Titre du document" style="margin-bottom:8px"><select id="docKind" style="margin-bottom:8px"><option value="text">Texte / guide</option><option value="image">Image / schéma</option></select>
+<textarea id="docContent" placeholder="Texte du document ou description / légende de l'image" style="min-height:100px"></textarea>
+<input id="docFile" type="file" accept=".md,.txt,.json,.yaml,.yml,.png,.jpg,.jpeg,.webp,.svg,.pdf" style="margin-top:8px"><div class="actions"><button onclick="addDocument()">Ajouter à la mémoire</button></div>
+<h3>Rechercher dans la mémoire</h3><input id="query" placeholder="Ex. : différence entre intention et action"><div class="actions"><button class="secondary" onclick="searchDocs()">Rechercher</button></div><div id="searchResults"></div>
+<h3>Documents indexés</h3><div id="documents"></div></section>
+<section style="margin-top:18px"><h2>5. Prochaine piste d'exploration</h2><div id="nextQuestion" class="muted">Ajoute une contribution pour faire apparaître les pistes.</div></section>
+<section style="margin-top:18px"><h2>Session de test</h2><p class="muted">Les données sont conservées localement dans prototype/data/icare.sqlite3.</p><div class="actions"><button class="danger" onclick="resetAll()">Réinitialiser les données</button></div><div class="muted" id="embeddingStatus" style="margin-top:8px"></div></section>
+</div></main>
+<script>
+const $=id=>document.getElementById(id), labels={I:"Intention / finalité",C:"Contexte / situation",A:"Action / opération",R:"Régulation / organisation",E:"Évolution / temporalité"};
+const names={past:"Passé",present:"Présent",future:"Futur",unknown:"Période inconnue"},evals={desired:"Souhaité",undesired:"Non souhaité",feared:"Redouté",neutral:"Neutre / non qualifié"},practical={completed:"Réalisé",committed:"Décidé / engagé",proposed:"Proposé / envisagé",unspecified:"Non qualifié"},epistemic={hypothesis:"Hypothèse",reported:"Rapporté",asserted:"Affirmé / constaté"};
+async function api(url,opts={}){const r=await fetch(url,{headers:{"Content-Type":"application/json"},...opts});const d=await r.json();if(!r.ok)throw Error(d.error||"Erreur");return d}
+function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+async function refresh(){const d=await api("/api/state");
+$("dimensions").innerHTML=Object.entries(d.statuses).map(([k,v])=>'<div class="dim"><b>'+k+'</b><div>'+esc(v.label)+'</div><small>'+(v.count?v.count+" proposition(s) · à approfondir":"Non explorée")+'</small></div>').join("");
+$("propositions").innerHTML=d.propositions.length?d.propositions.map(p=>'<div class="item"><div class="meta"><b>'+esc(p.id)+'</b><span>'+p.dimensions.map(x=>'<span class="pill">'+x+'</span>').join("")+'</span><span>'+(names[p.temporal]||p.temporal)+'</span><span>'+(evals[p.evaluation]||p.evaluation)+'</span><span>'+(practical[p.practical]||p.practical)+'</span></div><p>'+esc(p.text)+'</p><div class="meta">Source : '+esc(p.source)+' · extraction '+Math.round(p.confidence*100)+' %</div><div class="actions"><button class="secondary" onclick="linkPrompt(\\''+p.id+'\\')">Relier à une proposition</button><button class="secondary" onclick="removeProp(\\''+p.id+'\\')">Supprimer</button></div></div>').join(""):"<p class='muted'>Aucune proposition enregistrée.</p>";
+$("documents").innerHTML=d.documents.length?d.documents.map(x=>'<div class="doc"><strong>'+esc(x.title)+'</strong><div class="meta">'+esc(x.kind)+' · '+esc(x.id)+'</div>'+(x.caption?'<p>'+esc(x.caption)+'</p>':"")+'</div>').join(""):"<p class='muted'>Aucun document pour le moment.</p>";
+$("embeddingStatus").textContent=d.embedding_enabled?"Embeddings locaux activés via Ollama ("+d.embedding_model+").":"Recherche lexicale active. Configure Ollama local pour activer les embeddings vectoriels.";
+const missing=Object.entries(d.statuses).filter(([k,v])=>v.count===0).map(([k])=>k);
+$("nextQuestion").innerHTML=missing.length?'Dimensions encore non documentées : <b>'+missing.join(", ")+'</b>. Question possible : « Que faudrait-il comprendre au sujet de '+labels[missing[0]].toLowerCase()+' pour compléter la représentation du système ? »':"Les cinq dimensions comportent des propositions. Examine encore les relations, temporalités, divergences et la qualité des informations.";
+}
+async function analyze(){try{const d=await api("/api/analyze",{method:"POST",body:JSON.stringify({text:$("speech").value,source:"human"})});$("notice").textContent=d.proposals.length+" proposition(s) enregistrée(s). Vérifie les qualifications : elles sont heuristiques.";await refresh()}catch(e){$("notice").textContent=e.message}}
+async function addDocument(){try{const f=$("docFile").files[0];let payload={title:$("docTitle").value||(f?f.name:"Document de référence"),kind:$("docKind").value,content:$("docContent").value,caption:$("docContent").value};
+if(f){const data=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result.split(",")[1]);r.onerror=reject;r.readAsDataURL(f)});payload.base64=data;payload.filename=f.name;if(f.type.startsWith("image/"))payload.kind="image";else if(!payload.content&&f.type.startsWith("text/"))payload.content=await f.text()}
+const d=await api("/api/document",{method:"POST",body:JSON.stringify(payload)});$("notice").textContent="Document ajouté ("+d.embedding+").";$("docTitle").value="";$("docContent").value="";$("docFile").value="";await refresh()}catch(e){$("notice").textContent=e.message}}
+async function searchDocs(){try{const d=await api("/api/search?q="+encodeURIComponent($("query").value));$("searchResults").innerHTML=d.results.length?d.results.map(x=>'<div class="doc"><strong>'+esc(x.title)+'</strong><span class="pill">'+esc(x.kind)+'</span><span class="pill">score '+x.score+'</span><p>'+esc(x.caption||x.excerpt)+'</p></div>').join(""):"<p class='muted'>Aucun résultat.</p>"}catch(e){$("searchResults").textContent=e.message}}
+async function removeProp(id){if(!confirm("Supprimer cette proposition ?"))return;await fetch("/api/proposition/"+id,{method:"DELETE"});refresh()}
+async function linkPrompt(id){const d=await api("/api/state"),others=d.propositions.filter(p=>p.id!==id);if(!others.length)return alert("Il faut au moins deux propositions.");const target=prompt("ID de la proposition cible :\\n"+others.map(p=>p.id+" — "+p.text).join("\\n"));if(!target)return;const rel=prompt("Relation (confirms, specifies, complements, contradicts, evolves_from, targets) :","related");if(!rel)return;try{await api("/api/relation",{method:"POST",body:JSON.stringify({source_id:id,target_id:target,relation:rel})});alert("Relation enregistrée.");}catch(e){alert(e.message)}}
+async function resetAll(){if(!confirm("Effacer toutes les propositions et tous les documents locaux ?"))return;await api("/api/reset",{method:"POST",body:"{}"});refresh()}
+refresh().catch(e=>{$("notice").textContent=e.message});
+</script></body></html>
