@@ -23,7 +23,7 @@ outputs = { self, nixpkgs }:
         # Le dossier est privé par ses répertoires parents dans le HOME ; le sticky bit
         # permet au compte de service invité d’écrire via virtiofs sans sudo.
         chmod 1777 "$DATA_DIR"
-        export ICARE_DATA_DIR="$DATA_DIR"
+        export ICARE_LEGACY_DATA_DIR="$DATA_DIR"
         # Une ancienne exécution via sudo peut avoir laissé des fichiers
         # appartenant à root. On sauvegarde alors le runtime (code uniquement)
         # au lieu de tenter un chmod/chown ou de lancer ICARE avec sudo.

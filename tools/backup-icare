@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DATA_ROOT="${XDG_DATA_HOME:-$HOME/.local/share}/icare-vm"
+DISK="$DATA_ROOT/runtime/icare.qcow2"
+BACKUP_DIR="$DATA_ROOT/backups"
+
+if [[ ! -f "$DISK" ]]; then
+  echo "Disque ICARE introuvable : $DISK" >&2
+  exit 1
+fi
+
+if pgrep -f '[q]emu-system[^ ]*.*-name icare' >/dev/null 2>&1; then
+  echo "ICARE semble encore démarré. Arrête la VM avant de sauvegarder son disque." >&2
+  exit 1
+fi
+
+mkdir -p "$BACKUP_DIR"
+STAMP="$(date +%Y%m%d-%H%M%S)"
+DEST="$BACKUP_DIR/icare-$STAMP.qcow2"
+
+cp --reflink=auto --sparse=always -- "$DISK" "$DEST"
+sha256sum "$DEST" > "$DEST.sha256"
+
+echo "Sauvegarde créée : $DEST"
+echo "Vérification : sha256sum -c '$DEST.sha256'"

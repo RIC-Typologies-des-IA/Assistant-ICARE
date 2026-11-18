@@ -25,9 +25,10 @@
       target = "/opt/icare-runtime";
       writable = false;
     };
-    # Données utilisateur persistantes sur l’hôte, indépendantes du cycle de vie de la VM.
+    # Ancien stockage hôte conservé temporairement pour importer les données créées
+    # par les versions qui utilisaient SQLite directement sur VirtioFS.
     sharedDirectories.icare-data = {
-      source = ''"''${ICARE_DATA_DIR:-$HOME/.local/share/icare-vm/data}"'';
+      source = ''"''${ICARE_LEGACY_DATA_DIR:-$HOME/.local/share/icare-vm/data}"'';
       target = "/mnt/icare-data";
       writable = true;
     };
@@ -51,6 +52,8 @@
   # nono ignore --allow si le chemin n'existe pas encore.
   systemd.tmpfiles.rules = [
     "d /var/lib/icare 0700 icare icare -"
+    "d /var/lib/icare/data 0700 icare icare -"
+    "d /var/lib/icare/pi-agent 0700 icare icare -"
   ];
 
   environment.systemPackages = [ pkgs.nodejs_24 pkgs.nono pkgs.cacert ];
@@ -75,7 +78,9 @@
     };
     script = ''
       export HOME=/var/lib/icare
-      export ICARE_DATA_DIR=/mnt/icare-data
+      # SQLite et l'état Pi résident sur le disque qcow2 persistant, pas sur VirtioFS.
+      export ICARE_DATA_DIR=/var/lib/icare/data
+      export PI_CODING_AGENT_DIR=/var/lib/icare/pi-agent
       export ICARE_HOST=0.0.0.0
       export ICARE_PORT=8765
       export LEMONADE_BASE_URL=http://127.0.0.1:13305/v1
@@ -87,13 +92,27 @@
       export NO_PROXY=
       export no_proxy=
       export NODE_USE_ENV_PROXY=1
-      # Migration sans écrasement si une ancienne VM contient encore sa base locale.
-      if [ ! -e /mnt/icare-data/icare.sqlite ] && [ -e /var/lib/icare/data/icare.sqlite ]; then
-        cp -a /var/lib/icare/data/. /mnt/icare-data/
-        echo "[ICARE] Anciennes données locales transférées vers le stockage persistant."
+      # Import non destructif des données éventuellement créées par la version
+      # qui stockait SQLite et l'agent Pi sur le partage VirtioFS.
+      # Le disque qcow2 reste la source de vérité ; aucun fichier existant n'est écrasé.
+      if [ ! -e /var/lib/icare/data/icare.sqlite ] && [ -f /mnt/icare-data/icare.sqlite ]; then
+        if cp -n /mnt/icare-data/icare.sqlite /var/lib/icare/data/icare.sqlite; then
+          for suffix in -wal -shm -journal; do
+            if [ -f "/mnt/icare-data/icare.sqlite$suffix" ] && [ ! -e "/var/lib/icare/data/icare.sqlite$suffix" ]; then
+              cp -n "/mnt/icare-data/icare.sqlite$suffix" "/var/lib/icare/data/icare.sqlite$suffix" || true
+            fi
+          done
+          echo "[ICARE] Base SQLite importée depuis l'ancien stockage hôte."
+        else
+          echo "[ICARE] AVERTISSEMENT : import SQLite impossible ; la base locale est conservée." >&2
+        fi
+      fi
+      if [ -d /mnt/icare-data/pi-agent ]; then
+        cp -an /mnt/icare-data/pi-agent/. /var/lib/icare/pi-agent/ 2>/dev/null || \
+          echo "[ICARE] AVERTISSEMENT : import partiel de l'ancien état Pi." >&2
       fi
       exec nono run --read /opt/icare-runtime --read /nix/store \
-        --allow /mnt/icare-data --block-net \
+        --allow /var/lib/icare --block-net \
         --open-port 43128 --open-port 8765 \
         -- node src/server.js
     '';

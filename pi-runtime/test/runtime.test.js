@@ -243,16 +243,23 @@ test("Voice dictation uses only downloaded transcription models and persists bot
   assert.ok(ui.includes('fetch("/api/transcribe"'));
 });
 
-test("QEMU user data lives outside the replaceable runtime and is writable in the guest", async () => {
+test("QEMU keeps live SQLite and Pi state on the persistent guest disk and imports legacy VirtioFS data safely", async () => {
   const flake = await readFile(new URL("../../flake.nix", import.meta.url), "utf8");
   const vm = await readFile(new URL("../../nixos/icare-vm.nix", import.meta.url), "utf8");
+  const server = await readFile(new URL("../src/server.js", import.meta.url), "utf8");
   assert.ok(flake.includes("/icare-vm/data"));
-  assert.ok(flake.includes('export ICARE_DATA_DIR="$DATA_DIR"'));
+  assert.ok(flake.includes('export ICARE_LEGACY_DATA_DIR="$DATA_DIR"'), "legacy host share remains available for migration");
   assert.ok(vm.includes("sharedDirectories.icare-data"));
   assert.ok(vm.includes('target = "/mnt/icare-data"'));
-  assert.ok(vm.includes("writable = true"));
-  assert.ok(vm.includes("export ICARE_DATA_DIR=/mnt/icare-data"));
-  assert.ok(vm.includes("--allow /mnt/icare-data"));
+  assert.ok(vm.includes("export ICARE_DATA_DIR=/var/lib/icare/data"));
+  assert.ok(vm.includes("export PI_CODING_AGENT_DIR=/var/lib/icare/pi-agent"));
+  assert.ok(vm.includes("--allow /var/lib/icare"));
+  assert.ok(vm.includes("cp -n /mnt/icare-data/icare.sqlite"));
+  assert.ok(vm.includes("cp -an /mnt/icare-data/pi-agent/."));
+  assert.ok(!vm.includes("--allow /mnt/icare-data"));
+  assert.ok(server.includes('process.env.PI_CODING_AGENT_DIR || path.join(DATA_DIR, "pi-agent")'));
+  assert.ok(vm.includes('"d /var/lib/icare/data 0700 icare icare -"'));
+  assert.ok(vm.includes('"d /var/lib/icare/pi-agent 0700 icare icare -"'));
 });
 
 test("A fresh ICARE installation opens in a default project and remembers recent activity", async () => {
@@ -262,4 +269,16 @@ test("A fresh ICARE installation opens in a default project and remembers recent
   assert.ok(server.includes('UPDATE projects SET updated_at=? WHERE id=?'));
   assert.ok(ui.includes('localStorage.getItem("icare-current-project")||""'));
   assert.ok(ui.includes("data.projects[0].id"));
+});
+
+
+test("Persistent VM backup is offline-only and retains timestamped qcow2 copies", async () => {
+  const backup = await readFile(new URL("../../tools/backup-icare", import.meta.url), "utf8");
+  const docs = await readFile(new URL("../../docs/storage-and-backup.md", import.meta.url), "utf8");
+  assert.ok(backup.includes("pgrep -f '[q]emu-system"));
+  assert.ok(backup.includes("cp --reflink=auto --sparse=always"));
+  assert.ok(backup.includes("sha256sum"));
+  assert.ok(backup.includes("backups"));
+  assert.ok(docs.includes("/var/lib/icare/data/icare.sqlite"));
+  assert.ok(docs.includes("ne sont pas supprimées automatiquement"));
 });
