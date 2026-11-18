@@ -253,7 +253,7 @@ test("QEMU keeps live SQLite and Pi state on the persistent guest disk and impor
   assert.ok(vm.includes('target = "/mnt/icare-data"'));
   assert.ok(vm.includes("export ICARE_DATA_DIR=/var/lib/icare/data"));
   assert.ok(vm.includes("export PI_CODING_AGENT_DIR=/var/lib/icare/pi-agent"));
-  assert.ok(vm.includes("--allow /var/lib/icare"));
+  assert.ok(vm.includes("--allow /var/lib/icare/data --allow /var/lib/icare/pi-agent"));
   assert.ok(vm.includes("cp -n /mnt/icare-data/icare.sqlite"));
   assert.ok(vm.includes("cp -an /mnt/icare-data/pi-agent/."));
   assert.ok(!vm.includes("--allow /mnt/icare-data"));
