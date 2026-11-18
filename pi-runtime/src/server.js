@@ -67,16 +67,55 @@ for (const [name, type] of [
 ]) {
   if (!propositionColumns.has(name)) db.exec(`ALTER TABLE propositions ADD COLUMN ${name} ${type}`);
 }
+
 const now = () => new Date().toISOString();
-const insertDimension = db.prepare("INSERT OR IGNORE INTO dimensions(code,status,justification,updated_at) VALUES(?,?,?,?)");
-for (const code of Object.keys(DIMENSIONS)) insertDimension.run(code, "unexplored", "", now());
-const seedDoc = db.prepare("INSERT OR IGNORE INTO reference_docs(id,title,content,created_at) VALUES(?,?,?,?)");
+db.exec(`
+  CREATE TABLE IF NOT EXISTS projects (
+    id TEXT PRIMARY KEY, name TEXT NOT NULL, created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL, archived_at TEXT
+  );
+  CREATE TABLE IF NOT EXISTS project_dimensions (
+    project_id TEXT NOT NULL, code TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'unexplored',
+    justification TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL,
+    PRIMARY KEY(project_id, code)
+  );
+  CREATE TABLE IF NOT EXISTS conversation_turns (
+    id TEXT PRIMARY KEY, project_id TEXT NOT NULL, session_id TEXT NOT NULL,
+    turn_index INTEGER NOT NULL, user_text TEXT NOT NULL, assistant_text TEXT NOT NULL,
+    created_at TEXT NOT NULL, UNIQUE(project_id, session_id, turn_index)
+  );
+  CREATE TABLE IF NOT EXISTS exploration_snapshots (
+    id TEXT PRIMARY KEY, project_id TEXT NOT NULL, session_id TEXT NOT NULL,
+    turn_index INTEGER NOT NULL, dimensions_json TEXT NOT NULL,
+    propositions_json TEXT NOT NULL, created_at TEXT NOT NULL
+  );
+`);
+const projectColumns = {
+  propositions: new Set(db.prepare("PRAGMA table_info(propositions)").all().map(column => column.name)),
+  relations: new Set(db.prepare("PRAGMA table_info(relations)").all().map(column => column.name)),
+  reference_docs: new Set(db.prepare("PRAGMA table_info(reference_docs)").all().map(column => column.name))
+};
+for (const table of Object.keys(projectColumns)) {
+  if (!projectColumns[table].has("project_id")) db.exec(`ALTER TABLE ${table} ADD COLUMN project_id TEXT`);
+}
+db.prepare("INSERT OR IGNORE INTO projects(id,name,created_at,updated_at) VALUES('legacy','Projet existant',?,?)").run(now(), now());
+for (const table of ["propositions", "relations", "reference_docs"]) {
+  db.exec(`UPDATE ${table} SET project_id='legacy' WHERE project_id IS NULL`);
+}
+const insertProjectDimension = db.prepare("INSERT OR IGNORE INTO project_dimensions(project_id,code,status,justification,updated_at) VALUES(?,?,?,?,?)");
+for (const code of DIMENSION_ORDER) {
+  const legacy = db.prepare("SELECT status,justification,updated_at FROM dimensions WHERE code=?").get(code);
+  insertProjectDimension.run("legacy", code, legacy?.status || "unexplored", legacy?.justification || "", legacy?.updated_at || now());
+}
+
+
+const seedDoc = db.prepare("INSERT OR IGNORE INTO reference_docs(id,title,content,created_at,project_id) VALUES(?,?,?,?,?)");
 for (const [id, title, filename] of [
   ["guide-icare", "Guide de la démarche ICARE", "guide-icare.md"],
   ["ontology-icare", "Ontologie ICARE (JSON)", "icare.json"]
 ]) {
   const file = path.join(HERE, "..", "reference", filename);
-  if (existsSync(file)) seedDoc.run(id, title, await readFile(file, "utf8"), now());
+  if (existsSync(file)) seedDoc.run(id, title, await readFile(file, "utf8"), now(), "legacy");
 }
 
 const SYSTEM_PROMPT = `Tu es ICARE, un agent méthodologique maïeutique. Tu aides un humain à comprendre et décrire un système par un dialogue ouvert, non linéaire et progressif.
@@ -154,33 +193,39 @@ async function readBody(req) {
   }
   return raw ? JSON.parse(raw) : {};
 }
-function getState() {
-  const rows = db.prepare("SELECT * FROM dimensions").all()
+function requireProject(projectId) {
+  const project = db.prepare("SELECT * FROM projects WHERE id=? AND archived_at IS NULL").get(projectId);
+  if (!project) throw new Error("Projet introuvable ou archivé.");
+  return project;
+}
+function getState(projectId = "legacy") {
+  const rows = db.prepare("SELECT * FROM project_dimensions WHERE project_id=?").all(projectId)
     .sort((a, b) => DIMENSION_ORDER.indexOf(a.code) - DIMENSION_ORDER.indexOf(b.code));
-  const counts = db.prepare("SELECT dimensions, review_status FROM propositions").all();
+  const counts = db.prepare("SELECT dimensions, review_status FROM propositions WHERE project_id=?").all(projectId);
   return rows.map(row => {
     const related = counts.filter(p => JSON.parse(p.dimensions).includes(row.code));
     return { ...row, label: DIMENSIONS[row.code], candidates: related.filter(p => p.review_status === "candidate").length,
-      accepted: related.filter(p => p.review_status === "accepted").length };
+      accepted: related.filter(p => p.review_status === "accepted").length,
+      rejected: related.filter(p => p.review_status === "rejected").length };
   });
 }
-function getPropositions() {
-  return db.prepare("SELECT * FROM propositions ORDER BY created_at DESC").all()
+function getPropositions(projectId = "legacy") {
+  return db.prepare("SELECT * FROM propositions WHERE project_id=? ORDER BY created_at DESC").all(projectId)
     .map(p => ({ ...p, dimensions: JSON.parse(p.dimensions) }));
 }
-function getRelations() {
-  return db.prepare("SELECT * FROM relations ORDER BY created_at DESC LIMIT 200").all();
+function getRelations(projectId = "legacy") {
+  return db.prepare("SELECT * FROM relations WHERE project_id=? ORDER BY created_at DESC LIMIT 200").all(projectId);
 }
-function searchDocs(query) {
+function searchDocs(query, projectId = "legacy") {
   const terms = String(query || "").toLowerCase().split(/\W+/).filter(t => t.length > 2);
-  const docs = db.prepare("SELECT id,title,content FROM reference_docs").all();
+  const docs = db.prepare("SELECT id,title,content FROM reference_docs WHERE project_id=?").all(projectId);
   return docs.map(doc => {
     const lower = doc.content.toLowerCase();
     const score = terms.reduce((n, term) => n + (lower.split(term).length - 1), 0);
     return { id: doc.id, title: doc.title, score, excerpt: doc.content.slice(0, 2400) };
   }).filter(d => d.score > 0 || terms.length === 0).sort((a,b) => b.score-a.score).slice(0,4);
 }
-function recordCandidate(input) {
+function recordCandidate(input, projectId = "legacy") {
   const dimensions = [...new Set((input.dimensions || []).filter(d => Object.hasOwn(DIMENSIONS, d)))];
   if (!dimensions.length) throw new Error("Au moins une dimension ICARE valide est requise.");
   const primary = dimensions.includes(input.primary_dimension) ? input.primary_dimension : dimensions[0];
@@ -198,30 +243,30 @@ function recordCandidate(input) {
   db.prepare(`INSERT INTO propositions
     (id,text,dimensions,primary_dimension,temporal,evaluation,epistemic,practical,confidence,source,aspect,review_status,created_at,
      utterance_time,valid_time_start,valid_time_end,event_period_start,event_period_end,target_horizon,realization_time,modality,
-     subject,predicate,value,author,source_agent,source_interaction,justification)
-    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+     subject,predicate,value,author,source_agent,source_interaction,justification,project_id)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
       id, observationText, JSON.stringify(dimensions), primary,
       temporal, evaluation, epistemic, practical, confidence, String(input.source || "conversation").slice(0,300),
       String(input.aspect || "").slice(0,300), "candidate", now(),
       optionalText("utterance_time"), optionalText("valid_time_start"), optionalText("valid_time_end"),
       optionalText("event_period_start"), optionalText("event_period_end"), optionalText("target_horizon"),
       optionalText("realization_time"), modality, optionalText("subject"), optionalText("predicate"), optionalText("value"),
-      optionalText("author"), optionalText("source_agent"), optionalText("source_interaction"), optionalText("justification")
+      optionalText("author"), optionalText("source_agent"), optionalText("source_interaction"), optionalText("justification"), projectId
     );
-  return db.prepare("SELECT * FROM propositions WHERE id=?").get(id);
+  return db.prepare("SELECT * FROM propositions WHERE id=? AND project_id=?").get(id, projectId);
 }
-function recordRelationCandidate(input) {
+function recordRelationCandidate(input, projectId = "legacy") {
   const allowed = new Set(ONTOLOGY.relations);
   const relation = String(input.relation || "");
   if (!allowed.has(relation)) throw new Error("Relation inconnue dans l'ontologie complémentaire.");
   const fromId = String(input.from_id || "");
   const toId = String(input.to_id || "");
   if (!fromId || !toId || fromId === toId) throw new Error("Deux identifiants de propositions distincts sont requis.");
-  const exists = db.prepare("SELECT id FROM propositions WHERE id IN (?,?)").all(fromId, toId);
+  const exists = db.prepare("SELECT id FROM propositions WHERE id IN (?,?) AND project_id=?").all(fromId, toId, projectId);
   if (exists.length !== 2) throw new Error("Les deux propositions doivent exister.");
   const id = randomUUID();
-  db.prepare("INSERT INTO relations(id,from_id,to_id,relation,note,review_status,created_at) VALUES(?,?,?,?,?,?,?)")
-    .run(id, fromId, toId, relation, String(input.note || "").slice(0,1000), "candidate", now());
+  db.prepare("INSERT INTO relations(id,from_id,to_id,relation,note,review_status,created_at,project_id) VALUES(?,?,?,?,?,?,?,?)")
+    .run(id, fromId, toId, relation, String(input.note || "").slice(0,1000), "candidate", now(), projectId);
   return { id, from_id: fromId, to_id: toId, relation, review_status: "candidate" };
 }
 
