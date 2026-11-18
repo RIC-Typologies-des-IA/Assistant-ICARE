@@ -420,7 +420,14 @@ const server = http.createServer(async (req, res) => {
         const initialIds = new Set(db.prepare("SELECT id FROM propositions").all().map(row => row.id));
         let assistantText = "";
         let reconciliationPass = false;
+        const toolEvents = [];
         const unsubscribe = session.subscribe(event => {
+          if (typeof event.type === "string" && event.type.startsWith("tool_")) {
+            toolEvents.push({
+              type: event.type,
+              name: event.toolName || event.name || event.toolCall?.name || null
+            });
+          }
           if (event.type === "message_update" && event.assistantMessageEvent.type === "text_delta") {
             const delta = event.assistantMessageEvent.delta;
             if (!reconciliationPass) {
