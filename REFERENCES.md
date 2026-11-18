@@ -22,7 +22,7 @@ Cette page rassemble les sources primaires des logiciels, standards et travaux c
 - **DOLCE — Descriptive Ontology for Linguistic and Cognitive Engineering**. Laboratoire pour l'ontologie appliquée (ISTC-CNR) : https://www.loa.istc.cnr.it/index.php/dolce/
 - **BFO — Basic Formal Ontology 2020**. Artefacts et spécification associés à ISO 21838-2 : https://github.com/BFO-ontology/BFO-2020
 - **UFO — Unified Foundational Ontology**. Présentation par la communauté OntoUML : https://ontouml.org/ufo/
-- **Algèbre des intervalles de James F. Allen**. Allen, J. F. (1983), « Maintaining Knowledge about Temporal Intervals », *Communications of the ACM*, 26(11), 832–843. DOI : https://doi.org/10.1145/182.358434
+- **Algèbre des intervalles de James F. Allen**. Allen, J. F. (1983), « Maintaining Knowledge about Temporal Intervals », *Communications of the ACM*, 26(11), 832–843. texte de l'article (PDF) : https://cse.unl.edu/~choueiry/Documents/Allen-CACM1983.pdf ; DOI : https://doi.org/10.1145/182.358434
 - **PROV-O — The PROV Ontology**. Recommandation du W3C du 30 avril 2013 : https://www.w3.org/TR/prov-o/
 - **Intentions et plans — Michael E. Bratman**. *Intention, Plans and Practical Reason* (1987), University of Chicago Press / CSLI : https://press.uchicago.edu/ucp/books/book/distributed/I/bo3629095.html
 
