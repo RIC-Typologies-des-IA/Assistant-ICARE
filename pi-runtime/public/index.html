@@ -105,6 +105,7 @@ async function loadProjects(){
  if(!data.projects.length)throw new Error("Aucun projet disponible. Le serveur doit créer le projet initial.");
  if(!data.projects.some(p=>p.id===currentProjectId))currentProjectId=data.projects[0].id;
  select.value=currentProjectId;localStorage.setItem("icare-current-project",currentProjectId);
+ sessionKey="icare-pi-session:"+currentProjectId;sessionId=localStorage.getItem(sessionKey)||crypto.randomUUID();localStorage.setItem(sessionKey,sessionId);
 }
 function renderConversation(turns){
  $("#messages").innerHTML="";
