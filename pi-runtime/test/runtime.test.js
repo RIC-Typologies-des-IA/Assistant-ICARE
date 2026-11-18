@@ -270,3 +270,15 @@ test("A fresh ICARE installation opens in a default project and remembers recent
   assert.ok(ui.includes('localStorage.getItem("icare-current-project")||""'));
   assert.ok(ui.includes("data.projects[0].id"));
 });
+
+
+test("Persistent VM backup is offline-only and retains timestamped qcow2 copies", async () => {
+  const backup = await readFile(new URL("../../tools/backup-icare", import.meta.url), "utf8");
+  const docs = await readFile(new URL("../../docs/storage-and-backup.md", import.meta.url), "utf8");
+  assert.ok(backup.includes("pgrep -f '[q]emu-system"));
+  assert.ok(backup.includes("cp --reflink=auto --sparse=always"));
+  assert.ok(backup.includes("sha256sum"));
+  assert.ok(backup.includes("backups"));
+  assert.ok(docs.includes("/var/lib/icare/data/icare.sqlite"));
+  assert.ok(docs.includes("ne sont pas supprimées automatiquement"));
+});
