@@ -28,7 +28,7 @@
     # Ancien stockage hôte conservé temporairement pour importer les données créées
     # par les versions qui utilisaient SQLite directement sur VirtioFS.
     sharedDirectories.icare-data = {
-      source = ''"''${ICARE_DATA_DIR:-$HOME/.local/share/icare-vm/data}"'';
+      source = ''"''${ICARE_LEGACY_DATA_DIR:-$HOME/.local/share/icare-vm/data}"'';
       target = "/mnt/icare-data";
       writable = true;
     };
