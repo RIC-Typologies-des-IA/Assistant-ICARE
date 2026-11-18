@@ -641,6 +641,7 @@ const server = http.createServer(async (req, res) => {
       const justification = String(body.justification || "").trim();
       if (["sufficient", "not_applicable"].includes(body.status) && justification.length < 8) return json(res, 400, { error: "Une justification est requise pour ce statut." });
       const projectId = String(body.projectId || url.searchParams.get("projectId") || "legacy");
+      try { requireProject(projectId); } catch (error) { return json(res, 404, { error: error.message }); }
       const result = db.prepare("UPDATE project_dimensions SET status=?,justification=?,updated_at=? WHERE code=? AND project_id=?").run(body.status, justification, now(), code, projectId);
       if (result.changes !== 1) return json(res, 404, { error: "Dimension introuvable ; aucune modification enregistrée." });
       const persisted = db.prepare("SELECT code,status,justification,updated_at FROM project_dimensions WHERE code=? AND project_id=?").get(code, projectId);
