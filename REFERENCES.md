@@ -5,6 +5,7 @@ Cette page rassemble les sources primaires des logiciels, standards et travaux c
 ## Runtime agentique et infrastructure
 
 - **Pi — dépôt principal** : https://github.com/earendil-works/pi
+- **TypeBox — schémas JSON utilisés par les outils Pi** : https://github.com/sinclairzx81/typebox
 - **Pi — SDK embarqué** : https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/sdk.md
 - **Pi — extensions et outils personnalisés** : https://docs.pi.dev/latest/extensions
 - **Pi — exemple SDK d'enregistrement d'extensions** : https://github.com/earendil-works/pi/blob/main/packages/coding-agent/examples/sdk/06-extensions.ts
