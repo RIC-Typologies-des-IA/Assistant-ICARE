@@ -137,6 +137,7 @@ let selectedModel;
 let catalogModels = [];
 const sessions = new Map();
 const sessionBusy = new Set();
+let activeIcareTools = [];
 
 function json(res, status, value) {
   res.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
@@ -344,7 +345,8 @@ async function initializePi() {
     });
     // L'API SDK distingue les outils enregistrés des outils actifs : active explicitement ICARE.
     pi.setActiveTools(icareToolNames);
-    console.log("[ICARE] Outils ICARE enregistrés et activés :", icareToolNames.join(", "));
+    activeIcareTools = [...icareToolNames];
+    console.log("[ICARE] Outils ICARE enregistrés et activés :", activeIcareTools.join(", "));
   };
   piModules.registerTools = extensionFactory;
   return { modelId: selectedModel.id, modelName: chosen?.name || selectedModel.id };
@@ -382,7 +384,7 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, {
         ok: true, model: selectedModel.id, provider: "Lemonade via Pi SDK",
         toolCalling: Boolean(modelInfo?.labels?.includes("tool-calling")),
-        toolDefinitions: ["list_available_models", "get_ontology", "get_exploration_state", "search_reference_documents", "list_propositions", "propose_observation", "propose_relation"],
+        toolDefinitions: [...activeIcareTools],
         dimensionsOrder: DIMENSION_ORDER
       });
     }
