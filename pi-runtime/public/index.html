@@ -48,10 +48,12 @@ button{border:0;border-radius:9px;padding:10px 14px;background:#2458a6;color:whi
 </main>
 <script>
 const $=s=>document.querySelector(s);
-const sessionKey="icare-pi-session";
+let sessionKey="icare-pi-session:legacy";
 let currentProjectId=localStorage.getItem("icare-current-project")||"legacy";
+sessionKey="icare-pi-session:"+currentProjectId;
 let sessionId=localStorage.getItem(sessionKey)||crypto.randomUUID();localStorage.setItem(sessionKey,sessionId);
 let timelineSnapshots=[];
+let projectTurns=[];
 function projectUrl(path){return path+(path.includes("?")?"&":"?")+"projectId="+encodeURIComponent(currentProjectId)}
 function addMessage(role,text){const el=document.createElement("div");el.className="msg "+role;el.textContent=text;$("#messages").append(el);$("#messages").scrollTop=$("#messages").scrollHeight;return el}
 function updateModelStatus(modelId, models){
@@ -105,6 +107,7 @@ function renderRadar(dimensions){
 function renderTimeline(index){
  if(!timelineSnapshots.length)return;
  const snap=timelineSnapshots[index];renderRadar(snap.dimensions);
+ renderConversation(projectTurns.filter(turn=>turn.turn_index<=snap.turn_index));
  $("#timelineSlider").value=index;$("#timelinePosition").textContent=(index+1)+" / "+timelineSnapshots.length;
  $("#replaySummary").textContent=new Date(snap.created_at).toLocaleString("fr-FR")+" · "+snap.propositions.length+" proposition(s) conservée(s) à cette étape.";
 }
@@ -119,7 +122,8 @@ $("#projectSelect").addEventListener("change",async()=>{currentProjectId=$("#pro
 $("#createProject").addEventListener("click",async()=>{const name=$("#newProjectName").value.trim();if(!name)return;const r=await fetch("/api/projects",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name})});const x=await r.json();if(!r.ok){$("#error").textContent=x.error;return}$("#newProjectName").value="";currentProjectId=x.project.id;await loadProjects();$("#projectSelect").value=currentProjectId;sessionKey="icare-pi-session:"+currentProjectId;sessionId=crypto.randomUUID();localStorage.setItem(sessionKey,sessionId);await refresh()});
 async function refresh(){
  const r=await fetch(projectUrl("/api/state"));const data=await r.json();
- renderConversation(data.turns||[]);
+ projectTurns=data.turns||[];
+ renderConversation(projectTurns);
  $("#dimensions").innerHTML="";
  const order=["I","C","A","R","E"];
  data.dimensions.sort((a,b)=>order.indexOf(a.code)-order.indexOf(b.code));
@@ -134,7 +138,7 @@ async function refresh(){
   const just=document.createElement("input");just.className="just";just.placeholder="Justification (requise pour « suffisamment explorée » ou « non applicable »)";just.value=d.justification||"";row.append(just);
   const save=document.createElement("button");save.className="save-dimension";save.textContent="Enregistrer";row.append(save);
   const feedback=document.createElement("div");feedback.className="feedback";row.append(feedback);
-  save.addEventListener("click",async()=>{save.disabled=true;feedback.textContent="Enregistrement…";try{const rr=await fetch("/api/dimensions/"+d.code,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({status:sel.value,justification:just.value})});const x=await rr.json();if(!rr.ok)throw new Error(x.error||"Échec de l'enregistrement");feedback.textContent="Enregistré";await refresh()}catch(err){feedback.textContent=err.message;feedback.style.color="#9b2828"}finally{save.disabled=false}});
+  save.addEventListener("click",async()=>{save.disabled=true;feedback.textContent="Enregistrement…";try{const rr=await fetch("/api/dimensions/"+d.code,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({projectId:currentProjectId,status:sel.value,justification:just.value})});const x=await rr.json();if(!rr.ok)throw new Error(x.error||"Échec de l'enregistrement");feedback.textContent="Enregistré";await refresh()}catch(err){feedback.textContent=err.message;feedback.style.color="#9b2828"}finally{save.disabled=false}});
   $("#dimensions").append(row);
  }
  const groups={accepted:$("#acceptedPropositions"),candidate:$("#candidatePropositions"),rejected:$("#rejectedPropositions")};
