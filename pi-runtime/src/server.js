@@ -118,6 +118,9 @@ RÈGLES DE DIALOGUE
 - En cas d'incertitude de classement, conserve l'incertitude et explique-la brièvement ; ne force pas une dimension.
 - Les outils mettent à jour les compteurs et la liste des propositions candidates visibles dans le panneau latéral. Explique naturellement à l'utilisateur qu'une proposition attend sa validation lorsqu'il est pertinent de le signaler.
 - Tu peux enregistrer une proposition comme candidate à validation humaine, jamais comme un fait validé.
+- RÈGLE DE VÉRACITÉ ABSOLUE : tu ne dis jamais « enregistré », « ajouté », « créé » ou « proposition candidate » au sens d'une action accomplie tant que l'outil correspondant n'a pas effectivement été appelé et n'a pas confirmé son succès. Une reformulation dans le chat n'est pas un enregistrement.
+- Après chaque appel à propose_observation, vérifie que l'outil a renvoyé un identifiant. Si aucun identifiant n'est retourné, indique explicitement que l'enregistrement a échoué.
+- Les propositions candidates sont des objets persistés dans le registre SQLite et visibles dans le panneau latéral ; ne prétends jamais que le seul texte de ta réponse les a créées.
 - Tu ne modifies jamais le statut d'exploration d'une dimension : l'utilisateur seul décide si elle est insuffisamment documentée, suffisamment explorée ou non applicable, et justifie les deux derniers statuts.
 - Le corpus documentaire est une référence méthodologique, pas une source de faits sur le système discuté.
 - Tu n'as aucun outil de navigation Web, de shell, de fichiers arbitraires ou de réseau externe. Ne prétends pas avoir effectué une recherche Web.
@@ -407,13 +410,52 @@ const server = http.createServer(async (req, res) => {
       res.write("event: session\ndata: " + JSON.stringify({ sessionId }) + "\n\n");
       try {
         const session = await getSession(sessionId);
+        const initialIds = new Set(db.prepare("SELECT id FROM propositions").all().map(row => row.id));
+        let assistantText = "";
+        let reconciliationPass = false;
         const unsubscribe = session.subscribe(event => {
           if (event.type === "message_update" && event.assistantMessageEvent.type === "text_delta") {
-            res.write("event: delta\ndata: " + JSON.stringify({ text: event.assistantMessageEvent.delta }) + "\n\n");
+            const delta = event.assistantMessageEvent.delta;
+            if (!reconciliationPass) {
+              assistantText += delta;
+              res.write("event: delta\ndata: " + JSON.stringify({ text: delta }) + "\n\n");
+            }
           }
         });
         await session.prompt(message);
+
+        // Le texte du chat ne suffit pas : si aucune proposition n'a été persistée,
+        // demander à Pi une passe interne de rattrapage avec appel d'outil.
+        let newPropositions = db.prepare("SELECT * FROM propositions").all().filter(row => !initialIds.has(row.id));
+        const claimsPersistence = /(?:enregistr|ajout|créé|proposition.{0,30}candidate|attend.{0,20}validation)/i.test(assistantText);
+        const substantialInput = message.length >= 80;
+        let reconciliationError = null;
+        if (newPropositions.length === 0 && (claimsPersistence || substantialInput)) {
+          reconciliationPass = true;
+          try {
+            await session.prompt(
+              "PASSE INTERNE DE PERSISTANCE — ne rédige pas une nouvelle réponse conversationnelle. " +
+              "Vérifie les propositions existantes avec list_propositions pour éviter les doublons. " +
+              "Reprends les informations substantielles formulées par l'utilisateur dans les messages récents, notamment lorsqu'un dernier message bref confirme une demande d'enregistrement. " +
+              "Si elles contiennent une ou plusieurs observations nouvelles qui méritent d'être conservées, appelle réellement propose_observation pour chacune, avec les dimensions ICARE pertinentes et les qualifications connues. " +
+              "N'invente aucun fait et laisse inconnus les champs incertains. Si aucune observation nouvelle ne mérite d'être enregistrée, n'appelle aucun outil. " +
+              "N'affirme jamais qu'une opération a été effectuée sans confirmation de l'outil."
+            );
+          } catch (error) {
+            reconciliationError = error.message || String(error);
+          } finally {
+            reconciliationPass = false;
+          }
+          newPropositions = db.prepare("SELECT * FROM propositions").all().filter(row => !initialIds.has(row.id));
+        }
         unsubscribe();
+        const candidatePropositions = newPropositions.filter(p => p.review_status === "candidate");
+        res.write("event: persistence\ndata: " + JSON.stringify({
+          created: candidatePropositions.length,
+          propositions: candidatePropositions.map(p => ({ id: p.id, text: p.text, dimensions: JSON.parse(p.dimensions), review_status: p.review_status })),
+          unconfirmedClaim: candidatePropositions.length === 0 && claimsPersistence,
+          reconciliationError
+        }) + "\n\n");
         res.write("event: done\ndata: " + JSON.stringify({ state: getState(), propositions: getPropositions().filter(p => p.review_status === "candidate"), relations: getRelations() }) + "\n\n");
       } catch (error) {
         res.write("event: error\ndata: " + JSON.stringify({ message: error.message || String(error) }) + "\n\n");
