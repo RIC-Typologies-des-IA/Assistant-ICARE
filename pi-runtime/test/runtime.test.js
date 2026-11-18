@@ -36,15 +36,48 @@ test("Pi SDK loads a custom Lemonade OpenAI-compatible model", async () => {
         }
       }
     }));
-    const { ModelRuntime } = await import("@earendil-works/pi-coding-agent");
+    const { ModelRuntime, DefaultResourceLoader } = await import("@earendil-works/pi-coding-agent");
+    const { Type } = await import("typebox");
     const runtime = await ModelRuntime.create();
     const model = runtime.getModel("lemonade", "test-chat-model");
     assert.ok(model);
     assert.equal(model.provider, "lemonade");
     assert.equal(model.id, "test-chat-model");
     const { createAgentSession, SessionManager } = await import("@earendil-works/pi-coding-agent");
-    const { session } = await createAgentSession({ model, modelRuntime: runtime, sessionManager: SessionManager.inMemory(), noTools: "builtin" });
+    const resourceLoader = new DefaultResourceLoader({
+      cwd: dir,
+      agentDir: dir,
+      extensionFactories: [pi => {
+        pi.registerTool({
+          name: "icare_test_tool",
+          label: "ICARE test",
+          description: "Vérifie l'activation d'un outil d'extension ICARE.",
+          exposure: "direct",
+          parameters: Type.Object({}),
+          execute: async () => ({ content: [{ type: "text", text: "ok" }], details: {} })
+        });
+      }]
+    });
+    await resourceLoader.reload();
+    const loadedExtensions = resourceLoader.getExtensions();
+    const loadedToolNames = loadedExtensions.extensions.flatMap(extension =>
+      [...extension.tools.values()].map(tool => tool.definition.name)
+    );
+    assert.ok(loadedToolNames.includes("icare_test_tool"), JSON.stringify({
+      errors: loadedExtensions.errors,
+      loadedToolNames
+    }));
+    const { session } = await createAgentSession({
+      model, modelRuntime: runtime, resourceLoader,
+      sessionManager: SessionManager.inMemory(), noTools: "builtin"
+    });
     try {
+      await session.bindExtensions({});
+      assert.ok(session.getAllTools().some(tool => tool.name === "icare_test_tool"),
+        "Session registry: " + session.getAllTools().map(tool => tool.name).join(", "));
+      session.setActiveToolsByName(["icare_test_tool"]);
+      assert.ok(session.getActiveToolNames().includes("icare_test_tool"),
+        "Active tools: " + session.getActiveToolNames().join(", "));
       const second = runtime.getModel("lemonade", "test-chat-model-2");
       assert.ok(second);
       await session.setModel(second);
@@ -82,6 +115,7 @@ test("ICARE ontology defines dimensions in canonical I-C-A-R-E order", async () 
   assert.ok(ontology.proposition_model.required.includes("source"));
   assert.match(ontology.proposition_model.confidenceSemantics, /certitude exprimée par la source/);
   assert.ok(ontology.reference_frameworks.some(item => item.name === "PROV-O"));
+  assert.ok(ontology.reference_frameworks.every(item => typeof item.url === "string" && item.url.startsWith("https://")));
   assert.ok(ontology.reference_frameworks.some(item => item.name === "Allen interval algebra"));
 });
 
@@ -96,11 +130,20 @@ test("ICARE exposes a manual proposal path independent of model tool-calling", a
   assert.ok(ui.includes('fetch("/api/propositions"'));
 });
 
-test("ICARE explicitly activates its registered tools in Pi sessions", async () => {
+test("ICARE verifies custom tools after the Pi session has been created", async () => {
   const server = await readFile(new URL("../src/server.js", import.meta.url), "utf8");
-  assert.ok(server.includes("pi.setActiveTools(icareToolNames)"));
-  assert.ok(server.includes("activeIcareTools = [...icareToolNames]"));
+  assert.ok(server.includes('await import("typebox")'));
+  assert.ok(server.includes("session.getActiveToolNames()"));
+  assert.ok(server.includes("await created.session.bindExtensions({})"));
+  assert.ok(server.includes("session.setActiveToolsByName(ICARE_TOOL_NAMES)"));
+  assert.ok(server.includes('toolInitializationStatus = "ready"'));
+  assert.ok(server.includes('toolInitializationStatus = "failed"'));
   assert.ok(server.includes("toolDefinitions: [...activeIcareTools]"));
+  for (const name of ["list_available_models", "get_ontology", "get_exploration_state", "search_reference_documents", "list_propositions", "propose_observation", "propose_relation"]) {
+    assert.ok(server.includes(`name: "${name}"`));
+    assert.ok(server.includes("exposure: \"direct\""));
+  }
+  assert.ok(!server.includes("pi.setActiveTools(icareToolNames)"));
 });
 
 test("Exploration dimensions require an explicit save action", async () => {

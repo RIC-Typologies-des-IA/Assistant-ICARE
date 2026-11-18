@@ -37,3 +37,6 @@ Format de micro-synthèse :
 
 [REGLE CENTRALE]
 Aide à voir plus largement, relier plus finement, questionner plus rigoureusement et apprendre de ce qui advient. L'utilisateur garde toujours la maîtrise de son intention et de ses décisions.
+
+
+Sources théoriques du projet : [bibliographie ICARE](../REFERENCES.md).

@@ -137,7 +137,10 @@ let selectedModel;
 let catalogModels = [];
 const sessions = new Map();
 const sessionBusy = new Set();
+const ICARE_TOOL_NAMES = ["list_available_models", "get_ontology", "get_exploration_state", "search_reference_documents", "list_propositions", "propose_observation", "propose_relation"];
 let activeIcareTools = [];
+let toolInitializationStatus = "pending";
+let toolInitializationError = null;
 
 function json(res, status, value) {
   res.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
@@ -245,7 +248,7 @@ async function refreshModelCatalog() {
 
 async function initializePi() {
   const { createAgentSession, DefaultResourceLoader, ModelRuntime, SessionManager } = await import("@earendil-works/pi-coding-agent");
-  const { Type } = await import("@earendil-works/pi-ai");
+  const { Type } = await import("typebox");
   piModules = { createAgentSession, SessionManager, DefaultResourceLoader, ModelRuntime, Type };
   process.env.LEMONADE_API_KEY = API_KEY || "local";
   await refreshModelCatalog();
@@ -253,9 +256,9 @@ async function initializePi() {
   const chosen = catalogModels.find(m => m.id === selectedModel.id);
   if (!chosen?.labels?.includes("tool-calling")) console.warn("[ICARE] Le modèle choisi n'est pas signalé comme compatible tool-calling.");
   const extensionFactory = (pi) => {
-    const icareToolNames = ["list_available_models", "get_ontology", "get_exploration_state", "search_reference_documents", "list_propositions", "propose_observation", "propose_relation"];
     pi.registerTool({
       name: "list_available_models",
+      exposure: "direct",
       label: "Catalogue des modèles Lemonade",
       description: "Consulte les modèles de conversation Lemonade, leurs capacités et leur disponibilité. Ne change pas le modèle actif.",
       parameters: Type.Object({}),
@@ -263,6 +266,7 @@ async function initializePi() {
     });
     pi.registerTool({
       name: "get_ontology",
+      exposure: "direct",
       label: "Ontologie ICARE",
       description: "Renvoie l'ontologie structurée complète : dimensions ICARE et couches complémentaires des états/temps, de l'évaluation/modalité, de l'épistémique/provenance, des statuts pratiques et des relations historiques.",
       parameters: Type.Object({}),
@@ -270,6 +274,7 @@ async function initializePi() {
     });
     pi.registerTool({
       name: "get_exploration_state",
+      exposure: "direct",
       label: "État d'exploration ICARE",
       description: "Consulte l'état documenté des cinq dimensions ICARE et les volumes de propositions validées ou en attente.",
       parameters: Type.Object({}),
@@ -277,6 +282,7 @@ async function initializePi() {
     });
     pi.registerTool({
       name: "search_reference_documents",
+      exposure: "direct",
       label: "Rechercher dans les références ICARE",
       description: "Recherche dans le corpus documentaire méthodologique local. N'effectue aucune recherche sur Internet.",
       parameters: Type.Object({ query: Type.String({ description: "Notions à rechercher dans les documents de référence." }) }),
@@ -284,6 +290,7 @@ async function initializePi() {
     });
     pi.registerTool({
       name: "list_propositions",
+      exposure: "direct",
       label: "Consulter les propositions",
       description: "Consulte les propositions ICARE enregistrées, avec leur statut de validation.",
       parameters: Type.Object({ review_status: Type.Optional(Type.String({ description: "candidate, accepted ou rejected" })) }),
@@ -294,6 +301,7 @@ async function initializePi() {
     });
     pi.registerTool({
       name: "propose_observation",
+      exposure: "direct",
       label: "Proposer une observation",
       description: "Enregistre une observation comme candidate à validation humaine. N'enregistre jamais directement un fait accepté.",
       parameters: Type.Object({
@@ -330,6 +338,7 @@ async function initializePi() {
     });
     pi.registerTool({
       name: "propose_relation",
+      exposure: "direct",
       label: "Proposer une relation entre observations",
       description: "Enregistre une relation candidate entre deux propositions existantes. La relation attend une validation humaine et ne modifie jamais les propositions sources.",
       parameters: Type.Object({
@@ -343,10 +352,10 @@ async function initializePi() {
         return { content: [{ type: "text", text: `Relation candidate enregistrée (${relation.id}) ; elle attend une validation humaine.` }], details: relation };
       }
     });
-    // L'API SDK distingue les outils enregistrés des outils actifs : active explicitement ICARE.
-    pi.setActiveTools(icareToolNames);
-    activeIcareTools = [...icareToolNames];
-    console.log("[ICARE] Outils ICARE enregistrés et activés :", activeIcareTools.join(", "));
+    // Les outils "direct" sont activés par défaut lors de leur enregistrement.
+    // Ne pas appeler pi.setActiveTools ici : l'extension est encore en phase de chargement
+    // et le runtime n'a pas encore lié les méthodes d'action de l'API.
+    console.log("[ICARE] Définitions des outils ICARE enregistrées.");
   };
   piModules.registerTools = extensionFactory;
   return { modelId: selectedModel.id, modelName: chosen?.name || selectedModel.id };
@@ -360,13 +369,35 @@ async function getSession(id) {
     appendSystemPromptOverride: () => [],
     extensionFactories: [pi => piModules.registerTools(pi)]
   });
-  await resourceLoader.reload();
-  const created = await createAgentSession({
-    model: selectedModel, modelRuntime, resourceLoader, noTools: "builtin",
-    sessionManager: SessionManager.create(ROOT)
-  });
-  sessions.set(id, created.session);
-  return created.session;
+  try {
+    await resourceLoader.reload();
+    const created = await createAgentSession({
+      model: selectedModel, modelRuntime, resourceLoader, noTools: "builtin",
+      sessionManager: SessionManager.create(ROOT)
+    });
+    // Lie le runtime des extensions à la session : cette étape déclenche session_start
+    // et rend les outils enregistrés par la factory disponibles dans la session.
+    await created.session.bindExtensions({});
+    // noTools désactive la sélection initiale ; active ensuite les seuls outils ICARE.
+    created.session.setActiveToolsByName(ICARE_TOOL_NAMES);
+    const activeTools = created.session.getActiveToolNames();
+    const missingTools = ICARE_TOOL_NAMES.filter(name => !activeTools.includes(name));
+    if (missingTools.length) {
+      created.session.dispose();
+      throw new Error("Outils ICARE absents de la session Pi : " + missingTools.join(", "));
+    }
+    activeIcareTools = ICARE_TOOL_NAMES.filter(name => activeTools.includes(name));
+    toolInitializationStatus = "ready";
+    toolInitializationError = null;
+    console.log("[ICARE] Outils ICARE présents dans la session Pi :", activeIcareTools.join(", "));
+    sessions.set(id, created.session);
+    return created.session;
+  } catch (error) {
+    toolInitializationStatus = "failed";
+    toolInitializationError = error.message || String(error);
+    console.error("[ICARE] Échec d'initialisation des outils :", toolInitializationError);
+    throw error;
+  }
 }
 function sendStatic(res, file, type) {
   readFile(file).then(body => {
@@ -384,6 +415,8 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, {
         ok: true, model: selectedModel.id, provider: "Lemonade via Pi SDK",
         toolCalling: Boolean(modelInfo?.labels?.includes("tool-calling")),
+        toolInitialization: toolInitializationStatus,
+        toolInitializationError,
         toolDefinitions: [...activeIcareTools],
         dimensionsOrder: DIMENSION_ORDER
       });

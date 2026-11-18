@@ -170,9 +170,9 @@ Interroger :
 -   les mécanismes qui permettent de détecter qu'une révision devient
     nécessaire.
 
-La notion d'**autopoïèse** invite à considérer la capacité d'un système
+La notion d'[**autopoïèse**](https://doi.org/10.1007/978-94-009-8947-4), développée notamment par Maturana et Varela, invite à considérer la capacité d'un système
 à produire et renouveler les éléments et relations qui le constituent.
-L'**auto-éco-organisation** souligne que cette transformation se réalise
+L'[**auto-éco-organisation**](https://fondationedgarmorin.org/loeuvre/), notion associée aux travaux d'Edgar Morin, souligne que cette transformation se réalise
 à la fois par les dynamiques internes du système et par ses échanges
 avec l'environnement, tandis que sa régulation et son organisation se
 recomposent.
@@ -310,3 +310,8 @@ L'utilisateur est l'architecte de la transformation. L'assistant est le
 partenaire de dialogue qui l'aide à voir plus largement, relier plus
 finement, questionner plus rigoureusement et apprendre de ce qui
 advient.
+
+
+## Références externes
+
+Les références théoriques et techniques citées dans les documents ICARE sont regroupées dans la [bibliographie du dépôt](REFERENCES.md). Les liens y renvoient aux éditeurs, organismes de standardisation, dépôts officiels ou publications primaires lorsqu'ils sont disponibles.
