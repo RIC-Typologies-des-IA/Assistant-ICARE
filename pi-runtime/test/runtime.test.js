@@ -248,7 +248,7 @@ test("QEMU keeps live SQLite and Pi state on the persistent guest disk and impor
   const vm = await readFile(new URL("../../nixos/icare-vm.nix", import.meta.url), "utf8");
   const server = await readFile(new URL("../src/server.js", import.meta.url), "utf8");
   assert.ok(flake.includes("/icare-vm/data"));
-  assert.ok(flake.includes('export ICARE_DATA_DIR="$DATA_DIR"'), "legacy host share remains available for migration");
+  assert.ok(flake.includes('export ICARE_LEGACY_DATA_DIR="$DATA_DIR"'), "legacy host share remains available for migration");
   assert.ok(vm.includes("sharedDirectories.icare-data"));
   assert.ok(vm.includes('target = "/mnt/icare-data"'));
   assert.ok(vm.includes("export ICARE_DATA_DIR=/var/lib/icare/data"));
