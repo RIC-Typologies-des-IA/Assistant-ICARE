@@ -242,3 +242,24 @@ test("Voice dictation uses only downloaded transcription models and persists bot
   assert.ok(ui.includes("audioBufferToWav"));
   assert.ok(ui.includes('fetch("/api/transcribe"'));
 });
+
+test("QEMU user data lives outside the replaceable runtime and is writable in the guest", async () => {
+  const flake = await readFile(new URL("../../flake.nix", import.meta.url), "utf8");
+  const vm = await readFile(new URL("../../nixos/icare-vm.nix", import.meta.url), "utf8");
+  assert.ok(flake.includes('DATA_DIR="''${XDG_DATA_HOME:-$HOME/.local/share}/icare-vm/data"'));
+  assert.ok(flake.includes('export ICARE_DATA_DIR="$DATA_DIR"'));
+  assert.ok(vm.includes("sharedDirectories.icare-data"));
+  assert.ok(vm.includes('target = "/mnt/icare-data"'));
+  assert.ok(vm.includes("writable = true"));
+  assert.ok(vm.includes("export ICARE_DATA_DIR=/mnt/icare-data"));
+  assert.ok(vm.includes("--allow /mnt/icare-data"));
+});
+
+test("A fresh ICARE installation opens in a default project and remembers recent activity", async () => {
+  const server = await readFile(new URL("../src/server.js", import.meta.url), "utf8");
+  const ui = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
+  assert.ok(server.includes("Mon premier projet"));
+  assert.ok(server.includes('UPDATE projects SET updated_at=? WHERE id=?'));
+  assert.ok(ui.includes('localStorage.getItem("icare-current-project")||""'));
+  assert.ok(ui.includes("data.projects[0].id"));
+});
