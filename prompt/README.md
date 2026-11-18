@@ -2,7 +2,7 @@
 
 Cette approche est la forme initiale et légère d'ICARE : la méthode est portée principalement par les instructions données au modèle. Elle ne nécessite ni application dédiée, ni base de données, ni runtime agentique.
 
-Elle conserve le même référentiel conceptuel, mais adapte la longueur et la forme du prompt à trois environnements d'utilisation.
+Elle conserve le même référentiel conceptuel, mais adapte la longueur et la forme du prompt à trois environnements d'utilisation. Les sources externes mobilisées par le projet sont recensées dans la [bibliographie ICARE](../REFERENCES.md).
 
 ## Les trois niveaux d'usage
 
