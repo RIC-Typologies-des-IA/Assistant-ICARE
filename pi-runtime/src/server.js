@@ -300,7 +300,7 @@ async function initializePi() {
   if (process.env.ICARE_MODEL && !catalogModels.some(m => m.id === process.env.ICARE_MODEL && m.downloaded === true)) throw new Error("Le modèle ICARE_MODEL demandé est absent du catalogue ou n’est pas téléchargé dans Lemonade.");
   const chosen = catalogModels.find(m => m.id === selectedModel.id);
   if (!chosen?.labels?.includes("tool-calling")) console.warn("[ICARE] Le modèle choisi n'est pas signalé comme compatible tool-calling.");
-  const extensionFactory = (pi) => {
+  const extensionFactory = (pi, projectId = "legacy") => {
     pi.registerTool({
       name: "list_available_models",
       exposure: "direct",
@@ -323,7 +323,7 @@ async function initializePi() {
       label: "État d'exploration ICARE",
       description: "Consulte l'état documenté des cinq dimensions ICARE et les volumes de propositions validées ou en attente.",
       parameters: Type.Object({}),
-      execute: async () => ({ content: [{ type: "text", text: JSON.stringify(getState(), null, 2) }], details: {} })
+      execute: async () => ({ content: [{ type: "text", text: JSON.stringify(getState(projectId), null, 2) }], details: {} })
     });
     pi.registerTool({
       name: "search_reference_documents",
@@ -340,7 +340,7 @@ async function initializePi() {
       description: "Consulte les propositions ICARE enregistrées, avec leur statut de validation.",
       parameters: Type.Object({ review_status: Type.Optional(Type.String({ description: "candidate, accepted ou rejected" })) }),
       execute: async (_id, params) => {
-        const rows = getPropositions().filter(p => !params.review_status || p.review_status === params.review_status);
+        const rows = getPropositions(projectId).filter(p => !params.review_status || p.review_status === params.review_status);
         return { content: [{ type: "text", text: JSON.stringify(rows.slice(0,40), null, 2) }], details: {} };
       }
     });
@@ -377,7 +377,7 @@ async function initializePi() {
         justification: Type.Optional(Type.String())
       }),
       execute: async (_id, params) => {
-        const p = recordCandidate(params);
+        const p = recordCandidate(params, projectId);
         return { content: [{ type: "text", text: `Proposition candidate enregistrée (${p.id}). Elle attend une validation humaine dans le tableau de bord ; elle n'est pas considérée comme un fait validé.` }], details: { id: p.id } };
       }
     });
@@ -393,7 +393,7 @@ async function initializePi() {
         note: Type.Optional(Type.String({ description: "Justification concise de la relation." }))
       }),
       execute: async (_id, params) => {
-        const relation = recordRelationCandidate(params);
+        const relation = recordRelationCandidate(params, projectId);
         return { content: [{ type: "text", text: `Relation candidate enregistrée (${relation.id}) ; elle attend une validation humaine.` }], details: relation };
       }
     });
@@ -405,14 +405,16 @@ async function initializePi() {
   piModules.registerTools = extensionFactory;
   return { modelId: selectedModel.id, modelName: chosen?.name || selectedModel.id };
 }
-async function getSession(id) {
-  if (sessions.has(id)) return sessions.get(id);
+async function getSession(id, projectId = "legacy") {
+  const sessionKey = projectId + ":" + id;
+  requireProject(projectId);
+  if (sessions.has(sessionKey)) return sessions.get(sessionKey);
   const { createAgentSession, SessionManager } = piModules;
   const resourceLoader = new piModules.DefaultResourceLoader({
     cwd: ROOT, agentDir: AGENT_DIR,
     systemPromptOverride: () => SYSTEM_PROMPT,
     appendSystemPromptOverride: () => [],
-    extensionFactories: [pi => piModules.registerTools(pi)]
+    extensionFactories: [pi => piModules.registerTools(pi, projectId)]
   });
   try {
     await resourceLoader.reload();
@@ -435,7 +437,7 @@ async function getSession(id) {
     toolInitializationStatus = "ready";
     toolInitializationError = null;
     console.log("[ICARE] Outils ICARE présents dans la session Pi :", activeIcareTools.join(", "));
-    sessions.set(id, created.session);
+    sessions.set(sessionKey, created.session);
     return created.session;
   } catch (error) {
     toolInitializationStatus = "failed";
@@ -483,19 +485,39 @@ const server = http.createServer(async (req, res) => {
       selectedModel = next;
       return json(res, 200, { ok: true, selected: selectedModel.id, toolCalling: Boolean(info.labels?.includes("tool-calling")) });
     }
-    if (req.method === "GET" && url.pathname === "/api/state") return json(res, 200, { dimensions: getState(), propositions: getPropositions(), relations: getRelations(), documents: db.prepare("SELECT id,title,created_at FROM reference_docs ORDER BY title").all() });
+    if (req.method === "GET" && url.pathname === "/api/projects") return json(res, 200, { projects: db.prepare("SELECT id,name,created_at,updated_at FROM projects WHERE archived_at IS NULL ORDER BY updated_at DESC").all() });
+    if (req.method === "POST" && url.pathname === "/api/projects") {
+      const body = await readBody(req);
+      const name = String(body.name || "").trim().slice(0,120);
+      if (!name) return json(res, 400, { error: "Un nom de projet est requis." });
+      const id = randomUUID();
+      const created = now();
+      const createProject = db.transaction(() => {
+        db.prepare("INSERT INTO projects(id,name,created_at,updated_at) VALUES(?,?,?,?)").run(id,name,created,created);
+        for (const code of DIMENSION_ORDER) db.prepare("INSERT INTO project_dimensions(project_id,code,status,justification,updated_at) VALUES(?,?,?,?,?)").run(id,code,"unexplored","",created);
+      });
+      createProject();
+      return json(res, 201, { ok: true, project: { id, name, created_at: created, updated_at: created } });
+    }
+    if (req.method === "GET" && url.pathname === "/api/state") {
+      const projectId = url.searchParams.get("projectId") || "legacy";
+      requireProject(projectId);
+      return json(res, 200, { projectId, dimensions: getState(projectId), propositions: getPropositions(projectId), relations: getRelations(projectId), documents: db.prepare("SELECT id,title,created_at FROM reference_docs WHERE project_id=? ORDER BY title").all(projectId), turns: db.prepare("SELECT id,turn_index,user_text,assistant_text,created_at FROM conversation_turns WHERE project_id=? ORDER BY turn_index").all(projectId) });
+    }
     if (req.method === "POST" && url.pathname === "/api/chat") {
       const body = await readBody(req);
       const message = String(body.message || "").trim();
       const sessionId = String(body.sessionId || randomUUID()).slice(0,100);
+      const projectId = String(body.projectId || "legacy");
+      try { requireProject(projectId); } catch (error) { return json(res, 404, { error: error.message }); }
       if (!message) return json(res, 400, { error: "Message vide." });
       if (sessionBusy.has(sessionId)) return json(res, 409, { error: "Une réponse est déjà en cours dans cette conversation." });
       sessionBusy.add(sessionId);
       res.writeHead(200, { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-cache", Connection: "keep-alive", "X-Accel-Buffering": "no" });
       res.write("event: session\ndata: " + JSON.stringify({ sessionId }) + "\n\n");
       try {
-        const session = await getSession(sessionId);
-        const initialIds = new Set(db.prepare("SELECT id FROM propositions").all().map(row => row.id));
+        const session = await getSession(sessionId, projectId);
+        const initialIds = new Set(db.prepare("SELECT id FROM propositions WHERE project_id=?").all(projectId).map(row => row.id));
         let assistantText = "";
         let reconciliationPass = false;
         const toolEvents = [];
@@ -518,7 +540,7 @@ const server = http.createServer(async (req, res) => {
 
         // Le texte du chat ne suffit pas : si aucune proposition n'a été persistée,
         // demander à Pi une passe interne de rattrapage avec appel d'outil.
-        let newPropositions = db.prepare("SELECT * FROM propositions").all().filter(row => !initialIds.has(row.id));
+        let newPropositions = db.prepare("SELECT * FROM propositions WHERE project_id=?").all(projectId).filter(row => !initialIds.has(row.id));
         const claimsPersistence = /(?:enregistr|ajout|créé|proposition.{0,30}candidate|attend.{0,20}validation)/i.test(assistantText);
         const substantialInput = message.length >= 80;
         let reconciliationError = null;
@@ -538,7 +560,7 @@ const server = http.createServer(async (req, res) => {
           } finally {
             reconciliationPass = false;
           }
-          newPropositions = db.prepare("SELECT * FROM propositions").all().filter(row => !initialIds.has(row.id));
+          newPropositions = db.prepare("SELECT * FROM propositions WHERE project_id=?").all(projectId).filter(row => !initialIds.has(row.id));
         }
         unsubscribe();
         const candidatePropositions = newPropositions.filter(p => p.review_status === "candidate");
@@ -549,7 +571,7 @@ const server = http.createServer(async (req, res) => {
           reconciliationError,
           toolEvents
         }) + "\n\n");
-        res.write("event: done\ndata: " + JSON.stringify({ state: getState(), propositions: getPropositions(), relations: getRelations() }) + "\n\n");
+        res.write("event: done\ndata: " + JSON.stringify({ state: getState(projectId), propositions: getPropositions(projectId), relations: getRelations(projectId) }) + "\n\n");
       } catch (error) {
         res.write("event: error\ndata: " + JSON.stringify({ message: error.message || String(error) }) + "\n\n");
       } finally {
@@ -560,19 +582,22 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "POST" && url.pathname === "/api/propositions") {
       const body = await readBody(req);
+      const projectId = String(body.projectId || "legacy");
+      requireProject(projectId);
       const proposal = recordCandidate({
         ...body,
         source: body.source || "user",
         epistemic: body.epistemic || "reported",
         practical: body.practical || "unspecified"
-      });
+      }, projectId);
       return json(res, 201, { ok: true, proposition: { ...proposal, dimensions: JSON.parse(proposal.dimensions) } });
     }
     if (req.method === "POST" && url.pathname.startsWith("/api/propositions/")) {
       const id = decodeURIComponent(url.pathname.split("/").pop());
       const body = await readBody(req);
       if (!["accepted", "rejected"].includes(body.review_status)) return json(res, 400, { error: "Statut de validation invalide." });
-      const result = db.prepare("UPDATE propositions SET review_status=? WHERE id=? AND review_status='candidate'").run(body.review_status, id);
+      const projectId = String(body.projectId || url.searchParams.get("projectId") || "legacy");
+      const result = db.prepare("UPDATE propositions SET review_status=? WHERE id=? AND project_id=? AND review_status='candidate'").run(body.review_status, id, projectId);
       if (!result.changes) return json(res, 404, { error: "Proposition candidate introuvable." });
       return json(res, 200, { ok: true });
     }
@@ -580,7 +605,8 @@ const server = http.createServer(async (req, res) => {
       const id = decodeURIComponent(url.pathname.split("/").pop());
       const body = await readBody(req);
       if (!["accepted", "rejected"].includes(body.review_status)) return json(res, 400, { error: "Statut de validation invalide." });
-      const result = db.prepare("UPDATE relations SET review_status=? WHERE id=? AND review_status='candidate'").run(body.review_status, id);
+      const projectId = String(body.projectId || url.searchParams.get("projectId") || "legacy");
+      const result = db.prepare("UPDATE relations SET review_status=? WHERE id=? AND project_id=? AND review_status='candidate'").run(body.review_status, id, projectId);
       if (!result.changes) return json(res, 404, { error: "Relation candidate introuvable." });
       return json(res, 200, { ok: true });
     }
@@ -590,9 +616,10 @@ const server = http.createServer(async (req, res) => {
       if (!Object.hasOwn(DIMENSIONS, code) || !EXPLORATION.includes(body.status)) return json(res, 400, { error: "Dimension ou statut invalide." });
       const justification = String(body.justification || "").trim();
       if (["sufficient", "not_applicable"].includes(body.status) && justification.length < 8) return json(res, 400, { error: "Une justification est requise pour ce statut." });
-      const result = db.prepare("UPDATE dimensions SET status=?,justification=?,updated_at=? WHERE code=?").run(body.status, justification, now(), code);
+      const projectId = String(body.projectId || url.searchParams.get("projectId") || "legacy");
+      const result = db.prepare("UPDATE project_dimensions SET status=?,justification=?,updated_at=? WHERE code=? AND project_id=?").run(body.status, justification, now(), code, projectId);
       if (result.changes !== 1) return json(res, 404, { error: "Dimension introuvable ; aucune modification enregistrée." });
-      const persisted = db.prepare("SELECT code,status,justification,updated_at FROM dimensions WHERE code=?").get(code);
+      const persisted = db.prepare("SELECT code,status,justification,updated_at FROM project_dimensions WHERE code=? AND project_id=?").get(code, projectId);
       if (!persisted || persisted.status !== body.status || persisted.justification !== justification) return json(res, 500, { error: "La vérification après écriture a échoué." });
       return json(res, 200, { ok: true, dimension: persisted });
     }
@@ -602,7 +629,9 @@ const server = http.createServer(async (req, res) => {
       const content = String(body.content || "").trim().slice(0,100000);
       if (!title || !content) return json(res, 400, { error: "Titre et contenu requis." });
       const id = randomUUID();
-      db.prepare("INSERT INTO reference_docs(id,title,content,created_at) VALUES(?,?,?,?)").run(id,title,content,now());
+      const projectId = String(body.projectId || "legacy");
+      requireProject(projectId);
+      db.prepare("INSERT INTO reference_docs(id,title,content,created_at,project_id) VALUES(?,?,?,?,?)").run(id,title,content,now(),projectId);
       return json(res, 201, { ok: true, id });
     }
     return json(res, 404, { error: "Route inconnue." });
