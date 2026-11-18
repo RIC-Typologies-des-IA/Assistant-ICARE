@@ -6,7 +6,9 @@
 <style>
 :root{font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#202733;background:#f3f5f8;font-synthesis:none}
 *{box-sizing:border-box}body{margin:0}header{background:#172b4d;color:white;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;gap:16px}
-header h1{font-size:20px;margin:0}header p{font-size:12px;margin:4px 0 0;color:#c8d4e5}.badge{font-size:12px;background:#29476f;border-radius:20px;padding:7px 11px}.modelbar{display:flex;align-items:center;gap:8px}.modelbar select{max-width:290px;font-size:12px}.modelbar button{font-size:12px;padding:8px 10px}
+header h1{font-size:20px;margin:0}header p{font-size:12px;margin:4px 0 0;color:#c8d4e5}.badge{font-size:12px;background:#29476f;border-radius:20px;padding:7px 11px}.modelbar{display:flex;align-items:center;gap:8px}.modelbar select{max-width:250px;font-size:12px}.modelbar button{font-size:12px;padding:8px 10px}.modelbar .voice-select{max-width:180px}
+.composer{align-items:stretch}.composer textarea{min-width:0}.mic-button{min-width:44px;padding:8px;font-size:18px;display:flex;align-items:center;justify-content:center}.mic-button.recording{background:#a93232;color:white}.voice-hint{font-size:11px;color:#657287;align-self:center}
+@media(max-width:850px){header{align-items:flex-start;flex-direction:column}.modelbar{width:100%;flex-wrap:wrap}.modelbar select{max-width:45%;min-width:130px}}
 main{max-width:1320px;margin:22px auto;padding:0 18px;display:grid;grid-template-columns:minmax(0,1.6fr) minmax(310px,1fr);gap:18px}
 .panel{background:white;border:1px solid #e1e6ed;border-radius:14px;box-shadow:0 2px 10px #1c2b3a0a;overflow:hidden}.panel h2{font-size:15px;margin:0;padding:15px 17px;border-bottom:1px solid #edf0f4}
 .chat{display:flex;flex-direction:column;min-height:72vh}.messages{padding:18px;display:flex;flex-direction:column;gap:13px;flex:1;overflow:auto;max-height:62vh}
@@ -21,9 +23,9 @@ button{border:0;border-radius:9px;padding:10px 14px;background:#2458a6;color:whi
 </style>
 </head>
 <body>
-<header><div><h1>ICARE</h1><p>Dialogue maïeutique · représentation évolutive d'un système</p></div><div class="modelbar"><select id="modelSelect" aria-label="Modèle Lemonade"><option>Chargement du catalogue…</option></select><button class="secondary" id="refreshModels" type="button">Actualiser</button><div class="badge" id="status">Connexion à Pi / Lemonade…</div></div></header>
+<header><div><h1>ICARE</h1><p>Dialogue maïeutique · représentation évolutive d'un système</p></div><div class="modelbar"><select id="modelSelect" aria-label="Modèle de traitement du texte"><option>Chargement du catalogue…</option></select><select id="voiceModelSelect" class="voice-select" aria-label="Modèle de transcription vocale" title="Modèle de reconnaissance vocale"><option>Chargement des modèles vocaux…</option></select><button class="secondary" id="refreshModels" type="button">Actualiser</button><div class="badge" id="status">Connexion à Pi / Lemonade…</div></div></header>
 <main>
-<section class="panel chat"><h2>Conversation</h2><div class="messages" id="messages"><div class="msg assistant">Bonjour. Quel système souhaites-tu explorer ? Nous allons construire sa représentation progressivement, sans dérouler un questionnaire rigide.</div></div><div id="error"></div><form class="composer" id="chatForm"><textarea id="message" placeholder="Décris une situation, une évolution, une difficulté…" required></textarea><button id="send">Envoyer</button></form></section>
+<section class="panel chat"><h2>Conversation</h2><div class="messages" id="messages"><div class="msg assistant">Bonjour. Quel système souhaites-tu explorer ? Nous allons construire sa représentation progressivement, sans dérouler un questionnaire rigide.</div></div><div id="error"></div><form class="composer" id="chatForm"><textarea id="message" placeholder="Décris une situation, une évolution, une difficulté…" required></textarea><button id="record" class="secondary mic-button" type="button" aria-label="Démarrer la dictée" title="Dicter un message">🎙</button><button id="send">Envoyer</button></form></section>
 <aside class="side">
 <section class="panel"><h2>État d'exploration ICARE</h2><div id="dimensions"></div><p class="hint">Choisis un statut, ajoute une justification si nécessaire, puis clique sur « Enregistrer ». Les modifications ne sont jamais silencieuses.</p></section>
 <section class="panel"><h2>Propositions à valider</h2>
@@ -66,13 +68,69 @@ async function loadModels(force=false){
   const caps=(m.labels||[]).includes("tool-calling")?" · outils":" · sans garantie outils";
   o.disabled=!m.downloaded;o.textContent=(m.name||m.id)+(m.downloaded?"":" · à télécharger")+caps;select.append(o)}
  select.value=data.selected;updateModelStatus(data.selected,data.models);
+ await loadVoiceModels();
+}
+async function loadVoiceModels(){
+ const r=await fetch("/api/voice/models");const data=await r.json();if(!r.ok)throw new Error(data.error||"Catalogue vocal indisponible");
+ const select=$("#voiceModelSelect");select.innerHTML="";
+ for(const m of data.models){const o=document.createElement("option");o.value=m.id;o.disabled=!m.downloaded;
+  o.textContent=(m.name||m.id)+(m.downloaded?"":" · à télécharger");select.append(o)}
+ if(data.selected)select.value=data.selected;
+ if(!data.models.some(m=>m.downloaded)){const o=document.createElement("option");o.textContent="Aucun modèle vocal téléchargé";o.disabled=true;select.append(o);$("#record").disabled=true}
+ else $("#record").disabled=false;
 }
 $("#refreshModels").addEventListener("click",async()=>{try{await loadModels(true)}catch(e){$("#error").textContent=e.message}});
+$("#voiceModelSelect").addEventListener("change",async()=>{
+ try{const r=await fetch("/api/voice/models/select",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:$("#voiceModelSelect").value})});const x=await r.json();if(!r.ok)throw new Error(x.error);$("#error").textContent="Modèle vocal actif : "+x.selected}
+ catch(e){$("#error").textContent=e.message;await loadVoiceModels()}
+});
 $("#modelSelect").addEventListener("change",async()=>{
  try{const r=await fetch("/api/models/select",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:$("#modelSelect").value})});const x=await r.json();if(!r.ok)throw new Error(x.error);
   const current=await fetch("/api/models").then(r=>r.json());updateModelStatus(x.selected,current.models);
   if(!x.toolCalling)$("#error").textContent="Attention : Lemonade ne signale pas le tool-calling pour ce modèle ; l'alimentation automatique du panneau ICARE n'est pas garantie.";
  }catch(e){$("#error").textContent=e.message;await loadModels()}
+});
+function audioBufferToWav(audioBuffer){
+ const targetRate=16000, sourceRate=audioBuffer.sampleRate, length=Math.ceil(audioBuffer.duration*targetRate);
+ const channels=Array.from({length:audioBuffer.numberOfChannels},(_,i)=>audioBuffer.getChannelData(i));
+ const samples=new Float32Array(length);
+ for(let i=0;i<length;i++){const pos=i*sourceRate/targetRate,lo=Math.floor(pos),hi=Math.min(lo+1,channels[0].length-1),mix=pos-lo;
+  let value=0;for(const channel of channels)value+=(channel[lo]||0)*(1-mix)+(channel[hi]||0)*mix;
+  samples[i]=Math.max(-1,Math.min(1,value/channels.length))}
+ const buffer=new ArrayBuffer(44+samples.length*2),view=new DataView(buffer);
+ const write=(offset,text)=>{for(let i=0;i<text.length;i++)view.setUint8(offset+i,text.charCodeAt(i))};
+ write(0,"RIFF");view.setUint32(4,36+samples.length*2,true);write(8,"WAVE");write(12,"fmt ");view.setUint32(16,16,true);
+ view.setUint16(20,1,true);view.setUint16(22,1,true);view.setUint32(24,targetRate,true);view.setUint32(28,targetRate*2,true);
+ view.setUint16(32,2,true);view.setUint16(34,16,true);write(36,"data");view.setUint32(40,samples.length*2,true);
+ for(let i=0;i<samples.length;i++)view.setInt16(44+i*2,samples[i]<0?samples[i]*32768:samples[i]*32767,true);
+ return new Blob([buffer],{type:"audio/wav"});
+}
+let recorder=null,recordedChunks=[];
+$("#record").addEventListener("click",async()=>{
+ const button=$("#record");
+ if(recorder?.state==="recording"){recorder.stop();return}
+ try{
+  if(!navigator.mediaDevices?.getUserMedia)throw new Error("Le navigateur ne permet pas l'accès au microphone. Utilise localhost ou une connexion sécurisée.");
+  const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+  recordedChunks=[];recorder=new MediaRecorder(stream);
+  recorder.ondataavailable=e=>{if(e.data.size)recordedChunks.push(e.data)};
+  recorder.onerror=()=>{$("#error").textContent="Erreur pendant l'enregistrement vocal.";stream.getTracks().forEach(t=>t.stop());button.disabled=false};
+  recorder.onstop=async()=>{
+   stream.getTracks().forEach(t=>t.stop());button.disabled=true;button.textContent="…";button.title="Transcription en cours";
+   try{
+    const blob=new Blob(recordedChunks,{type:recorder.mimeType||"audio/webm"});
+    const context=new AudioContext(),decoded=await context.decodeAudioData(await blob.arrayBuffer());const wav=audioBufferToWav(decoded);await context.close();
+    const response=await fetch("/api/transcribe",{method:"POST",headers:{"Content-Type":"audio/wav"},body:wav});
+    const result=await response.json();if(!response.ok)throw new Error(result.error||"Transcription impossible");
+    const field=$("#message"),start=field.selectionStart,end=field.selectionEnd;
+    const prefix=start>0&&!/\s$/.test(field.value.slice(0,start))?" ":"";
+    field.setRangeText(prefix+result.text,start,end,"end");field.focus();
+    $("#error").textContent="Dictée transcrite avec "+result.model+" · vérifie le texte avant de l'envoyer.";
+   }catch(error){$("#error").textContent=error.message||String(error)}
+   finally{button.disabled=false;button.textContent="🎙";button.classList.remove("recording");button.title="Dicter un message";recorder=null}
+  };
+  recorder.start();button.textContent="■";button.classList.add("recording");button.title="Arrêter l'enregistrement";$("#error").textContent="Enregistrement en cours… clique à nouveau sur le micro pour terminer.";
+ }catch(error){$("#error").textContent=error.message||String(error)}
 });
 async function refresh(){
  const r=await fetch("/api/state");const data=await r.json();
