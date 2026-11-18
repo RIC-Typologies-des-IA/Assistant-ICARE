@@ -375,8 +375,10 @@ async function getSession(id) {
       model: selectedModel, modelRuntime, resourceLoader, noTools: "builtin",
       sessionManager: SessionManager.create(ROOT)
     });
-    // noTools désactive la sélection initiale des outils ; active les outils ICARE
-    // après création de la session, lorsque l'API de session est pleinement liée.
+    // Lie le runtime des extensions à la session : cette étape déclenche session_start
+    // et rend les outils enregistrés par la factory disponibles dans la session.
+    await created.session.bindExtensions({});
+    // noTools désactive la sélection initiale ; active ensuite les seuls outils ICARE.
     created.session.setActiveToolsByName(ICARE_TOOL_NAMES);
     const activeTools = created.session.getActiveToolNames();
     const missingTools = ICARE_TOOL_NAMES.filter(name => !activeTools.includes(name));
