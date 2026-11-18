@@ -36,15 +36,35 @@ test("Pi SDK loads a custom Lemonade OpenAI-compatible model", async () => {
         }
       }
     }));
-    const { ModelRuntime } = await import("@earendil-works/pi-coding-agent");
+    const { ModelRuntime, DefaultResourceLoader } = await import("@earendil-works/pi-coding-agent");
+    const { Type } = await import("@earendil-works/pi-ai");
     const runtime = await ModelRuntime.create();
     const model = runtime.getModel("lemonade", "test-chat-model");
     assert.ok(model);
     assert.equal(model.provider, "lemonade");
     assert.equal(model.id, "test-chat-model");
     const { createAgentSession, SessionManager } = await import("@earendil-works/pi-coding-agent");
-    const { session } = await createAgentSession({ model, modelRuntime: runtime, sessionManager: SessionManager.inMemory(), noTools: "builtin" });
+    const resourceLoader = new DefaultResourceLoader({
+      cwd: dir,
+      agentDir: dir,
+      extensionFactories: [pi => {
+        pi.registerTool({
+          name: "icare_test_tool",
+          label: "ICARE test",
+          description: "Vérifie l'activation d'un outil d'extension ICARE.",
+          exposure: "direct",
+          parameters: Type.Object({}),
+          execute: async () => ({ content: [{ type: "text", text: "ok" }], details: {} })
+        });
+      }]
+    });
+    await resourceLoader.reload();
+    const { session } = await createAgentSession({
+      model, modelRuntime: runtime, resourceLoader,
+      sessionManager: SessionManager.inMemory(), noTools: "builtin"
+    });
     try {
+      assert.ok(session.getActiveToolNames().includes("icare_test_tool"));
       const second = runtime.getModel("lemonade", "test-chat-model-2");
       assert.ok(second);
       await session.setModel(second);
@@ -96,11 +116,13 @@ test("ICARE exposes a manual proposal path independent of model tool-calling", a
   assert.ok(ui.includes('fetch("/api/propositions"'));
 });
 
-test("ICARE explicitly activates its registered tools in Pi sessions", async () => {
+test("ICARE verifies custom tools after the Pi session has been created", async () => {
   const server = await readFile(new URL("../src/server.js", import.meta.url), "utf8");
-  assert.ok(server.includes("pi.setActiveTools(icareToolNames)"));
-  assert.ok(server.includes("activeIcareTools = [...icareToolNames]"));
+  assert.ok(server.includes("session.getActiveToolNames()"));
+  assert.ok(server.includes('toolInitializationStatus = "ready"'));
+  assert.ok(server.includes('toolInitializationStatus = "failed"'));
   assert.ok(server.includes("toolDefinitions: [...activeIcareTools]"));
+  assert.ok(!server.includes("pi.setActiveTools(icareToolNames)"));
 });
 
 test("Exploration dimensions require an explicit save action", async () => {
