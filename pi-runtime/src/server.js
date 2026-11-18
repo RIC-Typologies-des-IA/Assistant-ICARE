@@ -103,7 +103,12 @@ const projectColumns = {
 for (const table of Object.keys(projectColumns)) {
   if (!projectColumns[table].has("project_id")) db.exec(`ALTER TABLE ${table} ADD COLUMN project_id TEXT`);
 }
-db.prepare("INSERT OR IGNORE INTO projects(id,name,created_at,updated_at) VALUES('legacy','Projet existant',?,?)").run(now(), now());
+db.prepare("INSERT OR IGNORE INTO projects(id,name,created_at,updated_at) VALUES('legacy','Mon premier projet',?,?)").run(now(), now());
+const legacyProject = db.prepare("SELECT name FROM projects WHERE id='legacy'").get();
+const activeProjectCount = db.prepare("SELECT COUNT(*) AS n FROM projects WHERE archived_at IS NULL").get().n;
+if (activeProjectCount === 1 && legacyProject?.name === "Projet existant") {
+  db.prepare("UPDATE projects SET name='Mon premier projet',updated_at=? WHERE id='legacy'").run(now());
+}
 for (const table of ["propositions", "relations", "reference_docs"]) {
   db.exec(`UPDATE ${table} SET project_id='legacy' WHERE project_id IS NULL`);
 }
@@ -685,6 +690,7 @@ const server = http.createServer(async (req, res) => {
         unsubscribe();
         const turnIndex = Number(db.prepare("SELECT COALESCE(MAX(turn_index),0)+1 AS next FROM conversation_turns WHERE project_id=? AND session_id=?").get(projectId, sessionId).next);
         db.prepare("INSERT INTO conversation_turns(id,project_id,session_id,turn_index,user_text,assistant_text,created_at) VALUES(?,?,?,?,?,?,?)").run(randomUUID(), projectId, sessionId, turnIndex, message, assistantText, now());
+        db.prepare("UPDATE projects SET updated_at=? WHERE id=?").run(now(), projectId);
         recordSnapshot(projectId, sessionId, turnIndex);
         const candidatePropositions = newPropositions.filter(p => p.review_status === "candidate");
         res.write("event: persistence\ndata: " + JSON.stringify({
