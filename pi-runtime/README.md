@@ -40,7 +40,15 @@ Au démarrage et à la demande, le backend lit `GET /v1/models?show_all=true` su
 - Les modèles portant le label `tool-calling` sont recommandés. Sans cette capacité, les outils ICARE peuvent ne pas fonctionner correctement.
 - `ICARE_MODEL` reste disponible comme préférence initiale facultative, mais aucun modèle n'est imposé dans le code.
 
-Le choix dynamique s'appuie sur le catalogue Lemonade et le changement de modèle du SDK Pi. Il ne délègue pas à l'agent un pouvoir de modifier seul sa configuration.
+Le choix dynamique s'appuie sur le catalogue Lemonade et le changement de modèle du SDK Pi. Il ne délègue pas à l'agent un pouvoir de modifier seul sa configuration. Le modèle de conversation sélectionné est conservé dans la table `settings` de SQLite et restauré au prochain démarrage.
+
+## Dictée vocale
+
+Le champ de conversation dispose d'un bouton microphone. Le navigateur enregistre la voix, convertit l'audio en WAV mono 16 kHz, puis le backend transmet le fichier à `POST /v1/audio/transcriptions` de Lemonade. La transcription française est insérée dans le champ de saisie ; elle n'est jamais envoyée automatiquement à l'agent, afin que l'utilisateur puisse la relire et la corriger.
+
+Le sélecteur vocal est indépendant du modèle de conversation. Il ne présente que les modèles du catalogue portant le label `transcription` et déjà téléchargés (par exemple Whisper ou Moonshine) : les modèles de chat, d'image, de synthèse vocale ou d'audio-génération sont exclus. Le modèle vocal sélectionné est également persisté dans `settings` et restauré au démarrage. Si aucun modèle de transcription n'est installé, la dictée est désactivée et le reste de l'application demeure utilisable.
+
+L'enregistrement utilise l'API microphone du navigateur (autorisation utilisateur requise, contexte sécurisé ou localhost). Les fichiers WAV sont limités à 25 Mo côté backend.
 
 ## Outils ICARE fournis à Pi
 
