@@ -76,7 +76,6 @@
     script = ''
       export HOME=/var/lib/icare
       export ICARE_DATA_DIR=/mnt/icare-data
-      export PI_CODING_AGENT_DIR=/var/lib/icare/pi-agent
       export ICARE_HOST=0.0.0.0
       export ICARE_PORT=8765
       export LEMONADE_BASE_URL=http://127.0.0.1:13305/v1
