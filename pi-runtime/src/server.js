@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
+import { createProjectEvent, createProjectManifest, validateProjectEvent, validateProjectManifest } from "./collaboration/project.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
@@ -77,7 +78,19 @@ const setSetting = (key, value) => db.prepare("INSERT INTO settings(key,value,up
 db.exec(`
   CREATE TABLE IF NOT EXISTS projects (
     id TEXT PRIMARY KEY, name TEXT NOT NULL, created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL, archived_at TEXT
+    updated_at TEXT NOT NULL, archived_at TEXT,
+    description TEXT NOT NULL DEFAULT '', intention TEXT NOT NULL DEFAULT '',
+    context_json TEXT NOT NULL DEFAULT '{}'
+  );
+  CREATE TABLE IF NOT EXISTS project_events (
+    event_id TEXT PRIMARY KEY, project_id TEXT NOT NULL, event_type TEXT NOT NULL,
+    event_version INTEGER NOT NULL, actor_json TEXT NOT NULL, origin TEXT NOT NULL,
+    occurred_at TEXT NOT NULL, causal_context_json TEXT NOT NULL, payload_json TEXT NOT NULL,
+    received_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS project_events_order ON project_events(project_id, occurred_at, event_id);
+  CREATE TABLE IF NOT EXISTS project_creation_requests (
+    request_id TEXT PRIMARY KEY, project_id TEXT NOT NULL, created_at TEXT NOT NULL
   );
   CREATE TABLE IF NOT EXISTS project_dimensions (
     project_id TEXT NOT NULL, code TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'unexplored',
@@ -95,6 +108,14 @@ db.exec(`
     propositions_json TEXT NOT NULL, created_at TEXT NOT NULL
   );
 `);
+const projectMetadataColumns = new Set(db.prepare("PRAGMA table_info(projects)").all().map(column => column.name));
+for (const [name, type] of [
+  ["description", "TEXT NOT NULL DEFAULT ''"],
+  ["intention", "TEXT NOT NULL DEFAULT ''"],
+  ["context_json", "TEXT NOT NULL DEFAULT '{}'"]
+]) {
+  if (!projectMetadataColumns.has(name)) db.exec(`ALTER TABLE projects ADD COLUMN ${name} ${type}`);
+}
 const projectColumns = {
   propositions: new Set(db.prepare("PRAGMA table_info(propositions)").all().map(column => column.name)),
   relations: new Set(db.prepare("PRAGMA table_info(relations)").all().map(column => column.name)),
@@ -211,6 +232,31 @@ function requireProject(projectId) {
   const project = db.prepare("SELECT * FROM projects WHERE id=? AND archived_at IS NULL").get(projectId);
   if (!project) throw new Error("Projet introuvable ou archivé.");
   return project;
+}
+
+function getProjectManifest(projectId) {
+  const project = requireProject(projectId);
+  const manifest = createProjectManifest(project, {
+    description: project.description,
+    intention: project.intention,
+    context: JSON.parse(project.context_json || "{}"),
+    collaboration: { mode: "local-first" }
+  });
+  const validation = validateProjectManifest(manifest);
+  if (!validation.valid) throw new Error("Manifeste de projet invalide : " + validation.errors.join(" "));
+  return manifest;
+}
+
+function persistProjectEvent(event) {
+  const validation = validateProjectEvent(event, event.projectId);
+  if (!validation.valid) throw new Error(validation.errors.join(" "));
+  const result = db.prepare(`INSERT OR IGNORE INTO project_events
+    (event_id,project_id,event_type,event_version,actor_json,origin,occurred_at,causal_context_json,payload_json,received_at)
+    VALUES(?,?,?,?,?,?,?,?,?,?)`).run(
+      event.eventId, event.projectId, event.type, event.version, JSON.stringify(event.actor),
+      event.origin, event.occurredAt, JSON.stringify(event.causalContext), JSON.stringify(event.payload), now()
+    );
+  return { inserted: result.changes === 1, event };
 }
 function getState(projectId = "legacy") {
   const rows = db.prepare("SELECT * FROM project_dimensions WHERE project_id=?").all(projectId)
@@ -603,20 +649,76 @@ const server = http.createServer(async (req, res) => {
       setSetting("chat_model", selectedModel.id);
       return json(res, 200, { ok: true, selected: selectedModel.id, toolCalling: Boolean(info.labels?.includes("tool-calling")) });
     }
-    if (req.method === "GET" && url.pathname === "/api/projects") return json(res, 200, { projects: db.prepare("SELECT id,name,created_at,updated_at FROM projects WHERE archived_at IS NULL ORDER BY updated_at DESC").all() });
+    if (req.method === "GET" && url.pathname === "/api/projects") return json(res, 200, { projects: db.prepare("SELECT id,name,description,intention,created_at,updated_at FROM projects WHERE archived_at IS NULL ORDER BY updated_at DESC").all().map(project => ({ ...project, uri: createProjectManifest(project).uri })) });
     if (req.method === "POST" && url.pathname === "/api/projects") {
       const body = await readBody(req);
       const name = String(body.name || "").trim().slice(0,120);
       if (!name) return json(res, 400, { error: "Un nom de projet est requis." });
+      const intention = String(body.intention || "").trim().slice(0,4000);
+      const description = String(body.description || "").trim().slice(0,4000);
+      const context = body.context && typeof body.context === "object" && !Array.isArray(body.context) ? body.context : {};
+      const requestId = typeof body.idempotencyKey === "string" ? body.idempotencyKey.trim().slice(0,160) : "";
+      if (body.context != null && (typeof body.context !== "object" || Array.isArray(body.context))) return json(res, 400, { error: "Le contexte doit être un objet JSON." });
+      if (requestId) {
+        const previous = db.prepare("SELECT project_id FROM project_creation_requests WHERE request_id=?").get(requestId);
+        if (previous) return json(res, 200, { ok: true, duplicate: true, project: db.prepare("SELECT id,name,description,intention,created_at,updated_at FROM projects WHERE id=?").get(previous.project_id), manifest: getProjectManifest(previous.project_id) });
+      }
       const id = randomUUID();
       const created = now();
       const createProject = db.transaction(() => {
-        db.prepare("INSERT INTO projects(id,name,created_at,updated_at) VALUES(?,?,?,?)").run(id,name,created,created);
+        db.prepare("INSERT INTO projects(id,name,description,intention,context_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?)")
+          .run(id,name,description,intention,JSON.stringify(context),created,created);
         for (const code of DIMENSION_ORDER) db.prepare("INSERT INTO project_dimensions(project_id,code,status,justification,updated_at) VALUES(?,?,?,?,?)").run(id,code,"unexplored","",created);
+        if (requestId) db.prepare("INSERT INTO project_creation_requests(request_id,project_id,created_at) VALUES(?,?,?)").run(requestId,id,created);
+        const event = createProjectEvent({
+          projectId: id, type: "project.created",
+          actor: body.actor && typeof body.actor === "object" ? body.actor : { type: "human", id: "local" },
+          origin: body.origin || "local",
+          occurredAt: created,
+          payload: { name, description, intention, context }
+        });
+        persistProjectEvent(event);
       });
       createProject();
       recordSnapshot(id, "project-created", 0);
-      return json(res, 201, { ok: true, project: { id, name, created_at: created, updated_at: created } });
+      const project = db.prepare("SELECT id,name,description,intention,created_at,updated_at FROM projects WHERE id=?").get(id);
+      return json(res, 201, { ok: true, project, manifest: getProjectManifest(id) });
+    }
+    const manifestMatch = /^\\/api\\/projects\\/([^/]+)\\/manifest$/.exec(url.pathname);
+    if (req.method === "GET" && manifestMatch) {
+      let projectId;
+      try { projectId = decodeURIComponent(manifestMatch[1]); } catch { return json(res, 400, { error: "Identifiant de projet invalide." }); }
+      try { return json(res, 200, { manifest: getProjectManifest(projectId) }); }
+      catch (error) { return json(res, 404, { error: error.message }); }
+    }
+    const eventsMatch = /^\\/api\\/projects\\/([^/]+)\\/events$/.exec(url.pathname);
+    if (eventsMatch) {
+      let projectId;
+      try { projectId = decodeURIComponent(eventsMatch[1]); } catch { return json(res, 400, { error: "Identifiant de projet invalide." }); }
+      try { requireProject(projectId); } catch (error) { return json(res, 404, { error: error.message }); }
+      if (req.method === "GET") {
+        const after = url.searchParams.get("after");
+        let rows;
+        if (after) {
+          const cursor = db.prepare("SELECT occurred_at,event_id FROM project_events WHERE event_id=? AND project_id=?").get(after,projectId);
+          if (!cursor) return json(res, 400, { error: "Curseur d'événement inconnu pour ce projet." });
+          rows = db.prepare("SELECT * FROM project_events WHERE project_id=? AND (occurred_at>? OR (occurred_at=? AND event_id>?)) ORDER BY occurred_at,event_id LIMIT 500").all(projectId,cursor.occurred_at,cursor.occurred_at,cursor.event_id);
+        } else {
+          rows = db.prepare("SELECT * FROM project_events WHERE project_id=? ORDER BY occurred_at,event_id LIMIT 500").all(projectId);
+        }
+        return json(res, 200, { events: rows.map(row => ({
+          eventId: row.event_id, projectId: row.project_id, version: row.event_version, type: row.event_type,
+          actor: JSON.parse(row.actor_json), origin: row.origin, occurredAt: row.occurred_at,
+          causalContext: JSON.parse(row.causal_context_json), payload: JSON.parse(row.payload_json)
+        })), next: rows.length ? rows[rows.length - 1].event_id : null });
+      }
+      if (req.method === "POST") {
+        const event = await readBody(req);
+        const validation = validateProjectEvent(event, projectId);
+        if (!validation.valid) return json(res, 400, { error: "Événement invalide.", details: validation.errors });
+        const stored = persistProjectEvent(event);
+        return json(res, stored.inserted ? 201 : 200, { ok: true, duplicate: !stored.inserted, eventId: event.eventId });
+      }
     }
     if (req.method === "GET" && url.pathname === "/api/timeline") {
       const projectId = url.searchParams.get("projectId") || "legacy";
