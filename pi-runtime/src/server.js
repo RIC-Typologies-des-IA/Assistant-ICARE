@@ -165,7 +165,7 @@ function getState() {
   });
 }
 function getPropositions() {
-  return db.prepare("SELECT * FROM propositions ORDER BY created_at DESC LIMIT 100").all()
+  return db.prepare("SELECT * FROM propositions ORDER BY created_at DESC").all()
     .map(p => ({ ...p, dimensions: JSON.parse(p.dimensions) }));
 }
 function getRelations() {
@@ -504,7 +504,7 @@ const server = http.createServer(async (req, res) => {
           reconciliationError,
           toolEvents
         }) + "\n\n");
-        res.write("event: done\ndata: " + JSON.stringify({ state: getState(), propositions: getPropositions().filter(p => p.review_status === "candidate"), relations: getRelations() }) + "\n\n");
+        res.write("event: done\ndata: " + JSON.stringify({ state: getState(), propositions: getPropositions(), relations: getRelations() }) + "\n\n");
       } catch (error) {
         res.write("event: error\ndata: " + JSON.stringify({ message: error.message || String(error) }) + "\n\n");
       } finally {
@@ -545,8 +545,11 @@ const server = http.createServer(async (req, res) => {
       if (!Object.hasOwn(DIMENSIONS, code) || !EXPLORATION.includes(body.status)) return json(res, 400, { error: "Dimension ou statut invalide." });
       const justification = String(body.justification || "").trim();
       if (["sufficient", "not_applicable"].includes(body.status) && justification.length < 8) return json(res, 400, { error: "Une justification est requise pour ce statut." });
-      db.prepare("UPDATE dimensions SET status=?,justification=?,updated_at=? WHERE code=?").run(body.status, justification, now(), code);
-      return json(res, 200, { ok: true });
+      const result = db.prepare("UPDATE dimensions SET status=?,justification=?,updated_at=? WHERE code=?").run(body.status, justification, now(), code);
+      if (result.changes !== 1) return json(res, 404, { error: "Dimension introuvable ; aucune modification enregistrée." });
+      const persisted = db.prepare("SELECT code,status,justification,updated_at FROM dimensions WHERE code=?").get(code);
+      if (!persisted || persisted.status !== body.status || persisted.justification !== justification) return json(res, 500, { error: "La vérification après écriture a échoué." });
+      return json(res, 200, { ok: true, dimension: persisted });
     }
     if (req.method === "POST" && url.pathname === "/api/references") {
       const body = await readBody(req);
