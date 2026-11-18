@@ -93,7 +93,7 @@ outputs = { self, nixpkgs }:
             DATA_DIR="''${XDG_DATA_HOME:-$HOME/.local/share}/icare-pi-data"
             mkdir -p "$(dirname "$APP_DIR")" "$DATA_DIR"
             chmod 700 "$DATA_DIR"
-            export ICARE_LEGACY_DATA_DIR="$DATA_DIR"
+            export ICARE_DATA_DIR="$DATA_DIR"
             if [ -d "$APP_DIR" ]; then
               UNWRITABLE_PATH="$(find "$APP_DIR" ! -writable -print -quit 2>/dev/null || true)"
               if [ -n "$UNWRITABLE_PATH" ]; then
