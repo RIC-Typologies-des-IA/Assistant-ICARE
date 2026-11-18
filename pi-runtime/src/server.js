@@ -216,6 +216,13 @@ function getPropositions(projectId = "legacy") {
 function getRelations(projectId = "legacy") {
   return db.prepare("SELECT * FROM relations WHERE project_id=? ORDER BY created_at DESC LIMIT 200").all(projectId);
 }
+function recordSnapshot(projectId, sessionId = "manual", turnIndex = 0) {
+  const id = randomUUID();
+  db.prepare("INSERT INTO exploration_snapshots(id,project_id,session_id,turn_index,dimensions_json,propositions_json,created_at) VALUES(?,?,?,?,?,?,?)")
+    .run(id, projectId, sessionId, turnIndex, JSON.stringify(getState(projectId)), JSON.stringify(getPropositions(projectId)), now());
+  db.prepare("UPDATE projects SET updated_at=? WHERE id=?").run(now(), projectId);
+  return id;
+}
 function searchDocs(query, projectId = "legacy") {
   const terms = String(query || "").toLowerCase().split(/\W+/).filter(t => t.length > 2);
   const docs = db.prepare("SELECT id,title,content FROM reference_docs WHERE project_id=?").all(projectId);
@@ -497,7 +504,13 @@ const server = http.createServer(async (req, res) => {
         for (const code of DIMENSION_ORDER) db.prepare("INSERT INTO project_dimensions(project_id,code,status,justification,updated_at) VALUES(?,?,?,?,?)").run(id,code,"unexplored","",created);
       });
       createProject();
+      recordSnapshot(id, "project-created", 0);
       return json(res, 201, { ok: true, project: { id, name, created_at: created, updated_at: created } });
+    }
+    if (req.method === "GET" && url.pathname === "/api/timeline") {
+      const projectId = url.searchParams.get("projectId") || "legacy";
+      requireProject(projectId);
+      return json(res, 200, { snapshots: db.prepare("SELECT id,session_id,turn_index,dimensions_json,created_at FROM exploration_snapshots WHERE project_id=? ORDER BY created_at,id").all(projectId).map(row => ({ ...row, dimensions: JSON.parse(row.dimensions_json) })) });
     }
     if (req.method === "GET" && url.pathname === "/api/state") {
       const projectId = url.searchParams.get("projectId") || "legacy";
@@ -563,6 +576,9 @@ const server = http.createServer(async (req, res) => {
           newPropositions = db.prepare("SELECT * FROM propositions WHERE project_id=?").all(projectId).filter(row => !initialIds.has(row.id));
         }
         unsubscribe();
+        const turnIndex = Number(db.prepare("SELECT COALESCE(MAX(turn_index),0)+1 AS next FROM conversation_turns WHERE project_id=? AND session_id=?").get(projectId, sessionId).next);
+        db.prepare("INSERT INTO conversation_turns(id,project_id,session_id,turn_index,user_text,assistant_text,created_at) VALUES(?,?,?,?,?,?,?)").run(randomUUID(), projectId, sessionId, turnIndex, message, assistantText, now());
+        recordSnapshot(projectId, sessionId, turnIndex);
         const candidatePropositions = newPropositions.filter(p => p.review_status === "candidate");
         res.write("event: persistence\ndata: " + JSON.stringify({
           created: candidatePropositions.length,
@@ -590,6 +606,7 @@ const server = http.createServer(async (req, res) => {
         epistemic: body.epistemic || "reported",
         practical: body.practical || "unspecified"
       }, projectId);
+      recordSnapshot(projectId, "proposal-created", Number(db.prepare("SELECT COALESCE(MAX(turn_index),0) AS current FROM conversation_turns WHERE project_id=?").get(projectId).current));
       return json(res, 201, { ok: true, proposition: { ...proposal, dimensions: JSON.parse(proposal.dimensions) } });
     }
     if (req.method === "POST" && url.pathname.startsWith("/api/propositions/")) {
@@ -599,6 +616,7 @@ const server = http.createServer(async (req, res) => {
       const projectId = String(body.projectId || url.searchParams.get("projectId") || "legacy");
       const result = db.prepare("UPDATE propositions SET review_status=? WHERE id=? AND project_id=? AND review_status='candidate'").run(body.review_status, id, projectId);
       if (!result.changes) return json(res, 404, { error: "Proposition candidate introuvable." });
+      recordSnapshot(projectId, "proposal-" + id, Number(db.prepare("SELECT COALESCE(MAX(turn_index),0) AS current FROM conversation_turns WHERE project_id=?").get(projectId).current));
       return json(res, 200, { ok: true });
     }
     if (req.method === "POST" && url.pathname.startsWith("/api/relations/")) {
@@ -608,6 +626,7 @@ const server = http.createServer(async (req, res) => {
       const projectId = String(body.projectId || url.searchParams.get("projectId") || "legacy");
       const result = db.prepare("UPDATE relations SET review_status=? WHERE id=? AND project_id=? AND review_status='candidate'").run(body.review_status, id, projectId);
       if (!result.changes) return json(res, 404, { error: "Relation candidate introuvable." });
+      recordSnapshot(projectId, "relation-" + id, Number(db.prepare("SELECT COALESCE(MAX(turn_index),0) AS current FROM conversation_turns WHERE project_id=?").get(projectId).current));
       return json(res, 200, { ok: true });
     }
     if (req.method === "POST" && url.pathname.startsWith("/api/dimensions/")) {
@@ -621,6 +640,7 @@ const server = http.createServer(async (req, res) => {
       if (result.changes !== 1) return json(res, 404, { error: "Dimension introuvable ; aucune modification enregistrée." });
       const persisted = db.prepare("SELECT code,status,justification,updated_at FROM project_dimensions WHERE code=? AND project_id=?").get(code, projectId);
       if (!persisted || persisted.status !== body.status || persisted.justification !== justification) return json(res, 500, { error: "La vérification après écriture a échoué." });
+      recordSnapshot(projectId, "dimension-" + code, Number(db.prepare("SELECT COALESCE(MAX(turn_index),0) AS current FROM conversation_turns WHERE project_id=?").get(projectId).current));
       return json(res, 200, { ok: true, dimension: persisted });
     }
     if (req.method === "POST" && url.pathname === "/api/references") {
