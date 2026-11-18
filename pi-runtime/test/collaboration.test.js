@@ -6,7 +6,7 @@ import {
 } from "../src/collaboration/project.js";
 
 test("project URI is stable and round-trips opaque identifiers", () => {
-  const id = "project:with spaces/and symbols";
+  const id = "project:with spaces & symbols";
   const uri = createProjectUri(id);
   assert.equal(parseProjectUri(uri), id);
   assert.throws(() => parseProjectUri("https://example.test/project/123"));
