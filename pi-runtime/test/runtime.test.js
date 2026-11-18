@@ -93,7 +93,7 @@ test("ICARE exposes a manual proposal path independent of model tool-calling", a
   assert.match(server, /recordCandidate\(\{/);
   assert.match(ui, /id="proposalForm"/);
   assert.match(ui, /Enregistrer la proposition/);
-  assert.match(ui, /url\(\s*["']\/api\/propositions["']/);
+  assert.match(ui, /fetch\(["']\/api\/propositions["']/);
 });
 
 test("ICARE explicitly activates its registered tools in Pi sessions", async () => {
