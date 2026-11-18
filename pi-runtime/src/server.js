@@ -137,7 +137,10 @@ let selectedModel;
 let catalogModels = [];
 const sessions = new Map();
 const sessionBusy = new Set();
+const ICARE_TOOL_NAMES = ["list_available_models", "get_ontology", "get_exploration_state", "search_reference_documents", "list_propositions", "propose_observation", "propose_relation"];
 let activeIcareTools = [];
+let toolInitializationStatus = "pending";
+let toolInitializationError = null;
 
 function json(res, status, value) {
   res.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
@@ -253,7 +256,6 @@ async function initializePi() {
   const chosen = catalogModels.find(m => m.id === selectedModel.id);
   if (!chosen?.labels?.includes("tool-calling")) console.warn("[ICARE] Le modèle choisi n'est pas signalé comme compatible tool-calling.");
   const extensionFactory = (pi) => {
-    const icareToolNames = ["list_available_models", "get_ontology", "get_exploration_state", "search_reference_documents", "list_propositions", "propose_observation", "propose_relation"];
     pi.registerTool({
       name: "list_available_models",
       label: "Catalogue des modèles Lemonade",
@@ -343,10 +345,10 @@ async function initializePi() {
         return { content: [{ type: "text", text: `Relation candidate enregistrée (${relation.id}) ; elle attend une validation humaine.` }], details: relation };
       }
     });
-    // L'API SDK distingue les outils enregistrés des outils actifs : active explicitement ICARE.
-    pi.setActiveTools(icareToolNames);
-    activeIcareTools = [...icareToolNames];
-    console.log("[ICARE] Outils ICARE enregistrés et activés :", activeIcareTools.join(", "));
+    // Les outils "direct" sont activés par défaut lors de leur enregistrement.
+    // Ne pas appeler pi.setActiveTools ici : l'extension est encore en phase de chargement
+    // et le runtime n'a pas encore lié les méthodes d'action de l'API.
+    console.log("[ICARE] Définitions des outils ICARE enregistrées.");
   };
   piModules.registerTools = extensionFactory;
   return { modelId: selectedModel.id, modelName: chosen?.name || selectedModel.id };
@@ -360,13 +362,30 @@ async function getSession(id) {
     appendSystemPromptOverride: () => [],
     extensionFactories: [pi => piModules.registerTools(pi)]
   });
-  await resourceLoader.reload();
-  const created = await createAgentSession({
-    model: selectedModel, modelRuntime, resourceLoader, noTools: "builtin",
-    sessionManager: SessionManager.create(ROOT)
-  });
-  sessions.set(id, created.session);
-  return created.session;
+  try {
+    await resourceLoader.reload();
+    const created = await createAgentSession({
+      model: selectedModel, modelRuntime, resourceLoader, noTools: "builtin",
+      sessionManager: SessionManager.create(ROOT)
+    });
+    const activeTools = created.session.getActiveToolNames();
+    const missingTools = ICARE_TOOL_NAMES.filter(name => !activeTools.includes(name));
+    if (missingTools.length) {
+      created.session.dispose();
+      throw new Error("Outils ICARE absents de la session Pi : " + missingTools.join(", "));
+    }
+    activeIcareTools = ICARE_TOOL_NAMES.filter(name => activeTools.includes(name));
+    toolInitializationStatus = "ready";
+    toolInitializationError = null;
+    console.log("[ICARE] Outils ICARE présents dans la session Pi :", activeIcareTools.join(", "));
+    sessions.set(id, created.session);
+    return created.session;
+  } catch (error) {
+    toolInitializationStatus = "failed";
+    toolInitializationError = error.message || String(error);
+    console.error("[ICARE] Échec d'initialisation des outils :", toolInitializationError);
+    throw error;
+  }
 }
 function sendStatic(res, file, type) {
   readFile(file).then(body => {
@@ -384,6 +403,8 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, {
         ok: true, model: selectedModel.id, provider: "Lemonade via Pi SDK",
         toolCalling: Boolean(modelInfo?.labels?.includes("tool-calling")),
+        toolInitialization: toolInitializationStatus,
+        toolInitializationError,
         toolDefinitions: [...activeIcareTools],
         dimensionsOrder: DIMENSION_ORDER
       });
