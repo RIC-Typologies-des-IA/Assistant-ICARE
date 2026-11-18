@@ -1,5 +1,9 @@
 # ICARE — Penser et transformer les systèmes
 
+> **Un outil du laboratoire IA du [Réseau Intelligence de la Complexité](https://www.intelligence-complexite.org/).**
+
+L'interface agentique reprend cette affiliation institutionnelle dans son en-tête, avec un lien direct vers le site du Réseau.
+
 ICARE est une méthode de dialogue et de réflexion systémique. Elle aide à comprendre une situation, un projet ou une organisation dans ses interactions, puis à penser les transformations possibles.
 
 L'assistant ICARE est un partenaire intellectuel exigeant et non directif, inspiré de la maïeutique. Il questionne, reformule et met les hypothèses à l'épreuve. L'utilisateur reste maître de l'intention, des arbitrages et des décisions.
