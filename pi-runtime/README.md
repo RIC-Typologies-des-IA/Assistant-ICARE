@@ -60,6 +60,14 @@ Le contrôleur conserve le dernier mot : les propositions attendent une validati
 
 Les données sont conservées dans le disque virtuel QCOW2, sous `/var/lib/icare` dans la VM. SQLite conserve les propositions, les statuts d'exploration, les relations et les documents. Les sessions Pi sont conservées dans le répertoire dédié du runtime.
 
+### Projets et historique
+
+Le tableau de bord permet de créer et sélectionner des projets indépendants. Les données historiques sont migrées sans suppression dans le projet « Projet existant ». Chaque projet possède ses propres propositions, relations, documents et cinq dimensions d'exploration. Les tours de discussion et les snapshots successifs sont enregistrés dans SQLite ; à la reprise, le contexte de conversation du projet est restitué au modèle.
+
+Le registre distingue les propositions validées, en attente et rejetées : une décision ne supprime jamais une proposition. Le curseur temporel parcourt les snapshots, réaffiche la conversation connue à cette étape et met à jour le radar I-C-A-R-E. Le radar représente trois niveaux de couverture documentaire (non exploré, insuffisamment documenté, suffisamment exploré) ; « non applicable » est indiqué séparément et n'est pas assimilé au niveau suffisant.
+
+Les snapshots sont créés après chaque tour et après les décisions de validation ou les changements d'état des dimensions. Le rejeu est consultatif : déplacer le curseur ne modifie pas les données courantes du projet.
+
 ## Initialisation des outils Pi
 
 Les outils ICARE sont enregistrés par une extension chargée par `DefaultResourceLoader`. Leurs paramètres sont construits avec [`Type` de TypeBox](https://github.com/sinclairzx81/typebox), qui doit être importé directement depuis le paquet `typebox` (et non depuis `@earendil-works/pi-ai`). Pendant cette phase de chargement, le SDK n'a pas encore lié les méthodes d'action de l'API d'extension : il ne faut donc pas appeler `pi.setActiveTools()` depuis la fonction de fabrique. Les outils ICARE sont déclarés avec l'exposition `direct`. Comme la session est créée avec `noTools: "builtin"`, sa sélection initiale est vide : le backend lie d'abord le runtime des extensions avec `await session.bindExtensions({})` (ce qui déclenche `session_start`), puis active les outils ICARE avec `session.setActiveToolsByName()`. Il vérifie ensuite avec `session.getActiveToolNames()` que les sept outils attendus sont réellement disponibles ; en cas d'absence, il expose l'erreur précise dans `/api/status` et refuse de prétendre que l'initialisation a réussi.
