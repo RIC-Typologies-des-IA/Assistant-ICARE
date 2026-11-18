@@ -423,8 +423,10 @@ async function getSession(id, projectId = "legacy") {
     appendSystemPromptOverride: () => {
       const turns = db.prepare("SELECT user_text,assistant_text FROM conversation_turns WHERE project_id=? ORDER BY turn_index").all(projectId);
       if (!turns.length) return [];
-      return ["HISTORIQUE DU PROJET — les échanges ci-dessous appartiennent à ce projet et servent de contexte de reprise :\n" + turns.map((turn, index) => "Échange " + (index + 1) + "\nUtilisateur : " + turn.user_text + "\nICARE : " + turn.assistant_text).join("\n\n")];
+      const nl = String.fromCharCode(10);
+      return ["HISTORIQUE DU PROJET — les échanges ci-dessous appartiennent à ce projet et servent de contexte de reprise :" + nl + turns.map((turn, index) => "Échange " + (index + 1) + nl + "Utilisateur : " + turn.user_text + nl + "ICARE : " + turn.assistant_text).join(nl + nl)];
     },
+    
     extensionFactories: [pi => piModules.registerTools(pi, projectId)]
   });
   try {
