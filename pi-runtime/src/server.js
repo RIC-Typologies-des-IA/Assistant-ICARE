@@ -250,9 +250,9 @@ function getProjectManifest(projectId) {
 function persistProjectEvent(event) {
   const validation = validateProjectEvent(event, event.projectId);
   if (!validation.valid) throw new Error(validation.errors.join(" "));
-  const existing = db.prepare("SELECT event_type,event_version,actor_json,origin,occurred_at,causal_context_json,payload_json FROM project_events WHERE event_id=?").get(event.eventId);
+  const existing = db.prepare("SELECT project_id,event_type,event_version,actor_json,origin,occurred_at,causal_context_json,payload_json FROM project_events WHERE event_id=?").get(event.eventId);
   if (existing) {
-    const same = existing.event_type === event.type &&
+    const same = existing.project_id === event.projectId && existing.event_type === event.type &&
       existing.event_version === event.version &&
       existing.actor_json === JSON.stringify(event.actor) &&
       existing.origin === event.origin &&
