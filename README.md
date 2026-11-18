@@ -33,9 +33,9 @@ Consulter le [README de l'approche par prompt](prompt/README.md) pour choisir et
 
 ### 2. Approche agentique — application Pi, Lemonade, QEMU et nono
 
-Cette approche ajoute un runtime applicatif à la méthode : **Pi** dialogue avec les modèles servis par **Lemonade**, tandis qu'un backend conserve l'état d'exploration, les propositions et les documents dans SQLite.
+Cette approche ajoute un runtime applicatif à la méthode : [**Pi**](https://github.com/earendil-works/pi), via son [SDK Node.js](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/sdk.md), dialogue avec les modèles servis par [**Lemonade Server**](https://github.com/lemonade-sdk/lemonade), tandis qu'un backend conserve l'état d'exploration, les propositions et les documents dans [SQLite](https://www.sqlite.org/docs.html).
 
-L'application s'exécute dans une VM Linux **QEMU/NixOS**. Le processus ICARE y est sandboxé par **nono**. Lemonade reste sur la machine hôte pour garder l'accès au NPU. Le réseau de la VM est fermé par défaut ; les échanges autorisés passent par le proxy filtré de l'hôte. L'interface est ouverte automatiquement dans le navigateur lorsque l'environnement graphique le permet.
+L'application s'exécute dans une VM Linux [**QEMU**](https://www.qemu.org/docs/master/system/) / [**NixOS**](https://nixos.org/manual/nixos/stable/). Le processus ICARE y est sandboxé par [**nono**](https://github.com/nolabs-ai/nono). Lemonade reste sur la machine hôte pour garder l'accès au NPU. Le réseau de la VM est fermé par défaut ; les échanges autorisés passent par le proxy filtré de l'hôte. L'interface est ouverte automatiquement dans le navigateur lorsque l'environnement graphique le permet.
 
 #### Installation et lancement sous Linux x86_64
 
@@ -65,7 +65,11 @@ Aucun identifiant de modèle n'est imposé dans le dépôt. Pi interroge le cata
 - La restauration automatique d'une conversation Pi après redémarrage et le test d'inférence réel sur la machine cible restent à valider.
 - Cette version est expérimentale ; la CI vérifie les tests Node.js et la construction de la VM, pas l'intégration réelle avec le NPU de chaque machine.
 
-Les détails techniques et les limites sont décrits dans [pi-runtime/README.md](pi-runtime/README.md) et [nixos/icare-vm.nix](nixos/icare-vm.nix).
+Les détails techniques et les limites sont décrits dans [pi-runtime/README.md](pi-runtime/README.md) et [nixos/icare-vm.nix](nixos/icare-vm.nix). Les [références et documentations externes](REFERENCES.md) recensent les sources primaires des composants et des cadres conceptuels cités.
+
+## Références
+
+Consulter la [bibliographie technique et conceptuelle](REFERENCES.md), qui distingue les logiciels réellement employés des inspirations théoriques de l'ontologie complémentaire.
 
 ## Faire évoluer ICARE
 
