@@ -9,7 +9,7 @@ import { DatabaseSync } from "node:sqlite";
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
 const DATA_DIR = path.resolve(process.env.ICARE_DATA_DIR || path.join(ROOT, "data"));
-const AGENT_DIR = path.resolve(path.join(DATA_DIR, "pi-agent"));
+const AGENT_DIR = path.resolve(process.env.PI_CODING_AGENT_DIR || path.join(DATA_DIR, "pi-agent"));
 process.env.PI_CODING_AGENT_DIR = AGENT_DIR;
 const BASE_URL = (process.env.LEMONADE_BASE_URL || "http://127.0.0.1:13305/v1").replace(/\/$/, "");
 const API_KEY = process.env.LEMONADE_API_KEY || "";
