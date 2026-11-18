@@ -518,7 +518,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "GET" && url.pathname === "/api/timeline") {
       const projectId = url.searchParams.get("projectId") || "legacy";
       requireProject(projectId);
-      return json(res, 200, { snapshots: db.prepare("SELECT id,session_id,turn_index,dimensions_json,created_at FROM exploration_snapshots WHERE project_id=? ORDER BY created_at,id").all(projectId).map(row => ({ ...row, dimensions: JSON.parse(row.dimensions_json) })) });
+      return json(res, 200, { snapshots: db.prepare("SELECT id,session_id,turn_index,dimensions_json,propositions_json,created_at FROM exploration_snapshots WHERE project_id=? ORDER BY created_at,id").all(projectId).map(row => ({ ...row, dimensions: JSON.parse(row.dimensions_json), propositions: JSON.parse(row.propositions_json) })) });
     }
     if (req.method === "GET" && url.pathname === "/api/state") {
       const projectId = url.searchParams.get("projectId") || "legacy";
