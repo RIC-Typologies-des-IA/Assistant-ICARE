@@ -174,3 +174,43 @@ test("Exploration dimension writes are checked by reading persisted state back",
   assert.ok(server.includes('SELECT code,status,justification,updated_at FROM dimensions WHERE code=?'));
   assert.ok(server.includes("persisted.status !== body.status"));
 });
+
+
+test("Projects isolate proposals, relations and the five exploration dimensions", () => {
+  const db = new DatabaseSync(":memory:");
+  db.exec(`
+    CREATE TABLE projects(id TEXT PRIMARY KEY, name TEXT NOT NULL);
+    CREATE TABLE project_dimensions(project_id TEXT NOT NULL, code TEXT NOT NULL, status TEXT NOT NULL, PRIMARY KEY(project_id,code));
+    CREATE TABLE proposals(id TEXT PRIMARY KEY, project_id TEXT NOT NULL, text TEXT NOT NULL);
+  `);
+  db.prepare("INSERT INTO projects VALUES(?,?)").run("p1","Projet 1");
+  db.prepare("INSERT INTO projects VALUES(?,?)").run("p2","Projet 2");
+  for (const projectId of ["p1","p2"]) {
+    for (const code of ["I","C","A","R","E"]) db.prepare("INSERT INTO project_dimensions VALUES(?,?,?)").run(projectId,code,"unexplored");
+  }
+  db.prepare("INSERT INTO proposals VALUES(?,?,?)").run("a","p1","Observation A");
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM project_dimensions WHERE project_id=?").get("p1").n,5);
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM proposals WHERE project_id=?").get("p2").n,0);
+  db.close();
+});
+
+test("Project API, discussion history and temporal snapshots are persisted", async () => {
+  const server = await readFile(new URL("../src/server.js", import.meta.url), "utf8");
+  const ui = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
+  for (const fragment of [
+    'CREATE TABLE IF NOT EXISTS projects',
+    'CREATE TABLE IF NOT EXISTS project_dimensions',
+    'CREATE TABLE IF NOT EXISTS conversation_turns',
+    'CREATE TABLE IF NOT EXISTS exploration_snapshots',
+    'url.pathname === "/api/projects"',
+    'url.pathname === "/api/timeline"',
+    'recordSnapshot(projectId, sessionId, turnIndex)',
+    'WHERE project_id=?'
+  ]) assert.ok(server.includes(fragment), "Missing project persistence contract: " + fragment);
+  assert.ok(server.includes("appendSystemPromptOverride"));
+  assert.ok(ui.includes('id="projectSelect"'));
+  assert.ok(ui.includes('id="createProject"'));
+  assert.ok(ui.includes('id="timelineSlider"'));
+  assert.ok(ui.includes('id="radarArea"'));
+  assert.ok(ui.includes("renderConversation(projectTurns.filter"));
+});
