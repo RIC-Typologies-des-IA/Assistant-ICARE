@@ -18,7 +18,19 @@ outputs = { self, nixpkgs }:
       text = ''
         APP_DIR="''${XDG_DATA_HOME:-$HOME/.local/share}/icare-vm/runtime"
         LOG_DIR="''${XDG_DATA_HOME:-$HOME/.local/share}/icare-vm/logs"
-        mkdir -p "$APP_DIR" "$LOG_DIR"
+        mkdir -p "$(dirname "$APP_DIR")" "$LOG_DIR"
+        # Une ancienne exécution via sudo peut avoir laissé des fichiers
+        # appartenant à root. On sauvegarde alors le runtime (code uniquement)
+        # au lieu de tenter un chmod/chown ou de lancer ICARE avec sudo.
+        if [ -d "$APP_DIR" ]; then
+          UNWRITABLE_PATH="$(find "$APP_DIR" ! -writable -print -quit 2>/dev/null || true)"
+          if [ -n "$UNWRITABLE_PATH" ]; then
+            BACKUP_DIR="$APP_DIR.backup.$(date +%Y%m%d%H%M%S)"
+            mv "$APP_DIR" "$BACKUP_DIR"
+            echo "Ancien runtime non modifiable sauvegardé dans : $BACKUP_DIR"
+          fi
+        fi
+        mkdir -p "$APP_DIR"
         # Le répertoire parent est privé dans le home ; le sticky bit permet
         # au compte de service invité d'écrire les journaux via virtiofs.
         chmod 1777 "$LOG_DIR"
@@ -73,6 +85,15 @@ outputs = { self, nixpkgs }:
           runtimeInputs = [ pkgs.nodejs_24 pkgs.coreutils ];
           text = ''
             APP_DIR="''${XDG_DATA_HOME:-$HOME/.local/share}/icare-pi"
+            mkdir -p "$(dirname "$APP_DIR")"
+            if [ -d "$APP_DIR" ]; then
+              UNWRITABLE_PATH="$(find "$APP_DIR" ! -writable -print -quit 2>/dev/null || true)"
+              if [ -n "$UNWRITABLE_PATH" ]; then
+                BACKUP_DIR="$APP_DIR.backup.$(date +%Y%m%d%H%M%S)"
+                mv "$APP_DIR" "$BACKUP_DIR"
+                echo "Ancien runtime non modifiable sauvegardé dans : $BACKUP_DIR"
+              fi
+            fi
             mkdir -p "$APP_DIR"
             cp -R ${./pi-runtime}/. "$APP_DIR/"
             cd "$APP_DIR"
