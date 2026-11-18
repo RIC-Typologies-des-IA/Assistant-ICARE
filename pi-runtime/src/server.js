@@ -418,7 +418,7 @@ const server = http.createServer(async (req, res) => {
             const delta = event.assistantMessageEvent.delta;
             if (!reconciliationPass) {
               assistantText += delta;
-              res.write("event: delta\\ndata: " + JSON.stringify({ text: delta }) + "\\n\\n");
+              res.write("event: delta\ndata: " + JSON.stringify({ text: delta }) + "\n\n");
             }
           }
         });
@@ -450,13 +450,13 @@ const server = http.createServer(async (req, res) => {
         }
         unsubscribe();
         const candidatePropositions = newPropositions.filter(p => p.review_status === "candidate");
-        res.write("event: persistence\\ndata: " + JSON.stringify({
+        res.write("event: persistence\ndata: " + JSON.stringify({
           created: candidatePropositions.length,
           propositions: candidatePropositions.map(p => ({ id: p.id, text: p.text, dimensions: JSON.parse(p.dimensions), review_status: p.review_status })),
           unconfirmedClaim: candidatePropositions.length === 0 && claimsPersistence,
           reconciliationError
-        }) + "\\n\\n");
-        res.write("event: done\\ndata: " + JSON.stringify({ state: getState(), propositions: getPropositions().filter(p => p.review_status === "candidate"), relations: getRelations() }) + "\\n\\n");
+        }) + "\n\n");
+        res.write("event: done\ndata: " + JSON.stringify({ state: getState(), propositions: getPropositions().filter(p => p.review_status === "candidate"), relations: getRelations() }) + "\n\n");
       } catch (error) {
         res.write("event: error\ndata: " + JSON.stringify({ message: error.message || String(error) }) + "\n\n");
       } finally {
