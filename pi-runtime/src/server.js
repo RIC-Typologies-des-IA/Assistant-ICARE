@@ -70,19 +70,60 @@ for (const [name, type] of [
 ]) {
   if (!propositionColumns.has(name)) db.exec(`ALTER TABLE propositions ADD COLUMN ${name} ${type}`);
 }
+
 const now = () => new Date().toISOString();
 const getSetting = key => db.prepare("SELECT value FROM settings WHERE key=?").get(key)?.value || null;
 const setSetting = (key, value) => db.prepare("INSERT INTO settings(key,value,updated_at) VALUES(?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").run(key, String(value), now());
-const insertDimension = db.prepare("INSERT OR IGNORE INTO dimensions(code,status,justification,updated_at) VALUES(?,?,?,?)");
-for (const code of Object.keys(DIMENSIONS)) insertDimension.run(code, "unexplored", "", now());
-const seedDoc = db.prepare("INSERT OR IGNORE INTO reference_docs(id,title,content,created_at) VALUES(?,?,?,?)");
+db.exec(`
+  CREATE TABLE IF NOT EXISTS projects (
+    id TEXT PRIMARY KEY, name TEXT NOT NULL, created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL, archived_at TEXT
+  );
+  CREATE TABLE IF NOT EXISTS project_dimensions (
+    project_id TEXT NOT NULL, code TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'unexplored',
+    justification TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL,
+    PRIMARY KEY(project_id, code)
+  );
+  CREATE TABLE IF NOT EXISTS conversation_turns (
+    id TEXT PRIMARY KEY, project_id TEXT NOT NULL, session_id TEXT NOT NULL,
+    turn_index INTEGER NOT NULL, user_text TEXT NOT NULL, assistant_text TEXT NOT NULL,
+    created_at TEXT NOT NULL, UNIQUE(project_id, session_id, turn_index)
+  );
+  CREATE TABLE IF NOT EXISTS exploration_snapshots (
+    id TEXT PRIMARY KEY, project_id TEXT NOT NULL, session_id TEXT NOT NULL,
+    turn_index INTEGER NOT NULL, dimensions_json TEXT NOT NULL,
+    propositions_json TEXT NOT NULL, created_at TEXT NOT NULL
+  );
+`);
+const projectColumns = {
+  propositions: new Set(db.prepare("PRAGMA table_info(propositions)").all().map(column => column.name)),
+  relations: new Set(db.prepare("PRAGMA table_info(relations)").all().map(column => column.name)),
+  reference_docs: new Set(db.prepare("PRAGMA table_info(reference_docs)").all().map(column => column.name))
+};
+for (const table of Object.keys(projectColumns)) {
+  if (!projectColumns[table].has("project_id")) db.exec(`ALTER TABLE ${table} ADD COLUMN project_id TEXT`);
+}
+db.prepare("INSERT OR IGNORE INTO projects(id,name,created_at,updated_at) VALUES('legacy','Projet existant',?,?)").run(now(), now());
+for (const table of ["propositions", "relations", "reference_docs"]) {
+  db.exec(`UPDATE ${table} SET project_id='legacy' WHERE project_id IS NULL`);
+}
+const insertProjectDimension = db.prepare("INSERT OR IGNORE INTO project_dimensions(project_id,code,status,justification,updated_at) VALUES(?,?,?,?,?)");
+for (const code of DIMENSION_ORDER) {
+  const legacy = db.prepare("SELECT status,justification,updated_at FROM dimensions WHERE code=?").get(code);
+  insertProjectDimension.run("legacy", code, legacy?.status || "unexplored", legacy?.justification || "", legacy?.updated_at || now());
+}
+
+
+const seedDoc = db.prepare("INSERT OR IGNORE INTO reference_docs(id,title,content,created_at,project_id) VALUES(?,?,?,?,?)");
 for (const [id, title, filename] of [
   ["guide-icare", "Guide de la démarche ICARE", "guide-icare.md"],
   ["ontology-icare", "Ontologie ICARE (JSON)", "icare.json"]
 ]) {
   const file = path.join(HERE, "..", "reference", filename);
-  if (existsSync(file)) seedDoc.run(id, title, await readFile(file, "utf8"), now());
+  if (existsSync(file)) seedDoc.run(id, title, await readFile(file, "utf8"), now(), "legacy");
 }
+
+if (db.prepare("SELECT COUNT(*) AS n FROM exploration_snapshots WHERE project_id='legacy'").get().n === 0) recordSnapshot("legacy", "migration", 0);
 
 const SYSTEM_PROMPT = `Tu es ICARE, un agent méthodologique maïeutique. Tu aides un humain à comprendre et décrire un système par un dialogue ouvert, non linéaire et progressif.
 
@@ -140,8 +181,8 @@ let piModules;
 let modelRuntime;
 let selectedModel;
 let catalogModels = [];
-let voiceModel = null;
 let catalogVoiceModels = [];
+let voiceModel = null;
 const sessions = new Map();
 const sessionBusy = new Set();
 const ICARE_TOOL_NAMES = ["list_available_models", "get_ontology", "get_exploration_state", "search_reference_documents", "list_propositions", "propose_observation", "propose_relation"];
@@ -161,33 +202,46 @@ async function readBody(req) {
   }
   return raw ? JSON.parse(raw) : {};
 }
-function getState() {
-  const rows = db.prepare("SELECT * FROM dimensions").all()
+function requireProject(projectId) {
+  const project = db.prepare("SELECT * FROM projects WHERE id=? AND archived_at IS NULL").get(projectId);
+  if (!project) throw new Error("Projet introuvable ou archivé.");
+  return project;
+}
+function getState(projectId = "legacy") {
+  const rows = db.prepare("SELECT * FROM project_dimensions WHERE project_id=?").all(projectId)
     .sort((a, b) => DIMENSION_ORDER.indexOf(a.code) - DIMENSION_ORDER.indexOf(b.code));
-  const counts = db.prepare("SELECT dimensions, review_status FROM propositions").all();
+  const counts = db.prepare("SELECT dimensions, review_status FROM propositions WHERE project_id=?").all(projectId);
   return rows.map(row => {
     const related = counts.filter(p => JSON.parse(p.dimensions).includes(row.code));
     return { ...row, label: DIMENSIONS[row.code], candidates: related.filter(p => p.review_status === "candidate").length,
-      accepted: related.filter(p => p.review_status === "accepted").length };
+      accepted: related.filter(p => p.review_status === "accepted").length,
+      rejected: related.filter(p => p.review_status === "rejected").length };
   });
 }
-function getPropositions() {
-  return db.prepare("SELECT * FROM propositions ORDER BY created_at DESC LIMIT 100").all()
+function getPropositions(projectId = "legacy") {
+  return db.prepare("SELECT * FROM propositions WHERE project_id=? ORDER BY created_at DESC").all(projectId)
     .map(p => ({ ...p, dimensions: JSON.parse(p.dimensions) }));
 }
-function getRelations() {
-  return db.prepare("SELECT * FROM relations ORDER BY created_at DESC LIMIT 200").all();
+function getRelations(projectId = "legacy") {
+  return db.prepare("SELECT * FROM relations WHERE project_id=? ORDER BY created_at DESC LIMIT 200").all(projectId);
 }
-function searchDocs(query) {
+function recordSnapshot(projectId, sessionId = "manual", turnIndex = 0) {
+  const id = randomUUID();
+  db.prepare("INSERT INTO exploration_snapshots(id,project_id,session_id,turn_index,dimensions_json,propositions_json,created_at) VALUES(?,?,?,?,?,?,?)")
+    .run(id, projectId, sessionId, turnIndex, JSON.stringify(getState(projectId)), JSON.stringify(getPropositions(projectId)), now());
+  db.prepare("UPDATE projects SET updated_at=? WHERE id=?").run(now(), projectId);
+  return id;
+}
+function searchDocs(query, projectId = "legacy") {
   const terms = String(query || "").toLowerCase().split(/\W+/).filter(t => t.length > 2);
-  const docs = db.prepare("SELECT id,title,content FROM reference_docs").all();
+  const docs = db.prepare("SELECT id,title,content FROM reference_docs WHERE project_id=?").all(projectId);
   return docs.map(doc => {
     const lower = doc.content.toLowerCase();
     const score = terms.reduce((n, term) => n + (lower.split(term).length - 1), 0);
     return { id: doc.id, title: doc.title, score, excerpt: doc.content.slice(0, 2400) };
   }).filter(d => d.score > 0 || terms.length === 0).sort((a,b) => b.score-a.score).slice(0,4);
 }
-function recordCandidate(input) {
+function recordCandidate(input, projectId = "legacy") {
   const dimensions = [...new Set((input.dimensions || []).filter(d => Object.hasOwn(DIMENSIONS, d)))];
   if (!dimensions.length) throw new Error("Au moins une dimension ICARE valide est requise.");
   const primary = dimensions.includes(input.primary_dimension) ? input.primary_dimension : dimensions[0];
@@ -205,30 +259,30 @@ function recordCandidate(input) {
   db.prepare(`INSERT INTO propositions
     (id,text,dimensions,primary_dimension,temporal,evaluation,epistemic,practical,confidence,source,aspect,review_status,created_at,
      utterance_time,valid_time_start,valid_time_end,event_period_start,event_period_end,target_horizon,realization_time,modality,
-     subject,predicate,value,author,source_agent,source_interaction,justification)
-    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+     subject,predicate,value,author,source_agent,source_interaction,justification,project_id)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
       id, observationText, JSON.stringify(dimensions), primary,
       temporal, evaluation, epistemic, practical, confidence, String(input.source || "conversation").slice(0,300),
       String(input.aspect || "").slice(0,300), "candidate", now(),
       optionalText("utterance_time"), optionalText("valid_time_start"), optionalText("valid_time_end"),
       optionalText("event_period_start"), optionalText("event_period_end"), optionalText("target_horizon"),
       optionalText("realization_time"), modality, optionalText("subject"), optionalText("predicate"), optionalText("value"),
-      optionalText("author"), optionalText("source_agent"), optionalText("source_interaction"), optionalText("justification")
+      optionalText("author"), optionalText("source_agent"), optionalText("source_interaction"), optionalText("justification"), projectId
     );
-  return db.prepare("SELECT * FROM propositions WHERE id=?").get(id);
+  return db.prepare("SELECT * FROM propositions WHERE id=? AND project_id=?").get(id, projectId);
 }
-function recordRelationCandidate(input) {
+function recordRelationCandidate(input, projectId = "legacy") {
   const allowed = new Set(ONTOLOGY.relations);
   const relation = String(input.relation || "");
   if (!allowed.has(relation)) throw new Error("Relation inconnue dans l'ontologie complémentaire.");
   const fromId = String(input.from_id || "");
   const toId = String(input.to_id || "");
   if (!fromId || !toId || fromId === toId) throw new Error("Deux identifiants de propositions distincts sont requis.");
-  const exists = db.prepare("SELECT id FROM propositions WHERE id IN (?,?)").all(fromId, toId);
+  const exists = db.prepare("SELECT id FROM propositions WHERE id IN (?,?) AND project_id=?").all(fromId, toId, projectId);
   if (exists.length !== 2) throw new Error("Les deux propositions doivent exister.");
   const id = randomUUID();
-  db.prepare("INSERT INTO relations(id,from_id,to_id,relation,note,review_status,created_at) VALUES(?,?,?,?,?,?,?)")
-    .run(id, fromId, toId, relation, String(input.note || "").slice(0,1000), "candidate", now());
+  db.prepare("INSERT INTO relations(id,from_id,to_id,relation,note,review_status,created_at,project_id) VALUES(?,?,?,?,?,?,?,?)")
+    .run(id, fromId, toId, relation, String(input.note || "").slice(0,1000), "candidate", now(), projectId);
   return { id, from_id: fromId, to_id: toId, relation, review_status: "candidate" };
 }
 
@@ -272,7 +326,7 @@ async function initializePi() {
   if (process.env.ICARE_MODEL && !catalogModels.some(m => m.id === process.env.ICARE_MODEL && m.downloaded === true)) throw new Error("Le modèle ICARE_MODEL demandé est absent du catalogue ou n’est pas téléchargé dans Lemonade.");
   const chosen = catalogModels.find(m => m.id === selectedModel.id);
   if (!chosen?.labels?.includes("tool-calling")) console.warn("[ICARE] Le modèle choisi n'est pas signalé comme compatible tool-calling.");
-  const extensionFactory = (pi) => {
+  const extensionFactory = (pi, projectId = "legacy") => {
     pi.registerTool({
       name: "list_available_models",
       exposure: "direct",
@@ -295,7 +349,7 @@ async function initializePi() {
       label: "État d'exploration ICARE",
       description: "Consulte l'état documenté des cinq dimensions ICARE et les volumes de propositions validées ou en attente.",
       parameters: Type.Object({}),
-      execute: async () => ({ content: [{ type: "text", text: JSON.stringify(getState(), null, 2) }], details: {} })
+      execute: async () => ({ content: [{ type: "text", text: JSON.stringify(getState(projectId), null, 2) }], details: {} })
     });
     pi.registerTool({
       name: "search_reference_documents",
@@ -303,7 +357,7 @@ async function initializePi() {
       label: "Rechercher dans les références ICARE",
       description: "Recherche dans le corpus documentaire méthodologique local. N'effectue aucune recherche sur Internet.",
       parameters: Type.Object({ query: Type.String({ description: "Notions à rechercher dans les documents de référence." }) }),
-      execute: async (_id, params) => ({ content: [{ type: "text", text: JSON.stringify(searchDocs(params.query), null, 2) }], details: {} })
+      execute: async (_id, params) => ({ content: [{ type: "text", text: JSON.stringify(searchDocs(params.query, projectId), null, 2) }], details: {} })
     });
     pi.registerTool({
       name: "list_propositions",
@@ -312,7 +366,7 @@ async function initializePi() {
       description: "Consulte les propositions ICARE enregistrées, avec leur statut de validation.",
       parameters: Type.Object({ review_status: Type.Optional(Type.String({ description: "candidate, accepted ou rejected" })) }),
       execute: async (_id, params) => {
-        const rows = getPropositions().filter(p => !params.review_status || p.review_status === params.review_status);
+        const rows = getPropositions(projectId).filter(p => !params.review_status || p.review_status === params.review_status);
         return { content: [{ type: "text", text: JSON.stringify(rows.slice(0,40), null, 2) }], details: {} };
       }
     });
@@ -349,7 +403,7 @@ async function initializePi() {
         justification: Type.Optional(Type.String())
       }),
       execute: async (_id, params) => {
-        const p = recordCandidate(params);
+        const p = recordCandidate(params, projectId);
         return { content: [{ type: "text", text: `Proposition candidate enregistrée (${p.id}). Elle attend une validation humaine dans le tableau de bord ; elle n'est pas considérée comme un fait validé.` }], details: { id: p.id } };
       }
     });
@@ -365,7 +419,7 @@ async function initializePi() {
         note: Type.Optional(Type.String({ description: "Justification concise de la relation." }))
       }),
       execute: async (_id, params) => {
-        const relation = recordRelationCandidate(params);
+        const relation = recordRelationCandidate(params, projectId);
         return { content: [{ type: "text", text: `Relation candidate enregistrée (${relation.id}) ; elle attend une validation humaine.` }], details: relation };
       }
     });
@@ -377,14 +431,22 @@ async function initializePi() {
   piModules.registerTools = extensionFactory;
   return { modelId: selectedModel.id, modelName: chosen?.name || selectedModel.id };
 }
-async function getSession(id) {
-  if (sessions.has(id)) return sessions.get(id);
+async function getSession(id, projectId = "legacy") {
+  const sessionKey = projectId + ":" + id;
+  requireProject(projectId);
+  if (sessions.has(sessionKey)) return sessions.get(sessionKey);
   const { createAgentSession, SessionManager } = piModules;
   const resourceLoader = new piModules.DefaultResourceLoader({
     cwd: ROOT, agentDir: AGENT_DIR,
     systemPromptOverride: () => SYSTEM_PROMPT,
-    appendSystemPromptOverride: () => [],
-    extensionFactories: [pi => piModules.registerTools(pi)]
+    appendSystemPromptOverride: () => {
+      const turns = db.prepare("SELECT user_text,assistant_text FROM conversation_turns WHERE project_id=? ORDER BY turn_index").all(projectId);
+      if (!turns.length) return [];
+      const nl = String.fromCharCode(10);
+      return ["HISTORIQUE DU PROJET — les échanges ci-dessous appartiennent à ce projet et servent de contexte de reprise :" + nl + turns.map((turn, index) => "Échange " + (index + 1) + nl + "Utilisateur : " + turn.user_text + nl + "ICARE : " + turn.assistant_text).join(nl + nl)];
+    },
+    
+    extensionFactories: [pi => piModules.registerTools(pi, projectId)]
   });
   try {
     await resourceLoader.reload();
@@ -407,7 +469,7 @@ async function getSession(id) {
     toolInitializationStatus = "ready";
     toolInitializationError = null;
     console.log("[ICARE] Outils ICARE présents dans la session Pi :", activeIcareTools.join(", "));
-    sessions.set(id, created.session);
+    sessions.set(sessionKey, created.session);
     return created.session;
   } catch (error) {
     toolInitializationStatus = "failed";
@@ -435,7 +497,6 @@ const server = http.createServer(async (req, res) => {
         toolInitialization: toolInitializationStatus,
         toolInitializationError,
         toolDefinitions: [...activeIcareTools],
-        voiceModel: voiceModel?.id || null,
         dimensionsOrder: DIMENSION_ORDER
       });
     }
@@ -497,19 +558,46 @@ const server = http.createServer(async (req, res) => {
       setSetting("chat_model", selectedModel.id);
       return json(res, 200, { ok: true, selected: selectedModel.id, toolCalling: Boolean(info.labels?.includes("tool-calling")) });
     }
-    if (req.method === "GET" && url.pathname === "/api/state") return json(res, 200, { dimensions: getState(), propositions: getPropositions(), relations: getRelations(), documents: db.prepare("SELECT id,title,created_at FROM reference_docs ORDER BY title").all() });
+    if (req.method === "GET" && url.pathname === "/api/projects") return json(res, 200, { projects: db.prepare("SELECT id,name,created_at,updated_at FROM projects WHERE archived_at IS NULL ORDER BY updated_at DESC").all() });
+    if (req.method === "POST" && url.pathname === "/api/projects") {
+      const body = await readBody(req);
+      const name = String(body.name || "").trim().slice(0,120);
+      if (!name) return json(res, 400, { error: "Un nom de projet est requis." });
+      const id = randomUUID();
+      const created = now();
+      const createProject = db.transaction(() => {
+        db.prepare("INSERT INTO projects(id,name,created_at,updated_at) VALUES(?,?,?,?)").run(id,name,created,created);
+        for (const code of DIMENSION_ORDER) db.prepare("INSERT INTO project_dimensions(project_id,code,status,justification,updated_at) VALUES(?,?,?,?,?)").run(id,code,"unexplored","",created);
+      });
+      createProject();
+      recordSnapshot(id, "project-created", 0);
+      return json(res, 201, { ok: true, project: { id, name, created_at: created, updated_at: created } });
+    }
+    if (req.method === "GET" && url.pathname === "/api/timeline") {
+      const projectId = url.searchParams.get("projectId") || "legacy";
+      requireProject(projectId);
+      return json(res, 200, { snapshots: db.prepare("SELECT id,session_id,turn_index,dimensions_json,propositions_json,created_at FROM exploration_snapshots WHERE project_id=? ORDER BY created_at,id").all(projectId).map(row => ({ ...row, dimensions: JSON.parse(row.dimensions_json), propositions: JSON.parse(row.propositions_json) })) });
+    }
+    if (req.method === "GET" && url.pathname === "/api/state") {
+      const projectId = url.searchParams.get("projectId") || "legacy";
+      requireProject(projectId);
+      return json(res, 200, { projectId, dimensions: getState(projectId), propositions: getPropositions(projectId), relations: getRelations(projectId), documents: db.prepare("SELECT id,title,created_at FROM reference_docs WHERE project_id=? ORDER BY title").all(projectId), turns: db.prepare("SELECT id,turn_index,user_text,assistant_text,created_at FROM conversation_turns WHERE project_id=? ORDER BY turn_index").all(projectId) });
+    }
     if (req.method === "POST" && url.pathname === "/api/chat") {
       const body = await readBody(req);
       const message = String(body.message || "").trim();
       const sessionId = String(body.sessionId || randomUUID()).slice(0,100);
+      const projectId = String(body.projectId || "legacy");
+      try { requireProject(projectId); } catch (error) { return json(res, 404, { error: error.message }); }
       if (!message) return json(res, 400, { error: "Message vide." });
-      if (sessionBusy.has(sessionId)) return json(res, 409, { error: "Une réponse est déjà en cours dans cette conversation." });
-      sessionBusy.add(sessionId);
+      const busyKey = projectId + ":" + sessionId;
+      if (sessionBusy.has(busyKey)) return json(res, 409, { error: "Une réponse est déjà en cours dans cette conversation." });
+      sessionBusy.add(busyKey);
       res.writeHead(200, { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-cache", Connection: "keep-alive", "X-Accel-Buffering": "no" });
       res.write("event: session\ndata: " + JSON.stringify({ sessionId }) + "\n\n");
       try {
-        const session = await getSession(sessionId);
-        const initialIds = new Set(db.prepare("SELECT id FROM propositions").all().map(row => row.id));
+        const session = await getSession(sessionId, projectId);
+        const initialIds = new Set(db.prepare("SELECT id FROM propositions WHERE project_id=?").all(projectId).map(row => row.id));
         let assistantText = "";
         let reconciliationPass = false;
         const toolEvents = [];
@@ -532,7 +620,7 @@ const server = http.createServer(async (req, res) => {
 
         // Le texte du chat ne suffit pas : si aucune proposition n'a été persistée,
         // demander à Pi une passe interne de rattrapage avec appel d'outil.
-        let newPropositions = db.prepare("SELECT * FROM propositions").all().filter(row => !initialIds.has(row.id));
+        let newPropositions = db.prepare("SELECT * FROM propositions WHERE project_id=?").all(projectId).filter(row => !initialIds.has(row.id));
         const claimsPersistence = /(?:enregistr|ajout|créé|proposition.{0,30}candidate|attend.{0,20}validation)/i.test(assistantText);
         const substantialInput = message.length >= 80;
         let reconciliationError = null;
@@ -552,9 +640,12 @@ const server = http.createServer(async (req, res) => {
           } finally {
             reconciliationPass = false;
           }
-          newPropositions = db.prepare("SELECT * FROM propositions").all().filter(row => !initialIds.has(row.id));
+          newPropositions = db.prepare("SELECT * FROM propositions WHERE project_id=?").all(projectId).filter(row => !initialIds.has(row.id));
         }
         unsubscribe();
+        const turnIndex = Number(db.prepare("SELECT COALESCE(MAX(turn_index),0)+1 AS next FROM conversation_turns WHERE project_id=? AND session_id=?").get(projectId, sessionId).next);
+        db.prepare("INSERT INTO conversation_turns(id,project_id,session_id,turn_index,user_text,assistant_text,created_at) VALUES(?,?,?,?,?,?,?)").run(randomUUID(), projectId, sessionId, turnIndex, message, assistantText, now());
+        recordSnapshot(projectId, sessionId, turnIndex);
         const candidatePropositions = newPropositions.filter(p => p.review_status === "candidate");
         res.write("event: persistence\ndata: " + JSON.stringify({
           created: candidatePropositions.length,
@@ -563,39 +654,46 @@ const server = http.createServer(async (req, res) => {
           reconciliationError,
           toolEvents
         }) + "\n\n");
-        res.write("event: done\ndata: " + JSON.stringify({ state: getState(), propositions: getPropositions().filter(p => p.review_status === "candidate"), relations: getRelations() }) + "\n\n");
+        res.write("event: done\ndata: " + JSON.stringify({ state: getState(projectId), propositions: getPropositions(projectId), relations: getRelations(projectId) }) + "\n\n");
       } catch (error) {
         res.write("event: error\ndata: " + JSON.stringify({ message: error.message || String(error) }) + "\n\n");
       } finally {
-        sessionBusy.delete(sessionId);
+        sessionBusy.delete(busyKey);
         res.end();
       }
       return;
     }
     if (req.method === "POST" && url.pathname === "/api/propositions") {
       const body = await readBody(req);
+      const projectId = String(body.projectId || "legacy");
+      requireProject(projectId);
       const proposal = recordCandidate({
         ...body,
         source: body.source || "user",
         epistemic: body.epistemic || "reported",
         practical: body.practical || "unspecified"
-      });
+      }, projectId);
+      recordSnapshot(projectId, "proposal-created", Number(db.prepare("SELECT COALESCE(MAX(turn_index),0) AS current FROM conversation_turns WHERE project_id=?").get(projectId).current));
       return json(res, 201, { ok: true, proposition: { ...proposal, dimensions: JSON.parse(proposal.dimensions) } });
     }
     if (req.method === "POST" && url.pathname.startsWith("/api/propositions/")) {
       const id = decodeURIComponent(url.pathname.split("/").pop());
       const body = await readBody(req);
       if (!["accepted", "rejected"].includes(body.review_status)) return json(res, 400, { error: "Statut de validation invalide." });
-      const result = db.prepare("UPDATE propositions SET review_status=? WHERE id=? AND review_status='candidate'").run(body.review_status, id);
+      const projectId = String(body.projectId || url.searchParams.get("projectId") || "legacy");
+      const result = db.prepare("UPDATE propositions SET review_status=? WHERE id=? AND project_id=? AND review_status='candidate'").run(body.review_status, id, projectId);
       if (!result.changes) return json(res, 404, { error: "Proposition candidate introuvable." });
+      recordSnapshot(projectId, "proposal-" + id, Number(db.prepare("SELECT COALESCE(MAX(turn_index),0) AS current FROM conversation_turns WHERE project_id=?").get(projectId).current));
       return json(res, 200, { ok: true });
     }
     if (req.method === "POST" && url.pathname.startsWith("/api/relations/")) {
       const id = decodeURIComponent(url.pathname.split("/").pop());
       const body = await readBody(req);
       if (!["accepted", "rejected"].includes(body.review_status)) return json(res, 400, { error: "Statut de validation invalide." });
-      const result = db.prepare("UPDATE relations SET review_status=? WHERE id=? AND review_status='candidate'").run(body.review_status, id);
+      const projectId = String(body.projectId || url.searchParams.get("projectId") || "legacy");
+      const result = db.prepare("UPDATE relations SET review_status=? WHERE id=? AND project_id=? AND review_status='candidate'").run(body.review_status, id, projectId);
       if (!result.changes) return json(res, 404, { error: "Relation candidate introuvable." });
+      recordSnapshot(projectId, "relation-" + id, Number(db.prepare("SELECT COALESCE(MAX(turn_index),0) AS current FROM conversation_turns WHERE project_id=?").get(projectId).current));
       return json(res, 200, { ok: true });
     }
     if (req.method === "POST" && url.pathname.startsWith("/api/dimensions/")) {
@@ -604,8 +702,14 @@ const server = http.createServer(async (req, res) => {
       if (!Object.hasOwn(DIMENSIONS, code) || !EXPLORATION.includes(body.status)) return json(res, 400, { error: "Dimension ou statut invalide." });
       const justification = String(body.justification || "").trim();
       if (["sufficient", "not_applicable"].includes(body.status) && justification.length < 8) return json(res, 400, { error: "Une justification est requise pour ce statut." });
-      db.prepare("UPDATE dimensions SET status=?,justification=?,updated_at=? WHERE code=?").run(body.status, justification, now(), code);
-      return json(res, 200, { ok: true });
+      const projectId = String(body.projectId || url.searchParams.get("projectId") || "legacy");
+      try { requireProject(projectId); } catch (error) { return json(res, 404, { error: error.message }); }
+      const result = db.prepare("UPDATE project_dimensions SET status=?,justification=?,updated_at=? WHERE code=? AND project_id=?").run(body.status, justification, now(), code, projectId);
+      if (result.changes !== 1) return json(res, 404, { error: "Dimension introuvable ; aucune modification enregistrée." });
+      const persisted = db.prepare("SELECT code,status,justification,updated_at FROM project_dimensions WHERE code=? AND project_id=?").get(code, projectId);
+      if (!persisted || persisted.status !== body.status || persisted.justification !== justification) return json(res, 500, { error: "La vérification après écriture a échoué." });
+      recordSnapshot(projectId, "dimension-" + code, Number(db.prepare("SELECT COALESCE(MAX(turn_index),0) AS current FROM conversation_turns WHERE project_id=?").get(projectId).current));
+      return json(res, 200, { ok: true, dimension: persisted });
     }
     if (req.method === "POST" && url.pathname === "/api/references") {
       const body = await readBody(req);
@@ -613,7 +717,9 @@ const server = http.createServer(async (req, res) => {
       const content = String(body.content || "").trim().slice(0,100000);
       if (!title || !content) return json(res, 400, { error: "Titre et contenu requis." });
       const id = randomUUID();
-      db.prepare("INSERT INTO reference_docs(id,title,content,created_at) VALUES(?,?,?,?)").run(id,title,content,now());
+      const projectId = String(body.projectId || "legacy");
+      requireProject(projectId);
+      db.prepare("INSERT INTO reference_docs(id,title,content,created_at,project_id) VALUES(?,?,?,?,?)").run(id,title,content,now(),projectId);
       return json(res, 201, { ok: true, id });
     }
     return json(res, 404, { error: "Route inconnue." });
