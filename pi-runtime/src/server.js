@@ -248,7 +248,7 @@ async function refreshModelCatalog() {
 
 async function initializePi() {
   const { createAgentSession, DefaultResourceLoader, ModelRuntime, SessionManager } = await import("@earendil-works/pi-coding-agent");
-  const { Type } = await import("@earendil-works/pi-ai");
+  const { Type } = await import("typebox");
   piModules = { createAgentSession, SessionManager, DefaultResourceLoader, ModelRuntime, Type };
   process.env.LEMONADE_API_KEY = API_KEY || "local";
   await refreshModelCatalog();
