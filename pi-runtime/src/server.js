@@ -252,6 +252,7 @@ async function initializePi() {
   const chosen = catalogModels.find(m => m.id === selectedModel.id);
   if (!chosen?.labels?.includes("tool-calling")) console.warn("[ICARE] Le modèle choisi n'est pas signalé comme compatible tool-calling.");
   const extensionFactory = (pi) => {
+    const icareToolNames = ["list_available_models", "get_ontology", "get_exploration_state", "search_reference_documents", "list_propositions", "propose_observation", "propose_relation"];
     pi.registerTool({
       name: "list_available_models",
       label: "Catalogue des modèles Lemonade",
@@ -341,6 +342,9 @@ async function initializePi() {
         return { content: [{ type: "text", text: `Relation candidate enregistrée (${relation.id}) ; elle attend une validation humaine.` }], details: relation };
       }
     });
+    // L'API SDK distingue les outils enregistrés des outils actifs : active explicitement ICARE.
+    pi.setActiveTools(icareToolNames);
+    console.log("[ICARE] Outils ICARE enregistrés et activés :", icareToolNames.join(", "));
   };
   piModules.registerTools = extensionFactory;
   return { modelId: selectedModel.id, modelName: chosen?.name || selectedModel.id };
@@ -378,6 +382,7 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, {
         ok: true, model: selectedModel.id, provider: "Lemonade via Pi SDK",
         toolCalling: Boolean(modelInfo?.labels?.includes("tool-calling")),
+        toolDefinitions: ["list_available_models", "get_ontology", "get_exploration_state", "search_reference_documents", "list_propositions", "propose_observation", "propose_relation"],
         dimensionsOrder: DIMENSION_ORDER
       });
     }
@@ -464,6 +469,16 @@ const server = http.createServer(async (req, res) => {
         res.end();
       }
       return;
+    }
+    if (req.method === "POST" && url.pathname === "/api/propositions") {
+      const body = await readBody(req);
+      const proposal = recordCandidate({
+        ...body,
+        source: body.source || "user",
+        epistemic: body.epistemic || "reported",
+        practical: body.practical || "unspecified"
+      });
+      return json(res, 201, { ok: true, proposition: { ...proposal, dimensions: JSON.parse(proposal.dimensions) } });
     }
     if (req.method === "POST" && url.pathname.startsWith("/api/propositions/")) {
       const id = decodeURIComponent(url.pathname.split("/").pop());
