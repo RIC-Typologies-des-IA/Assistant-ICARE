@@ -25,6 +25,12 @@
       target = "/opt/icare-runtime";
       writable = false;
     };
+    # Données utilisateur persistantes sur l’hôte, indépendantes du cycle de vie de la VM.
+    sharedDirectories.icare-data = {
+      source = ''"''${ICARE_DATA_DIR:-$HOME/.local/share/icare-vm/data}"'';
+      target = "/mnt/icare-data";
+      writable = true;
+    };
     # Journaux du service accessibles sur l'hôte, sans connexion à la console VM.
     sharedDirectories.icare-logs = {
       source = ''"''${ICARE_LOG_DIR:-$HOME/.local/share/icare-vm/logs}"'';
@@ -45,7 +51,6 @@
   # nono ignore --allow si le chemin n'existe pas encore.
   systemd.tmpfiles.rules = [
     "d /var/lib/icare 0700 icare icare -"
-    "d /var/lib/icare/data 0700 icare icare -"
   ];
 
   environment.systemPackages = [ pkgs.nodejs_24 pkgs.nono pkgs.cacert ];
@@ -70,7 +75,7 @@
     };
     script = ''
       export HOME=/var/lib/icare
-      export ICARE_DATA_DIR=/var/lib/icare/data
+      export ICARE_DATA_DIR=/mnt/icare-data
       export PI_CODING_AGENT_DIR=/var/lib/icare/pi-agent
       export ICARE_HOST=0.0.0.0
       export ICARE_PORT=8765
@@ -83,8 +88,13 @@
       export NO_PROXY=
       export no_proxy=
       export NODE_USE_ENV_PROXY=1
+      # Migration sans écrasement si une ancienne VM contient encore sa base locale.
+      if [ ! -e /mnt/icare-data/icare.sqlite ] && [ -e /var/lib/icare/data/icare.sqlite ]; then
+        cp -a /var/lib/icare/data/. /mnt/icare-data/
+        echo "[ICARE] Anciennes données locales transférées vers le stockage persistant."
+      fi
       exec nono run --read /opt/icare-runtime --read /nix/store \
-        --allow /var/lib/icare/data --block-net \
+        --allow /mnt/icare-data --block-net \
         --open-port 43128 --open-port 8765 \
         -- node src/server.js
     '';
