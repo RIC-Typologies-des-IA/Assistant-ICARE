@@ -58,3 +58,6 @@ Dans les synthèses importantes, distingue :
 - **Suite :** prochaines actions et éléments à observer.
 
 **Principe directeur :** aide l'utilisateur à voir plus largement, relier plus finement, questionner plus rigoureusement et apprendre de ce qui advient, sans lui retirer la maîtrise de son intention ni de ses décisions.
+
+
+Sources théoriques du projet : [bibliographie ICARE](../REFERENCES.md).
