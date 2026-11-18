@@ -250,13 +250,25 @@ function getProjectManifest(projectId) {
 function persistProjectEvent(event) {
   const validation = validateProjectEvent(event, event.projectId);
   if (!validation.valid) throw new Error(validation.errors.join(" "));
-  const result = db.prepare(`INSERT OR IGNORE INTO project_events
+  const existing = db.prepare("SELECT event_type,event_version,actor_json,origin,occurred_at,causal_context_json,payload_json FROM project_events WHERE event_id=?").get(event.eventId);
+  if (existing) {
+    const same = existing.event_type === event.type &&
+      existing.event_version === event.version &&
+      existing.actor_json === JSON.stringify(event.actor) &&
+      existing.origin === event.origin &&
+      existing.occurred_at === event.occurredAt &&
+      existing.causal_context_json === JSON.stringify(event.causalContext) &&
+      existing.payload_json === JSON.stringify(event.payload);
+    if (!same) throw new Error("Collision : cet eventId existe déjà avec un contenu différent.");
+    return { inserted: false, event };
+  }
+  db.prepare(`INSERT INTO project_events
     (event_id,project_id,event_type,event_version,actor_json,origin,occurred_at,causal_context_json,payload_json,received_at)
     VALUES(?,?,?,?,?,?,?,?,?,?)`).run(
       event.eventId, event.projectId, event.type, event.version, JSON.stringify(event.actor),
       event.origin, event.occurredAt, JSON.stringify(event.causalContext), JSON.stringify(event.payload), now()
     );
-  return { inserted: result.changes === 1, event };
+  return { inserted: true, event };
 }
 function getState(projectId = "legacy") {
   const rows = db.prepare("SELECT * FROM project_dimensions WHERE project_id=?").all(projectId)
@@ -658,7 +670,11 @@ const server = http.createServer(async (req, res) => {
       const description = String(body.description || "").trim().slice(0,4000);
       const context = body.context && typeof body.context === "object" && !Array.isArray(body.context) ? body.context : {};
       const requestId = typeof body.idempotencyKey === "string" ? body.idempotencyKey.trim().slice(0,160) : "";
+      const actor = body.actor ?? { type: "human", id: "local" };
+      const origin = body.origin ?? "local";
       if (body.context != null && (typeof body.context !== "object" || Array.isArray(body.context))) return json(res, 400, { error: "Le contexte doit être un objet JSON." });
+      if (!actor || typeof actor !== "object" || Array.isArray(actor) || typeof actor.type !== "string" || !actor.type.trim()) return json(res, 400, { error: "L'acteur initial est invalide." });
+      if (typeof origin !== "string" || !origin.trim()) return json(res, 400, { error: "L'origine initiale est invalide." });
       if (requestId) {
         const previous = db.prepare("SELECT project_id FROM project_creation_requests WHERE request_id=?").get(requestId);
         if (previous) return json(res, 200, { ok: true, duplicate: true, project: db.prepare("SELECT id,name,description,intention,created_at,updated_at FROM projects WHERE id=?").get(previous.project_id), manifest: getProjectManifest(previous.project_id) });
@@ -672,8 +688,8 @@ const server = http.createServer(async (req, res) => {
         if (requestId) db.prepare("INSERT INTO project_creation_requests(request_id,project_id,created_at) VALUES(?,?,?)").run(requestId,id,created);
         const event = createProjectEvent({
           projectId: id, type: "project.created",
-          actor: body.actor && typeof body.actor === "object" ? body.actor : { type: "human", id: "local" },
-          origin: body.origin || "local",
+          actor,
+          origin,
           occurredAt: created,
           payload: { name, description, intention, context }
         });
