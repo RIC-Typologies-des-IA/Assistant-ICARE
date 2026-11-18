@@ -132,6 +132,7 @@ test("ICARE exposes a manual proposal path independent of model tool-calling", a
 
 test("ICARE verifies custom tools after the Pi session has been created", async () => {
   const server = await readFile(new URL("../src/server.js", import.meta.url), "utf8");
+  assert.ok(server.includes('await import("typebox")'));
   assert.ok(server.includes("session.getActiveToolNames()"));
   assert.ok(server.includes("await created.session.bindExtensions({})"));
   assert.ok(server.includes("session.setActiveToolsByName(ICARE_TOOL_NAMES)"));
