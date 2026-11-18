@@ -338,7 +338,7 @@ async function initializePi() {
       label: "Rechercher dans les références ICARE",
       description: "Recherche dans le corpus documentaire méthodologique local. N'effectue aucune recherche sur Internet.",
       parameters: Type.Object({ query: Type.String({ description: "Notions à rechercher dans les documents de référence." }) }),
-      execute: async (_id, params) => ({ content: [{ type: "text", text: JSON.stringify(searchDocs(params.query), null, 2) }], details: {} })
+      execute: async (_id, params) => ({ content: [{ type: "text", text: JSON.stringify(searchDocs(params.query, projectId), null, 2) }], details: {} })
     });
     pi.registerTool({
       name: "list_propositions",
@@ -420,7 +420,11 @@ async function getSession(id, projectId = "legacy") {
   const resourceLoader = new piModules.DefaultResourceLoader({
     cwd: ROOT, agentDir: AGENT_DIR,
     systemPromptOverride: () => SYSTEM_PROMPT,
-    appendSystemPromptOverride: () => [],
+    appendSystemPromptOverride: () => {
+      const turns = db.prepare("SELECT user_text,assistant_text FROM conversation_turns WHERE project_id=? ORDER BY turn_index").all(projectId);
+      if (!turns.length) return [];
+      return ["HISTORIQUE DU PROJET — les échanges ci-dessous appartiennent à ce projet et servent de contexte de reprise :\n" + turns.map((turn, index) => "Échange " + (index + 1) + "\nUtilisateur : " + turn.user_text + "\nICARE : " + turn.assistant_text).join("\n\n")];
+    },
     extensionFactories: [pi => piModules.registerTools(pi, projectId)]
   });
   try {
@@ -524,8 +528,9 @@ const server = http.createServer(async (req, res) => {
       const projectId = String(body.projectId || "legacy");
       try { requireProject(projectId); } catch (error) { return json(res, 404, { error: error.message }); }
       if (!message) return json(res, 400, { error: "Message vide." });
-      if (sessionBusy.has(sessionId)) return json(res, 409, { error: "Une réponse est déjà en cours dans cette conversation." });
-      sessionBusy.add(sessionId);
+      const busyKey = projectId + ":" + sessionId;
+      if (sessionBusy.has(busyKey)) return json(res, 409, { error: "Une réponse est déjà en cours dans cette conversation." });
+      sessionBusy.add(busyKey);
       res.writeHead(200, { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-cache", Connection: "keep-alive", "X-Accel-Buffering": "no" });
       res.write("event: session\ndata: " + JSON.stringify({ sessionId }) + "\n\n");
       try {
@@ -591,7 +596,7 @@ const server = http.createServer(async (req, res) => {
       } catch (error) {
         res.write("event: error\ndata: " + JSON.stringify({ message: error.message || String(error) }) + "\n\n");
       } finally {
-        sessionBusy.delete(sessionId);
+        sessionBusy.delete(busyKey);
         res.end();
       }
       return;
