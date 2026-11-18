@@ -468,7 +468,8 @@ const server = http.createServer(async (req, res) => {
           created: candidatePropositions.length,
           propositions: candidatePropositions.map(p => ({ id: p.id, text: p.text, dimensions: JSON.parse(p.dimensions), review_status: p.review_status })),
           unconfirmedClaim: candidatePropositions.length === 0 && claimsPersistence,
-          reconciliationError
+          reconciliationError,
+          toolEvents
         }) + "\n\n");
         res.write("event: done\ndata: " + JSON.stringify({ state: getState(), propositions: getPropositions().filter(p => p.review_status === "candidate"), relations: getRelations() }) + "\n\n");
       } catch (error) {
