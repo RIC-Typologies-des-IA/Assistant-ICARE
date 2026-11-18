@@ -122,6 +122,15 @@ $("#chatForm").addEventListener("submit",async e=>{
   while(true){const {value,done}=await reader.read();if(done)break;buffer+=decoder.decode(value,{stream:true});let cut;
    while((cut=buffer.indexOf("\n\n"))>=0){const frame=buffer.slice(0,cut);buffer=buffer.slice(cut+2);const lines=frame.split("\n");const event=lines.find(l=>l.startsWith("event:"))?.slice(6).trim();const data=lines.find(l=>l.startsWith("data:"))?.slice(5).trim();if(!data)continue;const payload=JSON.parse(data);
     if(event==="delta"){bubble.textContent+=payload.text;$("#messages").scrollTop=$("#messages").scrollHeight}
+    if(event==="persistence"){
+     if(payload.created>0){
+      bubble.textContent+="\\n\\n✓ "+payload.created+" proposition(s) candidate(s) réellement enregistrée(s) et visible(s) dans le panneau ICARE.";
+     }else if(payload.unconfirmedClaim){
+      bubble.textContent+="\\n\\n⚠️ Aucune proposition n'a été retrouvée dans le registre. Le texte précédent ne constitue donc pas un enregistrement ; vérifie la compatibilité tool-calling du modèle actif.";
+     }else if(payload.reconciliationError){
+      bubble.textContent+="\\n\\n⚠️ La vérification de persistance a échoué : "+payload.reconciliationError;
+     }
+    }
     if(event==="error")throw new Error(payload.message);
    }
   }
