@@ -6,9 +6,11 @@
 <style>
 :root{font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#202733;background:#f3f5f8;font-synthesis:none}
 *{box-sizing:border-box}body{margin:0}header{background:#172b4d;color:white;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;gap:16px}
-header h1{font-size:20px;margin:0;letter-spacing:.02em}header p{font-size:12px;margin:4px 0 0;color:#c8d4e5}.brand-lockup{display:flex;align-items:center;gap:13px;min-width:0}.ric-symbol{width:48px;height:48px;flex:0 0 48px}.brand-copy{min-width:0}.brand-affiliation{font-size:12px;margin:5px 0 0;color:#dce6f2}.brand-affiliation a{color:#fff;text-decoration:underline;text-decoration-color:#8da9c9;text-underline-offset:3px}.brand-affiliation a:hover{color:#f2c28e}.badge{font-size:12px;background:#29476f;border-radius:20px;padding:7px 11px}.modelbar{display:flex;align-items:center;gap:8px}.modelbar select{max-width:250px;font-size:12px}.modelbar button{font-size:12px;padding:8px 10px}.modelbar .voice-select{max-width:180px}
+header h1{font-size:20px;margin:0;letter-spacing:.02em}header p{font-size:12px;margin:4px 0 0;color:#c8d4e5}.brand-lockup{display:flex;align-items:center;gap:13px;min-width:0}.ric-symbol{width:48px;height:48px;flex:0 0 48px}.brand-copy{min-width:0}.brand-affiliation{font-size:12px;margin:5px 0 0;color:#dce6f2}.brand-affiliation a{color:#fff;text-decoration:underline;text-decoration-color:#8da9c9;text-underline-offset:3px}.brand-affiliation a:hover{color:#f2c28e}.badge{font-size:12px;background:#29476f;border-radius:20px;padding:7px 11px}.modelbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.projectbar{display:flex;align-items:center;gap:6px}.projectbar select{max-width:190px;font-size:12px}.projectbar input{width:130px;font-size:12px;padding:8px}.modelbar select{max-width:250px;font-size:12px}.modelbar button{font-size:12px;padding:8px 10px}.modelbar .voice-select{max-width:180px}
 .composer{align-items:stretch}.composer textarea{min-width:0}.mic-button{min-width:44px;padding:8px;font-size:18px;display:flex;align-items:center;justify-content:center}.mic-button.recording{background:#a93232;color:white}.voice-hint{font-size:11px;color:#657287;align-self:center}
 @media(max-width:850px){header{align-items:flex-start;flex-direction:column}.modelbar{width:100%;flex-wrap:wrap}.modelbar select{max-width:45%;min-width:130px}}
+.projectbar{display:flex;align-items:center;gap:6px}.projectbar select{max-width:190px;font-size:12px}.projectbar input{width:130px;font-size:12px;padding:8px}
+
 main{max-width:1320px;margin:22px auto;padding:0 18px;display:grid;grid-template-columns:minmax(0,1.6fr) minmax(310px,1fr);gap:18px}
 .panel{background:white;border:1px solid #e1e6ed;border-radius:14px;box-shadow:0 2px 10px #1c2b3a0a;overflow:hidden}.panel h2{font-size:15px;margin:0;padding:15px 17px;border-bottom:1px solid #edf0f4}
 .chat{display:flex;flex-direction:column;min-height:72vh}.messages{padding:18px;display:flex;flex-direction:column;gap:13px;flex:1;overflow:auto;max-height:62vh}
@@ -16,19 +18,20 @@ main{max-width:1320px;margin:22px auto;padding:0 18px;display:grid;grid-template
 textarea,input,select{font:inherit;border:1px solid #d6dde7;border-radius:9px;padding:10px;background:#fff;color:#202733}textarea{resize:vertical;min-height:54px;flex:1}
 button{border:0;border-radius:9px;padding:10px 14px;background:#2458a6;color:white;font-weight:600;cursor:pointer}button:disabled{opacity:.5;cursor:wait}.secondary{background:#e8edf5;color:#25354c}.danger{background:#fae9e8;color:#8b2b27}
 .side{display:flex;flex-direction:column;gap:18px}.dimension{padding:12px 15px;border-bottom:1px solid #f0f2f5}.dimtop{display:flex;justify-content:space-between;align-items:center;gap:10px}.dimtop strong{font-size:14px}.dimtop small{color:#758195}.dimmeta{font-size:12px;color:#657287;margin:6px 0}.dimension select{padding:6px;font-size:12px;max-width:150px}.just{width:100%;font-size:12px;margin-top:7px}.dimension .save-dimension{margin-top:7px;padding:6px 10px;font-size:11px}.feedback{font-size:12px;margin-left:8px;color:#28633a}.proposal-form{padding:12px 15px;border-bottom:1px solid #edf0f4}.proposal-form textarea{width:100%;min-height:78px;margin-bottom:8px}.dimension-checks{display:flex;flex-wrap:wrap;gap:8px 12px;margin:4px 0 10px}.dimension-checks label{font-size:12px;white-space:nowrap}.dimension-checks input{vertical-align:middle}
-.proposition{padding:12px 15px;border-bottom:1px solid #f0f2f5}.proposition p{font-size:13px;line-height:1.45;margin:0 0 7px}.tags{font-size:11px;color:#657287}.actions{display:flex;gap:7px;margin-top:8px}.actions button{font-size:11px;padding:6px 9px}
-.docs{padding:14px}.docs input{width:100%;margin-bottom:7px}.docs textarea{width:100%;min-height:80px;margin-bottom:7px}.hint{font-size:12px;color:#718096;line-height:1.5;padding:0 15px 14px}
+.proposition{padding:12px 15px;border-bottom:1px solid #f0f2f5}.proposal-group h3{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:#526176;margin:0;padding:11px 15px;background:#f7f9fc;border-bottom:1px solid #edf0f4}.proposal-group.rejected{border-top:1px solid #e8ecf2}.proposal-group.rejected summary{font-size:12px;color:#718096;padding:12px 15px;cursor:pointer}.proposal-count{font-size:11px;color:#758195;font-weight:400;margin-left:6px}.proposition p{font-size:13px;line-height:1.45;margin:0 0 7px}.tags{font-size:11px;color:#657287}.actions{display:flex;gap:7px;margin-top:8px}.actions button{font-size:11px;padding:6px 9px}
+.docs{padding:14px}.radar-wrap{padding:10px 14px 14px}.radar-wrap svg{display:block;width:100%;max-width:330px;margin:auto}.timeline{padding:0 15px 14px}.timeline input{width:100%;padding:0}.timeline-label{font-size:11px;color:#657287;display:flex;justify-content:space-between;gap:10px}.replay-summary{font-size:11px;color:#657287;margin-top:6px}.docs input{width:100%;margin-bottom:7px}.docs textarea{width:100%;min-height:80px;margin-bottom:7px}.hint{font-size:12px;color:#718096;line-height:1.5;padding:0 15px 14px}
 #status{font-size:12px;color:#dbeafe}#error{color:#9b2828;font-size:13px;padding:0 16px}
 @media(max-width:850px){main{grid-template-columns:1fr}.chat{min-height:65vh}.messages{max-height:52vh}header{padding:15px}}
 </style>
 </head>
 <body>
-<header><div class="brand-lockup"><svg class="ric-symbol" viewBox="0 0 64 64" role="img" aria-label="Symbole graphique de reliance inspiré de l'identité du Réseau Intelligence de la Complexité"><g fill="none" stroke-width="4" stroke-linecap="round"><path d="M13 34c-5-10 1-22 12-25 9-3 19 2 22 11" stroke="#9fc58b"/><path d="M48 20c9 5 12 16 6 25-5 8-16 11-25 6" stroke="#d9a06d"/><path d="M29 51C18 55 7 49 5 38c-2-9 3-18 11-22" stroke="#9fc58b"/></g><circle cx="32" cy="32" r="7" fill="#d9a06d"/><circle cx="32" cy="32" r="2.5" fill="#172b4d"/></svg><div class="brand-copy"><h1>ICARE</h1><p>Dialogue maïeutique · représentation évolutive d'un système</p><p class="brand-affiliation">Un outil du laboratoire IA du <a href="https://www.intelligence-complexite.org/" target="_blank" rel="noopener noreferrer">Réseau Intelligence de la Complexité</a></p></div></div><div class="modelbar"><select id="modelSelect" aria-label="Modèle de traitement du texte"><option>Chargement du catalogue…</option></select><select id="voiceModelSelect" class="voice-select" aria-label="Modèle de transcription vocale" title="Modèle de reconnaissance vocale"><option>Chargement des modèles vocaux…</option></select><button class="secondary" id="refreshModels" type="button">Actualiser</button><div class="badge" id="status">Connexion à Pi / Lemonade…</div></div></header>
+<header><div class="brand-lockup"><svg class="ric-symbol" viewBox="0 0 64 64" role="img" aria-label="Symbole graphique de reliance inspiré de l'identité du Réseau Intelligence de la Complexité"><g fill="none" stroke-width="4" stroke-linecap="round"><path d="M13 34c-5-10 1-22 12-25 9-3 19 2 22 11" stroke="#9fc58b"/><path d="M48 20c9 5 12 16 6 25-5 8-16 11-25 6" stroke="#d9a06d"/><path d="M29 51C18 55 7 49 5 38c-2-9 3-18 11-22" stroke="#9fc58b"/></g><circle cx="32" cy="32" r="7" fill="#d9a06d"/><circle cx="32" cy="32" r="2.5" fill="#172b4d"/></svg><div class="brand-copy"><h1>ICARE</h1><p>Dialogue maïeutique · représentation évolutive d'un système</p><p class="brand-affiliation">Un outil du laboratoire IA du <a href="https://www.intelligence-complexite.org/" target="_blank" rel="noopener noreferrer">Réseau Intelligence de la Complexité</a></p></div></div><div class="modelbar"><div class="projectbar"><select id="projectSelect" aria-label="Projet"><option>Chargement des projets…</option></select><input id="newProjectName" placeholder="Nouveau projet" aria-label="Nom du nouveau projet"><button id="createProject" class="secondary" type="button">Créer</button></div><select id="modelSelect" aria-label="Modèle de traitement du texte"><option>Chargement du catalogue…</option></select><select id="voiceModelSelect" class="voice-select" aria-label="Modèle de transcription vocale" title="Modèle de reconnaissance vocale"><option>Chargement des modèles vocaux…</option></select><button class="secondary" id="refreshModels" type="button">Actualiser</button><div class="badge" id="status">Connexion à Pi / Lemonade…</div></div></header>
 <main>
 <section class="panel chat"><h2>Conversation</h2><div class="messages" id="messages"><div class="msg assistant">Bonjour. Quel système souhaites-tu explorer ? Nous allons construire sa représentation progressivement, sans dérouler un questionnaire rigide.</div></div><div id="error"></div><form class="composer" id="chatForm"><textarea id="message" placeholder="Décris une situation, une évolution, une difficulté…" required></textarea><button id="record" class="secondary mic-button" type="button" aria-label="Démarrer la dictée" title="Dicter un message">🎙</button><button id="send">Envoyer</button></form></section>
 <aside class="side">
+<section class="panel"><h2>Progression de l’exploration</h2><div class="radar-wrap"><svg id="radar" viewBox="0 0 320 270" role="img" aria-label="Couverture des cinq dimensions ICARE"><g id="radarGrid"></g><polygon id="radarArea" points="" fill="#6d9fe0" fill-opacity=".25" stroke="#2458a6" stroke-width="2"></polygon><g id="radarLabels"></g></svg><p class="hint">Centre : non exploré · niveau intermédiaire : insuffisamment documenté · périphérie : suffisamment exploré. N/A reste hors périmètre.</p></div><div class="timeline"><div class="timeline-label"><span id="timelineStart">Début du projet</span><span id="timelinePosition">État actuel</span></div><input id="timelineSlider" type="range" min="0" max="0" value="0" disabled><div class="replay-summary" id="replaySummary">La progression apparaîtra au fil des échanges.</div><div class="replay-summary" id="replayPropositions"></div></div></section>
 <section class="panel"><h2>État d'exploration ICARE</h2><div id="dimensions"></div><p class="hint">Choisis un statut, ajoute une justification si nécessaire, puis clique sur « Enregistrer ». Les modifications ne sont jamais silencieuses.</p></section>
-<section class="panel"><h2>Propositions à valider</h2>
+<section class="panel"><h2>Registre des propositions</h2>
 <div class="proposal-form">
 <form id="proposalForm">
 <textarea id="proposalText" placeholder="Énoncé de l'observation à enregistrer…" required></textarea>
@@ -42,15 +45,20 @@ button{border:0;border-radius:9px;padding:10px 14px;background:#2458a6;color:whi
 <button type="submit">Enregistrer la proposition</button><span id="proposalFeedback" class="feedback" role="status"></span>
 </form>
 </div>
-<div id="propositions"><p class="hint">Aucune proposition en attente.</p></div></section>
+<div class="proposal-group"><h3>Validées <span class="proposal-count" id="acceptedCount">0</span></h3><div id="acceptedPropositions"></div></div><div class="proposal-group"><h3>À valider <span class="proposal-count" id="candidateCount">0</span></h3><div id="candidatePropositions"></div></div><details class="proposal-group rejected"><summary>Propositions rejetées <span class="proposal-count" id="rejectedCount">0</span></summary><div id="rejectedPropositions"></div></details></section>
 <section class="panel"><h2>Relations à valider</h2><div id="relations"><p class="hint">Aucune relation en attente.</p></div><p class="hint">Les relations entre propositions (évolution, précision, contradiction, dépendance…) sont elles aussi soumises à validation humaine.</p></section>
 <section class="panel"><h2>Mémoire documentaire</h2><div class="docs"><form id="docForm"><input id="docTitle" placeholder="Titre du document" required><textarea id="docContent" placeholder="Colle ici un extrait ou un document de référence…" required></textarea><button class="secondary" type="submit">Ajouter à la mémoire</button></form></div><p class="hint">Les documents enrichissent la référence méthodologique locale. Ils ne sont pas utilisés comme preuves sur le système étudié.</p></section>
 </aside>
 </main>
 <script>
 const $=s=>document.querySelector(s);
-const sessionKey="icare-pi-session";
+let sessionKey="icare-pi-session:legacy";
+let currentProjectId=localStorage.getItem("icare-current-project")||"legacy";
+sessionKey="icare-pi-session:"+currentProjectId;
 let sessionId=localStorage.getItem(sessionKey)||crypto.randomUUID();localStorage.setItem(sessionKey,sessionId);
+let timelineSnapshots=[];
+let projectTurns=[];
+function projectUrl(path){return path+(path.includes("?")?"&":"?")+"projectId="+encodeURIComponent(currentProjectId)}
 function addMessage(role,text){const el=document.createElement("div");el.className="msg "+role;el.textContent=text;$("#messages").append(el);$("#messages").scrollTop=$("#messages").scrollHeight;return el}
 function updateModelStatus(modelId, models){
  const model=models.find(m=>m.id===modelId);
@@ -90,6 +98,48 @@ $("#modelSelect").addEventListener("change",async()=>{
   if(!x.toolCalling)$("#error").textContent="Attention : Lemonade ne signale pas le tool-calling pour ce modèle ; l'alimentation automatique du panneau ICARE n'est pas garantie.";
  }catch(e){$("#error").textContent=e.message;await loadModels()}
 });
+async function loadProjects(){
+ const r=await fetch("/api/projects");const data=await r.json();if(!r.ok)throw new Error(data.error||"Impossible de charger les projets");
+ const select=$("#projectSelect");select.innerHTML="";
+ for(const p of data.projects){const option=document.createElement("option");option.value=p.id;option.textContent=p.name;select.append(option)}
+ if(!data.projects.some(p=>p.id===currentProjectId))currentProjectId=data.projects[0]?.id||"legacy";
+ select.value=currentProjectId;localStorage.setItem("icare-current-project",currentProjectId);
+}
+function renderConversation(turns){
+ $("#messages").innerHTML="";
+ if(!turns.length){addMessage("assistant","Bonjour. Quel système souhaites-tu explorer ? Nous allons construire sa représentation progressivement, sans dérouler un questionnaire rigide.");return}
+ for(const turn of turns){addMessage("user",turn.user_text);addMessage("assistant",turn.assistant_text)}
+}
+function renderRadar(dimensions){
+ const order=["I","C","A","R","E"],cx=160,cy=128,r=94;
+ const labels=$("#radarLabels"),grid=$("#radarGrid");labels.innerHTML="";grid.innerHTML="";
+ for(let ring=1;ring<=2;ring++){const pts=order.map((_,i)=>{const a=-Math.PI/2+i*2*Math.PI/5;return (cx+Math.cos(a)*r*ring/2)+","+(cy+Math.sin(a)*r*ring/2)}).join(" ");const poly=document.createElementNS("http://www.w3.org/2000/svg","polygon");poly.setAttribute("points",pts);poly.setAttribute("fill","none");poly.setAttribute("stroke","#d9e0e9");grid.append(poly)}
+ const values=[];
+ for(let i=0;i<order.length;i++){const a=-Math.PI/2+i*2*Math.PI/5,d=dimensions.find(x=>x.code===order[i]);const status=d?.status||"unexplored";const level=status==="sufficient"?2:status==="insufficient"?1:0;const x=cx+Math.cos(a)*r*level/2,y=cy+Math.sin(a)*r*level/2;values.push({x,y,status,code:order[i],a});
+  const spoke=document.createElementNS("http://www.w3.org/2000/svg","line");spoke.setAttribute("x1",cx);spoke.setAttribute("y1",cy);spoke.setAttribute("x2",cx+Math.cos(a)*r);spoke.setAttribute("y2",cy+Math.sin(a)*r);spoke.setAttribute("stroke","#d9e0e9");grid.append(spoke);
+  const label=document.createElementNS("http://www.w3.org/2000/svg","text");label.setAttribute("x",cx+Math.cos(a)*(r+18));label.setAttribute("y",cy+Math.sin(a)*(r+18)+4);label.setAttribute("text-anchor","middle");label.setAttribute("font-size","12");label.setAttribute("font-weight","600");label.setAttribute("fill","#35445a");label.textContent=order[i];labels.append(label);
+  if(status==="not_applicable"){const na=document.createElementNS("http://www.w3.org/2000/svg","text");na.setAttribute("x",cx+Math.cos(a)*(r*.78));na.setAttribute("y",cy+Math.sin(a)*(r*.78)+4);na.setAttribute("text-anchor","middle");na.setAttribute("font-size","10");na.setAttribute("fill","#9b6a28");na.textContent="N/A";labels.append(na)}
+ }
+ $("#radarArea").setAttribute("points",values.map(v=>v.x+","+v.y).join(" "));
+}
+function renderTimeline(index){
+ if(!timelineSnapshots.length)return;
+ const snap=timelineSnapshots[index];renderRadar(snap.dimensions);
+ renderConversation(projectTurns.filter(turn=>turn.turn_index<=snap.turn_index));
+ $("#timelineSlider").value=index;$("#timelinePosition").textContent=(index+1)+" / "+timelineSnapshots.length;
+ const accepted=snap.propositions.filter(p=>p.review_status==="accepted").length,candidate=snap.propositions.filter(p=>p.review_status==="candidate").length,rejected=snap.propositions.filter(p=>p.review_status==="rejected").length;
+ $("#replaySummary").textContent=new Date(snap.created_at).toLocaleString("fr-FR")+" · échange "+snap.turn_index+" · "+snap.propositions.length+" proposition(s) ; "+accepted+" validée(s), "+candidate+" en attente, "+rejected+" rejetée(s).";
+ $("#replayPropositions").textContent=snap.propositions.slice(0,4).map(p=>"• "+p.text).join("  ");
+}
+async function loadTimeline(){
+ const r=await fetch(projectUrl("/api/timeline"));const data=await r.json();timelineSnapshots=data.snapshots||[];
+ const slider=$("#timelineSlider");slider.min="0";slider.max=String(Math.max(0,timelineSnapshots.length-1));slider.disabled=timelineSnapshots.length===0;
+ $("#timelineStart").textContent=timelineSnapshots.length?new Date(timelineSnapshots[0].created_at).toLocaleDateString("fr-FR"):"Début du projet";
+ if(timelineSnapshots.length)renderTimeline(timelineSnapshots.length-1);
+}
+$("#timelineSlider").addEventListener("input",e=>renderTimeline(Number(e.target.value)));
+$("#projectSelect").addEventListener("change",async()=>{currentProjectId=$("#projectSelect").value;localStorage.setItem("icare-current-project",currentProjectId);sessionKey="icare-pi-session:"+currentProjectId;sessionId=localStorage.getItem(sessionKey)||crypto.randomUUID();localStorage.setItem(sessionKey,sessionId);await refresh()});
+$("#createProject").addEventListener("click",async()=>{const name=$("#newProjectName").value.trim();if(!name)return;const r=await fetch("/api/projects",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name})});const x=await r.json();if(!r.ok){$("#error").textContent=x.error;return}$("#newProjectName").value="";currentProjectId=x.project.id;await loadProjects();$("#projectSelect").value=currentProjectId;sessionKey="icare-pi-session:"+currentProjectId;sessionId=crypto.randomUUID();localStorage.setItem(sessionKey,sessionId);await refresh()});
 function audioBufferToWav(audioBuffer){
  const targetRate=16000, sourceRate=audioBuffer.sampleRate, length=Math.ceil(audioBuffer.duration*targetRate);
  const channels=Array.from({length:audioBuffer.numberOfChannels},(_,i)=>audioBuffer.getChannelData(i));
@@ -133,7 +183,9 @@ $("#record").addEventListener("click",async()=>{
  }catch(error){$("#error").textContent=error.message||String(error)}
 });
 async function refresh(){
- const r=await fetch("/api/state");const data=await r.json();
+ const r=await fetch(projectUrl("/api/state"));const data=await r.json();
+ projectTurns=data.turns||[];
+ renderConversation(projectTurns);
  $("#dimensions").innerHTML="";
  const order=["I","C","A","R","E"];
  data.dimensions.sort((a,b)=>order.indexOf(a.code)-order.indexOf(b.code));
@@ -144,31 +196,41 @@ async function refresh(){
   const sel=document.createElement("select");
   for(const [v,t] of [["unexplored","Non explorée"],["insufficient","Insuffisamment documentée"],["sufficient","Suffisamment explorée"],["not_applicable","Non applicable"]]){const o=document.createElement("option");o.value=v;o.textContent=t;o.selected=d.status===v;sel.append(o)}
   label.append(name,sel);row.append(label);
-  const meta=document.createElement("div");meta.className="dimmeta";meta.textContent=d.accepted+" validée(s) · "+d.candidates+" en attente";row.append(meta);
+  const meta=document.createElement("div");meta.className="dimmeta";meta.textContent=d.accepted+" validée(s) · "+d.candidates+" en attente · "+(d.rejected||0)+" rejetée(s)";row.append(meta);
   const just=document.createElement("input");just.className="just";just.placeholder="Justification (requise pour « suffisamment explorée » ou « non applicable »)";just.value=d.justification||"";row.append(just);
   const save=document.createElement("button");save.className="save-dimension";save.textContent="Enregistrer";row.append(save);
   const feedback=document.createElement("div");feedback.className="feedback";row.append(feedback);
-  save.addEventListener("click",async()=>{save.disabled=true;feedback.textContent="Enregistrement…";try{const rr=await fetch("/api/dimensions/"+d.code,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({status:sel.value,justification:just.value})});const x=await rr.json();if(!rr.ok)throw new Error(x.error||"Échec de l'enregistrement");feedback.textContent="Enregistré";await refresh()}catch(err){feedback.textContent=err.message;feedback.style.color="#9b2828"}finally{save.disabled=false}});
+  save.addEventListener("click",async()=>{save.disabled=true;feedback.textContent="Enregistrement…";try{const rr=await fetch("/api/dimensions/"+d.code,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({projectId:currentProjectId,status:sel.value,justification:just.value})});const x=await rr.json();if(!rr.ok)throw new Error(x.error||"Échec de l'enregistrement");feedback.textContent="Enregistré";await refresh()}catch(err){feedback.textContent=err.message;feedback.style.color="#9b2828"}finally{save.disabled=false}});
   $("#dimensions").append(row);
  }
- $("#propositions").innerHTML="";
- const pending=data.propositions.filter(p=>p.review_status==="candidate");
- if(!pending.length){$("#propositions").innerHTML='<p class="hint">Aucune proposition en attente.</p>'}
- for(const p of pending){
-  const row=document.createElement("div");row.className="proposition";
-  const text=document.createElement("p");text.textContent=p.text;row.append(text);
-  const tags=document.createElement("div");tags.className="tags";
-  const qualifiers=[p.dimensions.join(" + "),p.temporal,p.evaluation,p.modality,p.epistemic,p.practical].filter(Boolean);
-  if(p.valid_time_start||p.valid_time_end)qualifiers.push("validité : "+(p.valid_time_start||"?")+" → "+(p.valid_time_end||"?"));
-  if(p.target_horizon)qualifiers.push("horizon : "+p.target_horizon);
-  if(p.source)qualifiers.push("source : "+p.source);
-  tags.textContent=qualifiers.join(" · ");row.append(tags);
-  const actions=document.createElement("div");actions.className="actions";
-  for(const [status,label,cls] of [["accepted","Valider",""],["rejected","Rejeter","danger"]]){
-   const b=document.createElement("button");b.textContent=label;if(cls)b.className=cls;
-   b.onclick=async()=>{await fetch("/api/propositions/"+p.id,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({review_status:status})});refresh()};actions.append(b)
+ const groups={accepted:$("#acceptedPropositions"),candidate:$("#candidatePropositions"),rejected:$("#rejectedPropositions")};
+ for(const node of Object.values(groups))node.innerHTML="";
+ const byStatus={accepted:[],candidate:[],rejected:[]};
+ for(const p of data.propositions){if(byStatus[p.review_status])byStatus[p.review_status].push(p)}
+ $("#acceptedCount").textContent=byStatus.accepted.length;
+ $("#candidateCount").textContent=byStatus.candidate.length;
+ $("#rejectedCount").textContent=byStatus.rejected.length;
+ for(const [status,items] of Object.entries(byStatus)){
+  if(!items.length){groups[status].innerHTML='<p class="hint">Aucune proposition '+(status==="accepted"?"validée":status==="rejected"?"rejetée":"en attente")+'.</p>';continue}
+  for(const p of items){
+   const row=document.createElement("div");row.className="proposition";
+   const text=document.createElement("p");text.textContent=p.text;row.append(text);
+   const tags=document.createElement("div");tags.className="tags";
+   const qualifiers=[(p.dimensions||[]).join(" + "),p.temporal,p.evaluation,p.modality,p.epistemic,p.practical].filter(Boolean);
+   if(p.valid_time_start||p.valid_time_end)qualifiers.push("validité : "+(p.valid_time_start||"?")+" → "+(p.valid_time_end||"?"));
+   if(p.target_horizon)qualifiers.push("horizon : "+p.target_horizon);
+   if(p.source)qualifiers.push("source : "+p.source);
+   tags.textContent=qualifiers.join(" · ");row.append(tags);
+   if(status==="candidate"){
+    const actions=document.createElement("div");actions.className="actions";
+    for(const [nextStatus,label,cls] of [["accepted","Valider",""],["rejected","Rejeter","danger"]]){
+     const b=document.createElement("button");b.textContent=label;if(cls)b.className=cls;
+     b.onclick=async()=>{const r=await fetch("/api/propositions/"+p.id,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({projectId:currentProjectId,review_status:nextStatus})});if(!r.ok){const x=await r.json();$("#error").textContent=x.error||"Échec de la décision";return}refresh()};actions.append(b)
+    }
+    row.append(actions)
+   }
+   groups[status].append(row)
   }
-  row.append(actions);$("#propositions").append(row)
  }
  $("#relations").innerHTML="";
  const pendingRelations=(data.relations||[]).filter(r=>r.review_status==="candidate");
@@ -181,16 +243,17 @@ async function refresh(){
   const actions=document.createElement("div");actions.className="actions";
   for(const [status,label,cls] of [["accepted","Valider",""],["rejected","Rejeter","danger"]]){
    const b=document.createElement("button");b.textContent=label;if(cls)b.className=cls;
-   b.onclick=async()=>{await fetch("/api/relations/"+rel.id,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({review_status:status})});refresh()};actions.append(b)
+   b.onclick=async()=>{await fetch("/api/relations/"+rel.id,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({projectId:currentProjectId,review_status:status})});refresh()};actions.append(b)
   }
   row.append(actions);$("#relations").append(row)
  }
+ await loadTimeline();
 }
 $("#chatForm").addEventListener("submit",async e=>{
  e.preventDefault();const text=$("#message").value.trim();if(!text)return;
  $("#message").value="";addMessage("user",text);const bubble=addMessage("assistant","");$("#send").disabled=true;$("#error").textContent="";
  try{
-  const response=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sessionId,message:text})});
+  const response=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sessionId,projectId:currentProjectId,message:text})});
   if(!response.ok){const x=await response.json();throw new Error(x.error||"Erreur serveur")}
   const reader=response.body.getReader(),decoder=new TextDecoder();let buffer="";
   while(true){const {value,done}=await reader.read();if(done)break;buffer+=decoder.decode(value,{stream:true});let cut;
@@ -221,7 +284,7 @@ $("#proposalForm").addEventListener("submit",async e=>{
  e.preventDefault();const feedback=$("#proposalFeedback");const button=e.submitter;button.disabled=true;feedback.textContent="Enregistrement…";feedback.style.color="#28633a";
  try{
   const dimensions=[...document.querySelectorAll('input[name="proposalDimension"]:checked')].map(x=>x.value);
-  const r=await fetch("/api/propositions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:$("#proposalText").value,dimensions,source:"user",epistemic:"reported"})});
+  const r=await fetch("/api/propositions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({projectId:currentProjectId,text:$("#proposalText").value,dimensions,source:"user",epistemic:"reported"})});
   const x=await r.json();if(!r.ok)throw new Error(x.error||"Échec de l'enregistrement");
   $("#proposalText").value="";document.querySelectorAll('input[name="proposalDimension"]').forEach(x=>x.checked=false);
   feedback.textContent="Proposition enregistrée ("+x.proposition.id.slice(0,8)+") ; en attente de validation.";
@@ -229,8 +292,8 @@ $("#proposalForm").addEventListener("submit",async e=>{
  }catch(err){feedback.textContent=err.message;feedback.style.color="#9b2828"}
  finally{button.disabled=false}
 });
-$("#docForm").addEventListener("submit",async e=>{e.preventDefault();const r=await fetch("/api/references",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({title:$("#docTitle").value,content:$("#docContent").value})});const x=await r.json();if(!r.ok){alert(x.error);return}$("#docTitle").value="";$("#docContent").value="";alert("Document ajouté à la mémoire ICARE.")});
-(async()=>{try{const s=await fetch("/api/status").then(r=>r.json());await loadModels();await refresh();
+$("#docForm").addEventListener("submit",async e=>{e.preventDefault();const r=await fetch("/api/references",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({projectId:currentProjectId,title:$("#docTitle").value,content:$("#docContent").value})});const x=await r.json();if(!r.ok){alert(x.error);return}$("#docTitle").value="";$("#docContent").value="";alert("Document ajouté à la mémoire ICARE.")});
+(async()=>{try{const s=await fetch("/api/status").then(r=>r.json());await loadProjects();await loadModels();await refresh();
  if(!s.toolCalling)$("#error").textContent="Le modèle actif ne déclare pas le tool-calling : les propositions automatiques peuvent échouer. Le formulaire manuel reste disponible.";
  else if(s.toolInitialization==="failed")$("#error").textContent="Échec de l'initialisation des outils ICARE : "+(s.toolInitializationError||"cause inconnue")+". Le formulaire manuel reste disponible.";
  }catch(e){$("#status").textContent="Serveur indisponible"}})();

@@ -2,6 +2,10 @@
 
 Cette application est le runtime expérimental ICARE. [Pi](https://github.com/earendil-works/pi) est intégré au backend Node.js via son [SDK](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/sdk.md) et son [système d'extensions](https://docs.pi.dev/latest/extensions). Le backend tourne dans une VM [NixOS](https://nixos.org/manual/nixos/stable/) / [QEMU](https://www.qemu.org/docs/master/system/) et son processus est sandboxé par [nono](https://github.com/nolabs-ai/nono). [Lemonade Server](https://github.com/lemonade-sdk/lemonade) reste sur l'hôte Linux pour conserver l'accès au NPU.
 
+## Identité de l'application
+
+ICARE est un outil du laboratoire IA du Réseau Intelligence de la Complexité. L'interface conserve cette affiliation et le lien vers le site du Réseau.
+
 ## Documentation des composants
 
 - [Pi — SDK et cycle de vie des sessions](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/sdk.md) ; [extensions et outils personnalisés](https://docs.pi.dev/latest/extensions).
@@ -40,7 +44,7 @@ Au démarrage et à la demande, le backend lit `GET /v1/models?show_all=true` su
 - Les modèles portant le label `tool-calling` sont recommandés. Sans cette capacité, les outils ICARE peuvent ne pas fonctionner correctement.
 - `ICARE_MODEL` reste disponible comme préférence initiale facultative, mais aucun modèle n'est imposé dans le code.
 
-Le choix dynamique s'appuie sur le catalogue Lemonade et le changement de modèle du SDK Pi. Il ne délègue pas à l'agent un pouvoir de modifier seul sa configuration. Le modèle de conversation sélectionné est conservé dans la table `settings` de SQLite et restauré au prochain démarrage.
+Le choix dynamique s'appuie sur le catalogue Lemonade et le changement de modèle du SDK Pi. Il ne délègue pas à l'agent un pouvoir de modifier seul sa configuration.
 
 ## Dictée vocale
 
@@ -67,6 +71,14 @@ Le contrôleur conserve le dernier mot : les propositions attendent une validati
 ## Données
 
 Les données sont conservées dans le disque virtuel QCOW2, sous `/var/lib/icare` dans la VM. SQLite conserve les propositions, les statuts d'exploration, les relations et les documents. Les sessions Pi sont conservées dans le répertoire dédié du runtime.
+
+### Projets et historique
+
+Le tableau de bord permet de créer et sélectionner des projets indépendants. Les données historiques sont migrées sans suppression dans le projet « Projet existant ». Chaque projet possède ses propres propositions, relations, documents et cinq dimensions d'exploration. Les tours de discussion et les snapshots successifs sont enregistrés dans SQLite ; à la reprise, le contexte de conversation du projet est restitué au modèle.
+
+Le registre distingue les propositions validées, en attente et rejetées : une décision ne supprime jamais une proposition. Le curseur temporel parcourt les snapshots, réaffiche la conversation connue à cette étape et met à jour le radar I-C-A-R-E. Le radar représente trois niveaux de couverture documentaire (non exploré, insuffisamment documenté, suffisamment exploré) ; « non applicable » est indiqué séparément et n'est pas assimilé au niveau suffisant.
+
+Les snapshots sont créés après chaque tour et après les décisions de validation ou les changements d'état des dimensions. Le rejeu est consultatif : déplacer le curseur ne modifie pas les données courantes du projet.
 
 ## Initialisation des outils Pi
 
