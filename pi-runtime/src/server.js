@@ -375,6 +375,9 @@ async function getSession(id) {
       model: selectedModel, modelRuntime, resourceLoader, noTools: "builtin",
       sessionManager: SessionManager.create(ROOT)
     });
+    // noTools désactive la sélection initiale des outils ; active les outils ICARE
+    // après création de la session, lorsque l'API de session est pleinement liée.
+    created.session.setActiveToolsByName(ICARE_TOOL_NAMES);
     const activeTools = created.session.getActiveToolNames();
     const missingTools = ICARE_TOOL_NAMES.filter(name => !activeTools.includes(name));
     if (missingTools.length) {
