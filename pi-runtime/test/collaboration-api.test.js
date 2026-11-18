@@ -7,12 +7,13 @@ test("collaboration API exposes versioned project manifests and an idempotent ev
   for (const fragment of [
     'CREATE TABLE IF NOT EXISTS project_events',
     'CREATE TABLE IF NOT EXISTS project_creation_requests',
-    'INSERT OR IGNORE INTO project_events',
+    'INSERT INTO project_events',
     'url.pathname === "/api/projects"',
     "manifest$/.exec",
     "events$/.exec",
     'validateProjectManifest(manifest)',
     'validateProjectEvent(event, projectId)',
+    'Collision : cet eventId existe déjà avec un contenu différent.',
     'body.idempotencyKey',
     'context_json'
   ]) {
