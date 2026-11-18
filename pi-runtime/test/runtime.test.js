@@ -120,6 +120,16 @@ test("ICARE ontology defines dimensions in canonical I-C-A-R-E order", async () 
 });
 
 
+test("Public assets are served with MIME types and traversal protection", async () => {
+  const server = await readFile(new URL("../src/server.js", import.meta.url), "utf8");
+  assert.ok(server.includes('url.pathname.startsWith("/assets/")'));
+  assert.ok(server.includes('[".png", "image/png"]'));
+  assert.ok(server.includes('decodeURIComponent(pathname.slice("/assets/".length))'));
+  assert.ok(server.includes('segments.some(segment => !segment || segment === "." || segment === "..")'));
+  assert.ok(server.includes('file.startsWith(assetRoot + path.sep)'));
+  assert.ok(server.includes('"X-Content-Type-Options": "nosniff"'));
+});
+
 test("ICARE exposes a manual proposal path independent of model tool-calling", async () => {
   const server = await readFile(new URL("../src/server.js", import.meta.url), "utf8");
   const ui = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
