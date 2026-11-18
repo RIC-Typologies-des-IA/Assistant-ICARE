@@ -59,14 +59,25 @@ test("Pi SDK loads a custom Lemonade OpenAI-compatible model", async () => {
       }]
     });
     await resourceLoader.reload();
+    const loadedExtensions = resourceLoader.getExtensions();
+    const loadedToolNames = loadedExtensions.extensions.flatMap(extension =>
+      [...extension.tools.values()].map(tool => tool.definition.name)
+    );
+    assert.ok(loadedToolNames.includes("icare_test_tool"), JSON.stringify({
+      errors: loadedExtensions.errors,
+      loadedToolNames
+    }));
     const { session } = await createAgentSession({
       model, modelRuntime: runtime, resourceLoader,
       sessionManager: SessionManager.inMemory(), noTools: "builtin"
     });
     try {
       await session.bindExtensions({});
+      assert.ok(session.getAllTools().some(tool => tool.name === "icare_test_tool"),
+        "Session registry: " + session.getAllTools().map(tool => tool.name).join(", "));
       session.setActiveToolsByName(["icare_test_tool"]);
-      assert.ok(session.getActiveToolNames().includes("icare_test_tool"));
+      assert.ok(session.getActiveToolNames().includes("icare_test_tool"),
+        "Active tools: " + session.getActiveToolNames().join(", "));
       const second = runtime.getModel("lemonade", "test-chat-model-2");
       assert.ok(second);
       await session.setModel(second);
