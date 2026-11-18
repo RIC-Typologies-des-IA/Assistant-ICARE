@@ -510,7 +510,7 @@ function sendPublicAsset(res, pathname) {
     return json(res, 400, { error: "Chemin de ressource invalide." });
   }
   const segments = relativePath.split("/");
-  if (!relativePath || relativePath.includes("\\\\") ||
+  if (!relativePath || relativePath.includes(String.fromCharCode(92)) ||
       segments.some(segment => !segment || segment === "." || segment === "..")) {
     return json(res, 400, { error: "Chemin de ressource invalide." });
   }
