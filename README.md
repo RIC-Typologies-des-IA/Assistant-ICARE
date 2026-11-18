@@ -33,7 +33,7 @@ Consulter le [README de l'approche par prompt](prompt/README.md) pour choisir et
 
 ### 2. Approche agentique — application Pi, Lemonade, QEMU et nono
 
-Cette approche ajoute un runtime applicatif à la méthode : **Pi (P-I)** dialogue avec les modèles servis par **Lemonade**, tandis qu'un backend conserve l'état d'exploration, les propositions et les documents dans SQLite.
+Cette approche ajoute un runtime applicatif à la méthode : **Pi** dialogue avec les modèles servis par **Lemonade**, tandis qu'un backend conserve l'état d'exploration, les propositions et les documents dans SQLite.
 
 L'application s'exécute dans une VM Linux **QEMU/NixOS**. Le processus ICARE y est sandboxé par **nono**. Lemonade reste sur la machine hôte pour garder l'accès au NPU. Le réseau de la VM est fermé par défaut ; les échanges autorisés passent par le proxy filtré de l'hôte. L'interface est ouverte automatiquement dans le navigateur lorsque l'environnement graphique le permet.
 
