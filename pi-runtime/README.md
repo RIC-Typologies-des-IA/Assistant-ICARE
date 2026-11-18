@@ -1,6 +1,6 @@
 # Runtime ICARE avec Pi, Lemonade, QEMU et nono
 
-Cette application est le runtime expérimental ICARE. Pi (P-I) est intégré au backend Node.js via son SDK. Le backend tourne dans une VM NixOS/QEMU et son processus est sandboxé par nono. Lemonade reste sur l'hôte Linux pour conserver l'accès au NPU.
+Cette application est le runtime expérimental ICARE. Pi est intégré au backend Node.js via son SDK. Le backend tourne dans une VM NixOS/QEMU et son processus est sandboxé par nono. Lemonade reste sur l'hôte Linux pour conserver l'accès au NPU.
 
 ## Lancement
 
