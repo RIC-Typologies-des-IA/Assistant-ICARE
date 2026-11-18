@@ -147,9 +147,9 @@ $("#chatForm").addEventListener("submit",async e=>{
       bubble.textContent+="\n\n⚠️ La vérification de persistance a échoué : "+payload.reconciliationError;
      }
      if(payload.created===0&&Array.isArray(payload.toolEvents)&&payload.toolEvents.length===0){
-      bubble.textContent+="\\nDiagnostic technique : aucun événement d'exécution d'outil Pi n'a été observé pendant ce tour. Le panneau manuel reste utilisable.";
+      bubble.textContent+=String.fromCharCode(10)+"Diagnostic technique : aucun événement d'exécution d'outil Pi n'a été observé pendant ce tour. Le panneau manuel reste utilisable.";
      }else if(payload.created===0&&payload.toolEvents?.length){
-      bubble.textContent+="\\nÉvénements outils observés : "+payload.toolEvents.map(x=>x.name||x.type).join(", ")+".";
+      bubble.textContent+=String.fromCharCode(10)+"Événements outils observés : "+payload.toolEvents.map(x=>x.name||x.type).join(", ")+".";
      }
     }
     if(event==="error")throw new Error(payload.message);
