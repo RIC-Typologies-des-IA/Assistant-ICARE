@@ -97,7 +97,7 @@
       # Le disque qcow2 reste la source de vérité ; aucun fichier existant n'est écrasé.
       if [ ! -e /var/lib/icare/data/icare.sqlite ] && [ -f /mnt/icare-data/icare.sqlite ]; then
         if cp -n /mnt/icare-data/icare.sqlite /var/lib/icare/data/icare.sqlite; then
-          for suffix in -wal -shm; do
+          for suffix in -wal -shm -journal; do
             if [ -f "/mnt/icare-data/icare.sqlite$suffix" ] && [ ! -e "/var/lib/icare/data/icare.sqlite$suffix" ]; then
               cp -n "/mnt/icare-data/icare.sqlite$suffix" "/var/lib/icare/data/icare.sqlite$suffix" || true
             fi
