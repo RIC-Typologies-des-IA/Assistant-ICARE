@@ -89,23 +89,23 @@ test("ICARE ontology defines dimensions in canonical I-C-A-R-E order", async () 
 test("ICARE exposes a manual proposal path independent of model tool-calling", async () => {
   const server = await readFile(new URL("../src/server.js", import.meta.url), "utf8");
   const ui = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
-  assert.match(server, /url\.pathname === "\/api\/propositions"/);
-  assert.match(server, /recordCandidate\(\{/);
-  assert.match(ui, /id="proposalForm"/);
-  assert.match(ui, /Enregistrer la proposition/);
-  assert.match(ui, /fetch\(["']\/api\/propositions["']/);
+  assert.ok(server.includes('url.pathname === "/api/propositions"'));
+  assert.ok(server.includes("recordCandidate({"));
+  assert.ok(ui.includes('id="proposalForm"'));
+  assert.ok(ui.includes("Enregistrer la proposition"));
+  assert.ok(ui.includes('fetch("/api/propositions"'));
 });
 
 test("ICARE explicitly activates its registered tools in Pi sessions", async () => {
   const server = await readFile(new URL("../src/server.js", import.meta.url), "utf8");
-  assert.match(server, /pi\.setActiveTools\(icareToolNames\)/);
-  assert.match(server, /activeIcareTools = \[\.\.\.icareToolNames\]/);
-  assert.match(server, /toolDefinitions: \[\.\.\.activeIcareTools\]/);
+  assert.ok(server.includes("pi.setActiveTools(icareToolNames)"));
+  assert.ok(server.includes("activeIcareTools = [...icareToolNames]"));
+  assert.ok(server.includes("toolDefinitions: [...activeIcareTools]"));
 });
 
 test("Exploration dimensions require an explicit save action", async () => {
   const ui = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
-  assert.match(ui, /save\.textContent="Enregistrer"/);
-  assert.match(ui, /Justification \\(requise pour/);
-  assert.doesNotMatch(ui, /sel\.addEventListener\("change",async\(\)=>\{const rr=await fetch\("\/api\/dimensions/);
+  assert.ok(ui.includes('save.textContent="Enregistrer"'));
+  assert.ok(ui.includes("Justification (requise pour"));
+  assert.ok(!ui.includes('sel.addEventListener("change",async()=>{const rr=await fetch("/api/dimensions/'));
 });
