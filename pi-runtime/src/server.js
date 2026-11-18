@@ -56,6 +56,9 @@ db.exec(`
     relation TEXT NOT NULL, note TEXT NOT NULL DEFAULT '',
     review_status TEXT NOT NULL DEFAULT 'candidate', created_at TEXT NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL
+  );
 `);
 // Migrations additives : les bases déjà créées sont mises à niveau sans perte d'historique.
 const propositionColumns = new Set(db.prepare("PRAGMA table_info(propositions)").all().map(column => column.name));
@@ -68,6 +71,8 @@ for (const [name, type] of [
   if (!propositionColumns.has(name)) db.exec(`ALTER TABLE propositions ADD COLUMN ${name} ${type}`);
 }
 const now = () => new Date().toISOString();
+const getSetting = key => db.prepare("SELECT value FROM settings WHERE key=?").get(key)?.value || null;
+const setSetting = (key, value) => db.prepare("INSERT INTO settings(key,value,updated_at) VALUES(?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").run(key, String(value), now());
 const insertDimension = db.prepare("INSERT OR IGNORE INTO dimensions(code,status,justification,updated_at) VALUES(?,?,?,?)");
 for (const code of Object.keys(DIMENSIONS)) insertDimension.run(code, "unexplored", "", now());
 const seedDoc = db.prepare("INSERT OR IGNORE INTO reference_docs(id,title,content,created_at) VALUES(?,?,?,?)");
@@ -135,6 +140,8 @@ let piModules;
 let modelRuntime;
 let selectedModel;
 let catalogModels = [];
+let voiceModel = null;
+let catalogVoiceModels = [];
 const sessions = new Map();
 const sessionBusy = new Set();
 const ICARE_TOOL_NAMES = ["list_available_models", "get_ontology", "get_exploration_state", "search_reference_documents", "list_propositions", "propose_observation", "propose_relation"];
@@ -229,7 +236,9 @@ async function refreshModelCatalog() {
   const response = await fetch(BASE_URL + "/models?show_all=true", { headers: API_KEY ? { Authorization: "Bearer " + API_KEY } : {} });
   if (!response.ok) throw new Error("Impossible de lire le catalogue Lemonade (HTTP " + response.status + ").");
   const payload = await response.json();
-  const models = (payload.data || []).filter(m => m.labels?.includes("chat"));
+  const allModels = payload.data || [];
+  const models = allModels.filter(m => m.labels?.includes("chat"));
+  catalogVoiceModels = allModels.filter(m => m.labels?.includes("transcription"));
   if (!models.length) throw new Error("Le catalogue Lemonade ne contient aucun modèle de conversation.");
   const availableModels = models.filter(m => m.downloaded === true);
   if (!availableModels.length) throw new Error("Aucun modèle de conversation n’est téléchargé dans Lemonade. Installe un modèle puis actualise le catalogue.");
@@ -238,11 +247,19 @@ async function refreshModelCatalog() {
   provider.apiKey = "$LEMONADE_API_KEY"; provider.authHeader = true;
   await writeFile(path.join(AGENT_DIR, "models.json"), JSON.stringify({ providers: { lemonade: provider } }, null, 2));
   const nextRuntime = await piModules.ModelRuntime.create();
-  const currentId = selectedModel?.id || process.env.ICARE_MODEL;
+  const currentId = selectedModel?.id || getSetting("chat_model") || process.env.ICARE_MODEL;
   const choice = availableModels.find(m => m.id === currentId) || availableModels.find(m => m.labels?.includes("tool-calling")) || availableModels[0];
   const nextModel = nextRuntime.getModel("lemonade", choice.id);
   if (!nextModel) throw new Error("Pi n'a pas pu charger le modèle Lemonade « " + choice.id + " ».");
   modelRuntime = nextRuntime; selectedModel = nextModel; catalogModels = models;
+  setSetting("chat_model", selectedModel.id);
+  const availableVoiceModels = catalogVoiceModels.filter(m => m.downloaded === true);
+  const preferredVoiceId = getSetting("voice_model");
+  const voiceChoice = availableVoiceModels.find(m => m.id === preferredVoiceId)
+    || availableVoiceModels.find(m => /whisper/i.test(m.id))
+    || availableVoiceModels[0];
+  voiceModel = voiceChoice || null;
+  if (voiceModel) setSetting("voice_model", voiceModel.id);
   return models;
 }
 
@@ -418,6 +435,7 @@ const server = http.createServer(async (req, res) => {
         toolInitialization: toolInitializationStatus,
         toolInitializationError,
         toolDefinitions: [...activeIcareTools],
+        voiceModel: voiceModel?.id || null,
         dimensionsOrder: DIMENSION_ORDER
       });
     }
@@ -428,6 +446,46 @@ const server = http.createServer(async (req, res) => {
       for (const session of sessions.values()) await session.setModel(selectedModel);
       return json(res, 200, { models: catalogModels.map(m => ({ id: m.id, name: m.name || m.id, labels: m.labels || [], downloaded: m.downloaded !== false, context_length: m.context_length || m.max_context_window || null, suggested: Boolean(m.suggested) })), selected: selectedModel.id });
     }
+    if (req.method === "GET" && url.pathname === "/api/voice/models") {
+      return json(res, 200, {
+        models: catalogVoiceModels.map(m => ({ id: m.id, name: m.name || m.id, labels: m.labels || [], downloaded: m.downloaded === true })),
+        selected: voiceModel?.id || null
+      });
+    }
+    if (req.method === "POST" && url.pathname === "/api/voice/models/select") {
+      const body = await readBody(req);
+      const info = catalogVoiceModels.find(m => m.id === body.model && m.downloaded === true);
+      if (!info) return json(res, 400, { error: "Modèle vocal inconnu ou non téléchargé. Seuls les modèles de transcription audio sont sélectionnables." });
+      voiceModel = info;
+      setSetting("voice_model", voiceModel.id);
+      return json(res, 200, { ok: true, selected: voiceModel.id });
+    }
+    if (req.method === "POST" && url.pathname === "/api/transcribe") {
+      if (!voiceModel || voiceModel.downloaded !== true) return json(res, 409, { error: "Aucun modèle de transcription vocale téléchargé n'est sélectionné." });
+      const chunks = [];
+      let size = 0;
+      for await (const chunk of req) {
+        size += chunk.length;
+        if (size > 25 * 1024 * 1024) return json(res, 413, { error: "Enregistrement trop volumineux (limite : 25 Mo)." });
+        chunks.push(chunk);
+      }
+      const audio = Buffer.concat(chunks);
+      if (audio.length < 44 || req.headers["content-type"] !== "audio/wav") return json(res, 400, { error: "Un enregistrement WAV valide est requis." });
+      const form = new FormData();
+      form.append("model", voiceModel.id);
+      form.append("language", "fr");
+      form.append("response_format", "json");
+      form.append("file", new Blob([audio], { type: "audio/wav" }), "icare-dictation.wav");
+      const headers = API_KEY ? { Authorization: "Bearer " + API_KEY } : {};
+      const transcription = await fetch(BASE_URL + "/audio/transcriptions", { method: "POST", headers, body: form });
+      const resultText = await transcription.text();
+      let result;
+      try { result = JSON.parse(resultText); } catch { result = { text: resultText }; }
+      if (!transcription.ok) return json(res, 502, { error: result.error?.message || result.error || "Échec de la transcription Lemonade (HTTP " + transcription.status + ")." });
+      const text = String(result.text || "").trim();
+      if (!text) return json(res, 422, { error: "Aucune parole n'a été reconnue dans cet enregistrement." });
+      return json(res, 200, { text, model: voiceModel.id });
+    }
     if (req.method === "POST" && url.pathname === "/api/models/select") {
       if (sessionBusy.size) return json(res, 409, { error: "Attends la fin des réponses en cours avant de changer de modèle." });
       const body = await readBody(req);
@@ -436,6 +494,7 @@ const server = http.createServer(async (req, res) => {
       if (!next) return json(res, 400, { error: "Modèle inconnu de Pi. Actualise le catalogue." });
       for (const session of sessions.values()) await session.setModel(next);
       selectedModel = next;
+      setSetting("chat_model", selectedModel.id);
       return json(res, 200, { ok: true, selected: selectedModel.id, toolCalling: Boolean(info.labels?.includes("tool-calling")) });
     }
     if (req.method === "GET" && url.pathname === "/api/state") return json(res, 200, { dimensions: getState(), propositions: getPropositions(), relations: getRelations(), documents: db.prepare("SELECT id,title,created_at FROM reference_docs ORDER BY title").all() });
