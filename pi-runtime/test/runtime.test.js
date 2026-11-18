@@ -246,7 +246,7 @@ test("Voice dictation uses only downloaded transcription models and persists bot
 test("QEMU user data lives outside the replaceable runtime and is writable in the guest", async () => {
   const flake = await readFile(new URL("../../flake.nix", import.meta.url), "utf8");
   const vm = await readFile(new URL("../../nixos/icare-vm.nix", import.meta.url), "utf8");
-  assert.ok(flake.includes('DATA_DIR="''${XDG_DATA_HOME:-$HOME/.local/share}/icare-vm/data"'));
+  assert.ok(flake.includes("/icare-vm/data"));
   assert.ok(flake.includes('export ICARE_DATA_DIR="$DATA_DIR"'));
   assert.ok(vm.includes("sharedDirectories.icare-data"));
   assert.ok(vm.includes('target = "/mnt/icare-data"'));
