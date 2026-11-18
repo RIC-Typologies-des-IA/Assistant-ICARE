@@ -18,7 +18,12 @@ outputs = { self, nixpkgs }:
       text = ''
         APP_DIR="''${XDG_DATA_HOME:-$HOME/.local/share}/icare-vm/runtime"
         LOG_DIR="''${XDG_DATA_HOME:-$HOME/.local/share}/icare-vm/logs"
-        mkdir -p "$(dirname "$APP_DIR")" "$LOG_DIR"
+        DATA_DIR="''${XDG_DATA_HOME:-$HOME/.local/share}/icare-vm/data"
+        mkdir -p "$(dirname "$APP_DIR")" "$LOG_DIR" "$DATA_DIR"
+        # Le dossier est privé par ses répertoires parents dans le HOME ; le sticky bit
+        # permet au compte de service invité d’écrire via virtiofs sans sudo.
+        chmod 1777 "$DATA_DIR"
+        export ICARE_DATA_DIR="$DATA_DIR"
         # Une ancienne exécution via sudo peut avoir laissé des fichiers
         # appartenant à root. On sauvegarde alors le runtime (code uniquement)
         # au lieu de tenter un chmod/chown ou de lancer ICARE avec sudo.
@@ -85,7 +90,10 @@ outputs = { self, nixpkgs }:
           runtimeInputs = [ pkgs.nodejs_24 pkgs.coreutils ];
           text = ''
             APP_DIR="''${XDG_DATA_HOME:-$HOME/.local/share}/icare-pi"
-            mkdir -p "$(dirname "$APP_DIR")"
+            DATA_DIR="''${XDG_DATA_HOME:-$HOME/.local/share}/icare-pi-data"
+            mkdir -p "$(dirname "$APP_DIR")" "$DATA_DIR"
+            chmod 700 "$DATA_DIR"
+            export ICARE_DATA_DIR="$DATA_DIR"
             if [ -d "$APP_DIR" ]; then
               UNWRITABLE_PATH="$(find "$APP_DIR" ! -writable -print -quit 2>/dev/null || true)"
               if [ -n "$UNWRITABLE_PATH" ]; then
