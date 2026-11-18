@@ -684,14 +684,14 @@ const server = http.createServer(async (req, res) => {
       const project = db.prepare("SELECT id,name,description,intention,created_at,updated_at FROM projects WHERE id=?").get(id);
       return json(res, 201, { ok: true, project, manifest: getProjectManifest(id) });
     }
-    const manifestMatch = /^\\/api\\/projects\\/([^/]+)\\/manifest$/.exec(url.pathname);
+    const manifestMatch = /^\/api\/projects\/([^/]+)\/manifest$/.exec(url.pathname);
     if (req.method === "GET" && manifestMatch) {
       let projectId;
       try { projectId = decodeURIComponent(manifestMatch[1]); } catch { return json(res, 400, { error: "Identifiant de projet invalide." }); }
       try { return json(res, 200, { manifest: getProjectManifest(projectId) }); }
       catch (error) { return json(res, 404, { error: error.message }); }
     }
-    const eventsMatch = /^\\/api\\/projects\\/([^/]+)\\/events$/.exec(url.pathname);
+    const eventsMatch = /^\/api\/projects\/([^/]+)\/events$/.exec(url.pathname);
     if (eventsMatch) {
       let projectId;
       try { projectId = decodeURIComponent(eventsMatch[1]); } catch { return json(res, 400, { error: "Identifiant de projet invalide." }); }
