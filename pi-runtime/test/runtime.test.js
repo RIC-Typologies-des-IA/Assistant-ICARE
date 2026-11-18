@@ -84,3 +84,28 @@ test("ICARE ontology defines dimensions in canonical I-C-A-R-E order", async () 
   assert.ok(ontology.reference_frameworks.some(item => item.name === "PROV-O"));
   assert.ok(ontology.reference_frameworks.some(item => item.name === "Allen interval algebra"));
 });
+
+
+test("ICARE exposes a manual proposal path independent of model tool-calling", async () => {
+  const server = await readFile(new URL("../src/server.js", import.meta.url), "utf8");
+  const ui = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
+  assert.match(server, /url\.pathname === "\/api\/propositions"/);
+  assert.match(server, /recordCandidate\(\{/);
+  assert.match(ui, /id="proposalForm"/);
+  assert.match(ui, /Enregistrer la proposition/);
+  assert.match(ui, /url\(\s*["']\/api\/propositions["']/);
+});
+
+test("ICARE explicitly activates its registered tools in Pi sessions", async () => {
+  const server = await readFile(new URL("../src/server.js", import.meta.url), "utf8");
+  assert.match(server, /pi\.setActiveTools\(icareToolNames\)/);
+  assert.match(server, /activeIcareTools = \[\.\.\.icareToolNames\]/);
+  assert.match(server, /toolDefinitions: \[\.\.\.activeIcareTools\]/);
+});
+
+test("Exploration dimensions require an explicit save action", async () => {
+  const ui = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
+  assert.match(ui, /save\.textContent="Enregistrer"/);
+  assert.match(ui, /Une justification est requise/);
+  assert.doesNotMatch(ui, /sel\.addEventListener\("change",async\(\)=>\{const rr=await fetch\("\/api\/dimensions/);
+});
