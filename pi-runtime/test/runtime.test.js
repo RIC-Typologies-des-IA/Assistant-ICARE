@@ -152,3 +152,20 @@ test("Exploration dimensions require an explicit save action", async () => {
   assert.ok(ui.includes("Justification (requise pour"));
   assert.ok(!ui.includes('sel.addEventListener("change",async()=>{const rr=await fetch("/api/dimensions/'));
 });
+
+test("Voice dictation uses only downloaded transcription models and persists both model choices", async () => {
+  const server = await readFile(new URL("../src/server.js", import.meta.url), "utf8");
+  const ui = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
+  assert.ok(server.includes('m.labels?.includes("transcription")'));
+  assert.ok(server.includes('m.downloaded === true'));
+  assert.ok(server.includes('setSetting("voice_model", voiceModel.id)'));
+  assert.ok(server.includes('setSetting("chat_model", selectedModel.id)'));
+  assert.ok(server.includes('url.pathname === "/api/voice/models/select"'));
+  assert.ok(server.includes('url.pathname === "/api/transcribe"'));
+  assert.ok(server.includes('BASE_URL + "/audio/transcriptions"'));
+  assert.ok(server.includes('CREATE TABLE IF NOT EXISTS settings'));
+  assert.ok(ui.includes('id="record"'));
+  assert.ok(ui.includes('id="voiceModelSelect"'));
+  assert.ok(ui.includes("audioBufferToWav"));
+  assert.ok(ui.includes('fetch("/api/transcribe"'));
+});
