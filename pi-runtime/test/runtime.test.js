@@ -156,6 +156,14 @@ test("ICARE verifies custom tools after the Pi session has been created", async 
   assert.ok(!server.includes("pi.setActiveTools(icareToolNames)"));
 });
 
+test("Application header preserves the RIC institutional attribution and bundled logo", async () => {
+  const ui = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
+  assert.ok(ui.includes('class="ric-logo" src="/assets/ric-logo.png"'));
+  assert.ok(ui.includes('class="brand-affiliation"'));
+  assert.ok(ui.includes('href="https://www.intelligence-complexite.org/"'));
+  assert.ok(ui.includes("Réseau Intelligence de la Complexité"));
+});
+
 test("Exploration dimensions require an explicit save action", async () => {
   const ui = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
   assert.ok(ui.includes('save.textContent="Enregistrer"'));
