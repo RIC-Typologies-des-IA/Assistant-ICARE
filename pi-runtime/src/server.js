@@ -137,6 +137,7 @@ let selectedModel;
 let catalogModels = [];
 const sessions = new Map();
 const sessionBusy = new Set();
+let activeIcareTools = [];
 
 function json(res, status, value) {
   res.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
@@ -252,6 +253,7 @@ async function initializePi() {
   const chosen = catalogModels.find(m => m.id === selectedModel.id);
   if (!chosen?.labels?.includes("tool-calling")) console.warn("[ICARE] Le modèle choisi n'est pas signalé comme compatible tool-calling.");
   const extensionFactory = (pi) => {
+    const icareToolNames = ["list_available_models", "get_ontology", "get_exploration_state", "search_reference_documents", "list_propositions", "propose_observation", "propose_relation"];
     pi.registerTool({
       name: "list_available_models",
       label: "Catalogue des modèles Lemonade",
@@ -341,6 +343,10 @@ async function initializePi() {
         return { content: [{ type: "text", text: `Relation candidate enregistrée (${relation.id}) ; elle attend une validation humaine.` }], details: relation };
       }
     });
+    // L'API SDK distingue les outils enregistrés des outils actifs : active explicitement ICARE.
+    pi.setActiveTools(icareToolNames);
+    activeIcareTools = [...icareToolNames];
+    console.log("[ICARE] Outils ICARE enregistrés et activés :", activeIcareTools.join(", "));
   };
   piModules.registerTools = extensionFactory;
   return { modelId: selectedModel.id, modelName: chosen?.name || selectedModel.id };
@@ -378,6 +384,7 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, {
         ok: true, model: selectedModel.id, provider: "Lemonade via Pi SDK",
         toolCalling: Boolean(modelInfo?.labels?.includes("tool-calling")),
+        toolDefinitions: [...activeIcareTools],
         dimensionsOrder: DIMENSION_ORDER
       });
     }
@@ -413,7 +420,14 @@ const server = http.createServer(async (req, res) => {
         const initialIds = new Set(db.prepare("SELECT id FROM propositions").all().map(row => row.id));
         let assistantText = "";
         let reconciliationPass = false;
+        const toolEvents = [];
         const unsubscribe = session.subscribe(event => {
+          if (typeof event.type === "string" && event.type.startsWith("tool_")) {
+            toolEvents.push({
+              type: event.type,
+              name: event.toolName || event.name || event.toolCall?.name || null
+            });
+          }
           if (event.type === "message_update" && event.assistantMessageEvent.type === "text_delta") {
             const delta = event.assistantMessageEvent.delta;
             if (!reconciliationPass) {
@@ -454,7 +468,8 @@ const server = http.createServer(async (req, res) => {
           created: candidatePropositions.length,
           propositions: candidatePropositions.map(p => ({ id: p.id, text: p.text, dimensions: JSON.parse(p.dimensions), review_status: p.review_status })),
           unconfirmedClaim: candidatePropositions.length === 0 && claimsPersistence,
-          reconciliationError
+          reconciliationError,
+          toolEvents
         }) + "\n\n");
         res.write("event: done\ndata: " + JSON.stringify({ state: getState(), propositions: getPropositions().filter(p => p.review_status === "candidate"), relations: getRelations() }) + "\n\n");
       } catch (error) {
@@ -464,6 +479,16 @@ const server = http.createServer(async (req, res) => {
         res.end();
       }
       return;
+    }
+    if (req.method === "POST" && url.pathname === "/api/propositions") {
+      const body = await readBody(req);
+      const proposal = recordCandidate({
+        ...body,
+        source: body.source || "user",
+        epistemic: body.epistemic || "reported",
+        practical: body.practical || "unspecified"
+      });
+      return json(res, 201, { ok: true, proposition: { ...proposal, dimensions: JSON.parse(proposal.dimensions) } });
     }
     if (req.method === "POST" && url.pathname.startsWith("/api/propositions/")) {
       const id = decodeURIComponent(url.pathname.split("/").pop());
