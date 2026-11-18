@@ -53,7 +53,7 @@ button{border:0;border-radius:9px;padding:10px 14px;background:#2458a6;color:whi
 <script>
 const $=s=>document.querySelector(s);
 let sessionKey="icare-pi-session:legacy";
-let currentProjectId=localStorage.getItem("icare-current-project")||"legacy";
+let currentProjectId=localStorage.getItem("icare-current-project")||"";
 sessionKey="icare-pi-session:"+currentProjectId;
 let sessionId=localStorage.getItem(sessionKey)||crypto.randomUUID();localStorage.setItem(sessionKey,sessionId);
 let timelineSnapshots=[];
@@ -102,7 +102,8 @@ async function loadProjects(){
  const r=await fetch("/api/projects");const data=await r.json();if(!r.ok)throw new Error(data.error||"Impossible de charger les projets");
  const select=$("#projectSelect");select.innerHTML="";
  for(const p of data.projects){const option=document.createElement("option");option.value=p.id;option.textContent=p.name;select.append(option)}
- if(!data.projects.some(p=>p.id===currentProjectId))currentProjectId=data.projects[0]?.id||"legacy";
+ if(!data.projects.length)throw new Error("Aucun projet disponible. Le serveur doit créer le projet initial.");
+ if(!data.projects.some(p=>p.id===currentProjectId))currentProjectId=data.projects[0].id;
  select.value=currentProjectId;localStorage.setItem("icare-current-project",currentProjectId);
 }
 function renderConversation(turns){
