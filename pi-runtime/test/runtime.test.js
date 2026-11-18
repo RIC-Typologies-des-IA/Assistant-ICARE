@@ -157,7 +157,7 @@ test("Exploration dimensions require an explicit save action", async () => {
 test("Proposal registry keeps accepted, pending and rejected records visible", async () => {
   const server = await readFile(new URL("../src/server.js", import.meta.url), "utf8");
   const ui = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
-  assert.ok(server.includes('SELECT * FROM propositions ORDER BY created_at DESC'));
+  assert.ok(server.includes('SELECT * FROM propositions WHERE project_id=? ORDER BY created_at DESC'));
   assert.ok(!server.includes('propositions: getPropositions().filter(p => p.review_status === "candidate")'));
   for (const id of ["acceptedPropositions", "candidatePropositions", "rejectedPropositions"]) {
     assert.ok(ui.includes('id="' + id + '"'));
@@ -171,7 +171,7 @@ test("Proposal registry keeps accepted, pending and rejected records visible", a
 test("Exploration dimension writes are checked by reading persisted state back", async () => {
   const server = await readFile(new URL("../src/server.js", import.meta.url), "utf8");
   assert.ok(server.includes("result.changes !== 1"));
-  assert.ok(server.includes('SELECT code,status,justification,updated_at FROM dimensions WHERE code=?'));
+  assert.ok(server.includes('SELECT code,status,justification,updated_at FROM project_dimensions WHERE code=? AND project_id=?'));
   assert.ok(server.includes("persisted.status !== body.status"));
 });
 
