@@ -174,7 +174,7 @@ $("#proposalForm").addEventListener("submit",async e=>{
 $("#docForm").addEventListener("submit",async e=>{e.preventDefault();const r=await fetch("/api/references",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({title:$("#docTitle").value,content:$("#docContent").value})});const x=await r.json();if(!r.ok){alert(x.error);return}$("#docTitle").value="";$("#docContent").value="";alert("Document ajouté à la mémoire ICARE.")});
 (async()=>{try{const s=await fetch("/api/status").then(r=>r.json());await loadModels();await refresh();
  if(!s.toolCalling)$("#error").textContent="Le modèle actif ne déclare pas le tool-calling : les propositions automatiques peuvent échouer. Le formulaire manuel reste disponible.";
- else if(!Array.isArray(s.toolDefinitions)||!s.toolDefinitions.includes("propose_observation"))$("#error").textContent="Les outils ICARE ne sont pas initialisés correctement. Le formulaire manuel reste disponible.";
+ else if(s.toolInitialization==="failed")$("#error").textContent="Échec de l'initialisation des outils ICARE : "+(s.toolInitializationError||"cause inconnue")+". Le formulaire manuel reste disponible.";
  }catch(e){$("#status").textContent="Serveur indisponible"}})();
 </script>
 </body></html>
