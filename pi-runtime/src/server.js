@@ -118,6 +118,8 @@ for (const [id, title, filename] of [
   if (existsSync(file)) seedDoc.run(id, title, await readFile(file, "utf8"), now(), "legacy");
 }
 
+if (db.prepare("SELECT COUNT(*) AS n FROM exploration_snapshots WHERE project_id='legacy'").get().n === 0) recordSnapshot("legacy", "migration", 0);
+
 const SYSTEM_PROMPT = `Tu es ICARE, un agent méthodologique maïeutique. Tu aides un humain à comprendre et décrire un système par un dialogue ouvert, non linéaire et progressif.
 
 ONTOLOGIE STRUCTURÉE DE RÉFÉRENCE
