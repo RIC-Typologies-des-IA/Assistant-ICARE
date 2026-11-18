@@ -196,27 +196,33 @@
   "reference_frameworks": [
     {
       "name": "DOLCE",
-      "role": "Distinctions entre objets, événements, états et processus ; inspiration conceptuelle uniquement."
+      "role": "Distinctions entre objets, événements, états et processus ; inspiration conceptuelle uniquement.",
+      "url": "https://www.loa.istc.cnr.it/index.php/dolce/"
     },
     {
       "name": "BFO",
-      "role": "Distinctions ontologiques générales utiles pour les entités, processus et continuants ; inspiration uniquement."
+      "role": "Distinctions ontologiques générales utiles pour les entités, processus et continuants ; inspiration uniquement.",
+      "url": "https://github.com/BFO-ontology/BFO-2020"
     },
     {
       "name": "UFO",
-      "role": "Distinctions autour des agents, intentions, événements et engagements ; inspiration uniquement."
+      "role": "Distinctions autour des agents, intentions, événements et engagements ; inspiration uniquement.",
+      "url": "https://ontouml.org/ufo/"
     },
     {
       "name": "Allen interval algebra",
-      "role": "Relations temporelles entre intervalles."
+      "role": "Relations temporelles entre intervalles.",
+      "url": "https://doi.org/10.1145/182.358434"
     },
     {
       "name": "PROV-O",
-      "role": "Provenance des entités, activités et agents."
+      "role": "Provenance des entités, activités et agents.",
+      "url": "https://www.w3.org/TR/prov-o/"
     },
     {
       "name": "Théorie des intentions et plans de Michael Bratman",
-      "role": "Distinction entre désir, intention, plan et engagement."
+      "role": "Distinction entre désir, intention, plan et engagement.",
+      "url": "https://press.uchicago.edu/ucp/books/book/distributed/I/bo3629095.html"
     }
   ]
 }
