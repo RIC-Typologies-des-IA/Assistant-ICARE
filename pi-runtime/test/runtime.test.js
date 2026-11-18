@@ -37,7 +37,7 @@ test("Pi SDK loads a custom Lemonade OpenAI-compatible model", async () => {
       }
     }));
     const { ModelRuntime, DefaultResourceLoader } = await import("@earendil-works/pi-coding-agent");
-    const { Type } = await import("@earendil-works/pi-ai");
+    const { Type } = await import("typebox");
     const runtime = await ModelRuntime.create();
     const model = runtime.getModel("lemonade", "test-chat-model");
     assert.ok(model);
