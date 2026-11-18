@@ -112,7 +112,7 @@
           echo "[ICARE] AVERTISSEMENT : import partiel de l'ancien état Pi." >&2
       fi
       exec nono run --read /opt/icare-runtime --read /nix/store \
-        --allow /var/lib/icare --block-net \
+        --allow /var/lib/icare/data --allow /var/lib/icare/pi-agent --block-net \
         --open-port 43128 --open-port 8765 \
         -- node src/server.js
     '';
