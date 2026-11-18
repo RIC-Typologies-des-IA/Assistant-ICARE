@@ -14,7 +14,7 @@ main{max-width:1320px;margin:22px auto;padding:0 18px;display:grid;grid-template
 textarea,input,select{font:inherit;border:1px solid #d6dde7;border-radius:9px;padding:10px;background:#fff;color:#202733}textarea{resize:vertical;min-height:54px;flex:1}
 button{border:0;border-radius:9px;padding:10px 14px;background:#2458a6;color:white;font-weight:600;cursor:pointer}button:disabled{opacity:.5;cursor:wait}.secondary{background:#e8edf5;color:#25354c}.danger{background:#fae9e8;color:#8b2b27}
 .side{display:flex;flex-direction:column;gap:18px}.dimension{padding:12px 15px;border-bottom:1px solid #f0f2f5}.dimtop{display:flex;justify-content:space-between;align-items:center;gap:10px}.dimtop strong{font-size:14px}.dimtop small{color:#758195}.dimmeta{font-size:12px;color:#657287;margin:6px 0}.dimension select{padding:6px;font-size:12px;max-width:150px}.just{width:100%;font-size:12px;margin-top:7px}.dimension .save-dimension{margin-top:7px;padding:6px 10px;font-size:11px}.feedback{font-size:12px;margin-left:8px;color:#28633a}.proposal-form{padding:12px 15px;border-bottom:1px solid #edf0f4}.proposal-form textarea{width:100%;min-height:78px;margin-bottom:8px}.dimension-checks{display:flex;flex-wrap:wrap;gap:8px 12px;margin:4px 0 10px}.dimension-checks label{font-size:12px;white-space:nowrap}.dimension-checks input{vertical-align:middle}
-.proposition{padding:12px 15px;border-bottom:1px solid #f0f2f5}.proposition p{font-size:13px;line-height:1.45;margin:0 0 7px}.tags{font-size:11px;color:#657287}.actions{display:flex;gap:7px;margin-top:8px}.actions button{font-size:11px;padding:6px 9px}
+.proposition{padding:12px 15px;border-bottom:1px solid #f0f2f5}.proposal-group h3{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:#526176;margin:0;padding:11px 15px;background:#f7f9fc;border-bottom:1px solid #edf0f4}.proposal-group.rejected{border-top:1px solid #e8ecf2}.proposal-group.rejected summary{font-size:12px;color:#718096;padding:12px 15px;cursor:pointer}.proposal-count{font-size:11px;color:#758195;font-weight:400;margin-left:6px}.proposition p{font-size:13px;line-height:1.45;margin:0 0 7px}.tags{font-size:11px;color:#657287}.actions{display:flex;gap:7px;margin-top:8px}.actions button{font-size:11px;padding:6px 9px}
 .docs{padding:14px}.docs input{width:100%;margin-bottom:7px}.docs textarea{width:100%;min-height:80px;margin-bottom:7px}.hint{font-size:12px;color:#718096;line-height:1.5;padding:0 15px 14px}
 #status{font-size:12px;color:#dbeafe}#error{color:#9b2828;font-size:13px;padding:0 16px}
 @media(max-width:850px){main{grid-template-columns:1fr}.chat{min-height:65vh}.messages{max-height:52vh}header{padding:15px}}
@@ -26,7 +26,7 @@ button{border:0;border-radius:9px;padding:10px 14px;background:#2458a6;color:whi
 <section class="panel chat"><h2>Conversation</h2><div class="messages" id="messages"><div class="msg assistant">Bonjour. Quel système souhaites-tu explorer ? Nous allons construire sa représentation progressivement, sans dérouler un questionnaire rigide.</div></div><div id="error"></div><form class="composer" id="chatForm"><textarea id="message" placeholder="Décris une situation, une évolution, une difficulté…" required></textarea><button id="send">Envoyer</button></form></section>
 <aside class="side">
 <section class="panel"><h2>État d'exploration ICARE</h2><div id="dimensions"></div><p class="hint">Choisis un statut, ajoute une justification si nécessaire, puis clique sur « Enregistrer ». Les modifications ne sont jamais silencieuses.</p></section>
-<section class="panel"><h2>Propositions à valider</h2>
+<section class="panel"><h2>Registre des propositions</h2>
 <div class="proposal-form">
 <form id="proposalForm">
 <textarea id="proposalText" placeholder="Énoncé de l'observation à enregistrer…" required></textarea>
@@ -40,7 +40,7 @@ button{border:0;border-radius:9px;padding:10px 14px;background:#2458a6;color:whi
 <button type="submit">Enregistrer la proposition</button><span id="proposalFeedback" class="feedback" role="status"></span>
 </form>
 </div>
-<div id="propositions"><p class="hint">Aucune proposition en attente.</p></div></section>
+<div class="proposal-group"><h3>Validées <span class="proposal-count" id="acceptedCount">0</span></h3><div id="acceptedPropositions"></div></div><div class="proposal-group"><h3>À valider <span class="proposal-count" id="candidateCount">0</span></h3><div id="candidatePropositions"></div></div><details class="proposal-group rejected"><summary>Propositions rejetées <span class="proposal-count" id="rejectedCount">0</span></summary><div id="rejectedPropositions"></div></details></section>
 <section class="panel"><h2>Relations à valider</h2><div id="relations"><p class="hint">Aucune relation en attente.</p></div><p class="hint">Les relations entre propositions (évolution, précision, contradiction, dépendance…) sont elles aussi soumises à validation humaine.</p></section>
 <section class="panel"><h2>Mémoire documentaire</h2><div class="docs"><form id="docForm"><input id="docTitle" placeholder="Titre du document" required><textarea id="docContent" placeholder="Colle ici un extrait ou un document de référence…" required></textarea><button class="secondary" type="submit">Ajouter à la mémoire</button></form></div><p class="hint">Les documents enrichissent la référence méthodologique locale. Ils ne sont pas utilisés comme preuves sur le système étudié.</p></section>
 </aside>
@@ -93,24 +93,34 @@ async function refresh(){
   save.addEventListener("click",async()=>{save.disabled=true;feedback.textContent="Enregistrement…";try{const rr=await fetch("/api/dimensions/"+d.code,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({status:sel.value,justification:just.value})});const x=await rr.json();if(!rr.ok)throw new Error(x.error||"Échec de l'enregistrement");feedback.textContent="Enregistré";await refresh()}catch(err){feedback.textContent=err.message;feedback.style.color="#9b2828"}finally{save.disabled=false}});
   $("#dimensions").append(row);
  }
- $("#propositions").innerHTML="";
- const pending=data.propositions.filter(p=>p.review_status==="candidate");
- if(!pending.length){$("#propositions").innerHTML='<p class="hint">Aucune proposition en attente.</p>'}
- for(const p of pending){
-  const row=document.createElement("div");row.className="proposition";
-  const text=document.createElement("p");text.textContent=p.text;row.append(text);
-  const tags=document.createElement("div");tags.className="tags";
-  const qualifiers=[p.dimensions.join(" + "),p.temporal,p.evaluation,p.modality,p.epistemic,p.practical].filter(Boolean);
-  if(p.valid_time_start||p.valid_time_end)qualifiers.push("validité : "+(p.valid_time_start||"?")+" → "+(p.valid_time_end||"?"));
-  if(p.target_horizon)qualifiers.push("horizon : "+p.target_horizon);
-  if(p.source)qualifiers.push("source : "+p.source);
-  tags.textContent=qualifiers.join(" · ");row.append(tags);
-  const actions=document.createElement("div");actions.className="actions";
-  for(const [status,label,cls] of [["accepted","Valider",""],["rejected","Rejeter","danger"]]){
-   const b=document.createElement("button");b.textContent=label;if(cls)b.className=cls;
-   b.onclick=async()=>{await fetch("/api/propositions/"+p.id,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({review_status:status})});refresh()};actions.append(b)
+ const groups={accepted:$("#acceptedPropositions"),candidate:$("#candidatePropositions"),rejected:$("#rejectedPropositions")};
+ for(const node of Object.values(groups))node.innerHTML="";
+ const byStatus={accepted:[],candidate:[],rejected:[]};
+ for(const p of data.propositions){if(byStatus[p.review_status])byStatus[p.review_status].push(p)}
+ $("#acceptedCount").textContent=byStatus.accepted.length;
+ $("#candidateCount").textContent=byStatus.candidate.length;
+ $("#rejectedCount").textContent=byStatus.rejected.length;
+ for(const [status,items] of Object.entries(byStatus)){
+  if(!items.length){groups[status].innerHTML='<p class="hint">Aucune proposition '+(status==="accepted"?"validée":status==="rejected"?"rejetée":"en attente")+'.</p>';continue}
+  for(const p of items){
+   const row=document.createElement("div");row.className="proposition";
+   const text=document.createElement("p");text.textContent=p.text;row.append(text);
+   const tags=document.createElement("div");tags.className="tags";
+   const qualifiers=[(p.dimensions||[]).join(" + "),p.temporal,p.evaluation,p.modality,p.epistemic,p.practical].filter(Boolean);
+   if(p.valid_time_start||p.valid_time_end)qualifiers.push("validité : "+(p.valid_time_start||"?")+" → "+(p.valid_time_end||"?"));
+   if(p.target_horizon)qualifiers.push("horizon : "+p.target_horizon);
+   if(p.source)qualifiers.push("source : "+p.source);
+   tags.textContent=qualifiers.join(" · ");row.append(tags);
+   if(status==="candidate"){
+    const actions=document.createElement("div");actions.className="actions";
+    for(const [nextStatus,label,cls] of [["accepted","Valider",""],["rejected","Rejeter","danger"]]){
+     const b=document.createElement("button");b.textContent=label;if(cls)b.className=cls;
+     b.onclick=async()=>{const r=await fetch("/api/propositions/"+p.id,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({review_status:nextStatus})});if(!r.ok){const x=await r.json();$("#error").textContent=x.error||"Échec de la décision";return}refresh()};actions.append(b)
+    }
+    row.append(actions)
+   }
+   groups[status].append(row)
   }
-  row.append(actions);$("#propositions").append(row)
  }
  $("#relations").innerHTML="";
  const pendingRelations=(data.relations||[]).filter(r=>r.review_status==="candidate");
