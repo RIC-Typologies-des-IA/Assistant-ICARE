@@ -106,6 +106,6 @@ test("ICARE explicitly activates its registered tools in Pi sessions", async () 
 test("Exploration dimensions require an explicit save action", async () => {
   const ui = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
   assert.match(ui, /save\.textContent="Enregistrer"/);
-  assert.match(ui, /Une justification est requise/);
+  assert.match(ui, /Justification \\(requise pour/);
   assert.doesNotMatch(ui, /sel\.addEventListener\("change",async\(\)=>\{const rr=await fetch\("\/api\/dimensions/);
 });
