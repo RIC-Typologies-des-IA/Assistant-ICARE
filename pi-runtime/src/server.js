@@ -436,7 +436,7 @@ const server = http.createServer(async (req, res) => {
             await session.prompt(
               "PASSE INTERNE DE PERSISTANCE — ne rédige pas une nouvelle réponse conversationnelle. " +
               "Vérifie les propositions existantes avec list_propositions pour éviter les doublons. " +
-              "Reprends les informations substantielles apportées par l'utilisateur dans son dernier message. " +
+              "Reprends les informations substantielles formulées par l'utilisateur dans les messages récents, notamment lorsqu'un dernier message bref confirme une demande d'enregistrement. " +
               "Si elles contiennent une ou plusieurs observations nouvelles qui méritent d'être conservées, appelle réellement propose_observation pour chacune, avec les dimensions ICARE pertinentes et les qualifications connues. " +
               "N'invente aucun fait et laisse inconnus les champs incertains. Si aucune observation nouvelle ne mérite d'être enregistrée, n'appelle aucun outil. " +
               "N'affirme jamais qu'une opération a été effectuée sans confirmation de l'outil."
