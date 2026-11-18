@@ -478,17 +478,57 @@ async function getSession(id, projectId = "legacy") {
     throw error;
   }
 }
-function sendStatic(res, file, type) {
+function sendStatic(res, file, type, cacheControl = "no-store") {
   readFile(file).then(body => {
-    res.writeHead(200, { "Content-Type": type, "Cache-Control": "no-store" });
+    res.writeHead(200, {
+      "Content-Type": type,
+      "Cache-Control": cacheControl,
+      "X-Content-Type-Options": "nosniff"
+    });
     res.end(body);
   }).catch(() => json(res, 404, { error: "Fichier introuvable." }));
+}
+
+const PUBLIC_ASSET_TYPES = new Map([
+  [".css", "text/css; charset=utf-8"],
+  [".gif", "image/gif"],
+  [".ico", "image/x-icon"],
+  [".jpeg", "image/jpeg"],
+  [".jpg", "image/jpeg"],
+  [".js", "text/javascript; charset=utf-8"],
+  [".png", "image/png"],
+  [".svg", "image/svg+xml"],
+  [".webp", "image/webp"],
+  [".woff2", "font/woff2"]
+]);
+
+function sendPublicAsset(res, pathname) {
+  let relativePath;
+  try {
+    relativePath = decodeURIComponent(pathname.slice("/assets/".length));
+  } catch {
+    return json(res, 400, { error: "Chemin de ressource invalide." });
+  }
+  const segments = relativePath.split("/");
+  if (!relativePath || relativePath.includes("\\\\") ||
+      segments.some(segment => !segment || segment === "." || segment === "..")) {
+    return json(res, 400, { error: "Chemin de ressource invalide." });
+  }
+  const assetRoot = path.resolve(HERE, "..", "public", "assets");
+  const file = path.resolve(assetRoot, relativePath);
+  if (!file.startsWith(assetRoot + path.sep)) {
+    return json(res, 400, { error: "Chemin de ressource invalide." });
+  }
+  const type = PUBLIC_ASSET_TYPES.get(path.extname(file).toLowerCase());
+  if (!type) return json(res, 404, { error: "Type de ressource non autorisé." });
+  return sendStatic(res, file, type, "public, max-age=3600");
 }
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, "http://" + req.headers.host);
   try {
     if (req.method === "GET" && url.pathname === "/") return sendStatic(res, path.join(HERE, "..", "public", "index.html"), "text/html; charset=utf-8");
+    if (req.method === "GET" && url.pathname.startsWith("/assets/")) return sendPublicAsset(res, url.pathname);
     if (req.method === "GET" && url.pathname === "/api/status") {
       const modelInfo = catalogModels.find(m => m.id === selectedModel.id);
       return json(res, 200, {
