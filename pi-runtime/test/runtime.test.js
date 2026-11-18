@@ -64,6 +64,7 @@ test("Pi SDK loads a custom Lemonade OpenAI-compatible model", async () => {
       sessionManager: SessionManager.inMemory(), noTools: "builtin"
     });
     try {
+      session.setActiveToolsByName(["icare_test_tool"]);
       assert.ok(session.getActiveToolNames().includes("icare_test_tool"));
       const second = runtime.getModel("lemonade", "test-chat-model-2");
       assert.ok(second);
@@ -120,6 +121,7 @@ test("ICARE exposes a manual proposal path independent of model tool-calling", a
 test("ICARE verifies custom tools after the Pi session has been created", async () => {
   const server = await readFile(new URL("../src/server.js", import.meta.url), "utf8");
   assert.ok(server.includes("session.getActiveToolNames()"));
+  assert.ok(server.includes("session.setActiveToolsByName(ICARE_TOOL_NAMES)"));
   assert.ok(server.includes('toolInitializationStatus = "ready"'));
   assert.ok(server.includes('toolInitializationStatus = "failed"'));
   assert.ok(server.includes("toolDefinitions: [...activeIcareTools]"));
