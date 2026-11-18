@@ -102,6 +102,7 @@ test("ICARE ontology defines dimensions in canonical I-C-A-R-E order", async () 
   assert.ok(ontology.proposition_model.required.includes("source"));
   assert.match(ontology.proposition_model.confidenceSemantics, /certitude exprimée par la source/);
   assert.ok(ontology.reference_frameworks.some(item => item.name === "PROV-O"));
+  assert.ok(ontology.reference_frameworks.every(item => typeof item.url === "string" && item.url.startsWith("https://")));
   assert.ok(ontology.reference_frameworks.some(item => item.name === "Allen interval algebra"));
 });
 
@@ -122,6 +123,10 @@ test("ICARE verifies custom tools after the Pi session has been created", async 
   assert.ok(server.includes('toolInitializationStatus = "ready"'));
   assert.ok(server.includes('toolInitializationStatus = "failed"'));
   assert.ok(server.includes("toolDefinitions: [...activeIcareTools]"));
+  for (const name of ["list_available_models", "get_ontology", "get_exploration_state", "search_reference_documents", "list_propositions", "propose_observation", "propose_relation"]) {
+    assert.ok(server.includes(`name: "${name}"`));
+    assert.ok(server.includes("exposure: \"direct\""));
+  }
   assert.ok(!server.includes("pi.setActiveTools(icareToolNames)"));
 });
 
