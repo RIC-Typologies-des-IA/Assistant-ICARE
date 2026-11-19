@@ -108,3 +108,20 @@ test("project membership operations reject invalid roles and non-human actors", 
   })), /acteur humain/);
   db.close();
 });
+
+test("a non-owner cannot grant or revoke project membership", () => {
+  const db = database();
+  const owner = operation({
+    opId: "owner", actor: { type: "human", id: "discord:owner" },
+    payload: { member: { principalType: "discord", principalId: "owner", role: "owner" } }
+  });
+  applyCrdtOperation(db, owner);
+  const forgedGrant = operation({
+    opId: "forged-grant", dot: { replicaId: "desktop", counter: 1 },
+    causalContext: { phone: 1 }, actor: { type: "human", id: "discord:outsider" },
+    payload: { member: { principalType: "discord", principalId: "outsider", role: "member" } }
+  });
+  assert.throws(() => applyCrdtOperation(db, forgedGrant), /Seul un propriétaire actif/);
+  assert.equal(readProjectMembers(getCrdtObjectState(db, "project-1", "project", "project-1").state).length, 1);
+  db.close();
+});
