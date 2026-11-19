@@ -11,7 +11,7 @@ const FIELD_COLUMNS = Object.freeze({
   realizationTime: "realization_time", modality: "modality", subject: "subject",
   predicate: "predicate", value: "value", author: "author",
   sourceAgent: "source_agent", sourceInteraction: "source_interaction",
-  justification: "justification", reviewStatus: "review_status"
+  justification: "justification"
 });
 
 const hasTable = (db, name) => Boolean(db.prepare(
@@ -66,7 +66,7 @@ function materializeProposition(db, projectId, objectId, state, operation) {
       fields.epistemic ?? "reported", fields.practical ?? "unspecified",
       Number.isFinite(fields.confidence) ? fields.confidence : 0.5,
       fields.source ?? "replicated", fields.aspect ?? "",
-      ["candidate", "accepted", "rejected"].includes(fields.reviewStatus) ? fields.reviewStatus : "candidate",
+      readState.legacyReviewStatus.length === 1 && ["candidate", "accepted", "rejected"].includes(readState.legacyReviewStatus[0]) ? readState.legacyReviewStatus[0] : "candidate",
       operation.createdAt, fields.utteranceTime ?? null, fields.validTimeStart ?? null,
       fields.validTimeEnd ?? null, fields.eventPeriodStart ?? null, fields.eventPeriodEnd ?? null,
       fields.targetHorizon ?? null, fields.realizationTime ?? null, fields.modality ?? "unknown",
