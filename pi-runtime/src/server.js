@@ -979,7 +979,7 @@ const server = http.createServer((req, res) => requestContext.run({ discordIdent
       setSetting("chat_model", selectedModel.id);
       return json(res, 200, { ok: true, selected: selectedModel.id, toolCalling: Boolean(info.labels?.includes("tool-calling")) });
     }
-    if (req.method === "GET" && url.pathname === "/api/projects") return json(res, 200, { projects: db.prepare("SELECT id,name,description,intention,created_at,updated_at FROM projects WHERE archived_at IS NULL ORDER BY updated_at DESC").all().filter(project => { const access = getDiscordProjectAccess(db, project.id, req.discordIdentity.id); return access && !access.roleConflict; }).map(project => ({ ...project, uri: createProjectManifest(project).uri })) });
+    if (req.method === "GET" && url.pathname === "/api/projects") return json(res, 200, { projects: db.prepare("SELECT id,name,description,intention,created_at,updated_at FROM projects WHERE archived_at IS NULL ORDER BY updated_at DESC").all().map(project => { const access = getDiscordProjectAccess(db, project.id, req.discordIdentity.id); return access && !access.roleConflict ? { ...project, role: access.role, uri: createProjectManifest(project).uri } : null; }).filter(Boolean) });
     if (req.method === "POST" && url.pathname === "/api/projects") {
       const body = await readBody(req);
       const name = String(body.name || "").trim().slice(0,120);
