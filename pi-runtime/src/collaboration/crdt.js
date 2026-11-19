@@ -171,12 +171,28 @@ export function addORSet(state, value, dot) {
   return { type: "or-set", version: 1, adds: [...byDot.values()].sort((a, b) => dotKey(a.dot).localeCompare(dotKey(b.dot))), removed: state.removed.map(x => structuredClone(x)) };
 }
 
+export function removeORSetObserved(state, value, observedAdds) {
+  assertORSet(state);
+  if (!Array.isArray(observedAdds)) throw new TypeError("Les ajouts observés doivent être un tableau.");
+  // Carry each observed value with its tag: a delayed add can be tombstoned,
+  // while a malformed remove cannot accidentally erase a different value.
+  const observed = observedAdds.map(entry => {
+    if (!isRecord(entry)) throw new TypeError("Ajout observé invalide.");
+    assertDot(entry.dot);
+    if (canonical(entry.value) !== canonical(value)) throw new Error("Le retrait ne correspond pas à la valeur du dot observé.");
+    const existing = state.adds.find(add => dotKey(add.dot) === dotKey(entry.dot));
+    if (existing && canonical(existing.value) !== canonical(entry.value)) throw new Error("Collision de dot OR-set avec des valeurs différentes.");
+    return structuredClone(entry.dot);
+  });
+  const removed = new Map([...state.removed, ...observed].map(dot => [dotKey(dot), structuredClone(dot)]));
+  return { type: "or-set", version: 1, adds: state.adds.map(x => structuredClone(x)), removed: [...removed.values()].sort((a, b) => dotKey(a).localeCompare(dotKey(b))) };
+}
+
 export function removeORSet(state, value) {
   assertORSet(state);
   const key = canonical(value);
-  const observed = state.adds.filter(add => canonical(add.value) === key).map(add => add.dot);
-  const removed = new Map([...state.removed, ...observed].map(dot => [dotKey(dot), structuredClone(dot)]));
-  return { type: "or-set", version: 1, adds: state.adds.map(x => structuredClone(x)), removed: [...removed.values()].sort((a, b) => dotKey(a).localeCompare(dotKey(b))) };
+  const observed = state.adds.filter(add => canonical(add.value) === key).map(add => ({ dot: add.dot, value: add.value }));
+  return removeORSetObserved(state, value, observed);
 }
 
 export function mergeORSets(left, right) {

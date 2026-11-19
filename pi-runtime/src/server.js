@@ -7,6 +7,7 @@ import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { createProjectEvent, createProjectManifest, validateProjectEvent, validateProjectManifest } from "./collaboration/project.js";
 import { getLocalReplicaIdentity, initializeReplicaStore } from "./collaboration/replica-store.js";
+import { applyCrdtOperation, getCrdtObjectState, initializeCrdtOperationStore, listCrdtOperations, validateCrdtOperation } from "./collaboration/operation-store.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
@@ -39,6 +40,7 @@ const db = new DatabaseSync(path.join(DATA_DIR, "icare.sqlite"));
 // Identité CRDT stable de cette installation, distincte des acteurs humains/agents.
 initializeReplicaStore(db);
 getLocalReplicaIdentity(db);
+initializeCrdtOperationStore(db);
 db.exec(`
   PRAGMA journal_mode = WAL;
   CREATE TABLE IF NOT EXISTS propositions (
@@ -739,6 +741,49 @@ const server = http.createServer(async (req, res) => {
         const stored = persistProjectEvent(event);
         return json(res, stored.inserted ? 201 : 200, { ok: true, duplicate: !stored.inserted, eventId: event.eventId });
       }
+    }
+    const crdtOperationsMatch = /^\/api\/projects\/([^/]+)\/crdt\/operations$/.exec(url.pathname);
+    if (crdtOperationsMatch) {
+      let projectId;
+      try { projectId = decodeURIComponent(crdtOperationsMatch[1]); }
+      catch { return json(res, 400, { error: "Identifiant de projet invalide." }); }
+      try { requireProject(projectId); }
+      catch (error) { return json(res, 404, { error: error.message }); }
+      if (req.method === "GET") {
+        const after = Number(url.searchParams.get("after") || 0);
+        const limit = Number(url.searchParams.get("limit") || 200);
+        try {
+          return json(res, 200, listCrdtOperations(db, projectId, { after, limit }));
+        } catch (error) {
+          return json(res, 400, { error: error.message });
+        }
+      }
+      if (req.method === "POST") {
+        const operation = await readBody(req);
+        const validation = validateCrdtOperation(operation);
+        if (!validation.valid) return json(res, 400, { error: "Opération CRDT invalide.", details: validation.errors });
+        if (operation.projectId !== projectId) return json(res, 400, { error: "L'opération ne correspond pas au projet de l'URL." });
+        try {
+          const result = applyCrdtOperation(db, operation);
+          return json(res, result.inserted ? 201 : 200, { ok: true, ...result });
+        } catch (error) {
+          const conflict = /Collision/.test(error.message);
+          return json(res, conflict ? 409 : 400, { error: error.message });
+        }
+      }
+    }
+    const crdtObjectMatch = /^\/api\/projects\/([^/]+)\/crdt\/objects\/([^/]+)\/([^/]+)$/.exec(url.pathname);
+    if (req.method === "GET" && crdtObjectMatch) {
+      let projectId, objectType, objectId;
+      try {
+        projectId = decodeURIComponent(crdtObjectMatch[1]);
+        objectType = decodeURIComponent(crdtObjectMatch[2]);
+        objectId = decodeURIComponent(crdtObjectMatch[3]);
+      } catch { return json(res, 400, { error: "Identifiant CRDT invalide." }); }
+      try { requireProject(projectId); }
+      catch (error) { return json(res, 404, { error: error.message }); }
+      if (objectType !== "proposition") return json(res, 400, { error: "Type d'objet CRDT non pris en charge." });
+      return json(res, 200, { projectId, objectType, objectId, ...((getCrdtObjectState(db, projectId, objectType, objectId)) || { state: null }) });
     }
     if (req.method === "GET" && url.pathname === "/api/timeline") {
       const projectId = url.searchParams.get("projectId") || "legacy";
