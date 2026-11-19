@@ -275,11 +275,6 @@ export async function startDiscordBot({
       parentChannelId: message.channel.parentId || null,
       defaultProjectId: isDm ? defaultProjectId : null
     });
-    if (isThread && !threadProject && projectId) {
-      bindDiscordChannelToProject(db, {
-        channelId: message.channel.id, projectId, boundBy: message.author.id
-      });
-    }
     if (!projectId) {
       await message.reply("Aucun projet ICARE n'est lié à ce salon. Un administrateur peut utiliser /icare bind.");
       return;
@@ -287,6 +282,11 @@ export async function startDiscordBot({
     if (!getDiscordProjectAccess(db, projectId, message.author.id)) {
       await message.reply("Vous n'êtes pas membre de ce projet. Demandez à un propriétaire de vous inviter avec /icare invite.");
       return;
+    }
+    if (isThread && !threadProject) {
+      bindDiscordChannelToProject(db, {
+        channelId: message.channel.id, projectId, boundBy: message.author.id
+      });
     }
 
     let target = message.channel;
