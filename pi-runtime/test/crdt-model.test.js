@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   addPropositionObservation, addPropositionRelation, createPropositionCrdtState,
+  removePropositionObservation, removePropositionRelation,
   editPropositionField, mergePropositionCrdtStates, readPropositionCrdtState,
   recordPropositionDecision
 } from "../src/collaboration/model.js";
@@ -60,4 +61,21 @@ test("opposite validation decisions remain an explicit conflict, never auto-reso
 test("unknown proposition fields cannot silently enter the CRDT schema", () => {
   assert.throws(() => editPropositionField(createPropositionCrdtState(), "reviewStatus", "accepted",
     { replicaId: "phone", counter: 1 }), /inconnu/);
+});
+
+test("observed removal wrappers preserve concurrent additions", () => {
+  const empty = createPropositionCrdtState();
+  const first = addPropositionObservation(empty, { id: "obs", content: "Même observation" },
+    { replicaId: "phone", counter: 1 });
+  const concurrent = addPropositionObservation(empty, { id: "obs", content: "Même observation" },
+    { replicaId: "desktop", counter: 1 });
+  const removed = removePropositionObservation(first, { id: "obs", content: "Même observation" });
+  const merged = mergePropositionCrdtStates(removed, concurrent);
+  assert.equal(readPropositionCrdtState(merged).observations.length, 1);
+
+  const relation = addPropositionRelation(empty, { id: "rel", targetId: "p2", type: "supports" },
+    { replicaId: "phone", counter: 2 });
+  const removedRelation = removePropositionRelation(relation,
+    { id: "rel", targetId: "p2", type: "supports" });
+  assert.deepEqual(readPropositionCrdtState(removedRelation).relations, []);
 });
