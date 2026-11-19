@@ -1,8 +1,8 @@
-import { createLocalCrdtOperation } from "./sync-engine.js";
-import { getCrdtObjectState } from "./operation-store.js";
+import { createLocalCrdtOperation } from "./collaboration/sync-engine.js";
+import { getCrdtObjectState } from "./collaboration/operation-store.js";
 import {
   getObservedProjectMemberAdds, getProjectMemberAccess, readProjectMembers
-} from "./project-membership.js";
+} from "./collaboration/project-membership.js";
 
 export function getDiscordProjectAccess(db, projectId, discordUserId) {
   const stored = getCrdtObjectState(db, projectId, "project", projectId);
