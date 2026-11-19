@@ -91,6 +91,15 @@ function materializeProposition(db, projectId, objectId, state, operation) {
     }
   }
 
+  const legacyStatuses = new Set(readState.legacyReviewStatus
+    .filter(status => ["candidate", "accepted", "rejected"].includes(status)));
+  if (legacyStatuses.size === 1) {
+    db.prepare("UPDATE propositions SET review_status=? WHERE id=? AND project_id=?")
+      .run([...legacyStatuses][0], objectId, projectId);
+  } else if (legacyStatuses.size > 1) {
+    db.prepare("UPDATE propositions SET review_status='candidate' WHERE id=? AND project_id=?")
+      .run(objectId, projectId);
+  }
   const decisions = readState.validationDecisions.filter(decision =>
     (decision.targetType === "proposition" || !decision.targetType) &&
     (decision.targetId === objectId || !decision.targetId));
