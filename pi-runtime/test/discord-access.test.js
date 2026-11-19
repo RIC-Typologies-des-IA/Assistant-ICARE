@@ -55,3 +55,19 @@ test("the last project owner cannot be revoked by the member command", () => {
   assert.equal(getDiscordProjectAccess(db, "project-1", "discord-owner").role, "owner");
   db.close();
 });
+
+test("ownership can be transferred explicitly while retaining at least one owner", () => {
+  const db = database();
+  bootstrapDiscordProjectOwner(db, "project-1", "discord-owner-1");
+  grantDiscordProjectMember(db, {
+    projectId: "project-1", discordUserId: "discord-owner-2",
+    role: "owner", actorDiscordUserId: "discord-owner-1"
+  });
+  assert.equal(revokeDiscordProjectMember(db, {
+    projectId: "project-1", discordUserId: "discord-owner-1",
+    actorDiscordUserId: "discord-owner-1"
+  }), true);
+  assert.equal(getDiscordProjectAccess(db, "project-1", "discord-owner-1"), null);
+  assert.equal(getDiscordProjectAccess(db, "project-1", "discord-owner-2").role, "owner");
+  db.close();
+});
