@@ -1303,8 +1303,9 @@ const server = http.createServer((req, res) => requestContext.run({ discordIdent
           }
           const participantAccess = getDiscordProjectAccess(db, projectId, participant.id);
           const grantedMember = operation.kind === "project.member.grant" ? operation.payload?.member : null;
-          const hasOwner = listDiscordProjectMembers(db, projectId).some(member => member.role === "owner");
-          const initialOwnerBootstrap = !hasOwner &&
+          const existingMembers = listDiscordProjectMembers(db, projectId);
+          const hasOwner = existingMembers.some(member => member.role === "owner");
+          const initialOwnerBootstrap = existingMembers.length === 0 && !participantAccess && !hasOwner &&
             grantedMember?.principalType === "discord" &&
             grantedMember?.principalId === participant.id &&
             grantedMember?.role === "owner";
