@@ -16,7 +16,7 @@ import { backfillCrdtProjections, projectPropositionToCrdt, projectRelationToCrd
 import { materializeCrdtOperation } from "./collaboration/projection-materializer.js";
 import { startDiscordBot } from "./discord-adapter.js";
 import { getDiscordBoundProject, initializeDiscordBindingStore } from "./discord-store.js";
-import { bootstrapDiscordProjectOwner, getDiscordProjectAccess } from "./discord-access.js";
+import { bootstrapDiscordProjectOwner, getDiscordProjectAccess, listDiscordProjectMembers } from "./discord-access.js";
 import {
   decideDiscordMembershipRequest, initializeMembershipRequestStore,
   listPendingDiscordMembershipRequests, requestDiscordProjectMembership
@@ -1295,7 +1295,13 @@ const server = http.createServer((req, res) => requestContext.run({ discordIdent
             return json(res, 400, { error: "Attribution du participant invalide." });
           }
           const participantAccess = getDiscordProjectAccess(db, projectId, participant.id);
-          if (!participantAccess || participantAccess.roleConflict) {
+          const grantedMember = operation.kind === "project.member.grant" ? operation.payload?.member : null;
+          const hasOwner = listDiscordProjectMembers(db, projectId).some(member => member.role === "owner");
+          const initialOwnerBootstrap = !hasOwner &&
+            grantedMember?.principalType === "discord" &&
+            grantedMember?.principalId === participant.id &&
+            grantedMember?.role === "owner";
+          if ((!participantAccess || participantAccess.roleConflict) && !initialOwnerBootstrap) {
             return json(res, 403, {
               error: "Opération refusée : le participant associé à cette contribution n'est plus membre du projet.",
               code: "REJECTED_AUTHORIZATION",
@@ -1303,7 +1309,7 @@ const server = http.createServer((req, res) => requestContext.run({ discordIdent
             });
           }
           if (["project.member.grant", "project.member.revoke"].includes(operation.kind) &&
-              participantAccess.role !== "owner") {
+              !initialOwnerBootstrap && participantAccess?.role !== "owner") {
             return json(res, 403, { error: "Seul un propriétaire peut répliquer une décision de membership.", code: "REJECTED_AUTHORIZATION" });
           }
         }
