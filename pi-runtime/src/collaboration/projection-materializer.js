@@ -29,6 +29,12 @@ function sqlValue(field, value) {
   return field === "dimensions" ? JSON.stringify(value) : value;
 }
 
+function activeDecisions(decisions) {
+  const superseded = new Set(decisions.flatMap(decision =>
+    Array.isArray(decision.resolves) ? decision.resolves : []));
+  return decisions.filter(decision => !superseded.has(decision.id));
+}
+
 function materializeProposition(db, projectId, objectId, state, operation) {
   if (!hasTable(db, "propositions")) return { projected: false, reason: "legacy-table-missing" };
   const readState = readPropositionCrdtState(state);
@@ -100,9 +106,9 @@ function materializeProposition(db, projectId, objectId, state, operation) {
     db.prepare("UPDATE propositions SET review_status='candidate' WHERE id=? AND project_id=?")
       .run(objectId, projectId);
   }
-  const decisions = readState.validationDecisions.filter(decision =>
+  const decisions = activeDecisions(readState.validationDecisions.filter(decision =>
     (decision.targetType === "proposition" || !decision.targetType) &&
-    (decision.targetId === objectId || !decision.targetId));
+    (decision.targetId === objectId || !decision.targetId)));
   const decisionStatuses = new Set(decisions.map(decision => decision.status)
     .filter(status => ["accepted", "rejected"].includes(status)));
   if (decisionStatuses.size === 1) {
@@ -153,7 +159,8 @@ function materializeRelationDecisions(db, projectId, readState) {
     list.push(decision);
     grouped.set(decision.targetId, list);
   }
-  for (const [relationId, decisions] of grouped) {
+  for (const [relationId, allDecisions] of grouped) {
+    const decisions = activeDecisions(allDecisions);
     const statuses = new Set(decisions.map(decision => decision.status)
       .filter(status => ["accepted", "rejected"].includes(status)));
     if (statuses.size === 1) {
