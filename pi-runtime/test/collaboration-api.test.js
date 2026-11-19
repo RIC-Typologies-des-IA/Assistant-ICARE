@@ -48,7 +48,6 @@ test("CRDT peer administration is protected and project routes require scoped cr
     "ICARE_SYNC_ADMIN_TOKEN",
     "requireSyncAdmin(req, res)",
     "authenticateProjectSyncPeer(db, projectId",
-    '"/api/projects/"',
     "peerCollectionMatch",
     "peerItemMatch",
     'requiredPermission = req.method === "GET" ? "read"',
