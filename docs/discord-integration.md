@@ -46,7 +46,7 @@ Dans le portail développeur Discord :
 
 1. Activer les Activities.
 2. Ajouter l'URL mapping vers l'origine publique ICARE.
-3. Configurer le redirect URI de l'Activity selon les indications du portail Discord.
+3. Ajouter le redirect URI placeholder `https://127.0.0.1` demandé par le guide officiel des Activities ; le SDK Embedded App gère le retour dans l'Activity.
 4. Autoriser l'application à être lancée dans les contextes souhaités.
 
 L'Activity charge `public/index.html`, donc **la même interface ICARE** que la PWA. Le SDK Embedded App est initialisé uniquement lorsque Discord fournit le paramètre `frame_id`. Il authentifie l'utilisateur avec le scope `identify`, puis le serveur échange le code OAuth. Le secret client et le jeton du bot ne sont jamais envoyés au navigateur.
