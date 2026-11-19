@@ -126,5 +126,21 @@ test("opposite validation decisions make the legacy view pending instead of choo
   assert.equal(db.prepare("SELECT review_status FROM propositions WHERE id='proposal-1'").get().review_status, "candidate");
   const state = getCrdtObjectState(db, "project-1", "proposition", "proposal-1").state;
   assert.deepEqual(readPropositionCrdtState(state).validationDecisions.map(d => d.status).sort(), ["accepted", "rejected"]);
+
+  const resolution = op({
+    opId: "resolution", kind: "decision.record",
+    dot: { replicaId: "phone", counter: 3 },
+    causalContext: { phone: 2, desktop: 1 },
+    payload: { decision: { id: "d3", targetType: "proposition", targetId: "proposal-1",
+      status: "accepted", justification: "Après examen des deux arguments",
+      resolves: ["d1", "d2"],
+      actor: { type: "human", id: "alice" }, recordedAt: "2026-11-19T08:03:00.000Z" } }
+  });
+  applyCrdtOperation(db, resolution);
+  materializeCrdtOperation(db, resolution);
+  assert.equal(db.prepare("SELECT review_status FROM propositions WHERE id='proposal-1'").get().review_status, "accepted");
+  const history = readPropositionCrdtState(getCrdtObjectState(db, "project-1", "proposition", "proposal-1").state).validationDecisions;
+  assert.equal(history.length, 3);
+  assert.deepEqual(history.filter(d => !history.some(other => other.resolves?.includes(d.id))).map(d => d.id), ["d3"]);
   db.close();
 });
