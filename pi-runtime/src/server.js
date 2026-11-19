@@ -3,11 +3,12 @@ import { readFile, mkdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { createProjectEvent, createProjectManifest, validateProjectEvent, validateProjectManifest } from "./collaboration/project.js";
 import { getLocalReplicaIdentity, initializeReplicaStore } from "./collaboration/replica-store.js";
 import { applyCrdtOperation, getCrdtObjectState, initializeCrdtOperationStore, listCrdtOperations, validateCrdtOperation } from "./collaboration/operation-store.js";
+import { authenticateProjectSyncPeer, createProjectSyncPeer, initializeProjectPeerStore, listProjectSyncPeers, revokeProjectSyncPeer } from "./collaboration/peer-store.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
@@ -18,6 +19,7 @@ const BASE_URL = (process.env.LEMONADE_BASE_URL || "http://127.0.0.1:13305/v1").
 const API_KEY = process.env.LEMONADE_API_KEY || "";
 const HOST = process.env.ICARE_HOST || "127.0.0.1";
 const PORT = Number(process.env.ICARE_PORT || 8765);
+const SYNC_ADMIN_TOKEN = process.env.ICARE_SYNC_ADMIN_TOKEN || "";
 // L'ontologie JSON est la source de vérité des dimensions et des catégories.
 const ONTOLOGY = JSON.parse(await readFile(path.join(ROOT, "reference", "icare.json"), "utf8"));
 const DIMENSION_ORDER = ["I", "C", "A", "R", "E"];
@@ -41,6 +43,7 @@ const db = new DatabaseSync(path.join(DATA_DIR, "icare.sqlite"));
 initializeReplicaStore(db);
 getLocalReplicaIdentity(db);
 initializeCrdtOperationStore(db);
+initializeProjectPeerStore(db);
 db.exec(`
   PRAGMA journal_mode = WAL;
   CREATE TABLE IF NOT EXISTS propositions (
@@ -233,6 +236,36 @@ async function readBody(req) {
     if (raw.length > 1_000_000) throw new Error("Requête trop volumineuse.");
   }
   return raw ? JSON.parse(raw) : {};
+}
+function bearerToken(req) {
+  const header = req.headers.authorization || "";
+  const match = /^Bearer ([A-Za-z0-9._~-]+)$/.exec(header);
+  return match?.[1] || null;
+}
+function secretMatches(provided, expected) {
+  if (!provided || !expected) return false;
+  const left = createHash("sha256").update(provided).digest();
+  const right = createHash("sha256").update(expected).digest();
+  return timingSafeEqual(left, right);
+}
+function requireSyncAdmin(req, res) {
+  if (SYNC_ADMIN_TOKEN.length < 32) {
+    json(res, 503, { error: "La gestion des pairs est désactivée : configure ICARE_SYNC_ADMIN_TOKEN (32 caractères minimum)." });
+    return false;
+  }
+  if (!secretMatches(bearerToken(req), SYNC_ADMIN_TOKEN)) {
+    json(res, 401, { error: "Authentification administrateur requise." });
+    return false;
+  }
+  return true;
+}
+function authorizeSyncPeer(req, res, projectId, permission) {
+  const peer = authenticateProjectSyncPeer(db, projectId, bearerToken(req), permission);
+  if (!peer) {
+    json(res, 401, { error: "Jeton de réplication invalide, révoqué ou insuffisant." });
+    return null;
+  }
+  return peer;
 }
 function requireProject(projectId) {
   const project = db.prepare("SELECT * FROM projects WHERE id=? AND archived_at IS NULL").get(projectId);
@@ -742,6 +775,33 @@ const server = http.createServer(async (req, res) => {
         return json(res, stored.inserted ? 201 : 200, { ok: true, duplicate: !stored.inserted, eventId: event.eventId });
       }
     }
+    const peerCollectionMatch = /^\/api\/projects\/([^/]+)\/crdt\/peers$/.exec(url.pathname);
+    if (peerCollectionMatch && ["GET", "POST"].includes(req.method)) {
+      let projectId;
+      try { projectId = decodeURIComponent(peerCollectionMatch[1]); }
+      catch { return json(res, 400, { error: "Identifiant de projet invalide." }); }
+      try { requireProject(projectId); }
+      catch (error) { return json(res, 404, { error: error.message }); }
+      if (!requireSyncAdmin(req, res)) return;
+      if (req.method === "GET") return json(res, 200, { peers: listProjectSyncPeers(db, projectId) });
+      const body = await readBody(req);
+      try {
+        const peer = createProjectSyncPeer(db, projectId, {
+          label: body.label || "Replica", permissions: body.permissions || ["read", "write"]
+        });
+        return json(res, 201, { ok: true, peer });
+      } catch (error) { return json(res, 400, { error: error.message }); }
+    }
+    const peerItemMatch = /^\/api\/projects\/([^/]+)\/crdt\/peers\/([^/]+)$/.exec(url.pathname);
+    if (peerItemMatch && req.method === "DELETE") {
+      let projectId, peerId;
+      try { projectId = decodeURIComponent(peerItemMatch[1]); peerId = decodeURIComponent(peerItemMatch[2]); }
+      catch { return json(res, 400, { error: "Identifiant de pair invalide." }); }
+      try { requireProject(projectId); }
+      catch (error) { return json(res, 404, { error: error.message }); }
+      if (!requireSyncAdmin(req, res)) return;
+      return json(res, 200, { ok: true, revoked: revokeProjectSyncPeer(db, projectId, peerId) });
+    }
     const crdtOperationsMatch = /^\/api\/projects\/([^/]+)\/crdt\/operations$/.exec(url.pathname);
     if (crdtOperationsMatch) {
       let projectId;
@@ -749,6 +809,8 @@ const server = http.createServer(async (req, res) => {
       catch { return json(res, 400, { error: "Identifiant de projet invalide." }); }
       try { requireProject(projectId); }
       catch (error) { return json(res, 404, { error: error.message }); }
+      const requiredPermission = req.method === "GET" ? "read" : req.method === "POST" ? "write" : null;
+      if (requiredPermission && !authorizeSyncPeer(req, res, projectId, requiredPermission)) return;
       if (req.method === "GET") {
         const after = Number(url.searchParams.get("after") || 0);
         const limit = Number(url.searchParams.get("limit") || 200);
@@ -782,6 +844,7 @@ const server = http.createServer(async (req, res) => {
       } catch { return json(res, 400, { error: "Identifiant CRDT invalide." }); }
       try { requireProject(projectId); }
       catch (error) { return json(res, 404, { error: error.message }); }
+      if (!authorizeSyncPeer(req, res, projectId, "read")) return;
       if (objectType !== "proposition") return json(res, 400, { error: "Type d'objet CRDT non pris en charge." });
       return json(res, 200, { projectId, objectType, objectId, ...((getCrdtObjectState(db, projectId, objectType, objectId)) || { state: null }) });
     }

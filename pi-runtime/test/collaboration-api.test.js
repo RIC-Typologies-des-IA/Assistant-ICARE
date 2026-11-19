@@ -41,3 +41,25 @@ test("local CRDT API exposes operation push, resumable pull and materialized obj
     "getCrdtObjectState(db, projectId"
   ]) assert.ok(server.includes(fragment), "Missing CRDT API contract: " + fragment);
 });
+
+test("CRDT peer administration is protected and project routes require scoped credentials", async () => {
+  const server = await readFile(new URL("../src/server.js", import.meta.url), "utf8");
+  for (const fragment of [
+    "ICARE_SYNC_ADMIN_TOKEN",
+    "requireSyncAdmin(req, res)",
+    "authenticateProjectSyncPeer(db, projectId",
+    "peerCollectionMatch",
+    "peerItemMatch",
+    'requiredPermission = req.method === "GET" ? "read"',
+    'authorizeSyncPeer(req, res, projectId, "read")'
+  ]) assert.ok(server.includes(fragment), "Missing sync security contract: " + fragment);
+});
+
+test("peer sync CLI keeps its credential inputs in environment variables", async () => {
+  const cli = await readFile(new URL("../src/sync-cli.js", import.meta.url), "utf8");
+  for (const variable of [
+    "ICARE_SYNC_PROJECT_ID", "ICARE_SYNC_PEER_ID",
+    "ICARE_SYNC_PEER_URL", "ICARE_SYNC_PEER_TOKEN"
+  ]) assert.ok(cli.includes(variable));
+  assert.ok(!cli.includes("process.argv"));
+});

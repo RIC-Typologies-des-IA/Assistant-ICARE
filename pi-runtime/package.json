@@ -9,7 +9,8 @@
   },
   "scripts": {
     "start": "node src/server.js",
-    "test": "node --test"
+    "test": "node --test",
+    "sync": "node src/sync-cli.js"
   },
   "dependencies": {
     "@earendil-works/pi-coding-agent": "1.5.2",

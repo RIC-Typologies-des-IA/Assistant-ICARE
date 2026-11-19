@@ -5,7 +5,7 @@
  * materialized object state. A replica may receive operations out of order.
  */
 import {
-  normalizeVersionVector, versionVectorSees, removeORSetObserved
+  normalizeVersionVector, removeORSetObserved
 } from "./crdt.js";
 import {
   createPropositionCrdtState, editPropositionField,
@@ -110,7 +110,7 @@ export function applyPropositionOperation(state, operation) {
     case "relation.remove":
       return {
         ...structuredClone(state),
-        relations: removeORSetObserved(state.relations, payload.relation, payload.observedDots)
+        relations: removeORSetObserved(state.relations, payload.relation, payload.observedAdds)
       };
     case "decision.record":
       return recordPropositionDecision(state, payload.decision, dot);
