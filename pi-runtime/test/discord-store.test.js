@@ -54,3 +54,14 @@ test("unknown projects and incomplete bindings are rejected", () => {
   }), /requis/);
   db.close();
 });
+
+test("stale bindings are removed when a project no longer exists locally", () => {
+  const db = database();
+  bindDiscordChannelToProject(db, {
+    channelId: "channel-stale", projectId: "project-a", boundBy: "admin"
+  });
+  db.prepare("DELETE FROM projects WHERE id='project-a'").run();
+  assert.equal(getDiscordBoundProject(db, { channelId: "channel-stale" }), null);
+  assert.equal(db.prepare("SELECT channel_id FROM discord_project_bindings WHERE channel_id='channel-stale'").get(), undefined);
+  db.close();
+});
