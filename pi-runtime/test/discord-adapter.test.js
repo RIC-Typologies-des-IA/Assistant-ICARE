@@ -159,3 +159,10 @@ test("Discord bot chat uses a private server credential and the gateway-authenti
   assert.ok(adapter.includes('"x-icare-discord-user": discordUserId'));
   assert.ok(adapter.includes("discordUserId: message.author.id"));
 });
+
+test("cookie-authenticated write APIs enforce a trusted browser origin", async () => {
+  const server = await read("../src/server.js");
+  assert.ok(server.includes('!bearerToken(req) && !["GET", "HEAD", "OPTIONS"].includes(req.method)'));
+  assert.ok(server.includes("trustedOrigins.has(req.headers.origin || \"\")"));
+  assert.ok(server.includes("Origine non autorisée pour une opération avec session web"));
+});
