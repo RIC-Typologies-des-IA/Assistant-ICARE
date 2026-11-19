@@ -734,14 +734,14 @@ const server = http.createServer(async (req, res) => {
       "/api/status", "/api/models", "/api/models/refresh",
       "/api/discord/config", "/api/discord/token", "/api/discord/context"
     ]);
-    const isMembershipRequestApi = /^\\/api\\/projects\\/[^/]+\\/membership-requests(?:\\/[^/]+)?$/.test(url.pathname);
-    const isPeerReplicationApi = /^\\/api\\/projects\\/[^/]+\\/crdt\\//.test(url.pathname);
+    const isMembershipRequestApi = /^\/api\/projects\/[^/]+\/membership-requests(?:\/[^/]+)?$/.test(url.pathname);
+    const isPeerReplicationApi = /^\/api\/projects\/[^/]+\/crdt\//.test(url.pathname);
     if (url.pathname.startsWith("/api/") && !publicApiPaths.has(url.pathname) &&
         !isMembershipRequestApi && !isPeerReplicationApi) {
       const identity = await authenticateDiscordRequest(req);
       if (!identity) return json(res, 401, { error: "Authentification Discord requise. Ouvre ICARE depuis une Activity Discord autorisée." });
       let projectId = url.searchParams.get("projectId");
-      const projectPath = /^\\/api\\/projects\\/([^/]+)/.exec(url.pathname);
+      const projectPath = /^\/api\/projects\/([^/]+)/.exec(url.pathname);
       if (!projectId && projectPath) {
         try { projectId = decodeURIComponent(projectPath[1]); } catch {}
       }
