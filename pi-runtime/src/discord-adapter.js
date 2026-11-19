@@ -163,8 +163,8 @@ export async function startDiscordBot({
         const projectId = interaction.options.getString("project_id", true);
         const access = bootstrapDiscordProjectOwner(db, projectId, interaction.user.id);
         if (!access) throw new Error("Impossible d'établir votre appartenance au projet.");
-        if (!access.roles.includes("owner") && !access.roles.includes("member")) {
-          throw new Error("Vous devez être membre de ce projet. Demandez à un propriétaire de vous inviter avec /icare invite.");
+        if (access.roleConflict || !["owner", "member"].includes(access.role)) {
+          throw new Error("Votre appartenance présente un conflit de rôle ou n'est pas valide. Demandez à un propriétaire de clarifier vos droits.");
         }
         bindDiscordChannelToProject(db, {
           channelId: bindingId || interaction.channelId,
@@ -172,7 +172,7 @@ export async function startDiscordBot({
         });
         return interaction.reply({
           content: "Ce salon est relié au projet ICARE " + projectId +
-            (access.roles.includes("owner") ? ". Vous êtes propriétaire du projet." : ". Vous êtes membre du projet.") +
+            (access.role === "owner" ? ". Vous êtes propriétaire du projet." : ". Vous êtes membre du projet.") +
             " Mentionnez le bot pour démarrer une conversation ; les échanges suivants se poursuivent dans le fil créé.",
           flags: MessageFlags.Ephemeral
         });
