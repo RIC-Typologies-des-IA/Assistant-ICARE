@@ -19,7 +19,7 @@ function operation(overrides = {}) {
     objectType: "project", objectId: "project-1",
     kind: "project.member.grant",
     dot: { replicaId: "phone", counter: 1 }, causalContext: {},
-    actor: { type: "human", id: "discord:owner-1" },
+    actor: { type: "human", id: "discord:user-1" },
     payload: { member: { principalType: "discord", principalId: "user-1", role: "owner" } },
     createdAt: "2026-11-19T08:00:00.000Z",
     ...overrides
@@ -45,18 +45,27 @@ test("project membership grants replicate and materialize into the local ACL tab
 test("a revoke removes only observed grants and preserves a concurrent grant", () => {
   const db = database();
   const member = { principalType: "discord", principalId: "user-2", role: "member" };
+  const owner = operation({
+    opId: "owner", dot: { replicaId: "phone", counter: 1 },
+    actor: { type: "human", id: "discord:owner" },
+    payload: { member: { principalType: "discord", principalId: "owner", role: "owner" } }
+  });
   const first = operation({
-    opId: "grant-phone", payload: { member }
+    opId: "grant-phone", dot: { replicaId: "phone", counter: 2 },
+    causalContext: { phone: 1 }, actor: { type: "human", id: "discord:owner" },
+    payload: { member }
   });
   const concurrent = operation({
     opId: "grant-desktop", dot: { replicaId: "desktop", counter: 1 },
-    actor: { type: "human", id: "discord:owner-2" }, payload: { member }
+    causalContext: { phone: 1 }, actor: { type: "human", id: "discord:owner" }, payload: { member }
   });
+  applyCrdtOperation(db, owner);
   applyCrdtOperation(db, first);
   applyCrdtOperation(db, concurrent);
   const revoke = operation({
     opId: "revoke-phone", kind: "project.member.revoke",
-    dot: { replicaId: "phone", counter: 2 }, causalContext: { phone: 1 },
+    dot: { replicaId: "phone", counter: 3 }, causalContext: { phone: 2 },
+    actor: { type: "human", id: "discord:owner" },
     payload: { member, observedAdds: [{ dot: first.dot, value: member }] }
   });
   applyCrdtOperation(db, revoke);
@@ -70,11 +79,14 @@ test("a revoke removes only observed grants and preserves a concurrent grant", (
 test("concurrent role grants are surfaced as a role conflict, never promoted to owner", () => {
   const db = database();
   const ownerGrant = operation({
-    opId: "owner", payload: { member: { principalType: "discord", principalId: "user-3", role: "owner" } }
+    opId: "owner",
+    actor: { type: "human", id: "discord:user-3" },
+    payload: { member: { principalType: "discord", principalId: "user-3", role: "owner" } }
   });
   const memberGrant = operation({
     opId: "member", dot: { replicaId: "desktop", counter: 1 },
-    actor: { type: "human", id: "discord:owner-2" },
+    causalContext: { phone: 1 },
+    actor: { type: "human", id: "discord:user-3" },
     payload: { member: { principalType: "discord", principalId: "user-3", role: "member" } }
   });
   applyCrdtOperation(db, ownerGrant);
