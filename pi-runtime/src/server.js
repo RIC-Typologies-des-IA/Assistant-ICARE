@@ -324,6 +324,24 @@ function requireSyncAdmin(req, res) {
   }
   return true;
 }
+function discordWebRedirectUri() {
+  try {
+    const url = new URL(DISCORD_WEB_REDIRECT_URI);
+    if (url.protocol !== "https:" && !["localhost", "127.0.0.1"].includes(url.hostname)) return null;
+    if (url.pathname !== "/auth/discord/callback" || url.search || url.hash) return null;
+    return url.toString();
+  } catch { return null; }
+}
+function sessionCookie(token, maxAge = 8 * 60 * 60) {
+  return "icare_session=" + encodeURIComponent(token) +
+    "; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=" + maxAge;
+}
+function clearSessionCookie() {
+  return "icare_session=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0";
+}
+function clearOAuthStateCookie() {
+  return "icare_oauth_state=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0";
+}
 function authorizeSyncPeer(req, res, projectId, permission) {
   const peer = authenticateProjectSyncPeer(db, projectId, bearerToken(req), permission);
   if (!peer) {
