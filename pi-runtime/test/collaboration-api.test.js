@@ -29,3 +29,15 @@ test("collaboration API is explicitly not wired to a Discord channel per ICARE d
   assert.ok(!server.includes("dimensionChannel"));
   assert.ok(!server.includes("channelPerDimension"));
 });
+
+test("local CRDT API exposes operation push, resumable pull and materialized object reads", async () => {
+  const server = await readFile(new URL("../src/server.js", import.meta.url), "utf8");
+  for (const fragment of [
+    "crdtOperationsMatch",
+    "crdtObjectMatch",
+    "validateCrdtOperation(operation)",
+    "applyCrdtOperation(db, operation)",
+    "listCrdtOperations(db, projectId",
+    "getCrdtObjectState(db, projectId"
+  ]) assert.ok(server.includes(fragment), "Missing CRDT API contract: " + fragment);
+});
