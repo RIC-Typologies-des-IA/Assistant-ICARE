@@ -32,6 +32,8 @@ export function createProjectSyncPeer(db, projectId, {
     throw new TypeError("Permissions de réplication invalides.");
   }
   initializeProjectPeerStore(db);
+  const activeCount = db.prepare("SELECT COUNT(*) AS count FROM project_sync_peers WHERE project_id=? AND revoked_at IS NULL").get(projectId).count;
+  if (activeCount >= 100) throw new Error("Limite de 100 pairs actifs atteinte pour ce projet.");
   const token = randomBytes(32).toString("base64url");
   const peerId = randomUUID();
   const createdAt = new Date().toISOString();
