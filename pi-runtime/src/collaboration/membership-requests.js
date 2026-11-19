@@ -11,7 +11,7 @@ export function initializeMembershipRequestStore(db) {
       status TEXT NOT NULL CHECK(status IN ('pending','accepted','rejected','cancelled')),
       requested_at TEXT NOT NULL,
       decided_at TEXT,
-      decided_by TEXT,
+      decided_by TEXT
     );
     CREATE UNIQUE INDEX IF NOT EXISTS project_membership_requests_one_pending
       ON project_membership_requests(project_id, principal_type, principal_id)
