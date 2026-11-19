@@ -329,12 +329,11 @@ function activeCrdtDecisions(decisions) {
     Array.isArray(decision.resolves) ? decision.resolves : []));
   return decisions.filter(decision => !superseded.has(decision.id));
 }
-function getActiveCrdtDecisions(projectId, objectId, targetType) {
+function getActiveCrdtDecisions(projectId, objectId, targetType, targetId = objectId) {
   const stored = getCrdtObjectState(db, projectId, "proposition", objectId);
   if (!stored) return [];
   const decisions = readPropositionCrdtState(stored.state).validationDecisions.filter(decision =>
-    decision.targetType === targetType && decision.targetId === objectId ||
-    targetType === "relation" && decision.targetType === "relation" && decision.targetId === objectId);
+    decision.targetType === targetType && decision.targetId === targetId);
   return activeCrdtDecisions(decisions);
 }
 function getPropositions(projectId = "legacy") {
@@ -1059,7 +1058,7 @@ const server = http.createServer(async (req, res) => {
         ({ decisionId } = recordCrdtValidationDecision(db, {
           projectId, objectId: relation.from_id, targetType: "relation", targetId: id,
           status: body.review_status, justification,
-          resolves: getActiveCrdtDecisions(projectId, id, "relation").map(decision => decision.id)
+          resolves: getActiveCrdtDecisions(projectId, relation.from_id, "relation", id).map(decision => decision.id)
         }));
       } catch (error) {
         db.prepare("UPDATE relations SET review_status='candidate' WHERE id=? AND project_id=? AND review_status=?")
