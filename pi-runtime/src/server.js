@@ -246,13 +246,36 @@ function json(res, status, value) {
   res.end(JSON.stringify(value));
 }
 async function readBody(req) {
-  let raw = "";
-  for await (const chunk of req) {
-    raw += chunk;
-    if (raw.length > 1_000_000) throw new Error("Requête trop volumineuse.");
-  }
-  return raw ? JSON.parse(raw) : {};
+  if (req.__icareBodyPromise) return req.__icareBodyPromise;
+  req.__icareBodyPromise = (async () => {
+    let raw = "";
+    for await (const chunk of req) {
+      raw += chunk;
+      if (raw.length > 1_000_000) throw new Error("Requête trop volumineuse.");
+    }
+    return raw ? JSON.parse(raw) : {};
+  })();
+  return req.__icareBodyPromise;
 }
+const discordIdentityCache = new Map();
+async function authenticateDiscordRequest(req) {
+  const token = bearerToken(req);
+  if (!token) return null;
+  const cacheKey = createHash("sha256").update(token).digest("hex");
+  const cached = discordIdentityCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) return cached.user;
+  try {
+    const response = await fetch("https://discord.com/api/v10/users/@me", {
+      headers: { Authorization: "Bearer " + token },
+      signal: AbortSignal.timeout(10000)
+    });
+    if (!response.ok) return null;
+    const user = await response.json();
+    discordIdentityCache.set(cacheKey, { user, expiresAt: Date.now() + 30000 });
+    return user;
+  } catch { return null; }
+}
+
 function bearerToken(req) {
   const header = req.headers.authorization || "";
   const match = /^Bearer ([A-Za-z0-9._~-]+)$/.exec(header);
@@ -704,6 +727,36 @@ function sendPublicAsset(res, pathname) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, "http://" + req.headers.host);
   try {
+    // All project APIs require a live Discord identity. Project-scoped APIs
+    // additionally require current owner/member access. Replication endpoints
+    // retain their dedicated peer-token authorization.
+    const publicApiPaths = new Set([
+      "/api/status", "/api/models", "/api/models/refresh",
+      "/api/discord/config", "/api/discord/token", "/api/discord/context"
+    ]);
+    const isMembershipRequestApi = /^\\/api\\/projects\\/[^/]+\\/membership-requests(?:\\/[^/]+)?$/.test(url.pathname);
+    const isPeerReplicationApi = /^\\/api\\/projects\\/[^/]+\\/crdt\\//.test(url.pathname);
+    if (url.pathname.startsWith("/api/") && !publicApiPaths.has(url.pathname) &&
+        !isMembershipRequestApi && !isPeerReplicationApi) {
+      const identity = await authenticateDiscordRequest(req);
+      if (!identity) return json(res, 401, { error: "Authentification Discord requise. Ouvre ICARE depuis une Activity Discord autorisée." });
+      let projectId = url.searchParams.get("projectId");
+      const projectPath = /^\\/api\\/projects\\/([^/]+)/.exec(url.pathname);
+      if (!projectId && projectPath) {
+        try { projectId = decodeURIComponent(projectPath[1]); } catch {}
+      }
+      if (!projectId && req.method !== "GET" && req.method !== "HEAD") {
+        const body = await readBody(req);
+        projectId = typeof body.projectId === "string" ? body.projectId : null;
+      }
+      if (projectId) {
+        const access = getDiscordProjectAccess(db, projectId, identity.id);
+        if (!access || access.roleConflict) {
+          return json(res, 403, { error: "Ce compte Discord n'est pas membre de ce projet. Demande à rejoindre le projet depuis son lien." });
+        }
+      }
+      req.discordIdentity = identity;
+    }
     if (req.method === "GET" && url.pathname === "/") return sendStatic(res, path.join(HERE, "..", "public", "index.html"), "text/html; charset=utf-8");
     if (req.method === "GET" && url.pathname.startsWith("/assets/")) return sendPublicAsset(res, url.pathname);
     if (req.method === "GET" && url.pathname === "/api/status") {
@@ -937,13 +990,11 @@ const server = http.createServer(async (req, res) => {
         defaultProjectId: guildId ? null : process.env.ICARE_DISCORD_DEFAULT_PROJECT_ID || null
       });
       const access = projectId ? getDiscordProjectAccess(db, projectId, discordUser.id) : null;
-      if (projectId && !access) {
-        return json(res, 403, { error: "Votre compte Discord n'est pas membre de ce projet ICARE. Demandez à un propriétaire de vous inviter." });
-      }
       return json(res, 200, {
         user: { id: discordUser.id, username: discordUser.username, global_name: discordUser.global_name || null },
         channelId: channelId || null, projectId, instanceId,
-        projectRole: access?.role || null
+        projectRole: access?.role || null,
+        isMember: Boolean(access && !access.roleConflict)
       });
     }
     const membershipRequestMatch = /^\/api\/projects\/([^/]+)\/membership-requests(?:\/([^/]+))?$/.exec(url.pathname);
