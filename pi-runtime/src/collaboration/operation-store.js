@@ -83,6 +83,11 @@ export function validateCrdtOperation(operation) {
       else if (isRecord(operation.actor) && canonical(decision.actor) !== canonical(operation.actor)) {
         errors.push("L'acteur de la décision doit correspondre à l'acteur de l'opération.");
       }
+      if (decision?.resolves !== undefined &&
+          (!Array.isArray(decision.resolves) || decision.resolves.some(id => !nonEmpty(id)) ||
+           new Set(decision.resolves).size !== decision.resolves.length)) {
+        errors.push("La liste des décisions résolues est invalide.");
+      }
     }
     if (operation.kind === "observation.remove" || operation.kind === "relation.remove") {
       if (!Array.isArray(operation.payload.observedAdds)) errors.push("Le retrait doit déclarer les ajouts observés.");
