@@ -908,8 +908,9 @@ const server = http.createServer((req, res) => requestContext.run({ discordIdent
     }
     const shareLinkMatch = /^\/api\/projects\/([^/]+)\/share-link$/.exec(url.pathname);
     if (req.method === "GET" && shareLinkMatch) {
-      if (!PUBLIC_BASE_URL) return json(res, 503, { error: "Le partage web nécessite ICARE_PUBLIC_BASE_URL." });
-      const projectId = decodeURIComponent(shareLinkMatch[1]);
+      if (!PUBLIC_BASE_URL || !DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET || !DISCORD_REDIRECT_URI) return json(res, 503, { error: "Le partage web nécessite ICARE_PUBLIC_BASE_URL et une configuration OAuth Discord complète." });
+      let projectId;
+      try { projectId = decodeURIComponent(shareLinkMatch[1]); } catch { return json(res, 400, { error: "Identifiant de projet invalide." }); }
       return json(res, 200, { url: PUBLIC_BASE_URL + "/share/" + encodeURIComponent(projectId) });
     }
     if (req.method === "GET" && url.pathname === "/") return sendStatic(res, path.join(HERE, "..", "public", "index.html"), "text/html; charset=utf-8");
