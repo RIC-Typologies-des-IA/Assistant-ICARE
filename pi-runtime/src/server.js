@@ -329,8 +329,14 @@ function getPropositions(projectId = "legacy") {
     .map(p => {
       const crdt = getCrdtObjectState(db, projectId, "proposition", p.id);
       const crdtState = crdt ? readPropositionCrdtState(crdt.state) : null;
+      const decisions = crdtState?.validationDecisions || [];
+      const decisionStatuses = new Set(decisions.map(decision => decision.status));
+      const conflicts = crdtState
+        ? Object.fromEntries(Object.entries(crdtState.fields).filter(([, values]) => values.length > 1))
+        : {};
       return { ...p, dimensions: JSON.parse(p.dimensions),
-        crdt_decisions: crdtState?.validationDecisions || [] };
+        crdt_decisions: decisions, crdt_conflicts: conflicts,
+        crdt_decision_conflict: decisionStatuses.has("accepted") && decisionStatuses.has("rejected") };
     });
 }
 function getRelations(projectId = "legacy") {
@@ -339,7 +345,9 @@ function getRelations(projectId = "legacy") {
       const crdt = getCrdtObjectState(db, projectId, "proposition", relation.from_id);
       const decisions = crdt ? readPropositionCrdtState(crdt.state).validationDecisions
         .filter(decision => decision.targetType === "relation" && decision.targetId === relation.id) : [];
-      return { ...relation, crdt_decisions: decisions };
+      const statuses = new Set(decisions.map(decision => decision.status));
+      return { ...relation, crdt_decisions: decisions,
+        crdt_decision_conflict: statuses.has("accepted") && statuses.has("rejected") };
     });
 }
 function recordSnapshot(projectId, sessionId = "manual", turnIndex = 0) {
