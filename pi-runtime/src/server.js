@@ -35,6 +35,9 @@ const SYNC_ADMIN_TOKEN = process.env.ICARE_SYNC_ADMIN_TOKEN || "";
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID || "";
 const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET || "";
 const DISCORD_ACTIVITY_ORIGIN = process.env.ICARE_DISCORD_ACTIVITY_ORIGIN || "";
+const PUBLIC_BASE_URL = (process.env.ICARE_PUBLIC_BASE_URL || "").replace(/\\/$/, "");
+const DISCORD_REDIRECT_URI = process.env.ICARE_DISCORD_REDIRECT_URI ||
+  (PUBLIC_BASE_URL ? PUBLIC_BASE_URL + "/auth/discord/callback" : "");
 // L'ontologie JSON est la source de vérité des dimensions et des catégories.
 const ONTOLOGY = JSON.parse(await readFile(path.join(ROOT, "reference", "icare.json"), "utf8"));
 const DIMENSION_ORDER = ["I", "C", "A", "R", "E"];
@@ -63,6 +66,22 @@ initializeDiscordBindingStore(db);
 initializeMembershipRequestStore(db);
 db.exec(`
   PRAGMA journal_mode = WAL;
+  CREATE TABLE IF NOT EXISTS discord_web_sessions (
+    session_hash TEXT PRIMARY KEY,
+    discord_user_id TEXT NOT NULL,
+    username TEXT NOT NULL,
+    global_name TEXT,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS discord_web_sessions_expiry ON discord_web_sessions(expires_at);
+  CREATE TABLE IF NOT EXISTS discord_oauth_states (
+    state_hash TEXT PRIMARY KEY,
+    project_id TEXT,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS discord_oauth_states_expiry ON discord_oauth_states(expires_at);
   CREATE TABLE IF NOT EXISTS propositions (
     id TEXT PRIMARY KEY, text TEXT NOT NULL, dimensions TEXT NOT NULL,
     primary_dimension TEXT NOT NULL, temporal TEXT NOT NULL,
@@ -259,22 +278,44 @@ async function readBody(req) {
   return req.__icareBodyPromise;
 }
 const discordIdentityCache = new Map();
+function cookieValue(req, name) {
+  const cookie = req.headers.cookie || "";
+  for (const part of cookie.split(";")) {
+    const index = part.indexOf("=");
+    if (index < 0) continue;
+    if (part.slice(0, index).trim() === name) return decodeURIComponent(part.slice(index + 1).trim());
+  }
+  return null;
+}
+function hashSecret(value) {
+  return createHash("sha256").update(value, "utf8").digest("hex");
+}
+function getWebSession(req) {
+  const token = cookieValue(req, "icare_session");
+  if (!token) return null;
+  const row = db.prepare("SELECT discord_user_id,username,global_name,expires_at FROM discord_web_sessions WHERE session_hash=?")
+    .get(hashSecret(token));
+  if (!row || Date.parse(row.expires_at) <= Date.now()) return null;
+  return { id: row.discord_user_id, username: row.username, global_name: row.global_name || null };
+}
 async function authenticateDiscordRequest(req) {
   const token = bearerToken(req);
-  if (!token) return null;
-  const cacheKey = createHash("sha256").update(token).digest("hex");
-  const cached = discordIdentityCache.get(cacheKey);
-  if (cached && cached.expiresAt > Date.now()) return cached.user;
-  try {
-    const response = await fetch("https://discord.com/api/v10/users/@me", {
-      headers: { Authorization: "Bearer " + token },
-      signal: AbortSignal.timeout(10000)
-    });
-    if (!response.ok) return null;
-    const user = await response.json();
-    discordIdentityCache.set(cacheKey, { user, expiresAt: Date.now() + 30000 });
-    return user;
-  } catch { return null; }
+  if (token) {
+    const cacheKey = createHash("sha256").update(token).digest("hex");
+    const cached = discordIdentityCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) return cached.user;
+    try {
+      const response = await fetch("https://discord.com/api/v10/users/@me", {
+        headers: { Authorization: "Bearer " + token },
+        signal: AbortSignal.timeout(10000)
+      });
+      if (!response.ok) return null;
+      const user = await response.json();
+      discordIdentityCache.set(cacheKey, { user, expiresAt: Date.now() + 30000 });
+      return user;
+    } catch { return null; }
+  }
+  return getWebSession(req);
 }
 
 function bearerToken(req) {
