@@ -137,4 +137,4 @@ Le journal CRDT est la source de vérité répliquée ; les tables SQL ne sont q
 - l'interface affiche les valeurs alternatives et l'historique complet des décisions ;
 - si des décisions acceptée et rejetée coexistent, la projection repasse à `candidate` pour signaler qu'aucune décision unique ne peut être présentée comme acquise.
 
-Une convergence CRDT n'est donc jamais assimilée à une décision sémantique. La résolution appartient aux participants, et une nouvelle décision justifiée s'ajoute à l'historique sans effacer les précédentes.
+Une convergence CRDT n'est donc jamais assimilée à une décision sémantique. La résolution appartient aux participants. Après examen du conflit, une nouvelle décision justifiée peut déclarer explicitement les identifiants des décisions actives qu'elle résout (`resolves`). Les anciennes décisions restent intégralement dans l'historique ; seule la nouvelle décision devient active. Sans cette référence explicite, des décisions opposées restent un conflit.
