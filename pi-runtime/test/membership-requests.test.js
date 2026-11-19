@@ -24,8 +24,9 @@ function database() {
 
 test("requesting access creates a pending request but never membership", () => {
   const db = database();
-  const result = requestDiscordProjectMembership(db, { projectId: "p1", discordUserId: "guest" });
+  const result = requestDiscordProjectMembership(db, { projectId: "p1", discordUserId: "guest", displayName: "Guest Display" });
   assert.equal(result.request.status, "pending");
+  assert.equal(result.request.principal_label, "Guest Display");
   assert.equal(getDiscordProjectAccess(db, "p1", "guest"), null);
   db.close();
 });
