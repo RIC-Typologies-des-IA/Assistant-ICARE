@@ -14,7 +14,7 @@ import {
 } from "./model.js";
 import {
   assertProjectMembershipState, createProjectMembershipState,
-  grantProjectMember, revokeProjectMember
+  grantProjectMember, getProjectMemberAccess, readProjectMembers, revokeProjectMember
 } from "./project-membership.js";
 
 const isRecord = value => value !== null && typeof value === "object" && !Array.isArray(value);
@@ -181,6 +181,47 @@ export function applyProjectMembershipOperation(state, operation) {
   const validation = validateCrdtOperation(operation);
   if (!validation.valid) throw new TypeError("Opération de membership CRDT invalide : " + validation.errors.join(" "));
   assertProjectMembershipState(state);
+  const actorId = operation.actor.id.startsWith("discord:")
+    ? operation.actor.id.slice("discord:".length) : "";
+  if (!actorId) throw new Error("L'acteur de membership doit être une identité Discord vérifiée.");
+  const members = readProjectMembers(state);
+  const owners = new Set(members.filter(member => member.role === "owner").map(member => member.principalId));
+  const actorAccess = getProjectMemberAccess(state, "discord", actorId);
+
+  if (operation.kind === "project.member.grant") {
+    const target = operation.payload.member;
+    if (owners.size === 0) {
+      if (target.role !== "owner" || target.principalId !== actorId) {
+        throw new Error("Seul le premier propriétaire peut initialiser l'accès au projet.");
+      }
+    } else if (actorAccess?.role !== "owner" || actorAccess.roleConflict) {
+      throw new Error("Seul un propriétaire actif peut accorder un accès au projet.");
+    }
+    return grantProjectMember(state, target, operation.dot);
+  }
+  if (operation.kind === "project.member.revoke") {
+    if (actorAccess?.role !== "owner" || actorAccess.roleConflict) {
+      throw new Error("Seul un propriétaire actif peut révoquer un accès au projet.");
+    }
+    const target = operation.payload.member;
+    const targetAccess = getProjectMemberAccess(state, "discord", target.principalId);
+    if (!targetAccess) throw new Error("Le grant à révoquer doit être reçu avant sa révocation.");
+    if (target.role === "owner" && owners.size <= 1) {
+      throw new Error("Le dernier propriétaire du projet ne peut pas être révoqué.");
+    }
+    for (const entry of operation.payload.observedAdds) {
+      const existing = state.members.adds.find(add =>
+        add.dot.replicaId === entry.dot.replicaId && add.dot.counter === entry.dot.counter);
+      if (!existing || canonical(existing.value) !== canonical(entry.value)) {
+        throw new Error("Le grant observé doit être reçu avant sa révocation.");
+      }
+    }
+    return revokeProjectMember(state, target, operation.payload.observedAdds);
+  }
+  throw new TypeError("Opération de membership non prise en charge.");
+}
+
+export function _unusedApplyProjectMembershipOperationMarker(state, operation) {
   if (operation.kind === "project.member.grant") {
     return grantProjectMember(state, operation.payload.member, operation.dot);
   }
