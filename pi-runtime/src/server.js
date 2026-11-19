@@ -9,6 +9,7 @@ import { createProjectEvent, createProjectManifest, validateProjectEvent, valida
 import { getLocalReplicaIdentity, initializeReplicaStore } from "./collaboration/replica-store.js";
 import { applyCrdtOperation, getCrdtObjectState, initializeCrdtOperationStore, listCrdtOperations, validateCrdtOperation } from "./collaboration/operation-store.js";
 import { authenticateProjectSyncPeer, createProjectSyncPeer, initializeProjectPeerStore, listProjectSyncPeers, revokeProjectSyncPeer } from "./collaboration/peer-store.js";
+import { parseSyncPeerConfig, startSyncScheduler } from "./collaboration/sync-scheduler.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
@@ -1007,6 +1008,18 @@ const server = http.createServer(async (req, res) => {
 
 try {
   const { modelId, modelName } = await initializePi();
+  const syncPeers = parseSyncPeerConfig(process.env.ICARE_SYNC_PEERS || "[]");
+  if (syncPeers.length) {
+    const intervalMs = Number(process.env.ICARE_SYNC_INTERVAL_MS || 30000);
+    startSyncScheduler(db, syncPeers, {
+      intervalMs,
+      onResult: result => console.log("[ICARE sync] Pair synchronisé :", result.projectId, result.peerKey,
+        "tirées=" + result.pulled, "envoyées=" + result.pushed),
+      onError: failure => console.warn("[ICARE sync] Pair indisponible ; nouvelle tentative planifiée :",
+        failure.projectId, failure.peerKey, failure.error)
+    });
+    console.log("[ICARE sync] Synchronisation automatique activée pour", syncPeers.length, "pair(s).");
+  }
   server.listen(PORT, HOST, () => {
     console.log(`ICARE prêt : http://${HOST}:${PORT}`);
     console.log(`Pi SDK connecté à Lemonade : ${modelName} (${modelId})`);
