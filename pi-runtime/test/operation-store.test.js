@@ -82,7 +82,7 @@ test("observed removal arriving before its add prevents the delayed add from rea
     opId: "observation-remove", kind: "observation.remove",
     dot: { replicaId: "phone", counter: 2 }, causalContext: { phone: 1 },
     payload: { observation: { id: "obs-1", content: "Observation" },
-      observedDots: [{ replicaId: "phone", counter: 1 }] }
+      observedAdds: [{ dot: { replicaId: "phone", counter: 1 }, value: { id: "obs-1", content: "Observation" } }] }
   });
   applyCrdtOperation(db, remove);
   applyCrdtOperation(db, add);
