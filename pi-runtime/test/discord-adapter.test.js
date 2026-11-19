@@ -60,3 +60,16 @@ test("Activity project selection refuses to silently fall back to another projec
   assert.ok(html.includes("discordActivityProjectId"));
   assert.ok(html.includes("Le projet Discord lié n'est pas encore présent"));
 });
+
+test("membership request API is Discord-authenticated and owner-gated", async () => {
+  const server = await read("../src/server.js");
+  const access = await read("../src/collaboration/membership-requests.js");
+  assert.ok(server.includes("/membership-requests"));
+  assert.ok(server.includes('req.headers.origin === new URL(DISCORD_ACTIVITY_ORIGIN).origin'));
+  assert.ok(server.includes('https://discord.com/api/v10/users/@me'));
+  assert.ok(server.includes("requestDiscordProjectMembership(db"));
+  assert.ok(server.includes("listPendingDiscordMembershipRequests(db"));
+  assert.ok(server.includes("decideDiscordMembershipRequest(db"));
+  assert.ok(access.includes("Seul un propriétaire actif peut traiter une demande"));
+  assert.ok(access.includes('role: "member"'));
+});
