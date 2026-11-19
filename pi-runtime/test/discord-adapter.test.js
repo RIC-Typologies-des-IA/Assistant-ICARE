@@ -170,7 +170,7 @@ test("cookie-authenticated write APIs enforce a trusted browser origin", async (
 test("replication permits only the self-attributed first owner grant on an empty replica", async () => {
   const server = await read("../src/server.js");
   const access = await read("../src/discord-access.js");
-  assert.ok(server.includes("const initialOwnerBootstrap = !hasOwner"));
+  assert.ok(server.includes("const initialOwnerBootstrap = existingMembers.length === 0 && !participantAccess && !hasOwner"));
   assert.ok(server.includes("grantedMember?.principalId === participant.id"));
   assert.ok(server.includes("!initialOwnerBootstrap && participantAccess?.role !== \"owner\""));
   assert.ok(access.includes('participant: { type: "discord", id: actorDiscordUserId }'));
