@@ -148,3 +148,14 @@ test("web sharing uses stateful Discord OAuth and HttpOnly server sessions", asy
   assert.ok(html.includes("Copier un lien HTTPS vers ce projet"));
   assert.ok(html.includes("Demander à rejoindre"));
 });
+
+test("Discord bot chat uses a private server credential and the gateway-authenticated author", async () => {
+  const server = await read("../src/server.js");
+  const adapter = await read("../src/discord-adapter.js");
+  assert.ok(server.includes("INTERNAL_DISCORD_API_TOKEN = randomBytes(32)"));
+  assert.ok(server.includes("secretMatches(req.headers[\"x-icare-internal-token\"]"));
+  assert.ok(server.includes("internalUserId"));
+  assert.ok(adapter.includes('"x-icare-internal-token": internalApiToken'));
+  assert.ok(adapter.includes('"x-icare-discord-user": discordUserId'));
+  assert.ok(adapter.includes("discordUserId: message.author.id"));
+});
