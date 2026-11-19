@@ -72,3 +72,35 @@ Les tests unitaires couvrent la construction et la validation des URI, manifeste
 2. Définir les identités de participants et les capacités d'accès.
 3. Spécifier le modèle causal et comparer les bibliothèques CRDT sur les objets métier réels.
 4. Prototyper deux répliques locales avant de connecter Discord.
+
+
+## Première implémentation CRDT (branche expérimentale)
+
+Le module `pi-runtime/src/collaboration/crdt.js` ajoute des primitives pures, sans dépendance à Discord, SQLite ou à une bibliothèque externe :
+
+- **Vecteurs de versions** : normalisation, comparaison (avant/après/égal/concurrent), fusion et génération de dots.
+- **MV-register (multi-value register)** : une écriture qui a observé une version précédente la remplace ; des écritures concurrentes restent toutes visibles comme valeurs sœurs.
+- **OR-set (observed-remove set)** : un retrait ne supprime que les ajouts qu'il a effectivement observés ; un ajout concurrent demeure visible.
+
+Les tests vérifient notamment la convergence par fusion dans des ordres différents, l'idempotence, l'associativité des fusions du MV-register, la préservation des valeurs concurrentes et le rejet des collisions de dots.
+
+### Décision volontaire : ne pas fusionner le sens automatiquement
+
+Ces primitives ne déterminent pas si deux hypothèses sont vraies, si deux observations se contredisent, ni si une relation conceptuelle doit être conservée. Elles garantissent seulement que les répliques convergent vers le même ensemble de valeurs candidates. Le MV-register est donc privilégié pour les champs où écraser une contribution concurrente serait dangereux.
+
+### Limites de cette tranche
+
+- Les primitives ne sont pas encore branchées sur les tables métier ni sur les routes de synchronisation.
+- Les identités de répliques, la persistance locale du compteur et la validation des droits restent à intégrer avant tout échange réseau.
+- Pas de suppression définitive/compaction des tombstones OR-set : il faudra un mécanisme de stabilité globale ou une politique de rétention sûre.
+- Pas de résolution automatique des conflits sémantiques.
+- Aucun protocole de transport, serveur central ou mécanisme pair-à-pair n'est choisi.
+
+### Arbitrages à instruire avant le branchement métier
+
+1. **Granularité des répliques** : identifiant par installation/appareil ou par acteur humain ? L'identifiant par appareil permet à une personne d'écrire depuis plusieurs appareils sans collision ; l'identité humaine reste distincte pour l'attribution.
+2. **Données à fusion automatique** : les contributions/observations distinctes peuvent être modélisées en OR-set ; les champs éditables d'une proposition devraient plutôt être en MV-register pour préserver les éditions concurrentes. La validation humaine (candidate/accepted/rejected) ne doit pas être un simple LWW sans décision explicite.
+3. **Tombstones et rétention** : ne jamais purger les marqueurs de suppression tant que toutes les répliques autorisées n'ont pas confirmé les avoir vus, ou qu'une politique de rétention équivalente n'est pas définie.
+4. **Dépendance externe** : garder ces primitives internes pour l'instant évite d'enfermer le modèle métier dans une bibliothèque. Une comparaison avec Yjs/Automerge reste pertinente si l'on veut répliquer des documents riches ou des séquences collaboratives caractère par caractère ; ce n'est pas nécessaire pour les premières données ICARE structurées.
+
+Ces points sont des propositions d'architecture, pas des décisions irréversibles.
