@@ -70,7 +70,7 @@ test("legacy proposition snapshots, relations and immutable decisions share one 
   const state = getCrdtObjectState(db, "project-1", "proposition", p.id).state;
   const read = readPropositionCrdtState(state);
   assert.deepEqual(read.fields.text, ["Observation source"]);
-  assert.deepEqual(read.fields.reviewStatus, ["candidate"]);
+  assert.deepEqual(read.legacyReviewStatus, ["candidate"]);
   assert.equal(read.relations[0].id, "rel-1");
   assert.deepEqual(read.validationDecisions.map(d => d.status).sort(), ["accepted", "rejected"]);
   assert.equal(listCrdtOperations(db, "project-1").operations.length, 4);
