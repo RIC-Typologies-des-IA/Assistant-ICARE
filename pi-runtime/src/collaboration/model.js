@@ -14,7 +14,7 @@ export const PROPOSITION_REGISTER_FIELDS = Object.freeze([
   "epistemic", "practical", "confidence", "source", "aspect",
   "utteranceTime", "validTimeStart", "validTimeEnd", "eventPeriodStart",
   "eventPeriodEnd", "targetHorizon", "realizationTime", "modality",
-  "subject", "predicate", "value", "author", "sourceAgent", "sourceInteraction", "justification", "reviewStatus"
+  "subject", "predicate", "value", "author", "sourceAgent", "sourceInteraction", "justification"
 ]);
 
 const FIELD_SET = new Set(PROPOSITION_REGISTER_FIELDS);
@@ -23,7 +23,7 @@ const nonEmpty = value => typeof value === "string" && value.trim().length > 0;
 
 function assertState(state) {
   if (!isRecord(state) || state.type !== "icare-proposition-crdt" || state.version !== 1 ||
-      !isRecord(state.fields) || !isRecord(state.observations) ||
+      !isRecord(state.fields) || !isRecord(state.legacyReviewStatus) || state.legacyReviewStatus.type !== "mv-register" || !isRecord(state.observations) ||
       !isRecord(state.relations) || !isRecord(state.validationDecisions)) {
     throw new TypeError("État CRDT de proposition ICARE invalide.");
   }
@@ -52,6 +52,7 @@ export function createPropositionCrdtState() {
     type: "icare-proposition-crdt",
     version: 1,
     fields: Object.fromEntries(PROPOSITION_REGISTER_FIELDS.map(field => [field, createMVRegister()])),
+    legacyReviewStatus: createMVRegister(),
     observations: createORSet(),
     relations: createORSet(),
     validationDecisions: createORSet()
@@ -140,6 +141,7 @@ export function mergePropositionCrdtStates(left, right) {
     type: "icare-proposition-crdt",
     version: 1,
     fields,
+    legacyReviewStatus: mergeMVRegisters(left.legacyReviewStatus, right.legacyReviewStatus),
     observations: mergeORSets(left.observations, right.observations),
     relations: mergeORSets(left.relations, right.relations),
     validationDecisions: mergeORSets(left.validationDecisions, right.validationDecisions)
@@ -150,6 +152,7 @@ export function readPropositionCrdtState(state) {
   assertState(state);
   return {
     fields: Object.fromEntries(Object.entries(state.fields).map(([field, register]) => [field, readMVRegister(register)])),
+    legacyReviewStatus: readMVRegister(state.legacyReviewStatus),
     observations: readORSet(state.observations),
     relations: readORSet(state.relations),
     validationDecisions: readORSet(state.validationDecisions)
