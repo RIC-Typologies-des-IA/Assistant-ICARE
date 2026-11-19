@@ -1123,6 +1123,24 @@ const server = http.createServer((req, res) => requestContext.run({ discordIdent
         const validation = validateCrdtOperation(operation);
         if (!validation.valid) return json(res, 400, { error: "Opération CRDT invalide.", details: validation.errors });
         if (operation.projectId !== projectId) return json(res, 400, { error: "L'opération ne correspond pas au projet de l'URL." });
+        const participant = operation.actor?.participant;
+        if (participant) {
+          if (participant.type !== "discord" || typeof participant.id !== "string" || !participant.id.trim()) {
+            return json(res, 400, { error: "Attribution du participant invalide." });
+          }
+          const participantAccess = getDiscordProjectAccess(db, projectId, participant.id);
+          if (!participantAccess || participantAccess.roleConflict) {
+            return json(res, 403, {
+              error: "Opération refusée : le participant associé à cette contribution n'est plus membre du projet.",
+              code: "REJECTED_AUTHORIZATION",
+              operationId: operation.opId
+            });
+          }
+          if (["project.member.grant", "project.member.revoke"].includes(operation.kind) &&
+              participantAccess.role !== "owner") {
+            return json(res, 403, { error: "Seul un propriétaire peut répliquer une décision de membership.", code: "REJECTED_AUTHORIZATION" });
+          }
+        }
         try {
           const result = applyCrdtOperation(db, operation);
           const projection = materializeCrdtOperation(db, operation);
