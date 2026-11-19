@@ -41,7 +41,7 @@ test("Activity OAuth secrets remain server-side and origin-restricted", async ()
   assert.ok(!activity.includes("DISCORD_CLIENT_SECRET"));
   assert.ok(html.includes('src="/discord-activity.js"'));
   assert.ok(html.includes("icare:discord-ready"));
-  assert.ok(html.includes("discord-activity-"+ " + event.detail.instanceId"));
+  assert.ok(html.includes('sessionId=("discord-activity-"+event.detail.instanceId)'));
   assert.ok(html.includes("renderDiscordParticipants"));
 });
 
