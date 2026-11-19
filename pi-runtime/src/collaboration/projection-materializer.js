@@ -1,5 +1,6 @@
 import { getCrdtObjectState } from "./operation-store.js";
 import { readPropositionCrdtState } from "./model.js";
+import { readProjectMembers } from "./project-membership.js";
 
 const FIELD_COLUMNS = Object.freeze({
   text: "text", dimensions: "dimensions", primaryDimension: "primary_dimension",
@@ -178,13 +179,46 @@ function materializeRelationDecisions(db, projectId, readState) {
   }
 }
 
+function materializeProjectMembers(db, projectId, state) {
+  const members = readProjectMembers(state);
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS project_members (
+      project_id TEXT NOT NULL,
+      principal_type TEXT NOT NULL,
+      principal_id TEXT NOT NULL,
+      role TEXT NOT NULL CHECK(role IN ('owner','member')),
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY(project_id,principal_type,principal_id,role)
+    );
+  `);
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    db.prepare("DELETE FROM project_members WHERE project_id=?").run(projectId);
+    const insert = db.prepare(`INSERT INTO project_members
+      (project_id,principal_type,principal_id,role,updated_at) VALUES(?,?,?,?,?)`);
+    const now = new Date().toISOString();
+    for (const member of members) {
+      insert.run(projectId, member.principalType, member.principalId, member.role, now);
+    }
+    db.exec("COMMIT");
+  } catch (error) {
+    try { db.exec("ROLLBACK"); } catch {}
+    throw error;
+  }
+  return { projected: true, members };
+}
+
 /**
  * Keep the legacy SQL tables as read projections, never as the CRDT source of
  * truth. Concurrent field values are deliberately not selected or overwritten.
  */
 export function materializeCrdtOperation(db, operation) {
-  if (operation.objectType !== "proposition") return { projected: false, reason: "unsupported-object-type" };
   const stored = getCrdtObjectState(db, operation.projectId, operation.objectType, operation.objectId);
+  if (operation.objectType === "project") {
+    return stored ? materializeProjectMembers(db, operation.projectId, stored.state)
+      : { projected: false, reason: "state-missing" };
+  }
+  if (operation.objectType !== "proposition") return { projected: false, reason: "unsupported-object-type" };
   if (!stored) return { projected: false, reason: "state-missing" };
   const result = materializeProposition(
     db, operation.projectId, operation.objectId, stored.state, operation
