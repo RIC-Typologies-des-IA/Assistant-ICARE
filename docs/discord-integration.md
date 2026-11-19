@@ -40,6 +40,7 @@ Définir côté serveur :
 
 - `DISCORD_CLIENT_ID` : identifiant public de l'application.
 - `DISCORD_CLIENT_SECRET` : secret OAuth2, strictement serveur.
+- `DISCORD_BOT_TOKEN` : requis pour que le serveur vérifie l'instance Activity et l'appartenance de l'utilisateur connecté.
 - `ICARE_DISCORD_ACTIVITY_ORIGIN` : origine HTTPS exacte autorisée, par exemple `https://icare.example.org` (sans chemin).
 
 Dans le portail développeur Discord :
@@ -51,7 +52,7 @@ Dans le portail développeur Discord :
 
 L'Activity charge `public/index.html`, donc **la même interface ICARE** que la PWA. Le SDK Embedded App est initialisé uniquement lorsque Discord fournit le paramètre `frame_id`. Il authentifie l'utilisateur avec le scope `identify`, puis le serveur échange le code OAuth. Le secret client et le jeton du bot ne sont jamais envoyés au navigateur.
 
-Le serveur n'accepte l'échange OAuth que si l'en-tête `Origin` correspond exactement à `ICARE_DISCORD_ACTIVITY_ORIGIN`. Le jeton utilisateur est conservé en mémoire par le SDK et n'est pas enregistré dans SQLite.
+Le serveur n'accepte l'échange OAuth que si l'en-tête `Origin` correspond exactement à `ICARE_DISCORD_ACTIVITY_ORIGIN`. Avant de fournir le contexte projet, il vérifie aussi l'instance via l'API Discord `activity-instances` avec le jeton bot et contrôle que l'utilisateur authentifié figure parmi ses participants. Sans jeton bot, l'Activity reste désactivée. Le jeton utilisateur est conservé en mémoire par le SDK et n'est pas enregistré dans SQLite.
 
 L'Activity récupère le projet lié au salon Discord. Si ce projet n'existe pas sur l'installation qui héberge l'Activity, elle affiche une erreur de synchronisation et **ne bascule pas silencieusement vers un autre projet**. Chaque instance Discord utilise un identifiant de session partagé entre ses participants, affiche les participants connectés via le SDK et actualise l'état du projet périodiquement. Les conversations d'instances différentes restent séparées ; les données du projet restent persistantes.
 
