@@ -74,38 +74,33 @@ export function listPendingDiscordMembershipRequests(db, { projectId, actorDisco
   `).all(projectId);
 }
 
-/** Only an owner can decide. Acceptance and the CRDT grant share one SQLite transaction. */
+/** Only an owner can decide. Acceptance is retry-safe across the CRDT and request-status writes. */
 export function decideDiscordMembershipRequest(db, {
   projectId, requestId, actorDiscordUserId, decision, decidedAt = new Date().toISOString()
 }) {
   assertProjectId(projectId);
   if (!["accepted", "rejected"].includes(decision)) throw new TypeError("Décision d'adhésion invalide.");
 
-  db.exec("BEGIN IMMEDIATE");
-  try {
-    requireOwner(db, projectId, actorDiscordUserId);
-    const request = db.prepare(`
-      SELECT * FROM project_membership_requests
-      WHERE request_id=? AND project_id=? AND status='pending'
-    `).get(requestId, projectId);
-    if (!request) throw new Error("Demande introuvable ou déjà traitée.");
+  requireOwner(db, projectId, actorDiscordUserId);
+  const request = db.prepare(`
+    SELECT * FROM project_membership_requests
+    WHERE request_id=? AND project_id=? AND status='pending'
+  `).get(requestId, projectId);
+  if (!request) throw new Error("Demande introuvable ou déjà traitée.");
 
-    if (decision === "accepted") {
-      grantDiscordProjectMember(db, {
-        projectId, discordUserId: request.principal_id,
-        role: "member", actorDiscordUserId
-      });
-    }
-    const updated = db.prepare(`
-      UPDATE project_membership_requests
-      SET status=?,decided_at=?,decided_by=?
-      WHERE request_id=? AND project_id=? AND status='pending'
-    `).run(decision, decidedAt, actorDiscordUserId, requestId, projectId);
-    if (updated.changes !== 1) throw new Error("La demande a été traitée entre-temps.");
-    db.exec("COMMIT");
-    return { requestId, status: decision, principalId: request.principal_id };
-  } catch (error) {
-    db.exec("ROLLBACK");
-    throw error;
+  if (decision === "accepted" && !getDiscordProjectAccess(db, projectId, request.principal_id)) {
+    // CRDT dot allocation owns its SQLite transaction. This step is deliberately
+    // idempotent: a retry after a crash observes the already-created membership.
+    grantDiscordProjectMember(db, {
+      projectId, discordUserId: request.principal_id,
+      role: "member", actorDiscordUserId
+    });
   }
+  const updated = db.prepare(`
+    UPDATE project_membership_requests
+    SET status=?,decided_at=?,decided_by=?
+    WHERE request_id=? AND project_id=? AND status='pending'
+  `).run(decision, decidedAt, actorDiscordUserId, requestId, projectId);
+  if (updated.changes !== 1) throw new Error("La demande a été traitée entre-temps.");
+  return { requestId, status: decision, principalId: request.principal_id };
 }
