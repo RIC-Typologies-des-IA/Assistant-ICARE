@@ -324,13 +324,30 @@ function getState(projectId = "legacy") {
       rejected: related.filter(p => p.review_status === "rejected").length };
   });
 }
+function activeCrdtDecisions(decisions) {
+  const superseded = new Set(decisions.flatMap(decision =>
+    Array.isArray(decision.resolves) ? decision.resolves : []));
+  return decisions.filter(decision => !superseded.has(decision.id));
+}
+function getActiveCrdtDecisions(projectId, objectId, targetType) {
+  const stored = getCrdtObjectState(db, projectId, "proposition", objectId);
+  if (!stored) return [];
+  const decisions = readPropositionCrdtState(stored.state).validationDecisions.filter(decision =>
+    decision.targetType === targetType && decision.targetId === objectId ||
+    targetType === "relation" && decision.targetType === "relation" && decision.targetId === objectId);
+  return activeCrdtDecisions(decisions);
+}
 function getPropositions(projectId = "legacy") {
   return db.prepare("SELECT * FROM propositions WHERE project_id=? ORDER BY created_at DESC").all(projectId)
     .map(p => {
       const crdt = getCrdtObjectState(db, projectId, "proposition", p.id);
       const crdtState = crdt ? readPropositionCrdtState(crdt.state) : null;
-      const decisions = crdtState?.validationDecisions || [];
-      const decisionStatuses = new Set(decisions.map(decision => decision.status));
+      const allDecisions = crdtState?.validationDecisions || [];
+      const decisions = allDecisions.filter(decision =>
+        (decision.targetType === "proposition" || !decision.targetType) &&
+        (decision.targetId === p.id || !decision.targetId));
+      const activeDecisions = activeCrdtDecisions(decisions);
+      const decisionStatuses = new Set(activeDecisions.map(decision => decision.status));
       const conflicts = crdtState
         ? {
             ...Object.fromEntries(Object.entries(crdtState.fields).filter(([, values]) => values.length > 1)),
@@ -338,7 +355,7 @@ function getPropositions(projectId = "legacy") {
           }
         : {};
       return { ...p, dimensions: JSON.parse(p.dimensions),
-        crdt_decisions: decisions, crdt_conflicts: conflicts,
+        crdt_decisions: decisions, crdt_active_decisions: activeDecisions, crdt_conflicts: conflicts,
         crdt_decision_conflict: decisionStatuses.has("accepted") && decisionStatuses.has("rejected") };
     });
 }
@@ -348,8 +365,9 @@ function getRelations(projectId = "legacy") {
       const crdt = getCrdtObjectState(db, projectId, "proposition", relation.from_id);
       const decisions = crdt ? readPropositionCrdtState(crdt.state).validationDecisions
         .filter(decision => decision.targetType === "relation" && decision.targetId === relation.id) : [];
-      const statuses = new Set(decisions.map(decision => decision.status));
-      return { ...relation, crdt_decisions: decisions,
+      const activeDecisions = activeCrdtDecisions(decisions);
+      const statuses = new Set(activeDecisions.map(decision => decision.status));
+      return { ...relation, crdt_decisions: decisions, crdt_active_decisions: activeDecisions,
         crdt_decision_conflict: statuses.has("accepted") && statuses.has("rejected") };
     });
 }
@@ -1013,7 +1031,8 @@ const server = http.createServer(async (req, res) => {
       try {
         ({ decisionId } = recordCrdtValidationDecision(db, {
           projectId, objectId: id, targetType: "proposition", targetId: id,
-          status: body.review_status, justification
+          status: body.review_status, justification,
+          resolves: getActiveCrdtDecisions(projectId, id, "proposition").map(decision => decision.id)
         }));
       } catch (error) {
         db.prepare("UPDATE propositions SET review_status='candidate' WHERE id=? AND project_id=? AND review_status=?")
@@ -1039,7 +1058,8 @@ const server = http.createServer(async (req, res) => {
       try {
         ({ decisionId } = recordCrdtValidationDecision(db, {
           projectId, objectId: relation.from_id, targetType: "relation", targetId: id,
-          status: body.review_status, justification
+          status: body.review_status, justification,
+          resolves: getActiveCrdtDecisions(projectId, id, "relation").map(decision => decision.id)
         }));
       } catch (error) {
         db.prepare("UPDATE relations SET review_status='candidate' WHERE id=? AND project_id=? AND review_status=?")
