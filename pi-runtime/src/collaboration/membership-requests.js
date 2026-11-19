@@ -8,6 +8,7 @@ export function initializeMembershipRequestStore(db) {
       project_id TEXT NOT NULL,
       principal_type TEXT NOT NULL CHECK(principal_type='discord'),
       principal_id TEXT NOT NULL,
+      principal_label TEXT NOT NULL DEFAULT '',
       status TEXT NOT NULL CHECK(status IN ('pending','accepted','rejected','cancelled')),
       requested_at TEXT NOT NULL,
       decided_at TEXT,
