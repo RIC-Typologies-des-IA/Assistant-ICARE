@@ -50,6 +50,25 @@ if (activityParams.has("frame_id")) {
       });
       const context = await contextResponse.json();
       if (!contextResponse.ok) throw new Error(context.error || "Contexte Discord indisponible.");
+      if (context.sessionToken) {
+        const originalFetch = window.fetch.bind(window);
+        const authExempt = new Set([
+          "/api/auth/session", "/api/auth/logout", "/api/discord/config",
+          "/api/discord/token", "/api/discord/context"
+        ]);
+        window.fetch = (input, init = {}) => {
+          const inputUrl = typeof input === "string" ? input : input?.url;
+          let requestUrl;
+          try { requestUrl = new URL(inputUrl, window.location.href); } catch {}
+          if (requestUrl && requestUrl.origin === window.location.origin &&
+              requestUrl.pathname.startsWith("/api/") && !authExempt.has(requestUrl.pathname)) {
+            const headers = new Headers(init.headers || (input instanceof Request ? input.headers : undefined));
+            headers.set("Authorization", "Bearer " + context.sessionToken);
+            return originalFetch(input, { ...init, headers });
+          }
+          return originalFetch(input, init);
+        };
+      }
 
       window.__icareDiscordSdk = discordSdk;
       window.__icareDiscordParticipantsUnsubscribe = () => discordSdk.unsubscribe(Events.ACTIVITY_INSTANCE_PARTICIPANTS_UPDATE, onParticipantsUpdate);
