@@ -5,7 +5,7 @@
  * materialized object state. A replica may receive operations out of order.
  */
 import {
-  normalizeVersionVector, removeORSetObserved
+  assignMVRegister, normalizeVersionVector, removeORSetObserved
 } from "./crdt.js";
 import {
   PROPOSITION_REGISTER_FIELDS, createPropositionCrdtState, editPropositionField,
@@ -63,6 +63,10 @@ export function validateCrdtOperation(operation) {
           if (!PROPOSITION_REGISTER_FIELDS.includes(field)) errors.push("Champ d'instantané non pris en charge : " + field);
         }
       }
+      if (operation.payload.legacyReviewStatus !== undefined &&
+          !["candidate", "accepted", "rejected"].includes(operation.payload.legacyReviewStatus)) {
+        errors.push("Statut historique de proposition invalide.");
+      }
     }
     if (operation.kind === "observation.add" &&
         (!isRecord(operation.payload.observation) || !nonEmpty(operation.payload.observation.id) || !nonEmpty(operation.payload.observation.content))) {
@@ -107,8 +111,13 @@ export function applyPropositionOperation(state, operation) {
   switch (operation.kind) {
     case "field.set":
       return editPropositionField(state, payload.field, payload.value, dot, context);
-    case "proposition.snapshot":
-      return initializePropositionFields(state, payload.fields, dot, context);
+    case "proposition.snapshot": {
+      const initialized = initializePropositionFields(state, payload.fields, dot, context);
+      return payload.legacyReviewStatus === undefined ? initialized : {
+        ...initialized,
+        legacyReviewStatus: assignMVRegister(initialized.legacyReviewStatus, payload.legacyReviewStatus, dot, context)
+      };
+    }
     case "observation.add":
       return addPropositionObservation(state, payload.observation, dot);
     case "observation.remove":
