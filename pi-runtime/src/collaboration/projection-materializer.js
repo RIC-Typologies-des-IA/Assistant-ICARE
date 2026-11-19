@@ -127,6 +127,11 @@ function materializeProposition(db, projectId, objectId, state, operation) {
 
 function materializeRelations(db, projectId, fromId, readState) {
   if (!hasTable(db, "relations")) return 0;
+  const activeIds = new Set(readState.relations.map(relation => relation?.id).filter(Boolean));
+  const existing = db.prepare("SELECT id FROM relations WHERE project_id=? AND from_id=?").all(projectId, fromId);
+  for (const row of existing) {
+    if (!activeIds.has(row.id)) db.prepare("DELETE FROM relations WHERE id=? AND project_id=?").run(row.id, projectId);
+  }
   let count = 0;
   for (const relation of readState.relations) {
     if (!relation?.id || !relation.targetId || !relation.type) continue;
