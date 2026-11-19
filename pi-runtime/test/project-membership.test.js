@@ -71,7 +71,9 @@ test("a revoke removes only observed grants and preserves a concurrent grant", (
   applyCrdtOperation(db, revoke);
   materializeCrdtOperation(db, revoke);
   const state = getCrdtObjectState(db, "project-1", "project", "project-1").state;
-  assert.deepEqual(readProjectMembers(state), [member]);
+  assert.deepEqual(readProjectMembers(state), [
+    { principalType: "discord", principalId: "owner", role: "owner" }, member
+  ]);
   assert.equal(getProjectMemberAccess(state, "discord", "user-2").role, "member");
   db.close();
 });
