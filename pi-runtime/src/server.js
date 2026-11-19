@@ -742,7 +742,7 @@ const server = http.createServer(async (req, res) => {
         return json(res, stored.inserted ? 201 : 200, { ok: true, duplicate: !stored.inserted, eventId: event.eventId });
       }
     }
-    const crdtOperationsMatch = /^\\/api\\/projects\\/([^/]+)\\/crdt\\/operations$/.exec(url.pathname);
+    const crdtOperationsMatch = /^\/api\/projects\/([^/]+)\/crdt\/operations$/.exec(url.pathname);
     if (crdtOperationsMatch) {
       let projectId;
       try { projectId = decodeURIComponent(crdtOperationsMatch[1]); }
@@ -772,7 +772,7 @@ const server = http.createServer(async (req, res) => {
         }
       }
     }
-    const crdtObjectMatch = /^\\/api\\/projects\\/([^/]+)\\/crdt\\/objects\\/([^/]+)\\/([^/]+)$/.exec(url.pathname);
+    const crdtObjectMatch = /^\/api\/projects\/([^/]+)\/crdt\/objects\/([^/]+)\/([^/]+)$/.exec(url.pathname);
     if (req.method === "GET" && crdtObjectMatch) {
       let projectId, objectType, objectId;
       try {
