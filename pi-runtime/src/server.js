@@ -3,7 +3,7 @@ import { readFile, mkdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { requestContext } from "./collaboration/request-context.js";
 import { DatabaseSync } from "node:sqlite";
 import { createProjectEvent, createProjectManifest, validateProjectEvent, validateProjectManifest } from "./collaboration/project.js";
@@ -774,7 +774,8 @@ const server = http.createServer((req, res) => requestContext.run({ discordIdent
     // retain their dedicated peer-token authorization.
     const publicApiPaths = new Set([
       "/api/status", "/api/models", "/api/models/refresh",
-      "/api/discord/config", "/api/discord/token", "/api/discord/context"
+      "/api/discord/config", "/api/discord/token", "/api/discord/context",
+      "/api/auth/config", "/api/auth/session", "/api/auth/logout"
     ]);
     const isMembershipRequestApi = /^\/api\/projects\/[^/]+\/membership-requests(?:\/[^/]+)?$/.test(url.pathname);
     const isPeerReplicationApi = /^\/api\/projects\/[^/]+\/crdt\//.test(url.pathname);
@@ -803,6 +804,109 @@ const server = http.createServer((req, res) => requestContext.run({ discordIdent
       }
       req.discordIdentity = identity;
       requestContext.getStore().discordIdentity = identity;
+    }
+    if (req.method === "GET" && url.pathname === "/auth/discord/start") {
+      if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET || !DISCORD_REDIRECT_URI) {
+        return json(res, 503, { error: "Connexion web Discord indisponible : configure l'URL de redirection OAuth." });
+      }
+      const projectId = url.searchParams.get("projectId") || null;
+      if (projectId) {
+        try { requireProject(projectId); } catch (error) { return json(res, 404, { error: error.message }); }
+      }
+      const state = randomBytes(32).toString("base64url");
+      const createdAt = now();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+      db.prepare("INSERT INTO discord_oauth_states(state_hash,project_id,created_at,expires_at) VALUES(?,?,?,?)")
+        .run(hashSecret(state), projectId, createdAt, expiresAt);
+      const authorize = new URL("https://discord.com/oauth2/authorize");
+      authorize.search = new URLSearchParams({
+        client_id: DISCORD_CLIENT_ID, redirect_uri: DISCORD_REDIRECT_URI,
+        response_type: "code", scope: "identify", state
+      }).toString();
+      res.writeHead(302, { Location: authorize.toString(), "Cache-Control": "no-store" });
+      return res.end();
+    }
+    if (req.method === "GET" && url.pathname === "/auth/discord/callback") {
+      const code = url.searchParams.get("code") || "";
+      const state = url.searchParams.get("state") || "";
+      if (!code || !state || code.length > 2048 || state.length > 256) {
+        return json(res, 400, { error: "Retour OAuth Discord incomplet." });
+      }
+      const oauthState = db.prepare("SELECT * FROM discord_oauth_states WHERE state_hash=?")
+        .get(hashSecret(state));
+      db.prepare("DELETE FROM discord_oauth_states WHERE state_hash=?").run(hashSecret(state));
+      if (!oauthState || Date.parse(oauthState.expires_at) <= Date.now()) {
+        return json(res, 400, { error: "État OAuth expiré ou invalide. Relance la connexion." });
+      }
+      try {
+        const tokenResponse = await fetch("https://discord.com/api/v10/oauth2/token", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            client_id: DISCORD_CLIENT_ID, client_secret: DISCORD_CLIENT_SECRET,
+            grant_type: "authorization_code", code, redirect_uri: DISCORD_REDIRECT_URI
+          }),
+          signal: AbortSignal.timeout(15000)
+        });
+        const tokenPayload = await tokenResponse.json();
+        if (!tokenResponse.ok || !tokenPayload.access_token) {
+          return json(res, 502, { error: "Discord a refusé l'échange du code OAuth." });
+        }
+        const userResponse = await fetch("https://discord.com/api/v10/users/@me", {
+          headers: { Authorization: "Bearer " + tokenPayload.access_token },
+          signal: AbortSignal.timeout(10000)
+        });
+        if (!userResponse.ok) return json(res, 502, { error: "Impossible de vérifier l'identité Discord." });
+        const user = await userResponse.json();
+        const sessionToken = randomBytes(32).toString("base64url");
+        const createdAt = now();
+        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+        db.prepare("DELETE FROM discord_web_sessions WHERE expires_at<=?").run(createdAt);
+        db.prepare("INSERT INTO discord_web_sessions(session_hash,discord_user_id,username,global_name,created_at,expires_at) VALUES(?,?,?,?,?,?)")
+          .run(hashSecret(sessionToken), user.id, user.username || user.id, user.global_name || null, createdAt, expiresAt);
+        const secure = DISCORD_REDIRECT_URI.startsWith("https://") ? "; Secure" : "";
+        const cookie = "icare_session=" + sessionToken + "; HttpOnly; SameSite=Lax; Path=/; Max-Age=2592000" + secure;
+        const destination = oauthState.project_id
+          ? "/share/" + encodeURIComponent(oauthState.project_id)
+          : "/";
+        res.writeHead(302, { Location: destination, "Set-Cookie": cookie, "Cache-Control": "no-store" });
+        return res.end();
+      } catch (error) {
+        return json(res, 502, { error: "Échec de la connexion Discord : " + (error.message || String(error)) });
+      }
+    }
+    const sharePageMatch = /^\/share\/([^/]+)$/.exec(url.pathname);
+    if (req.method === "GET" && sharePageMatch) {
+      let projectId;
+      try { projectId = decodeURIComponent(sharePageMatch[1]); }
+      catch { return json(res, 400, { error: "Lien de projet invalide." }); }
+      return requireProject(projectId) && (res.writeHead(302, { Location: "/?projectId=" + encodeURIComponent(projectId), "Cache-Control": "no-store" }), res.end());
+    }
+    if (req.method === "GET" && url.pathname === "/api/auth/config") {
+      return json(res, 200, {
+        enabled: Boolean(DISCORD_CLIENT_ID && DISCORD_CLIENT_SECRET && DISCORD_REDIRECT_URI),
+        publicBaseUrl: PUBLIC_BASE_URL || null,
+        redirectUri: DISCORD_REDIRECT_URI || null
+      });
+    }
+    if (req.method === "GET" && url.pathname === "/api/auth/session") {
+      const user = getWebSession(req);
+      return json(res, 200, { authenticated: Boolean(user), user: user ? { id: user.id, username: user.username, global_name: user.global_name } : null });
+    }
+    if (req.method === "POST" && url.pathname === "/api/auth/logout") {
+      const token = cookieValue(req, "icare_session");
+      if (token) db.prepare("DELETE FROM discord_web_sessions WHERE session_hash=?").run(hashSecret(token));
+      res.writeHead(200, {
+        "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store",
+        "Set-Cookie": "icare_session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0" + (DISCORD_REDIRECT_URI.startsWith("https://") ? "; Secure" : "")
+      });
+      return res.end(JSON.stringify({ ok: true }));
+    }
+    const shareLinkMatch = /^\/api\/projects\/([^/]+)\/share-link$/.exec(url.pathname);
+    if (req.method === "GET" && shareLinkMatch) {
+      if (!PUBLIC_BASE_URL) return json(res, 503, { error: "Le partage web nécessite ICARE_PUBLIC_BASE_URL." });
+      const projectId = decodeURIComponent(shareLinkMatch[1]);
+      return json(res, 200, { url: PUBLIC_BASE_URL + "/share/" + encodeURIComponent(projectId) });
     }
     if (req.method === "GET" && url.pathname === "/") return sendStatic(res, path.join(HERE, "..", "public", "index.html"), "text/html; charset=utf-8");
     if (req.method === "GET" && url.pathname.startsWith("/assets/")) return sendPublicAsset(res, url.pathname);
