@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { createProjectEvent, createProjectManifest, validateProjectEvent, validateProjectManifest } from "./collaboration/project.js";
+import { getLocalReplicaIdentity, initializeReplicaStore } from "./collaboration/replica-store.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
@@ -35,6 +36,9 @@ const EXPLORATION = ONTOLOGY.exploration_status;
 await mkdir(DATA_DIR, { recursive: true });
 await mkdir(AGENT_DIR, { recursive: true });
 const db = new DatabaseSync(path.join(DATA_DIR, "icare.sqlite"));
+// Identité CRDT stable de cette installation, distincte des acteurs humains/agents.
+initializeReplicaStore(db);
+getLocalReplicaIdentity(db);
 db.exec(`
   PRAGMA journal_mode = WAL;
   CREATE TABLE IF NOT EXISTS propositions (
