@@ -1034,7 +1034,7 @@ const server = http.createServer(async (req, res) => {
           .run(id, projectId, body.review_status);
         return json(res, 500, { error: "La décision n'a pas pu être inscrite dans le journal CRDT : " + error.message });
       }
-      recordSnapshot(projectId, "relation-" + id, Number(db.prepare("SELECT COALESCE(MAX(turn_index),0)+1 AS current FROM conversation_turns WHERE project_id=?").get(projectId).current));
+      recordSnapshot(projectId, "relation-" + id, Number(db.prepare("SELECT COALESCE(MAX(turn_index),0) AS current FROM conversation_turns WHERE project_id=?").get(projectId).current));
       return json(res, 200, { ok: true, decisionId });
     }
     if (req.method === "POST" && url.pathname.startsWith("/api/dimensions/")) {
