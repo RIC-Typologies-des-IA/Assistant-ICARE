@@ -79,7 +79,7 @@ function uniqueEntries(entries) {
     assertEntry(entry);
     const key = dotKey(entry.dot);
     const previous = byDot.get(key);
-    if (previous && JSON.stringify(previous) !== JSON.stringify(entry)) {
+    if (previous && canonical(previous) !== canonical(entry)) {
       throw new Error("Collision de dot CRDT avec des contenus différents : " + key);
     }
     byDot.set(key, structuredClone(entry));
