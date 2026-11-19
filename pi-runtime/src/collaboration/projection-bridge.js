@@ -51,13 +51,13 @@ export function projectRelationToCrdt(db, relation, actor = { type: "agent", id:
 
 export function recordCrdtValidationDecision(db, {
   projectId, objectId, targetType = "proposition", targetId = objectId,
-  status, justification, actor = { type: "human", id: "local-user" }
+  status, justification, resolves = [], actor = { type: "human", id: "local-user" }
 }) {
   const decisionId = randomUUID();
   const operation = createLocalCrdtOperation(db, {
     projectId, objectId, kind: "decision.record", actor,
     payload: { decision: { id: decisionId, targetType, targetId, status,
-      justification, actor, recordedAt: new Date().toISOString() } }
+      justification, resolves, actor, recordedAt: new Date().toISOString() } }
   });
   return { decisionId, operation };
 }
