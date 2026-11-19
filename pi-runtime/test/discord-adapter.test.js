@@ -19,7 +19,7 @@ test("Discord bot is an optional server-side adapter using ICARE chat sessions",
   assert.ok(adapter.includes('setName("invite")'));
   assert.ok(adapter.includes('setName("revoke")'));
   assert.ok(adapter.includes("defaultProjectId: isDm ? defaultProjectId : null"));
-  assert.ok(server.includes("startDiscordBot({ db, port: PORT })"));
+  assert.ok(server.includes("startDiscordBot({ db, port: PORT, internalApiToken: INTERNAL_DISCORD_API_TOKEN })"));
 });
 
 test("Discord project bindings are channel-scoped, not dimension-scoped", async () => {
