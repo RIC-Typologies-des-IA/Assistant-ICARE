@@ -31,7 +31,7 @@ export function projectPropositionToCrdt(db, proposal, actor = proposalActor(pro
   }
   const operation = createLocalCrdtOperation(db, {
     projectId: proposal.project_id, objectId: proposal.id,
-    kind: "proposition.snapshot", payload: { fields: proposalFields(proposal) }, actor
+    kind: "proposition.snapshot", payload: { fields: proposalFields(proposal), legacyReviewStatus: proposal.review_status }, actor
   });
   return { inserted: true, operation };
 }
