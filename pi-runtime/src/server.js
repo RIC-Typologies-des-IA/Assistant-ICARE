@@ -1116,10 +1116,15 @@ const server = http.createServer(async (req, res) => {
       if (projectId && !access) {
         return json(res, 403, { error: "Votre compte Discord n'est pas membre de ce projet ICARE. Demandez à un propriétaire de vous inviter." });
       }
+      const apiSession = projectId
+        ? issueApiSession(db, { principalType: "discord", principalId: discordUser.id })
+        : null;
       return json(res, 200, {
         user: { id: discordUser.id, username: discordUser.username, global_name: discordUser.global_name || null },
         channelId: channelId || null, projectId, instanceId,
-        projectRole: access?.role || null
+        projectRole: access?.role || null,
+        sessionToken: apiSession?.token || null,
+        sessionExpiresAt: apiSession?.expiresAt || null
       });
     }
     const peerCollectionMatch = /^\/api\/projects\/([^/]+)\/crdt\/peers$/.exec(url.pathname);
