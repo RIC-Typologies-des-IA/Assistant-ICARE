@@ -7,28 +7,36 @@ ASSUME Owners0 \subseteq Users
 ASSUME Members0 \subseteq Users
 ASSUME Owners0 \cap Members0 = {}
 
-VARIABLES owners, members, requests, grants, localOps, publishedOps,
-          authorizedOps, rejectedOps
+VARIABLES owners, members, requests, grants, linkOnly, localOps,
+          publishedOps, authorizedOps, rejectedOps
 
-vars == <<owners, members, requests, grants, localOps, publishedOps,
-          authorizedOps, rejectedOps>>
+vars == <<owners, members, requests, grants, linkOnly, localOps,
+          publishedOps, authorizedOps, rejectedOps>>
 
 Init ==
   /\ owners = Owners0
   /\ members = Members0
   /\ requests = [u \in Users |-> "none"]
   /\ grants = {}
+  /\ linkOnly = {}
   /\ localOps = {}
   /\ publishedOps = {}
   /\ authorizedOps = {}
   /\ rejectedOps = {}
+
+ReceiveLink(u) ==
+  /\ u \in Users
+  /\ u \notin owners \cup members
+  /\ linkOnly' = linkOnly \cup {u}
+  /\ UNCHANGED <<owners, members, requests, grants, localOps, publishedOps,
+                 authorizedOps, rejectedOps>>
 
 RequestJoin(u) ==
   /\ u \in Users
   /\ u \notin owners \cup members
   /\ requests[u] = "none"
   /\ requests' = [requests EXCEPT ![u] = "pending"]
-  /\ UNCHANGED <<owners, members, grants, localOps, publishedOps,
+  /\ UNCHANGED <<owners, members, grants, linkOnly, localOps, publishedOps,
                  authorizedOps, rejectedOps>>
 
 OwnerAccept(actor, u) ==
@@ -38,13 +46,14 @@ OwnerAccept(actor, u) ==
   /\ members' = members \cup {u}
   /\ requests' = [requests EXCEPT ![u] = "accepted"]
   /\ grants' = grants \cup {<<actor, u>>}
+  /\ linkOnly' = linkOnly \ {u}
   /\ UNCHANGED <<owners, localOps, publishedOps, authorizedOps, rejectedOps>>
 
 OwnerReject(actor, u) ==
   /\ actor \in owners
   /\ requests[u] = "pending"
   /\ requests' = [requests EXCEPT ![u] = "rejected"]
-  /\ UNCHANGED <<owners, members, grants, localOps, publishedOps,
+  /\ UNCHANGED <<owners, members, grants, linkOnly, localOps, publishedOps,
                  authorizedOps, rejectedOps>>
 
 MemberCannotGrant(actor, u) ==
@@ -56,7 +65,7 @@ Revoke(actor, u) ==
   /\ actor \in owners
   /\ u \in members
   /\ members' = members \ {u}
-  /\ UNCHANGED <<owners, requests, grants, localOps, publishedOps,
+  /\ UNCHANGED <<owners, requests, grants, linkOnly, localOps, publishedOps,
                  authorizedOps, rejectedOps>>
 
 DraftOffline(u, op) ==
@@ -64,7 +73,7 @@ DraftOffline(u, op) ==
   /\ op \in Ops
   /\ <<u, op>> \notin localOps \cup publishedOps \cup rejectedOps
   /\ localOps' = localOps \cup {<<u, op>>}
-  /\ UNCHANGED <<owners, members, requests, grants, publishedOps,
+  /\ UNCHANGED <<owners, members, requests, grants, linkOnly, publishedOps,
                  authorizedOps, rejectedOps>>
 
 ReconnectAuthorized(u, op) ==
@@ -73,17 +82,18 @@ ReconnectAuthorized(u, op) ==
   /\ publishedOps' = publishedOps \cup {<<u, op>>}
   /\ authorizedOps' = authorizedOps \cup {<<u, op>>}
   /\ localOps' = localOps \ {<<u, op>>}
-  /\ UNCHANGED <<owners, members, requests, grants, rejectedOps>>
+  /\ UNCHANGED <<owners, members, requests, grants, linkOnly, rejectedOps>>
 
 ReconnectRevoked(u, op) ==
   /\ <<u, op>> \in localOps
   /\ u \notin owners \cup members
   /\ rejectedOps' = rejectedOps \cup {<<u, op>>}
   /\ localOps' = localOps \ {<<u, op>>}
-  /\ UNCHANGED <<owners, members, requests, grants, publishedOps,
+  /\ UNCHANGED <<owners, members, requests, grants, linkOnly, publishedOps,
                  authorizedOps>>
 
 Next ==
+  \/ \E u \in Users : ReceiveLink(u)
   \/ \E u \in Users : RequestJoin(u)
   \/ \E a \in Users, u \in Users : OwnerAccept(a, u)
   \/ \E a \in Users, u \in Users : OwnerReject(a, u)
@@ -99,6 +109,7 @@ TypeOK ==
   /\ members \subseteq Users
   /\ requests \in [Users -> {"none", "pending", "accepted", "rejected"}]
   /\ grants \subseteq Users \X Users
+  /\ linkOnly \subseteq Users
   /\ localOps \subseteq Users \X Ops
   /\ publishedOps \subseteq Users \X Ops
   /\ authorizedOps \subseteq Users \X Ops
@@ -114,6 +125,9 @@ AcceptedRequestHasGrant ==
 PendingIsNotMembership ==
   \A u \in Users : requests[u] = "pending" => u \notin members
 
+LinkKnowledgeDoesNotGrantAccess ==
+  linkOnly \cap (owners \cup members) = {}
+
 EveryPublicationWasAuthorized ==
   publishedOps \subseteq authorizedOps
 
@@ -126,6 +140,7 @@ THEOREM Spec => []TypeOK
 THEOREM Spec => []OnlyOwnersCanGrant
 THEOREM Spec => []AcceptedRequestHasGrant
 THEOREM Spec => []PendingIsNotMembership
+THEOREM Spec => []LinkKnowledgeDoesNotGrantAccess
 THEOREM Spec => []EveryPublicationWasAuthorized
 THEOREM Spec => []RejectedOperationsAreNotPublished
 ==========================================================
