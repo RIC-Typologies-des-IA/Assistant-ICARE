@@ -60,7 +60,8 @@ if (activityParams.has("frame_id")) {
           guildId: discordSdk.guildId || null,
           instanceId: discordSdk.instanceId || null,
           participants: initialParticipants?.participants || [],
-          user: auth.user
+          user: auth.user,
+          accessToken: tokenPayload.access_token
         }
       }));
     } catch (error) {
