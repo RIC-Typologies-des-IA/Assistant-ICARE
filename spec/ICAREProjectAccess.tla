@@ -92,6 +92,7 @@ Next ==
   \/ \E u \in Users, op \in Ops : DraftOffline(u, op)
   \/ \E u \in Users, op \in Ops : ReconnectAuthorized(u, op)
   \/ \E u \in Users, op \in Ops : ReconnectRevoked(u, op)
+  \/ UNCHANGED vars
 
 TypeOK ==
   /\ owners \subseteq Users
