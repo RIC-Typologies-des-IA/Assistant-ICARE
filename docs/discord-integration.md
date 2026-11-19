@@ -16,7 +16,7 @@ Définir côté serveur :
 - `DISCORD_BOT_TOKEN` : jeton privé du bot.
 - `DISCORD_CLIENT_ID` : identifiant public de l'application Discord.
 - `DISCORD_GUILD_ID` (facultatif) : serveur où enregistrer les commandes plus rapidement.
-- `ICARE_DISCORD_DEFAULT_PROJECT_ID` (facultatif) : projet par défaut pour les messages privés et les salons sans liaison explicite.
+- `ICARE_DISCORD_DEFAULT_PROJECT_ID` (facultatif) : projet par défaut pour les messages privés et les Group DMs. Les salons de serveur doivent toujours être liés explicitement.
 
 Dans le portail développeur Discord, activer l'intent privilégié **Message Content** pour le bot. Le bot écoute les messages qui le mentionnent, les messages privés et les réponses dans les fils qu'il a ouverts.
 
