@@ -12,8 +12,10 @@ export function initializeMembershipRequestStore(db) {
       requested_at TEXT NOT NULL,
       decided_at TEXT,
       decided_by TEXT,
-      UNIQUE(project_id, principal_type, principal_id, status)
     );
+    CREATE UNIQUE INDEX IF NOT EXISTS project_membership_requests_one_pending
+      ON project_membership_requests(project_id, principal_type, principal_id)
+      WHERE status='pending';
     CREATE INDEX IF NOT EXISTS project_membership_requests_pending
       ON project_membership_requests(project_id, requested_at)
       WHERE status='pending';
