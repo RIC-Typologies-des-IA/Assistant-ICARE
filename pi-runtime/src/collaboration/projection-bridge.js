@@ -15,8 +15,7 @@ const proposalFields = proposal => ({
   realizationTime: proposal.realization_time, modality: proposal.modality,
   subject: proposal.subject, predicate: proposal.predicate, value: proposal.value,
   author: proposal.author, sourceAgent: proposal.source_agent,
-  sourceInteraction: proposal.source_interaction, justification: proposal.justification,
-  reviewStatus: proposal.review_status
+  sourceInteraction: proposal.source_interaction, justification: proposal.justification
 });
 
 export function proposalActor(proposal) {
