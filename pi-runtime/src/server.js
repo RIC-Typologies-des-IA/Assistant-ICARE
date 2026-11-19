@@ -10,6 +10,9 @@ import { getLocalReplicaIdentity, initializeReplicaStore } from "./collaboration
 import { applyCrdtOperation, getCrdtObjectState, initializeCrdtOperationStore, listCrdtOperations, validateCrdtOperation } from "./collaboration/operation-store.js";
 import { authenticateProjectSyncPeer, createProjectSyncPeer, initializeProjectPeerStore, listProjectSyncPeers, revokeProjectSyncPeer } from "./collaboration/peer-store.js";
 import { parseSyncPeerConfig, startSyncScheduler } from "./collaboration/sync-scheduler.js";
+import { readPropositionCrdtState } from "./collaboration/model.js";
+import { backfillCrdtProjections, projectPropositionToCrdt, projectRelationToCrdt, recordCrdtValidationDecision } from "./collaboration/projection-bridge.js";
+import { materializeCrdtOperation } from "./collaboration/projection-materializer.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
@@ -321,12 +324,51 @@ function getState(projectId = "legacy") {
       rejected: related.filter(p => p.review_status === "rejected").length };
   });
 }
+function activeCrdtDecisions(decisions) {
+  const superseded = new Set(decisions.flatMap(decision =>
+    Array.isArray(decision.resolves) ? decision.resolves : []));
+  return decisions.filter(decision => !superseded.has(decision.id));
+}
+function getActiveCrdtDecisions(projectId, objectId, targetType, targetId = objectId) {
+  const stored = getCrdtObjectState(db, projectId, "proposition", objectId);
+  if (!stored) return [];
+  const decisions = readPropositionCrdtState(stored.state).validationDecisions.filter(decision =>
+    decision.targetType === targetType && decision.targetId === targetId);
+  return activeCrdtDecisions(decisions);
+}
 function getPropositions(projectId = "legacy") {
   return db.prepare("SELECT * FROM propositions WHERE project_id=? ORDER BY created_at DESC").all(projectId)
-    .map(p => ({ ...p, dimensions: JSON.parse(p.dimensions) }));
+    .map(p => {
+      const crdt = getCrdtObjectState(db, projectId, "proposition", p.id);
+      const crdtState = crdt ? readPropositionCrdtState(crdt.state) : null;
+      const allDecisions = crdtState?.validationDecisions || [];
+      const decisions = allDecisions.filter(decision =>
+        (decision.targetType === "proposition" || !decision.targetType) &&
+        (decision.targetId === p.id || !decision.targetId));
+      const activeDecisions = activeCrdtDecisions(decisions);
+      const decisionStatuses = new Set(activeDecisions.map(decision => decision.status));
+      const conflicts = crdtState
+        ? {
+            ...Object.fromEntries(Object.entries(crdtState.fields).filter(([, values]) => values.length > 1)),
+            ...(crdtState.legacyReviewStatus.length > 1 ? { legacyReviewStatus: crdtState.legacyReviewStatus } : {})
+          }
+        : {};
+      return { ...p, dimensions: JSON.parse(p.dimensions),
+        crdt_decisions: decisions, crdt_active_decisions: activeDecisions, crdt_conflicts: conflicts,
+        crdt_decision_conflict: decisionStatuses.has("accepted") && decisionStatuses.has("rejected") };
+    });
 }
 function getRelations(projectId = "legacy") {
-  return db.prepare("SELECT * FROM relations WHERE project_id=? ORDER BY created_at DESC LIMIT 200").all(projectId);
+  return db.prepare("SELECT * FROM relations WHERE project_id=? ORDER BY created_at DESC LIMIT 200").all(projectId)
+    .map(relation => {
+      const crdt = getCrdtObjectState(db, projectId, "proposition", relation.from_id);
+      const decisions = crdt ? readPropositionCrdtState(crdt.state).validationDecisions
+        .filter(decision => decision.targetType === "relation" && decision.targetId === relation.id) : [];
+      const activeDecisions = activeCrdtDecisions(decisions);
+      const statuses = new Set(activeDecisions.map(decision => decision.status));
+      return { ...relation, crdt_decisions: decisions, crdt_active_decisions: activeDecisions,
+        crdt_decision_conflict: statuses.has("accepted") && statuses.has("rejected") };
+    });
 }
 function recordSnapshot(projectId, sessionId = "manual", turnIndex = 0) {
   const id = randomUUID();
@@ -372,7 +414,17 @@ function recordCandidate(input, projectId = "legacy") {
       optionalText("realization_time"), modality, optionalText("subject"), optionalText("predicate"), optionalText("value"),
       optionalText("author"), optionalText("source_agent"), optionalText("source_interaction"), optionalText("justification"), projectId
     );
-  return db.prepare("SELECT * FROM propositions WHERE id=? AND project_id=?").get(id, projectId);
+  const proposal = db.prepare("SELECT * FROM propositions WHERE id=? AND project_id=?").get(id, projectId);
+  const actor = input.source === "user"
+    ? { type: "human", id: "local-user" }
+    : { type: "agent", id: String(input.source_agent || "icare-agent") };
+  try {
+    projectPropositionToCrdt(db, proposal, actor);
+  } catch (error) {
+    db.prepare("DELETE FROM propositions WHERE id=? AND project_id=?").run(id, projectId);
+    throw error;
+  }
+  return proposal;
 }
 function recordRelationCandidate(input, projectId = "legacy") {
   const allowed = new Set(ONTOLOGY.relations);
@@ -384,8 +436,18 @@ function recordRelationCandidate(input, projectId = "legacy") {
   const exists = db.prepare("SELECT id FROM propositions WHERE id IN (?,?) AND project_id=?").all(fromId, toId, projectId);
   if (exists.length !== 2) throw new Error("Les deux propositions doivent exister.");
   const id = randomUUID();
+  const note = String(input.note || "").slice(0,1000);
   db.prepare("INSERT INTO relations(id,from_id,to_id,relation,note,review_status,created_at,project_id) VALUES(?,?,?,?,?,?,?,?)")
-    .run(id, fromId, toId, relation, String(input.note || "").slice(0,1000), "candidate", now(), projectId);
+    .run(id, fromId, toId, relation, note, "candidate", now(), projectId);
+  try {
+    projectRelationToCrdt(db, {
+      id, project_id: projectId, from_id: fromId, to_id: toId,
+      relation, note, review_status: "candidate"
+    }, { type: "agent", id: "icare-agent" });
+  } catch (error) {
+    db.prepare("DELETE FROM relations WHERE id=? AND project_id=?").run(id, projectId);
+    throw error;
+  }
   return { id, from_id: fromId, to_id: toId, relation, review_status: "candidate" };
 }
 
@@ -828,7 +890,8 @@ const server = http.createServer(async (req, res) => {
         if (operation.projectId !== projectId) return json(res, 400, { error: "L'opération ne correspond pas au projet de l'URL." });
         try {
           const result = applyCrdtOperation(db, operation);
-          return json(res, result.inserted ? 201 : 200, { ok: true, ...result });
+          const projection = materializeCrdtOperation(db, operation);
+          return json(res, result.inserted ? 201 : 200, { ok: true, ...result, projection });
         } catch (error) {
           const conflict = /Collision/.test(error.message);
           return json(res, conflict ? 409 : 400, { error: error.message });
@@ -957,21 +1020,53 @@ const server = http.createServer(async (req, res) => {
       const id = decodeURIComponent(url.pathname.split("/").pop());
       const body = await readBody(req);
       if (!["accepted", "rejected"].includes(body.review_status)) return json(res, 400, { error: "Statut de validation invalide." });
+      const justification = String(body.justification || "").trim();
+      if (justification.length < 8) return json(res, 400, { error: "Une justification d'au moins 8 caractères est requise pour historiser la décision." });
       const projectId = String(body.projectId || url.searchParams.get("projectId") || "legacy");
+      try { requireProject(projectId); } catch (error) { return json(res, 404, { error: error.message }); }
       const result = db.prepare("UPDATE propositions SET review_status=? WHERE id=? AND project_id=? AND review_status='candidate'").run(body.review_status, id, projectId);
       if (!result.changes) return json(res, 404, { error: "Proposition candidate introuvable." });
+      let decisionId;
+      try {
+        ({ decisionId } = recordCrdtValidationDecision(db, {
+          projectId, objectId: id, targetType: "proposition", targetId: id,
+          status: body.review_status, justification,
+          resolves: getActiveCrdtDecisions(projectId, id, "proposition").map(decision => decision.id)
+        }));
+      } catch (error) {
+        db.prepare("UPDATE propositions SET review_status='candidate' WHERE id=? AND project_id=? AND review_status=?")
+          .run(id, projectId, body.review_status);
+        return json(res, 500, { error: "La décision n'a pas pu être inscrite dans le journal CRDT : " + error.message });
+      }
       recordSnapshot(projectId, "proposal-" + id, Number(db.prepare("SELECT COALESCE(MAX(turn_index),0) AS current FROM conversation_turns WHERE project_id=?").get(projectId).current));
-      return json(res, 200, { ok: true });
+      return json(res, 200, { ok: true, decisionId });
     }
     if (req.method === "POST" && url.pathname.startsWith("/api/relations/")) {
       const id = decodeURIComponent(url.pathname.split("/").pop());
       const body = await readBody(req);
       if (!["accepted", "rejected"].includes(body.review_status)) return json(res, 400, { error: "Statut de validation invalide." });
+      const justification = String(body.justification || "").trim();
+      if (justification.length < 8) return json(res, 400, { error: "Une justification d'au moins 8 caractères est requise pour historiser la décision." });
       const projectId = String(body.projectId || url.searchParams.get("projectId") || "legacy");
+      try { requireProject(projectId); } catch (error) { return json(res, 404, { error: error.message }); }
+      const relation = db.prepare("SELECT * FROM relations WHERE id=? AND project_id=? AND review_status='candidate'").get(id, projectId);
+      if (!relation) return json(res, 404, { error: "Relation candidate introuvable." });
       const result = db.prepare("UPDATE relations SET review_status=? WHERE id=? AND project_id=? AND review_status='candidate'").run(body.review_status, id, projectId);
       if (!result.changes) return json(res, 404, { error: "Relation candidate introuvable." });
+      let decisionId;
+      try {
+        ({ decisionId } = recordCrdtValidationDecision(db, {
+          projectId, objectId: relation.from_id, targetType: "relation", targetId: id,
+          status: body.review_status, justification,
+          resolves: getActiveCrdtDecisions(projectId, relation.from_id, "relation", id).map(decision => decision.id)
+        }));
+      } catch (error) {
+        db.prepare("UPDATE relations SET review_status='candidate' WHERE id=? AND project_id=? AND review_status=?")
+          .run(id, projectId, body.review_status);
+        return json(res, 500, { error: "La décision n'a pas pu être inscrite dans le journal CRDT : " + error.message });
+      }
       recordSnapshot(projectId, "relation-" + id, Number(db.prepare("SELECT COALESCE(MAX(turn_index),0) AS current FROM conversation_turns WHERE project_id=?").get(projectId).current));
-      return json(res, 200, { ok: true });
+      return json(res, 200, { ok: true, decisionId });
     }
     if (req.method === "POST" && url.pathname.startsWith("/api/dimensions/")) {
       const code = url.pathname.split("/").pop();
@@ -1008,6 +1103,8 @@ const server = http.createServer(async (req, res) => {
 
 try {
   const { modelId, modelName } = await initializePi();
+  const backfill = backfillCrdtProjections();
+  if (backfill.propositions || backfill.relations) console.log("[ICARE CRDT] Projections historiques importées :", backfill.propositions, "propositions,", backfill.relations, "relations.");
   const syncPeers = parseSyncPeerConfig(process.env.ICARE_SYNC_PEERS || "[]");
   if (syncPeers.length) {
     const intervalMs = Number(process.env.ICARE_SYNC_INTERVAL_MS || 30000);

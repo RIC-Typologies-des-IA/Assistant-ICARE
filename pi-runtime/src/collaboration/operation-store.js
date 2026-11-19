@@ -5,12 +5,12 @@
  * materialized object state. A replica may receive operations out of order.
  */
 import {
-  normalizeVersionVector, removeORSetObserved
+  assignMVRegister, normalizeVersionVector, removeORSetObserved
 } from "./crdt.js";
 import {
-  createPropositionCrdtState, editPropositionField,
-  addPropositionObservation, addPropositionRelation,
-  recordPropositionDecision
+  PROPOSITION_REGISTER_FIELDS, createPropositionCrdtState, editPropositionField,
+  addPropositionObservation, addPropositionRelation, initializePropositionFields,
+  recordPropositionDecision, upgradePropositionCrdtState
 } from "./model.js";
 
 const isRecord = value => value !== null && typeof value === "object" && !Array.isArray(value);
@@ -23,7 +23,7 @@ function canonical(value) {
 }
 
 const OPERATION_KINDS = new Set([
-  "field.set", "observation.add", "observation.remove",
+  "field.set", "proposition.snapshot", "observation.add", "observation.remove",
   "relation.add", "relation.remove", "decision.record"
 ]);
 
@@ -55,6 +55,19 @@ export function validateCrdtOperation(operation) {
   if (!isRecord(operation.payload)) errors.push("Payload d'opération invalide.");
   if (isRecord(operation.payload)) {
     if (operation.kind === "field.set" && (!nonEmpty(operation.payload.field) || !Object.hasOwn(operation.payload, "value"))) errors.push("Champ et valeur de proposition requis.");
+    if (operation.kind === "proposition.snapshot") {
+      if (!isRecord(operation.payload.fields) || Object.keys(operation.payload.fields).length === 0) {
+        errors.push("Instantané de proposition vide ou invalide.");
+      } else {
+        for (const field of Object.keys(operation.payload.fields)) {
+          if (!PROPOSITION_REGISTER_FIELDS.includes(field)) errors.push("Champ d'instantané non pris en charge : " + field);
+        }
+      }
+      if (operation.payload.legacyReviewStatus !== undefined &&
+          !["candidate", "accepted", "rejected"].includes(operation.payload.legacyReviewStatus)) {
+        errors.push("Statut historique de proposition invalide.");
+      }
+    }
     if (operation.kind === "observation.add" &&
         (!isRecord(operation.payload.observation) || !nonEmpty(operation.payload.observation.id) || !nonEmpty(operation.payload.observation.content))) {
       errors.push("Observation invalide.");
@@ -69,6 +82,11 @@ export function validateCrdtOperation(operation) {
       if (!isRecord(decision) || !nonEmpty(decision.id)) errors.push("Décision invalide.");
       else if (isRecord(operation.actor) && canonical(decision.actor) !== canonical(operation.actor)) {
         errors.push("L'acteur de la décision doit correspondre à l'acteur de l'opération.");
+      }
+      if (decision?.resolves !== undefined &&
+          (!Array.isArray(decision.resolves) || decision.resolves.some(id => !nonEmpty(id)) ||
+           new Set(decision.resolves).size !== decision.resolves.length)) {
+        errors.push("La liste des décisions résolues est invalide.");
       }
     }
     if (operation.kind === "observation.remove" || operation.kind === "relation.remove") {
@@ -98,6 +116,13 @@ export function applyPropositionOperation(state, operation) {
   switch (operation.kind) {
     case "field.set":
       return editPropositionField(state, payload.field, payload.value, dot, context);
+    case "proposition.snapshot": {
+      const initialized = initializePropositionFields(state, payload.fields, dot, context);
+      return payload.legacyReviewStatus === undefined ? initialized : {
+        ...initialized,
+        legacyReviewStatus: assignMVRegister(initialized.legacyReviewStatus, payload.legacyReviewStatus, dot, context)
+      };
+    }
     case "observation.add":
       return addPropositionObservation(state, payload.observation, dot);
     case "observation.remove":
@@ -165,10 +190,33 @@ export function applyCrdtOperation(db, operation) {
     ).get(operation.projectId, operation.dot.replicaId, operation.dot.counter);
     if (dotCollision) throw new Error("Collision : ce dot CRDT est déjà attribué à une autre opération.");
 
+    if (operation.kind === "decision.record" && operation.payload.decision.resolves?.length) {
+      const rows = db.prepare(`SELECT operation_json FROM crdt_operations
+        WHERE project_id=? AND object_type=? AND object_id=? AND operation_kind='decision.record'`)
+        .all(operation.projectId, operation.objectType, operation.objectId);
+      const known = new Map();
+      for (const row of rows) {
+        const prior = JSON.parse(row.operation_json);
+        const decision = prior.payload?.decision;
+        if (decision?.id) known.set(decision.id, { decision, dot: prior.dot });
+      }
+      for (const resolvedId of operation.payload.decision.resolves) {
+        const prior = known.get(resolvedId);
+        if (!prior) throw new Error("Dépendance de résolution manquante : la décision " + resolvedId + " doit être reçue avant sa résolution.");
+        if ((operation.causalContext[prior.dot.replicaId] || 0) < prior.dot.counter) {
+          throw new Error("La résolution ne possède pas de contexte causal couvrant la décision " + resolvedId + ".");
+        }
+        if (prior.decision.targetType !== operation.payload.decision.targetType ||
+            prior.decision.targetId !== operation.payload.decision.targetId) {
+          throw new Error("Une décision ne peut résoudre qu'une décision portant sur la même cible.");
+        }
+      }
+    }
+
     const current = db.prepare(
       "SELECT state_json FROM crdt_object_states WHERE project_id=? AND object_type=? AND object_id=?"
     ).get(operation.projectId, operation.objectType, operation.objectId);
-    const state = current ? JSON.parse(current.state_json) : createPropositionCrdtState();
+    const state = current ? upgradePropositionCrdtState(JSON.parse(current.state_json)) : createPropositionCrdtState();
     const nextState = applyPropositionOperation(state, operation);
     const now = new Date().toISOString();
 
@@ -198,7 +246,14 @@ export function getCrdtObjectState(db, projectId, objectType, objectId) {
   const row = db.prepare(
     "SELECT state_json,updated_at FROM crdt_object_states WHERE project_id=? AND object_type=? AND object_id=?"
   ).get(projectId, objectType, objectId);
-  return row ? { state: JSON.parse(row.state_json), updatedAt: row.updated_at } : null;
+  if (!row) return null;
+  const storedState = JSON.parse(row.state_json);
+  const state = upgradePropositionCrdtState(storedState);
+  if (JSON.stringify(state) !== JSON.stringify(storedState)) {
+    db.prepare("UPDATE crdt_object_states SET state_json=? WHERE project_id=? AND object_type=? AND object_id=?")
+      .run(JSON.stringify(state), projectId, objectType, objectId);
+  }
+  return { state, updatedAt: row.updated_at };
 }
 
 export function listCrdtOperations(db, projectId, { after = 0, limit = 200 } = {}) {

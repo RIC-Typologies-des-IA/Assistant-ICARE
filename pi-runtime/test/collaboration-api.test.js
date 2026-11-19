@@ -71,3 +71,19 @@ test("server starts configured sync peers and retries after connectivity failure
   assert.ok(server.includes("ICARE_SYNC_INTERVAL_MS"));
   assert.ok(server.includes("nouvelle tentative planifiée"));
 });
+
+test("legacy proposition creation and human decisions are mirrored into the CRDT journal", async () => {
+  const server = await readFile(new URL("../src/server.js", import.meta.url), "utf8");
+  const ui = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
+  for (const fragment of [
+    "projectPropositionToCrdt(db, proposal, actor)",
+    "projectRelationToCrdt(db, {",
+    "recordCrdtValidationDecision(db,",
+    "backfillCrdtProjections()",
+    "crdt_decisions: decisions",
+    "materializeCrdtOperation(db, operation)",
+    "crdt_conflicts: conflicts"
+  ]) assert.ok(server.includes(fragment), "Missing CRDT projection contract: " + fragment);
+  assert.ok(ui.includes("Justification de cette décision"));
+  assert.ok(ui.includes("Décisions divergentes conservées"));
+});

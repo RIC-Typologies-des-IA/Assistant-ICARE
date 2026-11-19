@@ -6,6 +6,7 @@ import {
   listCrdtOperations
 } from "../src/collaboration/operation-store.js";
 import { readPropositionCrdtState } from "../src/collaboration/model.js";
+import { createPropositionCrdtState } from "../src/collaboration/model.js";
 
 function database() {
   const db = new DatabaseSync(":memory:");
@@ -153,5 +154,61 @@ test("relation observed removals use the same tagged-value contract as observati
   }));
   const saved = getCrdtObjectState(db, "project-1", "proposition", "proposal-1");
   assert.deepEqual(readPropositionCrdtState(saved.state).relations, []);
+  db.close();
+});
+
+test("older persisted proposition states are upgraded without losing existing registers", () => {
+  const db = database();
+  const legacy = createPropositionCrdtState();
+  delete legacy.legacyReviewStatus;
+  delete legacy.fields.author;
+  delete legacy.fields.sourceAgent;
+  delete legacy.fields.sourceInteraction;
+  delete legacy.fields.justification;
+  legacy.fields.text = {
+    type: "mv-register", version: 1,
+    entries: [{ dot: { replicaId: "phone", counter: 1 }, context: {}, value: "Texte conservé" }]
+  };
+  db.prepare(`INSERT INTO crdt_object_states
+    (project_id,object_type,object_id,state_json,updated_at) VALUES(?,?,?,?,?)`)
+    .run("project-1", "proposition", "proposal-legacy", JSON.stringify(legacy), "2026-11-19T08:00:00.000Z");
+  const upgraded = getCrdtObjectState(db, "project-1", "proposition", "proposal-legacy");
+  const read = readPropositionCrdtState(upgraded.state);
+  assert.deepEqual(read.fields.text, ["Texte conservé"]);
+  assert.deepEqual(read.legacyReviewStatus, []);
+  assert.deepEqual(read.fields.author, []);
+  const persisted = JSON.parse(db.prepare("SELECT state_json FROM crdt_object_states WHERE object_id='proposal-legacy'").get().state_json);
+  assert.ok(persisted.legacyReviewStatus);
+  assert.ok(persisted.fields.sourceInteraction);
+  db.close();
+});
+
+test("a conflict resolution waits for its referenced decision and must causally observe it", () => {
+  const db = database();
+  const initial = operation();
+  applyCrdtOperation(db, initial);
+  const prior = operation({
+    opId: "prior-decision", kind: "decision.record",
+    dot: { replicaId: "desktop", counter: 1 },
+    actor: { type: "human", id: "bob" },
+    payload: { decision: { id: "decision-prior", targetType: "proposition",
+      targetId: "proposal-1", status: "rejected", justification: "Contredite",
+      actor: { type: "human", id: "bob" }, recordedAt: "2026-11-19T08:01:00.000Z" } }
+  });
+  const resolution = operation({
+    opId: "resolution", kind: "decision.record",
+    dot: { replicaId: "phone", counter: 2 },
+    causalContext: { phone: 1, desktop: 1 },
+    payload: { decision: { id: "decision-resolution", targetType: "proposition",
+      targetId: "proposal-1", status: "accepted", justification: "Réexamen explicite",
+      resolves: ["decision-prior"],
+      actor: { type: "human", id: "alice" }, recordedAt: "2026-11-19T08:02:00.000Z" } }
+  });
+  assert.throws(() => applyCrdtOperation(db, resolution), /Dépendance de résolution manquante/);
+  applyCrdtOperation(db, prior);
+  const result = applyCrdtOperation(db, resolution);
+  assert.equal(result.inserted, true);
+  const state = getCrdtObjectState(db, "project-1", "proposition", "proposal-1").state;
+  assert.equal(readPropositionCrdtState(state).validationDecisions.length, 2);
   db.close();
 });
