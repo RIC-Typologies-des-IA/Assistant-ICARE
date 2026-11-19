@@ -45,7 +45,7 @@ export function revokeDiscordProjectMember(db, {
     createLocalCrdtOperation(db, {
       projectId, objectType: "project", objectId: projectId,
       kind: "project.member.revoke", payload: { member, observedAdds },
-      actor: { type: "human", id: "discord:" + actorDiscordUserId }
+      actor: { type: "human", id: "discord:" + actorDiscordUserId, participant: { type: "discord", id: actorDiscordUserId } }
     });
     revoked = true;
   }
