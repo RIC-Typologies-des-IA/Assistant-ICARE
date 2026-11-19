@@ -848,7 +848,7 @@ const server = http.createServer(async (req, res) => {
       let originValid = false;
       try { originValid = new URL(DISCORD_ACTIVITY_ORIGIN).origin === DISCORD_ACTIVITY_ORIGIN; } catch {}
       return json(res, 200, {
-        enabled: Boolean(DISCORD_CLIENT_ID && DISCORD_CLIENT_SECRET && originValid),
+        enabled: Boolean(DISCORD_CLIENT_ID && DISCORD_CLIENT_SECRET && process.env.DISCORD_BOT_TOKEN && originValid),
         clientId: DISCORD_CLIENT_ID || null
       });
     }
@@ -902,13 +902,37 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req);
       const channelId = typeof body.channelId === "string" ? body.channelId : "";
       const guildId = typeof body.guildId === "string" ? body.guildId : "";
+      const instanceId = typeof body.instanceId === "string" ? body.instanceId : "";
+      if (!process.env.DISCORD_BOT_TOKEN || !instanceId || !channelId) {
+        return json(res, 403, { error: "Une instance Activity Discord vérifiable est requise." });
+      }
+      let instance;
+      try {
+        const instanceResponse = await fetch(
+          "https://discord.com/api/v10/applications/" + encodeURIComponent(DISCORD_CLIENT_ID) +
+          "/activity-instances/" + encodeURIComponent(instanceId),
+          {
+            headers: { Authorization: "Bot " + process.env.DISCORD_BOT_TOKEN },
+            signal: AbortSignal.timeout(10000)
+          }
+        );
+        if (!instanceResponse.ok) return json(res, 403, { error: "Instance Activity Discord inconnue ou non autorisée." });
+        instance = await instanceResponse.json();
+      } catch (error) {
+        return json(res, 502, { error: "Vérification de l'instance Activity impossible : " + (error.message || String(error)) });
+      }
+      if (instance.location?.channel_id !== channelId ||
+          (guildId && instance.location?.guild_id !== guildId) ||
+          !Array.isArray(instance.users) || !instance.users.includes(discordUser.id)) {
+        return json(res, 403, { error: "L'utilisateur ou le salon ne correspond pas à cette instance Activity Discord." });
+      }
       const projectId = getDiscordBoundProject(db, {
         channelId,
         defaultProjectId: guildId ? null : process.env.ICARE_DISCORD_DEFAULT_PROJECT_ID || null
       });
       return json(res, 200, {
         user: { id: discordUser.id, username: discordUser.username, global_name: discordUser.global_name || null },
-        channelId: channelId || null, projectId
+        channelId: channelId || null, projectId, instanceId
       });
     }
     const peerCollectionMatch = /^\/api\/projects\/([^/]+)\/crdt\/peers$/.exec(url.pathname);
