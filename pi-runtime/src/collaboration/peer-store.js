@@ -59,14 +59,14 @@ export function authenticateProjectSyncPeer(db, projectId, token, permission) {
   if (!nonEmpty(projectId) || !nonEmpty(token) || !PERMISSIONS.has(permission)) return null;
   initializeProjectPeerStore(db);
   const candidate = digest(token);
-  const peers = db.prepare(`SELECT peer_id,token_hash,permissions_json,require_participant FROM project_sync_peers
+  const peers = db.prepare(`SELECT peer_id,token_hash,permissions_json,require_participant,created_at FROM project_sync_peers
     WHERE project_id=? AND revoked_at IS NULL`).all(projectId);
   for (const peer of peers) {
     const stored = Buffer.from(peer.token_hash, "hex");
     if (stored.length !== candidate.length || !timingSafeEqual(stored, candidate)) continue;
     const permissions = JSON.parse(peer.permissions_json);
     if (!permissions.includes(permission)) return null;
-    return { peerId: peer.peer_id, projectId, permissions, requireParticipant: Boolean(peer.require_participant) };
+    return { peerId: peer.peer_id, projectId, permissions, requireParticipant: Boolean(peer.require_participant), createdAt: peer.created_at };
   }
   return null;
 }
