@@ -901,8 +901,10 @@ const server = http.createServer(async (req, res) => {
       }
       const body = await readBody(req);
       const channelId = typeof body.channelId === "string" ? body.channelId : "";
+      const guildId = typeof body.guildId === "string" ? body.guildId : "";
       const projectId = getDiscordBoundProject(db, {
-        channelId, defaultProjectId: process.env.ICARE_DISCORD_DEFAULT_PROJECT_ID || null
+        channelId,
+        defaultProjectId: guildId ? null : process.env.ICARE_DISCORD_DEFAULT_PROJECT_ID || null
       });
       return json(res, 200, {
         user: { id: discordUser.id, username: discordUser.username, global_name: discordUser.global_name || null },
