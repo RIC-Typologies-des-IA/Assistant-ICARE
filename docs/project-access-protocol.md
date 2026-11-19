@@ -112,3 +112,17 @@ L'accès web autonome sans Activity Discord n'est pas encore doté d'un flux OAu
 ### Limite de la révocation et de la réplication
 
 La protection des API interactives et la première revalidation des opérations CRDT sont en place. Les opérations produites dans le contexte d'une requête Discord authentifiée portent désormais `actor.participant`. Les nouveaux pairs exigent cette attribution pour les opérations postérieures à leur date d'enrôlement ; le serveur vérifie que ce participant est toujours membre et qu'il est owner lorsqu'il s'agit d'un grant/révocation. Les opérations reçues avec un participant révoqué sont refusées. Le moteur de synchronisation source conserve ces opérations dans son journal local, les marque `REJECTED_AUTHORIZATION`, avance le curseur et ne les republie pas automatiquement. Les opérations historiques antérieures à l'enrôlement restent importables pour permettre une première réplication ; les pairs déjà enregistrés conservent leur mode de compatibilité historique.\n\nLimite de confiance : `actor.participant` est une attribution déclarée par le nœud source, pas encore une signature cryptographique individuelle. Un pair disposant d'un jeton de réplication reste donc un nœud de confiance pour l'origine qu'il affirme. La signature d'opérations par une clé de réplique/participant et la gestion des clés publiques sont nécessaires pour supprimer cette confiance dans le nœud source. Ne pas présenter la fédération actuelle comme résistante à un pair malveillant.
+
+
+## Accès web autonome et liens de partage
+
+Le serveur peut exposer un parcours web via les variables suivantes :
+
+- `DISCORD_CLIENT_ID` et `DISCORD_CLIENT_SECRET` : application OAuth Discord.
+- `ICARE_PUBLIC_BASE_URL` : URL publique HTTPS de l'installation, sans slash final ; active la génération des liens `/share/<projectId>`.
+- `ICARE_DISCORD_REDIRECT_URI` : URI OAuth enregistrée dans le portail Discord. Par défaut, `<ICARE_PUBLIC_BASE_URL>/auth/discord/callback`.
+- `ICARE_DISCORD_ACTIVITY_ORIGIN` : origine autorisée de l'Activity Discord existante.
+
+Il faut enregistrer exactement l'URI de callback dans les redirect URIs de l'application Discord. Le serveur utilise un paramètre `state` aléatoire à usage unique, échange le code OAuth côté serveur et crée une session opaque conservée sous forme de hash. Le cookie de session est `HttpOnly`, `SameSite=Lax`, limité au chemin racine et marqué `Secure` lorsque le callback est HTTPS. Le jeton OAuth Discord n'est pas transmis au JavaScript dans le parcours web.
+
+Le lien partagé ne contient qu'un identifiant de projet. À l'ouverture, l'utilisateur doit s'authentifier ; s'il n'est pas membre, il ne reçoit aucune donnée du projet et peut déposer une demande. L'owner traite cette demande depuis le panneau du projet. La route de partage est un résolveur d'URL sur l'installation qui héberge ICARE ; elle ne rend pas un serveur local inaccessible publiquement joignable par magie. L'installation doit donc disposer d'une URL HTTPS accessible aux participants.
