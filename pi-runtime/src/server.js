@@ -813,6 +813,7 @@ const server = http.createServer((req, res) => requestContext.run({ discordIdent
       if (projectId) {
         try { requireProject(projectId); } catch (error) { return json(res, 404, { error: error.message }); }
       }
+      db.prepare("DELETE FROM discord_oauth_states WHERE expires_at<=?").run(now());
       const state = randomBytes(32).toString("base64url");
       const createdAt = now();
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
@@ -880,7 +881,10 @@ const server = http.createServer((req, res) => requestContext.run({ discordIdent
       let projectId;
       try { projectId = decodeURIComponent(sharePageMatch[1]); }
       catch { return json(res, 400, { error: "Lien de projet invalide." }); }
-      return requireProject(projectId) && (res.writeHead(302, { Location: "/?projectId=" + encodeURIComponent(projectId), "Cache-Control": "no-store" }), res.end());
+      try { requireProject(projectId); }
+      catch (error) { return json(res, 404, { error: error.message }); }
+      res.writeHead(302, { Location: "/?projectId=" + encodeURIComponent(projectId), "Cache-Control": "no-store" });
+      return res.end();
     }
     if (req.method === "GET" && url.pathname === "/api/auth/config") {
       return json(res, 200, {
