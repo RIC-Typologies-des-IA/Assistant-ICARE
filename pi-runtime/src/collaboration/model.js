@@ -6,7 +6,7 @@
  */
 import {
   addORSet, assignMVRegister, createMVRegister, createORSet,
-  mergeMVRegisters, mergeORSets, readMVRegister, readORSet
+  mergeMVRegisters, mergeORSets, readMVRegister, readORSet, removeORSet
 } from "./crdt.js";
 
 export const PROPOSITION_REGISTER_FIELDS = Object.freeze([
@@ -86,6 +86,16 @@ export function addPropositionRelation(state, relation, dot) {
     throw new TypeError("Une relation doit avoir un id, une cible et un type.");
   }
   return { ...structuredClone(state), relations: addORSet(state.relations, relation, dot) };
+}
+
+export function removePropositionObservation(state, observation) {
+  assertState(state);
+  return { ...structuredClone(state), observations: removeORSet(state.observations, observation) };
+}
+
+export function removePropositionRelation(state, relation) {
+  assertState(state);
+  return { ...structuredClone(state), relations: removeORSet(state.relations, relation) };
 }
 
 /**
