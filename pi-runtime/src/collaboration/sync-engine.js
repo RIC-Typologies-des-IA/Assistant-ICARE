@@ -77,7 +77,7 @@ function setCursor(db, projectId, peerKey, direction, cursor) {
 function validateRemote(remoteUrl) {
   const url = new URL(remoteUrl);
   const localHttp = url.protocol === "http:" &&
-    ["localhost", "127.0.0.1", "::1"].includes(url.hostname);
+    ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
   if (url.protocol !== "https:" && !localHttp) {
     throw new TypeError("La réplication distante exige HTTPS (HTTP est réservé à la boucle locale).");
   }
