@@ -41,7 +41,7 @@ function op(overrides = {}) {
     kind: "proposition.snapshot",
     dot: { replicaId: "phone", counter: 1 }, causalContext: {},
     actor: { type: "human", id: "alice" },
-    payload: { fields: {
+    payload: { legacyReviewStatus: "candidate", fields: {
       text: "Hypothèse initiale", dimensions: ["I"], primaryDimension: "I",
       temporal: "present", evaluation: "unknown", epistemic: "reported",
       practical: "unspecified", confidence: 0.7, source: "user",
