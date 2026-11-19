@@ -12,6 +12,10 @@ import {
   addPropositionObservation, addPropositionRelation, initializePropositionFields,
   recordPropositionDecision, upgradePropositionCrdtState
 } from "./model.js";
+import {
+  assertProjectMembershipState, createProjectMembershipState,
+  grantProjectMember, revokeProjectMember
+} from "./project-membership.js";
 
 const isRecord = value => value !== null && typeof value === "object" && !Array.isArray(value);
 const nonEmpty = value => typeof value === "string" && value.trim().length > 0;
@@ -24,7 +28,8 @@ function canonical(value) {
 
 const OPERATION_KINDS = new Set([
   "field.set", "proposition.snapshot", "observation.add", "observation.remove",
-  "relation.add", "relation.remove", "decision.record"
+  "relation.add", "relation.remove", "decision.record",
+  "project.member.grant", "project.member.revoke"
 ]);
 
 export function validateCrdtOperation(operation) {
@@ -34,7 +39,8 @@ export function validateCrdtOperation(operation) {
   for (const key of ["opId", "projectId", "objectId", "createdAt"]) {
     if (!nonEmpty(operation[key])) errors.push("Champ requis invalide : " + key);
   }
-  if (operation.objectType !== "proposition") errors.push("Type d'objet CRDT non pris en charge.");
+  if (!["proposition", "project"].includes(operation.objectType)) errors.push("Type d'objet CRDT non pris en charge.");
+  if (operation.objectType === "project" && operation.objectId !== operation.projectId) errors.push("L'objet de membership doit être le projet lui-même.");
   if (!OPERATION_KINDS.has(operation.kind)) errors.push("Type d'opération CRDT non pris en charge.");
   if (!isRecord(operation.dot) || !nonEmpty(operation.dot.replicaId) ||
       !Number.isSafeInteger(operation.dot.counter) || operation.dot.counter < 1) {
