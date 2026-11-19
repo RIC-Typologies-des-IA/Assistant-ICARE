@@ -14,6 +14,10 @@ test("Discord bot is an optional server-side adapter using ICARE chat sessions",
   assert.ok(adapter.includes('setName("bind")'));
   assert.ok(adapter.includes("PermissionFlagsBits.ManageGuild"));
   assert.ok(adapter.includes("allowedMentions: { parse: [] }"));
+  assert.ok(adapter.includes("bootstrapDiscordProjectOwner"));
+  assert.ok(adapter.includes("getDiscordProjectAccess"));
+  assert.ok(adapter.includes('setName("invite")'));
+  assert.ok(adapter.includes('setName("revoke")'));
   assert.ok(adapter.includes("defaultProjectId: isDm ? defaultProjectId : null"));
   assert.ok(server.includes("startDiscordBot({ db, port: PORT })"));
 });
@@ -35,6 +39,7 @@ test("Activity OAuth secrets remain server-side and origin-restricted", async ()
   assert.ok(server.includes("/api/discord/context"));
   assert.ok(server.includes("defaultProjectId: guildId ? null : process.env.ICARE_DISCORD_DEFAULT_PROJECT_ID"));
   assert.ok(server.includes("instance.users.includes(discordUser.id)"));
+  assert.ok(server.includes("getDiscordProjectAccess(db, projectId, discordUser.id)"));
   assert.ok(server.includes("activity-instances/"));
   assert.ok(server.includes("process.env.DISCORD_BOT_TOKEN"));
   assert.ok(activity.includes("@discord/embedded-app-sdk@2.5.0"));
