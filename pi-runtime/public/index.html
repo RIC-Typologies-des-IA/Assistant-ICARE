@@ -55,6 +55,8 @@ const $=s=>document.querySelector(s);
 let sessionKey="icare-pi-session:legacy";
 let currentProjectId=localStorage.getItem("icare-current-project")||"";
 let discordActivityProjectId="";
+let chatInProgress=false;
+let activityRefreshTimer=null;
 sessionKey="icare-pi-session:"+currentProjectId;
 let sessionId=localStorage.getItem(sessionKey)||crypto.randomUUID();localStorage.setItem(sessionKey,sessionId);
 let timelineSnapshots=[];
@@ -275,7 +277,7 @@ async function refresh(){
  await loadTimeline();
 }
 $("#chatForm").addEventListener("submit",async e=>{
- e.preventDefault();const text=$("#message").value.trim();if(!text)return;
+ e.preventDefault();const text=$("#message").value.trim();if(!text)return;chatInProgress=true;
  $("#message").value="";addMessage("user",text);const bubble=addMessage("assistant","");$("#send").disabled=true;$("#error").textContent="";
  try{
   const response=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sessionId,projectId:currentProjectId,message:text})});
@@ -303,7 +305,7 @@ $("#chatForm").addEventListener("submit",async e=>{
   }
   await refresh();
  }catch(err){$("#error").textContent=err.message||String(err);if(!bubble.textContent)bubble.textContent="Je n'ai pas pu produire de réponse."}
- finally{$("#send").disabled=false;$("#message").focus()}
+ finally{chatInProgress=false;$("#send").disabled=false;$("#message").focus()}
 });
 $("#proposalForm").addEventListener("submit",async e=>{
  e.preventDefault();const feedback=$("#proposalFeedback");const button=e.submitter;button.disabled=true;feedback.textContent="Enregistrement…";feedback.style.color="#28633a";
@@ -329,9 +331,11 @@ window.addEventListener("icare:discord-ready",async event=>{
   await loadProjects();
   await refresh();
   $("#status").textContent+=" · Discord Activity";
-  $("#error").textContent="Connecté à Discord comme "+(event.detail.user?.username||"participant")+".";
+  $("#error").textContent="Connecté à Discord comme "+(event.detail.user?.username||"participant")+". Les changements partagés sont actualisés périodiquement.";
+  if(!activityRefreshTimer)activityRefreshTimer=setInterval(()=>{if(!chatInProgress)refresh().catch(error=>{$("#error").textContent=error.message||String(error)})},5000);
  }catch(error){$("#error").textContent=error.message||String(error)}
 });
+window.addEventListener("pagehide",()=>{if(activityRefreshTimer)clearInterval(activityRefreshTimer)});
 window.addEventListener("icare:discord-error",event=>{
  $("#error").textContent="Connexion à l'Activity Discord impossible : "+(event.detail?.message||"erreur inconnue");
 });
