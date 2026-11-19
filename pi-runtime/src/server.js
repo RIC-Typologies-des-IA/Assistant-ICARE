@@ -332,7 +332,10 @@ function getPropositions(projectId = "legacy") {
       const decisions = crdtState?.validationDecisions || [];
       const decisionStatuses = new Set(decisions.map(decision => decision.status));
       const conflicts = crdtState
-        ? Object.fromEntries(Object.entries(crdtState.fields).filter(([, values]) => values.length > 1))
+        ? {
+            ...Object.fromEntries(Object.entries(crdtState.fields).filter(([, values]) => values.length > 1)),
+            ...(crdtState.legacyReviewStatus.length > 1 ? { legacyReviewStatus: crdtState.legacyReviewStatus } : {})
+          }
         : {};
       return { ...p, dimensions: JSON.parse(p.dimensions),
         crdt_decisions: decisions, crdt_conflicts: conflicts,
