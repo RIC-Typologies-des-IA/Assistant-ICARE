@@ -63,9 +63,17 @@ export function initializeCrdtSyncCursorStore(db) {
       updated_at TEXT NOT NULL,
       PRIMARY KEY(project_id, peer_key, direction)
     );
+    CREATE TABLE IF NOT EXISTS crdt_sync_rejections (
+      project_id TEXT NOT NULL,
+      peer_key TEXT NOT NULL,
+      operation_id TEXT NOT NULL,
+      state TEXT NOT NULL CHECK(state='REJECTED_AUTHORIZATION'),
+      reason TEXT NOT NULL,
+      rejected_at TEXT NOT NULL,
+      PRIMARY KEY(project_id, peer_key, operation_id)
+    );
   `);
 }
-
 function getCursor(db, projectId, peerKey, direction) {
   initializeCrdtSyncCursorStore(db);
   return db.prepare(`SELECT cursor FROM crdt_sync_cursors
@@ -120,11 +128,11 @@ export async function syncProjectWithPeer(db, {
       signal: AbortSignal.timeout(timeoutMs)
     });
     const payload = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error("Pair distant : HTTP " + response.status + " — " + (payload.error || response.statusText));
+    if (!response.ok) { const error = new Error("Pair distant : HTTP " + response.status + " — " + (payload.error || response.statusText)); error.status = response.status; error.code = payload.code || null; throw error; }
     return payload;
   };
 
-  let pulled = 0, pushed = 0, inboundBatches = 0, outboundBatches = 0;
+  let pulled = 0, pushed = 0, rejectedAuthorization = 0, inboundBatches = 0, outboundBatches = 0;
   let inboundCursor = getCursor(db, projectId, peerKey, "inbound");
   let outboundCursor = getCursor(db, projectId, peerKey, "outbound");
 
@@ -150,8 +158,29 @@ export async function syncProjectWithPeer(db, {
     const batch = listCrdtOperations(db, projectId, { after: outboundCursor, limit: safeLimit });
     if (batch.operations.length === 0) break;
     for (const operation of batch.operations) {
-      await request(endpoint, "POST", operation);
-      pushed++;
+      const previousRejection = db.prepare(`
+        SELECT state FROM crdt_sync_rejections
+        WHERE project_id=? AND peer_key=? AND operation_id=?
+      `).get(projectId, peerKey, operation.opId);
+      if (previousRejection) {
+        rejectedAuthorization++;
+        continue;
+      }
+      try {
+        await request(endpoint, "POST", operation);
+        pushed++;
+      } catch (error) {
+        if (error.status === 403 && error.code === "REJECTED_AUTHORIZATION") {
+          db.prepare(`
+            INSERT OR IGNORE INTO crdt_sync_rejections
+              (project_id,peer_key,operation_id,state,reason,rejected_at)
+            VALUES(?,?,?,'REJECTED_AUTHORIZATION',?,?)
+          `).run(projectId, peerKey, operation.opId, error.message, new Date().toISOString());
+          rejectedAuthorization++;
+          continue;
+        }
+        throw error;
+      }
     }
     if (batch.next <= outboundCursor) throw new Error("Le curseur local n'avance pas.");
     outboundCursor = batch.next;
@@ -159,6 +188,6 @@ export async function syncProjectWithPeer(db, {
     if (batch.operations.length < safeLimit) break;
   }
 
-  return { projectId, peerKey, pulled, pushed, inboundCursor, outboundCursor,
+  return { projectId, peerKey, pulled, pushed, rejectedAuthorization, inboundCursor, outboundCursor,
     inboundBatches, outboundBatches };
 }
