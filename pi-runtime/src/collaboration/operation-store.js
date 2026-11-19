@@ -54,7 +54,7 @@ export function validateCrdtOperation(operation) {
   }
   if (!isRecord(operation.payload)) errors.push("Payload d'opération invalide.");
   if (isRecord(operation.payload)) {
-    if (operation.kind === "field.set" && !nonEmpty(operation.payload.field)) errors.push("Champ de proposition requis.");
+    if (operation.kind === "field.set" && (!nonEmpty(operation.payload.field) || !Object.hasOwn(operation.payload, "value"))) errors.push("Champ et valeur de proposition requis.");
     if (operation.kind === "observation.add" &&
         (!isRecord(operation.payload.observation) || !nonEmpty(operation.payload.observation.id) || !nonEmpty(operation.payload.observation.content))) {
       errors.push("Observation invalide.");
@@ -64,9 +64,12 @@ export function validateCrdtOperation(operation) {
          !nonEmpty(operation.payload.relation.targetId) || !nonEmpty(operation.payload.relation.type))) {
       errors.push("Relation invalide.");
     }
-    if (operation.kind === "decision.record" &&
-        (!isRecord(operation.payload.decision) || !nonEmpty(operation.payload.decision.id))) {
-      errors.push("Décision invalide.");
+    if (operation.kind === "decision.record") {
+      const decision = operation.payload.decision;
+      if (!isRecord(decision) || !nonEmpty(decision.id)) errors.push("Décision invalide.");
+      else if (isRecord(operation.actor) && canonical(decision.actor) !== canonical(operation.actor)) {
+        errors.push("L'acteur de la décision doit correspondre à l'acteur de l'opération.");
+      }
     }
     if (operation.kind === "observation.remove" || operation.kind === "relation.remove") {
       if (!Array.isArray(operation.payload.observedAdds)) errors.push("Le retrait doit déclarer les ajouts observés.");
