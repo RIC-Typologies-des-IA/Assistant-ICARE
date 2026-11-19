@@ -329,8 +329,7 @@ function getPropositions(projectId = "legacy") {
       const crdt = getCrdtObjectState(db, projectId, "proposition", p.id);
       const crdtState = crdt ? readPropositionCrdtState(crdt.state) : null;
       return { ...p, dimensions: JSON.parse(p.dimensions),
-        crdt_decisions: crdtState?.validationDecisions || [],
-        crdt_fields: crdtState?.fields || null };
+        crdt_decisions: crdtState?.validationDecisions || [] };
     });
 }
 function getRelations(projectId = "legacy") {
