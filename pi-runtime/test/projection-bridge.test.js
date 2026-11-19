@@ -94,7 +94,7 @@ test("legacy backfill is idempotent and preserves historical review status as da
   assert.deepEqual(backfillCrdtProjections(db), { propositions: 0, relations: 0 });
   const state = getCrdtObjectState(db, "project-1", "proposition", p.id).state;
   const read = readPropositionCrdtState(state);
-  assert.deepEqual(read.fields.reviewStatus, ["accepted"]);
+  assert.deepEqual(read.legacyReviewStatus, ["accepted"]);
   assert.equal(read.relations[0].reviewStatus, "accepted");
   db.close();
 });
