@@ -106,7 +106,7 @@ test("standalone web view does not load private project data without Discord aut
 
 test("project list and creation are bound to the authenticated Discord participant", async () => {
   const server = await read("../src/server.js");
-  assert.ok(server.includes(".filter(project => { const access = getDiscordProjectAccess(db, project.id, req.discordIdentity.id); return access && !access.roleConflict; })"));
+  assert.ok(server.includes("const access = getDiscordProjectAccess(db, project.id, req.discordIdentity.id); return access && !access.roleConflict ? { ...project, role: access.role"));
   assert.ok(server.includes('id: "discord:" + req.discordIdentity.id'));
   assert.ok(server.includes('bootstrapDiscordProjectOwner(db, id, req.discordIdentity.id)'));
   assert.ok(!server.includes('const actor = body.actor ?? { type: "human", id: "local" }'));
@@ -130,4 +130,21 @@ test("new replication peers enforce participant identity and current membership"
   assert.ok(syncEngine.includes("crdt_sync_rejections"));
   assert.ok(syncEngine.includes("previousRejection"));
   assert.ok(syncEngine.includes("rejectedAuthorization"));
+});
+
+test("web sharing uses stateful Discord OAuth and HttpOnly server sessions", async () => {
+  const server = await read("../src/server.js");
+  const html = await read("../public/index.html");
+  assert.ok(server.includes("discord_web_sessions"));
+  assert.ok(server.includes("discord_oauth_states"));
+  assert.ok(server.includes("/auth/discord/start"));
+  assert.ok(server.includes("/auth/discord/callback"));
+  assert.ok(server.includes("grant_type: \"authorization_code\""));
+  assert.ok(server.includes("HttpOnly; SameSite=Lax; Path=/"));
+  assert.ok(server.includes("function getWebSession(req)"));
+  assert.ok(server.includes("/api/projects/"));
+  assert.ok(server.includes("/share/"));
+  assert.ok(html.includes("Se connecter avec Discord"));
+  assert.ok(html.includes("Copier un lien HTTPS vers ce projet"));
+  assert.ok(html.includes("Demander à rejoindre"));
 });
