@@ -1108,7 +1108,8 @@ const server = http.createServer((req, res) => requestContext.run({ discordIdent
       try { requireProject(projectId); }
       catch (error) { return json(res, 404, { error: error.message }); }
       const requiredPermission = req.method === "GET" ? "read" : req.method === "POST" ? "write" : null;
-      if (requiredPermission && !authorizeSyncPeer(req, res, projectId, requiredPermission)) return;
+      const peerAuthorization = requiredPermission ? authorizeSyncPeer(req, res, projectId, requiredPermission) : null;
+      if (requiredPermission && !peerAuthorization) return;
       if (req.method === "GET") {
         const after = Number(url.searchParams.get("after") || 0);
         const limit = Number(url.searchParams.get("limit") || 200);
@@ -1124,6 +1125,9 @@ const server = http.createServer((req, res) => requestContext.run({ discordIdent
         if (!validation.valid) return json(res, 400, { error: "Opération CRDT invalide.", details: validation.errors });
         if (operation.projectId !== projectId) return json(res, 400, { error: "L'opération ne correspond pas au projet de l'URL." });
         const participant = operation.actor?.participant;
+        if (peerAuthorization?.requireParticipant && !participant) {
+          return json(res, 403, { error: "Ce pair exige une attribution du participant authentifié pour chaque opération.", code: "REJECTED_AUTHORIZATION", operationId: operation.opId });
+        }
         if (participant) {
           if (participant.type !== "discord" || typeof participant.id !== "string" || !participant.id.trim()) {
             return json(res, 400, { error: "Attribution du participant invalide." });
