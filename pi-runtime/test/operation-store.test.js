@@ -6,6 +6,7 @@ import {
   listCrdtOperations
 } from "../src/collaboration/operation-store.js";
 import { readPropositionCrdtState } from "../src/collaboration/model.js";
+import { createPropositionCrdtState } from "../src/collaboration/model.js";
 
 function database() {
   const db = new DatabaseSync(":memory:");
@@ -153,5 +154,31 @@ test("relation observed removals use the same tagged-value contract as observati
   }));
   const saved = getCrdtObjectState(db, "project-1", "proposition", "proposal-1");
   assert.deepEqual(readPropositionCrdtState(saved.state).relations, []);
+  db.close();
+});
+
+test("older persisted proposition states are upgraded without losing existing registers", () => {
+  const db = database();
+  const legacy = createPropositionCrdtState();
+  delete legacy.legacyReviewStatus;
+  delete legacy.fields.author;
+  delete legacy.fields.sourceAgent;
+  delete legacy.fields.sourceInteraction;
+  delete legacy.fields.justification;
+  legacy.fields.text = {
+    type: "mv-register", version: 1,
+    entries: [{ dot: { replicaId: "phone", counter: 1 }, context: {}, value: "Texte conservé" }]
+  };
+  db.prepare(`INSERT INTO crdt_object_states
+    (project_id,object_type,object_id,state_json,updated_at) VALUES(?,?,?,?,?)`)
+    .run("project-1", "proposition", "proposal-legacy", JSON.stringify(legacy), "2026-11-19T08:00:00.000Z");
+  const upgraded = getCrdtObjectState(db, "project-1", "proposition", "proposal-legacy");
+  const read = readPropositionCrdtState(upgraded.state);
+  assert.deepEqual(read.fields.text, ["Texte conservé"]);
+  assert.deepEqual(read.legacyReviewStatus, []);
+  assert.deepEqual(read.fields.author, []);
+  const persisted = JSON.parse(db.prepare("SELECT state_json FROM crdt_object_states WHERE object_id='proposal-legacy'").get().state_json);
+  assert.ok(persisted.legacyReviewStatus);
+  assert.ok(persisted.fields.sourceInteraction);
   db.close();
 });
