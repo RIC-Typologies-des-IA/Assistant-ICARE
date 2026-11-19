@@ -82,6 +82,12 @@ function installDiscordApiFetch(){
    if(discordAccessToken)headers.set("Authorization","Bearer "+discordAccessToken);init={...init,headers};
   }return originalFetch(input,init)};
 }
+async function createProjectFromAccessGate(){
+ const name=prompt("Nom du nouveau projet ICARE :");if(!name||!name.trim())return;
+ try{const r=await fetch("/api/projects",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:name.trim()})});const x=await r.json();if(!r.ok)throw new Error(x.error||"Création impossible.");
+  webTargetProjectId="";currentProjectId=x.project.id;hideAccessGate();await loadProjects();await refresh();
+ }catch(error){$("#accessMessage").textContent=error.message}
+}
 async function submitMembershipRequest(){
  const targetProjectId=discordActivityProjectId||webTargetProjectId||currentProjectId;
  const r=await fetch("/api/projects/"+encodeURIComponent(targetProjectId)+"/membership-requests",{method:"POST"});
@@ -401,7 +407,7 @@ $("#docForm").addEventListener("submit",async e=>{e.preventDefault();const r=awa
    const accessible=await fetch("/api/projects").then(r=>r.json());const target=accessible.projects?.find(p=>p.id===webTargetProjectId);
    if(!target){currentProjectId=webTargetProjectId;showAccessGate("Ce projet est privé. Votre compte Discord n’en est pas membre. Vous pouvez demander à le rejoindre ; aucun contenu ne sera chargé avant l’accord d’un propriétaire.",[{label:"Demander à rejoindre",run:async()=>{try{await submitMembershipRequest()}catch(error){$("#accessMessage").textContent=error.message}}}]);}
    else{currentProjectId=webTargetProjectId;await loadProjects();await refresh();if(icareProjectRole==="owner")await loadOwnerMembershipRequests()}
-  }else{await loadProjects();await refresh();if(icareProjectRole==="owner")await loadOwnerMembershipRequests()}
+  }else{const accessible=await fetch("/api/projects").then(r=>r.json());if(!accessible.projects?.length){showAccessGate("Votre compte Discord est authentifié mais ne possède encore aucun projet ICARE.",[{label:"Créer un projet",run:createProjectFromAccessGate}])}else{await loadProjects();await refresh();if(icareProjectRole==="owner")await loadOwnerMembershipRequests()}}
  }
  if(!s.toolCalling)$("#error").textContent="Le modèle actif ne déclare pas le tool-calling : les propositions automatiques peuvent échouer. Le formulaire manuel reste disponible."; 
  else if(s.toolInitialization==="failed")$("#error").textContent="Échec de l'initialisation des outils ICARE : "+(s.toolInitializationError||"cause inconnue")+". Le formulaire manuel reste disponible."; 
