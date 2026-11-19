@@ -177,6 +177,19 @@ export function applyPropositionOperation(state, operation) {
   }
 }
 
+export function applyProjectMembershipOperation(state, operation) {
+  const validation = validateCrdtOperation(operation);
+  if (!validation.valid) throw new TypeError("Opération de membership CRDT invalide : " + validation.errors.join(" "));
+  assertProjectMembershipState(state);
+  if (operation.kind === "project.member.grant") {
+    return grantProjectMember(state, operation.payload.member, operation.dot);
+  }
+  if (operation.kind === "project.member.revoke") {
+    return revokeProjectMember(state, operation.payload.member, operation.payload.observedAdds);
+  }
+  throw new TypeError("Opération de membership non prise en charge.");
+}
+
 export function initializeCrdtOperationStore(db) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS crdt_operations (
@@ -249,8 +262,14 @@ export function applyCrdtOperation(db, operation) {
     const current = db.prepare(
       "SELECT state_json FROM crdt_object_states WHERE project_id=? AND object_type=? AND object_id=?"
     ).get(operation.projectId, operation.objectType, operation.objectId);
-    const state = current ? upgradePropositionCrdtState(JSON.parse(current.state_json)) : createPropositionCrdtState();
-    const nextState = applyPropositionOperation(state, operation);
+    const state = current
+      ? (operation.objectType === "proposition"
+        ? upgradePropositionCrdtState(JSON.parse(current.state_json))
+        : JSON.parse(current.state_json))
+      : (operation.objectType === "proposition" ? createPropositionCrdtState() : createProjectMembershipState());
+    const nextState = operation.objectType === "proposition"
+      ? applyPropositionOperation(state, operation)
+      : applyProjectMembershipOperation(state, operation);
     const now = new Date().toISOString();
 
     db.prepare(`INSERT INTO crdt_operations(
@@ -281,7 +300,10 @@ export function getCrdtObjectState(db, projectId, objectType, objectId) {
   ).get(projectId, objectType, objectId);
   if (!row) return null;
   const storedState = JSON.parse(row.state_json);
-  const state = upgradePropositionCrdtState(storedState);
+  const state = objectType === "proposition"
+    ? upgradePropositionCrdtState(storedState)
+    : storedState;
+  if (objectType === "project") assertProjectMembershipState(state);
   if (JSON.stringify(state) !== JSON.stringify(storedState)) {
     db.prepare("UPDATE crdt_object_states SET state_json=? WHERE project_id=? AND object_type=? AND object_id=?")
       .run(JSON.stringify(state), projectId, objectType, objectId);
