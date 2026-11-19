@@ -40,3 +40,9 @@ Les marqueurs de suppression OR-set ne sont pas purgés dans cette version. Aucu
 - La validation des droits et la signature des décisions restent à implémenter.
 - Les opérations de suppression métier doivent être dotées et répliquées avant toute compaction.
 - Les décisions concurrentes sont conservées ; l'interface de résolution humaine reste à construire.
+
+## Persistance locale de la réplique
+
+Le serveur initialise maintenant au démarrage l'identité technique persistée par `replica-store.js`. Le compteur monotone est alloué transactionnellement par `allocateLocalDot` ; il n'est pas encore branché à toutes les écritures métier. La table SQLite dédiée est additive et ne remplace aucune donnée existante.
+
+Les tests de `replica-store.test.js` couvrent la stabilité de l'identité, la monotonie du compteur, l'avancement au-delà du contexte causal local et le fait qu'un contexte invalide ne consomme pas de compteur.
