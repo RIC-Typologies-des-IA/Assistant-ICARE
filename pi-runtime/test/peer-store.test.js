@@ -18,6 +18,9 @@ test("peer tokens are project-scoped, permission-scoped and stored only as hashe
     label: "Laptop", permissions: ["read"]
   });
   assert.ok(peer.token.length >= 40);
+  const auth = authenticateProjectSyncPeer(db, "project-a", peer.token, "read");
+  assert.equal(auth.requireParticipant, true);
+  assert.ok(auth.createdAt);
   assert.equal(authenticateProjectSyncPeer(db, "project-a", peer.token, "read").peerId, peer.peerId);
   assert.equal(authenticateProjectSyncPeer(db, "project-a", peer.token, "write"), null);
   assert.equal(authenticateProjectSyncPeer(db, "project-b", peer.token, "read"), null);
@@ -41,5 +44,23 @@ test("invalid permissions are rejected and duplicate permissions normalized", ()
   assert.throws(() => createProjectSyncPeer(db, "project-a", { permissions: ["admin"] }), /Permissions/);
   const peer = createProjectSyncPeer(db, "project-a", { permissions: ["write", "read", "read"] });
   assert.deepEqual(peer.permissions, ["read", "write"]);
+  db.close();
+});
+
+test("legacy peers retain pre-enrollment history compatibility while new peers require attribution", () => {
+  const db = new DatabaseSync(":memory:");
+  db.exec(`
+    CREATE TABLE project_sync_peers (
+      peer_id TEXT PRIMARY KEY, project_id TEXT NOT NULL, label TEXT NOT NULL,
+      token_hash TEXT NOT NULL UNIQUE, permissions_json TEXT NOT NULL,
+      created_at TEXT NOT NULL, revoked_at TEXT
+    )
+  `);
+  initializeProjectPeerStore(db);
+  const legacyColumns = new Set(db.prepare("PRAGMA table_info(project_sync_peers)").all().map(row => row.name));
+  assert.ok(legacyColumns.has("require_participant"));
+  const peer = createProjectSyncPeer(db, "project-a");
+  const auth = authenticateProjectSyncPeer(db, "project-a", peer.token, "write");
+  assert.equal(auth.requireParticipant, true);
   db.close();
 });
