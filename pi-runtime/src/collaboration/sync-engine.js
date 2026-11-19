@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { requestContext } from "./request-context.js";
 import { allocateLocalDot, getLocalReplicaState } from "./replica-store.js";
 import { mergeVersionVectors } from "./crdt.js";
 import {
@@ -32,9 +33,13 @@ export function createLocalCrdtOperation(db, {
     replicaId: identity.replicaId,
     counter: Math.max(identity.counter, causalContext[identity.replicaId] || 0) + 1
   };
+  const participant = requestContext.getStore()?.discordIdentity;
+  const attributedActor = participant?.id
+    ? { ...actor, participant: { type: "discord", id: participant.id } }
+    : actor;
   const candidate = {
     version: 1, opId: randomUUID(), projectId, objectType, objectId, kind,
-    dot: proposedDot, causalContext, actor, payload, createdAt: new Date().toISOString()
+    dot: proposedDot, causalContext, actor: attributedActor, payload, createdAt: new Date().toISOString()
   };
   const validation = validateCrdtOperation(candidate);
   if (!validation.valid) throw new TypeError("Opération CRDT locale invalide : " + validation.errors.join(" "));
