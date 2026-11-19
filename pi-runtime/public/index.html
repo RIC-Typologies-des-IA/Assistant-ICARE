@@ -230,9 +230,9 @@ async function refresh(){
    }
    if(p.crdt_decisions?.length){
     const history=document.createElement("div");history.className="tags";
-    const statuses=new Set(p.crdt_decisions.map(d=>d.status));
-    const conflict=statuses.has("accepted")&&statuses.has("rejected");
-    history.textContent=(conflict?"Décisions divergentes conservées : ":"Historique des décisions : ")+p.crdt_decisions.map(d=>d.status+" — "+d.justification+" ("+d.actor.id+")").join(" | ");
+    const conflict=Boolean(p.crdt_decision_conflict);
+    const resolved=p.crdt_decisions.some(d=>d.resolves?.length);
+    history.textContent=(conflict?"Décisions divergentes conservées : ":resolved?"Conflit examiné explicitement : ":"Historique des décisions : ")+p.crdt_decisions.map(d=>d.status+" — "+d.justification+" ("+d.actor.id+")"+(d.resolves?.length?" [résout "+d.resolves.join(", ")+"]":"")).join(" | ");
     row.append(history);
    }
    if(status==="candidate"){
@@ -256,9 +256,9 @@ async function refresh(){
   if(rel.note){const note=document.createElement("div");note.className="tags";note.textContent=rel.note;row.append(note)}
   if(rel.crdt_decisions?.length){
    const history=document.createElement("div");history.className="tags";
-   const statuses=new Set(rel.crdt_decisions.map(d=>d.status));
-   const conflict=statuses.has("accepted")&&statuses.has("rejected");
-   history.textContent=(conflict?"Décisions divergentes conservées : ":"Historique des décisions : ")+rel.crdt_decisions.map(d=>d.status+" — "+d.justification+" ("+d.actor.id+")").join(" | ");
+   const conflict=Boolean(rel.crdt_decision_conflict);
+   const resolved=rel.crdt_decisions.some(d=>d.resolves?.length);
+   history.textContent=(conflict?"Décisions divergentes conservées : ":resolved?"Conflit examiné explicitement : ":"Historique des décisions : ")+rel.crdt_decisions.map(d=>d.status+" — "+d.justification+" ("+d.actor.id+")"+(d.resolves?.length?" [résout "+d.resolves.join(", ")+"]":"")).join(" | ");
    row.append(history);
   }
   const actions=document.createElement("div");actions.className="actions";
