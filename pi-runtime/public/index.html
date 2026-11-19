@@ -339,9 +339,15 @@ window.addEventListener("icare:discord-participants",event=>{
 window.addEventListener("icare:discord-ready",async event=>{
  const context=event.detail?.context||{};
  if(!context.projectId){
-  $("#error").textContent="Activity Discord connectée, mais aucun projet ICARE n'est lié à ce salon. Utilise /icare bind dans le salon Discord.";
+  $("#authOverlay").hidden=false;
+  $("#authTitle").textContent="Aucun projet lié";
+  $("#authMessage").textContent="Aucun projet ICARE n'est lié à ce salon. Un administrateur doit utiliser /icare bind, puis un propriétaire doit vous inviter avec /icare invite.";
+  $("#discordLogin").hidden=true;
+  $("#error").textContent="L'Activity est connectée, mais aucun projet n'est disponible dans ce salon.";
   return;
  }
+ $("#authOverlay").hidden=true;
+ $("#logoutButton").hidden=true;
  discordActivityProjectId=context.projectId;
  currentProjectId=context.projectId;
  if(event.detail.instanceId)sessionId=("discord-activity-"+event.detail.instanceId).slice(0,100);
@@ -358,11 +364,24 @@ window.addEventListener("pagehide",()=>{if(activityRefreshTimer)clearInterval(ac
 window.addEventListener("icare:discord-error",event=>{
  $("#error").textContent="Connexion à l'Activity Discord impossible : "+(event.detail?.message||"erreur inconnue");
 });
+$("#logoutButton").addEventListener("click",async()=>{await fetch("/api/auth/logout",{method:"POST"});window.location.reload()});
 $("#docForm").addEventListener("submit",async e=>{e.preventDefault();const r=await fetch("/api/references",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({projectId:currentProjectId,title:$("#docTitle").value,content:$("#docContent").value})});const x=await r.json();if(!r.ok){alert(x.error);return}$("#docTitle").value="";$("#docContent").value="";alert("Document ajouté à la mémoire ICARE.")});
-(async()=>{try{const s=await fetch("/api/status").then(r=>r.json());await loadProjects();await loadModels();await refresh();
+(async()=>{try{
+ const auth=await fetch("/api/auth/session").then(r=>r.json());
+ if(!auth.local&&!auth.authenticated){
+  $("#authOverlay").hidden=false;
+  $("#authMessage").textContent="Connectez-vous avec Discord pour accéder aux projets dont vous êtes membre.";
+  $("#discordLogin").hidden=false;
+  $("#status").textContent="Connexion requise";
+  return;
+ }
+ $("#authOverlay").hidden=true;
+ $("#logoutButton").hidden=!auth.authenticated;
+ const s=await fetch("/api/status").then(r=>r.json());
+ await loadProjects();await loadModels();await refresh();
  if(!s.toolCalling)$("#error").textContent="Le modèle actif ne déclare pas le tool-calling : les propositions automatiques peuvent échouer. Le formulaire manuel reste disponible.";
  else if(s.toolInitialization==="failed")$("#error").textContent="Échec de l'initialisation des outils ICARE : "+(s.toolInitializationError||"cause inconnue")+". Le formulaire manuel reste disponible.";
- }catch(e){$("#status").textContent="Serveur indisponible"}})();
+ }catch(e){$("#status").textContent="Serveur indisponible";$("#authOverlay").hidden=false;$("#authMessage").textContent=e.message||"Serveur indisponible"}})();
 </script>
 <script type="module" src="/discord-activity.js"></script>
 </body></html>
