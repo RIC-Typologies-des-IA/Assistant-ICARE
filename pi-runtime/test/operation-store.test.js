@@ -138,3 +138,20 @@ test("decision actor cannot differ from the operation actor", () => {
   assert.equal(listCrdtOperations(db, "project-1").operations.length, 0);
   db.close();
 });
+
+test("relation observed removals use the same tagged-value contract as observations", () => {
+  const db = database();
+  const relation = { id: "rel-1", targetId: "proposal-2", type: "supports" };
+  applyCrdtOperation(db, operation({
+    opId: "relation-add", kind: "relation.add",
+    dot: { replicaId: "phone", counter: 1 }, payload: { relation }
+  }));
+  applyCrdtOperation(db, operation({
+    opId: "relation-remove", kind: "relation.remove",
+    dot: { replicaId: "phone", counter: 2 }, causalContext: { phone: 1 },
+    payload: { relation, observedAdds: [{ dot: { replicaId: "phone", counter: 1 }, value: relation }] }
+  }));
+  const saved = getCrdtObjectState(db, "project-1", "proposition", "proposal-1");
+  assert.deepEqual(readPropositionCrdtState(saved.state).relations, []);
+  db.close();
+});
