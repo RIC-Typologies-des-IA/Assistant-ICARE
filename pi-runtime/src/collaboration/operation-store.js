@@ -8,8 +8,8 @@ import {
   normalizeVersionVector, removeORSetObserved
 } from "./crdt.js";
 import {
-  createPropositionCrdtState, editPropositionField,
-  addPropositionObservation, addPropositionRelation,
+  PROPOSITION_REGISTER_FIELDS, createPropositionCrdtState, editPropositionField,
+  addPropositionObservation, addPropositionRelation, initializePropositionFields,
   recordPropositionDecision
 } from "./model.js";
 
@@ -23,7 +23,7 @@ function canonical(value) {
 }
 
 const OPERATION_KINDS = new Set([
-  "field.set", "observation.add", "observation.remove",
+  "field.set", "proposition.snapshot", "observation.add", "observation.remove",
   "relation.add", "relation.remove", "decision.record"
 ]);
 
@@ -55,6 +55,15 @@ export function validateCrdtOperation(operation) {
   if (!isRecord(operation.payload)) errors.push("Payload d'opération invalide.");
   if (isRecord(operation.payload)) {
     if (operation.kind === "field.set" && (!nonEmpty(operation.payload.field) || !Object.hasOwn(operation.payload, "value"))) errors.push("Champ et valeur de proposition requis.");
+    if (operation.kind === "proposition.snapshot") {
+      if (!isRecord(operation.payload.fields) || Object.keys(operation.payload.fields).length === 0) {
+        errors.push("Instantané de proposition vide ou invalide.");
+      } else {
+        for (const field of Object.keys(operation.payload.fields)) {
+          if (!PROPOSITION_REGISTER_FIELDS.includes(field)) errors.push("Champ d'instantané non pris en charge : " + field);
+        }
+      }
+    }
     if (operation.kind === "observation.add" &&
         (!isRecord(operation.payload.observation) || !nonEmpty(operation.payload.observation.id) || !nonEmpty(operation.payload.observation.content))) {
       errors.push("Observation invalide.");
@@ -98,6 +107,8 @@ export function applyPropositionOperation(state, operation) {
   switch (operation.kind) {
     case "field.set":
       return editPropositionField(state, payload.field, payload.value, dot, context);
+    case "proposition.snapshot":
+      return initializePropositionFields(state, payload.fields, dot, context);
     case "observation.add":
       return addPropositionObservation(state, payload.observation, dot);
     case "observation.remove":
