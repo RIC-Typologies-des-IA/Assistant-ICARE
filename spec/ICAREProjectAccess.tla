@@ -106,8 +106,9 @@ TypeOK ==
 OnlyOwnersCanGrant ==
   \A grant \in grants : grant[1] \in owners
 
-AcceptedMeansMember ==
-  \A u \in Users : requests[u] = "accepted" => u \in members
+AcceptedRequestHasGrant ==
+  \A u \in Users : requests[u] = "accepted" =>
+    \E grant \in grants : grant[2] = u
 
 PendingIsNotMembership ==
   \A u \in Users : requests[u] = "pending" => u \notin members
@@ -122,7 +123,7 @@ Spec == Init /\ [][Next]_vars
 
 THEOREM Spec => []TypeOK
 THEOREM Spec => []OnlyOwnersCanGrant
-THEOREM Spec => []AcceptedMeansMember
+THEOREM Spec => []AcceptedRequestHasGrant
 THEOREM Spec => []PendingIsNotMembership
 THEOREM Spec => []EveryPublicationWasAuthorized
 THEOREM Spec => []RejectedOperationsAreNotPublished
