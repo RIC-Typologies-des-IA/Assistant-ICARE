@@ -38,7 +38,7 @@ if (activityParams.has("frame_id")) {
           "Content-Type": "application/json",
           "Authorization": "Bearer " + tokenPayload.access_token
         },
-        body: JSON.stringify({ channelId: discordSdk.channelId || "" })
+        body: JSON.stringify({ channelId: discordSdk.channelId || "", guildId: discordSdk.guildId || "" })
       });
       const context = await contextResponse.json();
       if (!contextResponse.ok) throw new Error(context.error || "Contexte Discord indisponible.");
