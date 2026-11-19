@@ -111,3 +111,10 @@ test("project list and creation are bound to the authenticated Discord participa
   assert.ok(server.includes('bootstrapDiscordProjectOwner(db, id, req.discordIdentity.id)'));
   assert.ok(!server.includes('const actor = body.actor ?? { type: "human", id: "local" }'));
 });
+
+test("project-scoped APIs reject requests without a project identifier", async () => {
+  const server = await read("../src/server.js");
+  assert.ok(server.includes("const projectScopedRoute"));
+  assert.ok(server.includes("Identifiant de projet requis pour cette opération"));
+  assert.ok(server.includes(".filter(project => { const access = getDiscordProjectAccess"));
+});
