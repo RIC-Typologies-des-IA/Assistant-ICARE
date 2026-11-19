@@ -103,3 +103,11 @@ test("standalone web view does not load private project data without Discord aut
   assert.ok(html.includes("ouvrez ICARE depuis son Activity Discord"));
   assert.ok(html.includes("installDiscordApiFetch"));
 });
+
+test("project list and creation are bound to the authenticated Discord participant", async () => {
+  const server = await read("../src/server.js");
+  assert.ok(server.includes(".filter(project => getDiscordProjectAccess(db, project.id, req.discordIdentity.id))"));
+  assert.ok(server.includes('id: "discord:" + req.discordIdentity.id'));
+  assert.ok(server.includes('bootstrapDiscordProjectOwner(db, id, req.discordIdentity.id)'));
+  assert.ok(!server.includes('const actor = body.actor ?? { type: "human", id: "local" }'));
+});
