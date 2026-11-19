@@ -16,6 +16,10 @@ import { materializeCrdtOperation } from "./collaboration/projection-materialize
 import { startDiscordBot } from "./discord-adapter.js";
 import { getDiscordBoundProject, initializeDiscordBindingStore } from "./discord-store.js";
 import { getDiscordProjectAccess } from "./discord-access.js";
+import {
+  decideDiscordMembershipRequest, initializeMembershipRequestStore,
+  listPendingDiscordMembershipRequests, requestDiscordProjectMembership
+} from "./collaboration/membership-requests.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
@@ -55,6 +59,7 @@ getLocalReplicaIdentity(db);
 initializeCrdtOperationStore(db);
 initializeProjectPeerStore(db);
 initializeDiscordBindingStore(db);
+initializeMembershipRequestStore(db);
 db.exec(`
   PRAGMA journal_mode = WAL;
   CREATE TABLE IF NOT EXISTS propositions (
@@ -940,6 +945,74 @@ const server = http.createServer(async (req, res) => {
         channelId: channelId || null, projectId, instanceId,
         projectRole: access?.role || null
       });
+    }
+    const membershipRequestMatch = /^\\/api\\/projects\\/([^/]+)\\/membership-requests(?:\\/([^/]+))?$/.exec(url.pathname);
+    if (membershipRequestMatch && ["GET", "POST"].includes(req.method)) {
+      let projectId, requestId;
+      try {
+        projectId = decodeURIComponent(membershipRequestMatch[1]);
+        requestId = membershipRequestMatch[2] ? decodeURIComponent(membershipRequestMatch[2]) : null;
+      } catch { return json(res, 400, { error: "Identifiant de projet ou de demande invalide." }); }
+      try { requireProject(projectId); }
+      catch (error) { return json(res, 404, { error: error.message }); }
+
+      let originValid = false;
+      try { originValid = req.headers.origin === new URL(DISCORD_ACTIVITY_ORIGIN).origin; } catch {}
+      if (!originValid || !DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET) {
+        return json(res, 403, { error: "Origine ou authentification Discord non autorisée." });
+      }
+      const authorization = req.headers.authorization || "";
+      const bearer = /^Bearer ([A-Za-z0-9._~-]+)$/.exec(authorization);
+      if (!bearer) return json(res, 401, { error: "Authentification Discord requise." });
+      let discordUser;
+      try {
+        const userResponse = await fetch("https://discord.com/api/v10/users/@me", {
+          headers: { Authorization: "Bearer " + bearer[1] },
+          signal: AbortSignal.timeout(10000)
+        });
+        if (!userResponse.ok) return json(res, 401, { error: "Jeton utilisateur Discord invalide." });
+        discordUser = await userResponse.json();
+      } catch (error) {
+        return json(res, 502, { error: "Vérification Discord impossible : " + (error.message || String(error)) });
+      }
+
+      if (req.method === "GET" && !requestId) {
+        try {
+          return json(res, 200, {
+            requests: listPendingDiscordMembershipRequests(db, {
+              projectId, actorDiscordUserId: discordUser.id
+            })
+          });
+        } catch (error) {
+          return json(res, 403, { error: error.message });
+        }
+      }
+      if (req.method === "POST" && !requestId) {
+        try {
+          const result = requestDiscordProjectMembership(db, {
+            projectId, discordUserId: discordUser.id
+          });
+          if (result.alreadyMember) return json(res, 409, { error: "Vous êtes déjà membre de ce projet." });
+          return json(res, result.duplicate ? 200 : 201, {
+            ok: true, duplicate: Boolean(result.duplicate), request: result.request
+          });
+        } catch (error) {
+          return json(res, 400, { error: error.message });
+        }
+      }
+      if (req.method === "POST" && requestId) {
+        const body = await readBody(req);
+        try {
+          const result = decideDiscordMembershipRequest(db, {
+            projectId, requestId, actorDiscordUserId: discordUser.id,
+            decision: body.decision
+          });
+          return json(res, 200, { ok: true, ...result });
+        } catch (error) {
+          const forbidden = /Seul un propriétaire actif/.test(error.message);
+          return json(res, forbidden ? 403 : 400, { error: error.message });
+        }
+      }
     }
     const peerCollectionMatch = /^\/api\/projects\/([^/]+)\/crdt\/peers$/.exec(url.pathname);
     if (peerCollectionMatch && ["GET", "POST"].includes(req.method)) {
