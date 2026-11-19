@@ -775,7 +775,7 @@ const server = http.createServer(async (req, res) => {
         return json(res, stored.inserted ? 201 : 200, { ok: true, duplicate: !stored.inserted, eventId: event.eventId });
       }
     }
-    const peerCollectionMatch = /^\\/api\\/projects\\/([^/]+)\\/crdt\\/peers$/.exec(url.pathname);
+    const peerCollectionMatch = /^\/api\/projects\/([^/]+)\/crdt\/peers$/.exec(url.pathname);
     if (peerCollectionMatch && ["GET", "POST"].includes(req.method)) {
       let projectId;
       try { projectId = decodeURIComponent(peerCollectionMatch[1]); }
@@ -792,7 +792,7 @@ const server = http.createServer(async (req, res) => {
         return json(res, 201, { ok: true, peer });
       } catch (error) { return json(res, 400, { error: error.message }); }
     }
-    const peerItemMatch = /^\\/api\\/projects\\/([^/]+)\\/crdt\\/peers\\/([^/]+)$/.exec(url.pathname);
+    const peerItemMatch = /^\/api\/projects\/([^/]+)\/crdt\/peers\/([^/]+)$/.exec(url.pathname);
     if (peerItemMatch && req.method === "DELETE") {
       let projectId, peerId;
       try { projectId = decodeURIComponent(peerItemMatch[1]); peerId = decodeURIComponent(peerItemMatch[2]); }
