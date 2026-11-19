@@ -52,7 +52,7 @@ export function authenticateProjectSyncPeer(db, projectId, token, permission) {
   if (!nonEmpty(projectId) || !nonEmpty(token) || !PERMISSIONS.has(permission)) return null;
   initializeProjectPeerStore(db);
   const candidate = digest(token);
-  const peers = db.prepare(`SELECT peer_id,permissions_json FROM project_sync_peers
+  const peers = db.prepare(`SELECT peer_id,token_hash,permissions_json FROM project_sync_peers
     WHERE project_id=? AND revoked_at IS NULL`).all(projectId);
   for (const peer of peers) {
     const stored = Buffer.from(peer.token_hash, "hex");
