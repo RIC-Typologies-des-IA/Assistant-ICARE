@@ -79,11 +79,11 @@ export function decideDiscordMembershipRequest(db, {
   projectId, requestId, actorDiscordUserId, decision, decidedAt = new Date().toISOString()
 }) {
   assertProjectId(projectId);
-  requireOwner(db, projectId, actorDiscordUserId);
   if (!["accepted", "rejected"].includes(decision)) throw new TypeError("Décision d'adhésion invalide.");
 
   db.exec("BEGIN IMMEDIATE");
   try {
+    requireOwner(db, projectId, actorDiscordUserId);
     const request = db.prepare(`
       SELECT * FROM project_membership_requests
       WHERE request_id=? AND project_id=? AND status='pending'
