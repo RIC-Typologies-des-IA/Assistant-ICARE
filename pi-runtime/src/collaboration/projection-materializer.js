@@ -32,19 +32,26 @@ function sqlValue(field, value) {
 function materializeProposition(db, projectId, objectId, state, operation) {
   if (!hasTable(db, "propositions")) return { projected: false, reason: "legacy-table-missing" };
   const readState = readPropositionCrdtState(state);
-  const required = ["text", "dimensions", "primaryDimension"];
-  if (required.some(field => valuesFor(readState, field).length !== 1)) {
-    return { projected: false, reason: "required-field-conflict-or-missing" };
+  const textValues = valuesFor(readState, "text");
+  const dimensionValues = valuesFor(readState, "dimensions");
+  const primaryValues = valuesFor(readState, "primaryDimension");
+  if (!textValues.length || !dimensionValues.length || !primaryValues.length) {
+    return { projected: false, reason: "required-field-missing" };
   }
   const current = db.prepare("SELECT id FROM propositions WHERE id=? AND project_id=?").get(objectId, projectId);
   if (!current) {
     const fields = Object.fromEntries(Object.entries(FIELD_COLUMNS).map(([field]) => [
       field, singleValue(readState, field)
     ]));
-    const dimensions = fields.dimensions;
+    // The SQL row is only a display projection. If a required field conflicts,
+    // use an explicit placeholder/union; the API separately exposes every sibling.
+    if (textValues.length > 1) fields.text = "[Conflit CRDT — plusieurs formulations à examiner]";
+    const dimensionUnion = [...new Set(dimensionValues.flat().filter(value => typeof value === "string"))];
+    const dimensions = dimensionValues.length === 1 ? dimensionValues[0] : dimensionUnion;
     if (!Array.isArray(dimensions) || dimensions.length === 0) {
       return { projected: false, reason: "invalid-dimensions" };
     }
+    if (primaryValues.length > 1 || !fields.primaryDimension) fields.primaryDimension = dimensions[0];
     const columns = [
       "id", "text", "dimensions", "primary_dimension", "temporal", "evaluation",
       "epistemic", "practical", "confidence", "source", "aspect", "review_status",
@@ -87,9 +94,14 @@ function materializeProposition(db, projectId, objectId, state, operation) {
   const decisions = readState.validationDecisions.filter(decision =>
     (decision.targetType === "proposition" || !decision.targetType) &&
     (decision.targetId === objectId || !decision.targetId));
-  if (decisions.length === 1 && ["accepted", "rejected"].includes(decisions[0].status)) {
+  const decisionStatuses = new Set(decisions.map(decision => decision.status)
+    .filter(status => ["accepted", "rejected"].includes(status)));
+  if (decisionStatuses.size === 1) {
     db.prepare("UPDATE propositions SET review_status=? WHERE id=? AND project_id=?")
-      .run(decisions[0].status, objectId, projectId);
+      .run([...decisionStatuses][0], objectId, projectId);
+  } else if (decisionStatuses.size > 1) {
+    db.prepare("UPDATE propositions SET review_status='candidate' WHERE id=? AND project_id=?")
+      .run(objectId, projectId);
   }
   return {
     projected: true,
@@ -133,9 +145,15 @@ function materializeRelationDecisions(db, projectId, readState) {
     grouped.set(decision.targetId, list);
   }
   for (const [relationId, decisions] of grouped) {
-    if (decisions.length !== 1 || !["accepted", "rejected"].includes(decisions[0].status)) continue;
-    db.prepare("UPDATE relations SET review_status=? WHERE id=? AND project_id=?")
-      .run(decisions[0].status, relationId, projectId);
+    const statuses = new Set(decisions.map(decision => decision.status)
+      .filter(status => ["accepted", "rejected"].includes(status)));
+    if (statuses.size === 1) {
+      db.prepare("UPDATE relations SET review_status=? WHERE id=? AND project_id=?")
+        .run([...statuses][0], relationId, projectId);
+    } else if (statuses.size > 1) {
+      db.prepare("UPDATE relations SET review_status='candidate' WHERE id=? AND project_id=?")
+        .run(relationId, projectId);
+    }
   }
 }
 
