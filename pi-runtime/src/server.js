@@ -1017,7 +1017,7 @@ const server = http.createServer((req, res) => requestContext.run({ discordIdent
 
       let originValid = false;
       try { originValid = req.headers.origin === new URL(DISCORD_ACTIVITY_ORIGIN).origin; } catch {}
-      if (!originValid || !DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET) {
+      if ((req.method !== "GET" && !originValid) || !DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET) {
         return json(res, 403, { error: "Origine ou authentification Discord non autorisée." });
       }
       const authorization = req.headers.authorization || "";
