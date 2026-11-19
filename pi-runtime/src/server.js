@@ -12,6 +12,7 @@ import { authenticateProjectSyncPeer, createProjectSyncPeer, initializeProjectPe
 import { parseSyncPeerConfig, startSyncScheduler } from "./collaboration/sync-scheduler.js";
 import { readPropositionCrdtState } from "./collaboration/model.js";
 import { backfillCrdtProjections, projectPropositionToCrdt, projectRelationToCrdt, recordCrdtValidationDecision } from "./collaboration/projection-bridge.js";
+import { materializeCrdtOperation } from "./collaboration/projection-materializer.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
@@ -861,7 +862,8 @@ const server = http.createServer(async (req, res) => {
         if (operation.projectId !== projectId) return json(res, 400, { error: "L'opération ne correspond pas au projet de l'URL." });
         try {
           const result = applyCrdtOperation(db, operation);
-          return json(res, result.inserted ? 201 : 200, { ok: true, ...result });
+          const projection = materializeCrdtOperation(db, operation);
+          return json(res, result.inserted ? 201 : 200, { ok: true, ...result, projection });
         } catch (error) {
           const conflict = /Collision/.test(error.message);
           return json(res, conflict ? 409 : 400, { error: error.message });
