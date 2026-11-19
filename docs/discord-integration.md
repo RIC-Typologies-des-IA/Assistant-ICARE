@@ -53,7 +53,7 @@ L'Activity charge `public/index.html`, donc **la même interface ICARE** que la 
 
 Le serveur n'accepte l'échange OAuth que si l'en-tête `Origin` correspond exactement à `ICARE_DISCORD_ACTIVITY_ORIGIN`. Le jeton utilisateur est conservé en mémoire par le SDK et n'est pas enregistré dans SQLite.
 
-L'Activity récupère le projet lié au salon Discord. Si ce projet n'existe pas sur l'installation qui héberge l'Activity, elle affiche une erreur de synchronisation et **ne bascule pas silencieusement vers un autre projet**.
+L'Activity récupère le projet lié au salon Discord. Si ce projet n'existe pas sur l'installation qui héberge l'Activity, elle affiche une erreur de synchronisation et **ne bascule pas silencieusement vers un autre projet**. Chaque instance Discord utilise un identifiant de session partagé entre ses participants, affiche les participants connectés via le SDK et actualise l'état du projet périodiquement. Les conversations d'instances différentes restent séparées ; les données du projet restent persistantes.
 
 ## Collaboration distribuée
 
