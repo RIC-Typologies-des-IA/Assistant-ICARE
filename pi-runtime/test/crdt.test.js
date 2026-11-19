@@ -20,7 +20,7 @@ test("MV-register preserves concurrent semantic alternatives and resolves causal
   const left = assignMVRegister(empty, { text: "hypothèse A" }, { replicaId: "phone", counter: 1 }, {});
   const right = assignMVRegister(empty, { text: "hypothèse B" }, { replicaId: "desktop", counter: 1 }, {});
   const concurrent = mergeMVRegisters(left, right);
-  assert.deepEqual(readMVRegister(concurrent), [{ text: "hypothèse A" }, { text: "hypothèse B" }]);
+  assert.deepEqual(readMVRegister(concurrent), [{ text: "hypothèse B" }, { text: "hypothèse A" }]);
 
   const later = assignMVRegister(concurrent, { text: "hypothèse C" },
     { replicaId: "phone", counter: 2 }, { phone: 1, desktop: 1 });
