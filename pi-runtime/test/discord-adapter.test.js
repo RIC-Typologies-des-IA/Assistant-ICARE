@@ -13,6 +13,7 @@ test("Discord bot is an optional server-side adapter using ICARE chat sessions",
   assert.ok(adapter.includes('fetch("http://127.0.0.1:" + port + "/api/chat"'));
   assert.ok(adapter.includes('setName("bind")'));
   assert.ok(adapter.includes("PermissionFlagsBits.ManageGuild"));
+  assert.ok(adapter.includes("allowedMentions: { parse: [] }"));
   assert.ok(adapter.includes("defaultProjectId: isDm ? defaultProjectId : null"));
   assert.ok(server.includes("startDiscordBot({ db, port: PORT })"));
 });
