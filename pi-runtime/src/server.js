@@ -10,8 +10,8 @@ import { getLocalReplicaIdentity, initializeReplicaStore } from "./collaboration
 import { applyCrdtOperation, getCrdtObjectState, initializeCrdtOperationStore, listCrdtOperations, validateCrdtOperation } from "./collaboration/operation-store.js";
 import { authenticateProjectSyncPeer, createProjectSyncPeer, initializeProjectPeerStore, listProjectSyncPeers, revokeProjectSyncPeer } from "./collaboration/peer-store.js";
 import { parseSyncPeerConfig, startSyncScheduler } from "./collaboration/sync-scheduler.js";
-import { createLocalCrdtOperation } from "./collaboration/sync-engine.js";
 import { readPropositionCrdtState } from "./collaboration/model.js";
+import { backfillCrdtProjections, projectPropositionToCrdt, projectRelationToCrdt, recordCrdtValidationDecision } from "./collaboration/projection-bridge.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
@@ -390,25 +390,8 @@ function recordCandidate(input, projectId = "legacy") {
   const actor = input.source === "user"
     ? { type: "human", id: "local-user" }
     : { type: "agent", id: String(input.source_agent || "icare-agent") };
-  const fields = {
-    text: proposal.text, dimensions: JSON.parse(proposal.dimensions),
-    primaryDimension: proposal.primary_dimension, temporal: proposal.temporal,
-    evaluation: proposal.evaluation, epistemic: proposal.epistemic,
-    practical: proposal.practical, confidence: proposal.confidence,
-    source: proposal.source, aspect: proposal.aspect,
-    utteranceTime: proposal.utterance_time, validTimeStart: proposal.valid_time_start,
-    validTimeEnd: proposal.valid_time_end, eventPeriodStart: proposal.event_period_start,
-    eventPeriodEnd: proposal.event_period_end, targetHorizon: proposal.target_horizon,
-    realizationTime: proposal.realization_time, modality: proposal.modality,
-    subject: proposal.subject, predicate: proposal.predicate, value: proposal.value,
-    author: proposal.author, sourceAgent: proposal.source_agent,
-    sourceInteraction: proposal.source_interaction, justification: proposal.justification,
-    reviewStatus: proposal.review_status
-  };
   try {
-    createLocalCrdtOperation(db, {
-      projectId, objectId: id, kind: "proposition.snapshot", payload: { fields }, actor
-    });
+    projectPropositionToCrdt(db, proposal, actor);
   } catch (error) {
     db.prepare("DELETE FROM propositions WHERE id=? AND project_id=?").run(id, projectId);
     throw error;
@@ -429,63 +412,15 @@ function recordRelationCandidate(input, projectId = "legacy") {
   db.prepare("INSERT INTO relations(id,from_id,to_id,relation,note,review_status,created_at,project_id) VALUES(?,?,?,?,?,?,?,?)")
     .run(id, fromId, toId, relation, note, "candidate", now(), projectId);
   try {
-    createLocalCrdtOperation(db, {
-      projectId, objectId: fromId, kind: "relation.add",
-      payload: { relation: { id, targetId: toId, type: relation, note, reviewStatus: "candidate" } },
-      actor: { type: "agent", id: "icare-agent" }
-    });
+    projectRelationToCrdt(db, {
+      id, project_id: projectId, from_id: fromId, to_id: toId,
+      relation, note, review_status: "candidate"
+    }, { type: "agent", id: "icare-agent" });
   } catch (error) {
     db.prepare("DELETE FROM relations WHERE id=? AND project_id=?").run(id, projectId);
     throw error;
   }
   return { id, from_id: fromId, to_id: toId, relation, review_status: "candidate" };
-}
-
-function backfillCrdtProjections() {
-  let propositions = 0;
-  let relations = 0;
-  const rows = db.prepare("SELECT * FROM propositions ORDER BY created_at,id").all();
-  for (const proposal of rows) {
-    if (getCrdtObjectState(db, proposal.project_id, "proposition", proposal.id)) continue;
-    const actor = proposal.source === "user"
-      ? { type: "human", id: "local-user" }
-      : { type: "agent", id: String(proposal.source_agent || "icare-agent") };
-    const fields = {
-      text: proposal.text, dimensions: JSON.parse(proposal.dimensions),
-      primaryDimension: proposal.primary_dimension, temporal: proposal.temporal,
-      evaluation: proposal.evaluation, epistemic: proposal.epistemic,
-      practical: proposal.practical, confidence: proposal.confidence,
-      source: proposal.source, aspect: proposal.aspect,
-      utteranceTime: proposal.utterance_time, validTimeStart: proposal.valid_time_start,
-      validTimeEnd: proposal.valid_time_end, eventPeriodStart: proposal.event_period_start,
-      eventPeriodEnd: proposal.event_period_end, targetHorizon: proposal.target_horizon,
-      realizationTime: proposal.realization_time, modality: proposal.modality,
-      subject: proposal.subject, predicate: proposal.predicate, value: proposal.value,
-      author: proposal.author, sourceAgent: proposal.source_agent,
-      sourceInteraction: proposal.source_interaction, justification: proposal.justification,
-      reviewStatus: proposal.review_status
-    };
-    createLocalCrdtOperation(db, {
-      projectId: proposal.project_id, objectId: proposal.id,
-      kind: "proposition.snapshot", payload: { fields }, actor
-    });
-    propositions++;
-  }
-  const relationRows = db.prepare("SELECT * FROM relations ORDER BY created_at,id").all();
-  for (const relation of relationRows) {
-    const crdt = getCrdtObjectState(db, relation.project_id, "proposition", relation.from_id);
-    if (!crdt) continue;
-    const existing = readPropositionCrdtState(crdt.state).relations;
-    if (existing.some(item => item.id === relation.id)) continue;
-    createLocalCrdtOperation(db, {
-      projectId: relation.project_id, objectId: relation.from_id, kind: "relation.add",
-      payload: { relation: { id: relation.id, targetId: relation.to_id,
-        type: relation.relation, note: relation.note, reviewStatus: relation.review_status } },
-      actor: { type: "agent", id: "icare-agent" }
-    });
-    relations++;
-  }
-  return { propositions, relations };
 }
 
 async function refreshModelCatalog() {
@@ -1062,14 +997,12 @@ const server = http.createServer(async (req, res) => {
       try { requireProject(projectId); } catch (error) { return json(res, 404, { error: error.message }); }
       const result = db.prepare("UPDATE propositions SET review_status=? WHERE id=? AND project_id=? AND review_status='candidate'").run(body.review_status, id, projectId);
       if (!result.changes) return json(res, 404, { error: "Proposition candidate introuvable." });
-      const actor = { type: "human", id: "local-user" };
-      const decisionId = randomUUID();
+      let decisionId;
       try {
-        createLocalCrdtOperation(db, {
-          projectId, objectId: id, kind: "decision.record", actor,
-          payload: { decision: { id: decisionId, targetType: "proposition", targetId: id,
-            status: body.review_status, justification, actor, recordedAt: now() } }
-        });
+        ({ decisionId } = recordCrdtValidationDecision(db, {
+          projectId, objectId: id, targetType: "proposition", targetId: id,
+          status: body.review_status, justification
+        }));
       } catch (error) {
         db.prepare("UPDATE propositions SET review_status='candidate' WHERE id=? AND project_id=? AND review_status=?")
           .run(id, projectId, body.review_status);
@@ -1090,14 +1023,12 @@ const server = http.createServer(async (req, res) => {
       if (!relation) return json(res, 404, { error: "Relation candidate introuvable." });
       const result = db.prepare("UPDATE relations SET review_status=? WHERE id=? AND project_id=? AND review_status='candidate'").run(body.review_status, id, projectId);
       if (!result.changes) return json(res, 404, { error: "Relation candidate introuvable." });
-      const actor = { type: "human", id: "local-user" };
-      const decisionId = randomUUID();
+      let decisionId;
       try {
-        createLocalCrdtOperation(db, {
-          projectId, objectId: relation.from_id, kind: "decision.record", actor,
-          payload: { decision: { id: decisionId, targetType: "relation", targetId: id,
-            status: body.review_status, justification, actor, recordedAt: now() } }
-        });
+        ({ decisionId } = recordCrdtValidationDecision(db, {
+          projectId, objectId: relation.from_id, targetType: "relation", targetId: id,
+          status: body.review_status, justification
+        }));
       } catch (error) {
         db.prepare("UPDATE relations SET review_status='candidate' WHERE id=? AND project_id=? AND review_status=?")
           .run(id, projectId, body.review_status);
