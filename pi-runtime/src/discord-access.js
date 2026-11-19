@@ -21,7 +21,7 @@ export function grantDiscordProjectMember(db, {
   return createLocalCrdtOperation(db, {
     projectId, objectType: "project", objectId: projectId,
     kind: "project.member.grant", payload: { member },
-    actor: { type: "human", id: "discord:" + actorDiscordUserId }
+    actor: { type: "human", id: "discord:" + actorDiscordUserId, participant: { type: "discord", id: actorDiscordUserId } }
   });
 }
 
