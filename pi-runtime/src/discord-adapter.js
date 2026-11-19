@@ -248,7 +248,7 @@ export async function startDiscordBot({
     }
   });
 
-  client.on(Events.Error, error => {
+  client.on("error", error => {
     console.error("[ICARE Discord] Erreur du client :", error.message || error);
   });
 
