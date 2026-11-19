@@ -124,7 +124,7 @@ Les écritures de l'application ne restent plus isolées dans les tables histori
 - une relation créée est inscrite comme un ajout OR-set sur la proposition source ;
 - une validation humaine est une opération `decision.record` immuable, avec statut, justification, cible et acteur local déclaré ;
 - l'interface demande désormais une justification avant de valider ou rejeter une proposition ou une relation ;
-- au démarrage, les propositions et relations déjà présentes sont projetées de manière idempotente dans le journal. Les anciens statuts sont conservés comme données `reviewStatus` ; aucune justification historique absente n'est inventée.
+- au démarrage, les propositions et relations déjà présentes sont projetées de manière idempotente dans le journal. Les anciens statuts sont conservés dans un registre historique distinct (`legacyReviewStatus`), non modifiable par les opérations ordinaires de champ ; aucune justification historique absente n'est inventée.
 
 Les tables SQL existantes restent le modèle de lecture de compatibilité pour l'interface actuelle. Elles sont alimentées par `projection-materializer.js` à la réception d'opérations distantes.
 
