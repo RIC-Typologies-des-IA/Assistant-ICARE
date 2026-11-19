@@ -10,7 +10,7 @@ import {
 import {
   PROPOSITION_REGISTER_FIELDS, createPropositionCrdtState, editPropositionField,
   addPropositionObservation, addPropositionRelation, initializePropositionFields,
-  recordPropositionDecision
+  recordPropositionDecision, upgradePropositionCrdtState
 } from "./model.js";
 
 const isRecord = value => value !== null && typeof value === "object" && !Array.isArray(value);
@@ -188,7 +188,7 @@ export function applyCrdtOperation(db, operation) {
     const current = db.prepare(
       "SELECT state_json FROM crdt_object_states WHERE project_id=? AND object_type=? AND object_id=?"
     ).get(operation.projectId, operation.objectType, operation.objectId);
-    const state = current ? JSON.parse(current.state_json) : createPropositionCrdtState();
+    const state = current ? upgradePropositionCrdtState(JSON.parse(current.state_json)) : createPropositionCrdtState();
     const nextState = applyPropositionOperation(state, operation);
     const now = new Date().toISOString();
 
@@ -218,7 +218,14 @@ export function getCrdtObjectState(db, projectId, objectType, objectId) {
   const row = db.prepare(
     "SELECT state_json,updated_at FROM crdt_object_states WHERE project_id=? AND object_type=? AND object_id=?"
   ).get(projectId, objectType, objectId);
-  return row ? { state: JSON.parse(row.state_json), updatedAt: row.updated_at } : null;
+  if (!row) return null;
+  const storedState = JSON.parse(row.state_json);
+  const state = upgradePropositionCrdtState(storedState);
+  if (JSON.stringify(state) !== JSON.stringify(storedState)) {
+    db.prepare("UPDATE crdt_object_states SET state_json=? WHERE project_id=? AND object_type=? AND object_id=?")
+      .run(JSON.stringify(state), projectId, objectType, objectId);
+  }
+  return { state, updatedAt: row.updated_at };
 }
 
 export function listCrdtOperations(db, projectId, { after = 0, limit = 200 } = {}) {
