@@ -102,6 +102,7 @@ test("concurrent accepted and rejected decisions are both preserved", () => {
   const rejected = operation({
     opId: "decision-rejected", kind: "decision.record",
     dot: { replicaId: "desktop", counter: 1 },
+    actor: { type: "human", id: "bob" },
     payload: { decision: { id: "d2", status: "rejected", justification: "Contredite",
       actor: { type: "human", id: "bob" }, recordedAt: "2026-11-19T08:01:00.000Z" } }
   });
@@ -123,5 +124,17 @@ test("pull cursor is project-scoped and returns a resumable ordered batch", () =
   const second = listCrdtOperations(db, "project-1", { after: first.next });
   assert.equal(second.operations.length, 1);
   assert.equal(second.operations[0].opId, "op-2");
+  db.close();
+});
+
+test("decision actor cannot differ from the operation actor", () => {
+  const db = database();
+  const invalid = operation({
+    kind: "decision.record",
+    payload: { decision: { id: "d3", status: "accepted", justification: "Décision",
+      actor: { type: "human", id: "mallory" }, recordedAt: "2026-11-19T08:00:00.000Z" } }
+  });
+  assert.throws(() => applyCrdtOperation(db, invalid), /acteur de la décision/);
+  assert.equal(listCrdtOperations(db, "project-1").operations.length, 0);
   db.close();
 });
