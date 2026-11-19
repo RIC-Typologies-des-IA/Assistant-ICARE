@@ -99,3 +99,16 @@ Les opérations CRDT entrantes doivent également être contrôlées à la front
 La couche de demandes persistantes et ses règles de gouvernance sont introduites dans `membership-requests.js`. Les tests unitaires couvrent création idempotente, absence d'élévation de droit, acceptation/rejet par owner et usage unique de la décision.
 
 Le grant CRDT et le statut de demande sont deux écritures séquentielles : l'acceptation est conçue pour être rejouable ; si le grant existe déjà après une interruption, la reprise finalise la demande sans dupliquer le grant. Les endpoints de dépôt, de liste owner et de décision sont maintenant disponibles sous `/api/projects/:projectId/membership-requests`. Ils exigent un jeton OAuth Discord vérifié auprès de Discord et l'origine configurée de l'Activity. Restent nécessaires avant le parcours complet : interface de demande et de traitement, résolution HTTPS du lien, contrôle d'accès global des routes métier et mise en quarantaine effective des opérations offline lors de la reconnexion. La présente spécification ne prétend pas que ces éléments sont déjà livrés.
+
+
+## Protection des API — tranche actuelle
+
+Toutes les API applicatives non publiques exigent désormais un jeton OAuth Discord vérifié côté serveur. Les routes portant un identifiant de projet (dans l'URL, la query ou le corps JSON) vérifient le membership courant avant d'exécuter le traitement. Les routes de lecture par défaut (`/api/state`, `/api/timeline`, conversation, propositions, relations, références et dimensions) refusent une requête sans identifiant de projet, afin d'éviter un repli implicite sur le projet historique `legacy`.
+
+La liste `GET /api/projects` ne retourne que les projets auxquels le compte authentifié appartient. La création `POST /api/projects` attribue automatiquement le rôle owner au compte Discord authentifié ; les champs d'acteur fournis par le navigateur ne font pas autorité.
+
+L'accès web autonome sans Activity Discord n'est pas encore doté d'un flux OAuth complet : l'interface masque donc le contenu et invite à ouvrir le projet depuis l'Activity Discord. Le résolveur HTTPS public et l'authentification web hors Discord restent à construire.
+
+### Limite de la révocation et de la réplication
+
+La protection des API interactives est en place, mais la revalidation de l'identité humaine portée par chaque opération CRDT reçue d'un pair n'est pas encore terminée. Le jeton de pair reste une autorisation de transport et ne suffit pas, à lui seul, à démontrer l'autorisation humaine de l'auteur d'une opération. Il faudra compléter le protocole par une attribution d'acteur vérifiable et une politique explicite pour les opérations historiques dépourvues de cette attribution avant de déclarer la révocation offline opérationnelle.
