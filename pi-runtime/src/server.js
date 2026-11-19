@@ -243,13 +243,64 @@ function json(res, status, value) {
   res.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
   res.end(JSON.stringify(value));
 }
+function parseCookies(req) {
+  const header = req.headers.cookie || "";
+  const cookies = {};
+  for (const part of header.split(";")) {
+    const separator = part.indexOf("=");
+    if (separator < 0) continue;
+    const key = part.slice(0, separator).trim();
+    try { cookies[key] = decodeURIComponent(part.slice(separator + 1).trim()); } catch {}
+  }
+  return cookies;
+}
+function sessionTokenFromRequest(req) {
+  return bearerToken(req) || parseCookies(req).icare_session || null;
+}
+function isLoopbackRequest(req) {
+  let host = String(req.headers.host || "").split(",")[0].trim().toLowerCase();
+  if (process.env.ICARE_TRUST_PROXY === "1" && req.headers["x-forwarded-host"]) {
+    host = String(req.headers["x-forwarded-host"]).split(",")[0].trim().toLowerCase();
+  }
+  if (host.startsWith("[")) host = host.slice(1, host.indexOf("]"));
+  else host = host.split(":")[0];
+  return ["localhost", "127.0.0.1", "::1"].includes(host);
+}
+function isPeerApiPath(pathname) {
+  return /^\/api\/projects\/[^/]+\/(?:sync(?:\/|$)|crdt\/operations$)/.test(pathname);
+}
+function isAuthExemptApiPath(pathname) {
+  return pathname === "/api/status" || pathname === "/api/auth/session" ||
+    pathname === "/api/auth/logout" || pathname === "/api/discord/config" ||
+    pathname === "/api/discord/token" || pathname === "/api/discord/context";
+}
+function requireSessionProjectAccess(req, projectId) {
+  if (!req.apiSession) return true;
+  if (!projectId) return false;
+  return Boolean(getDiscordProjectAccess(db, projectId, req.apiSession.principalId));
+}
 async function readBody(req) {
   let raw = "";
   for await (const chunk of req) {
     raw += chunk;
     if (raw.length > 1_000_000) throw new Error("Requête trop volumineuse.");
   }
-  return raw ? JSON.parse(raw) : {};
+  const body = raw ? JSON.parse(raw) : {};
+  if (req.apiSession && req.apiProjectBodyRequired) {
+    const projectId = String(body.projectId || body.project_id || req.apiProjectQuery || "").trim();
+    if (!projectId) {
+      const error = new Error("Un identifiant de projet est requis pour cette opération.");
+      error.statusCode = 400;
+      throw error;
+    }
+    if (!requireSessionProjectAccess(req, projectId)) {
+      const error = new Error("Votre compte n'est pas membre de ce projet ICARE.");
+      error.statusCode = 403;
+      throw error;
+    }
+    body.projectId = projectId;
+  }
+  return body;
 }
 function bearerToken(req) {
   const header = req.headers.authorization || "";
