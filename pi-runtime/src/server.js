@@ -771,6 +771,115 @@ function sendPublicAsset(res, pathname) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, "http://" + req.headers.host);
   try {
+    if (req.method === "GET" && url.pathname === "/auth/discord/login") {
+      const redirectUri = discordWebRedirectUri();
+      if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET || !redirectUri) {
+        return json(res, 503, { error: "Connexion Discord indisponible : configure DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET et ICARE_DISCORD_WEB_REDIRECT_URI." });
+      }
+      const state = randomBytes(24).toString("base64url");
+      const authorizeUrl = new URL("https://discord.com/oauth2/authorize");
+      authorizeUrl.searchParams.set("client_id", DISCORD_CLIENT_ID);
+      authorizeUrl.searchParams.set("response_type", "code");
+      authorizeUrl.searchParams.set("redirect_uri", redirectUri);
+      authorizeUrl.searchParams.set("scope", "identify");
+      authorizeUrl.searchParams.set("state", state);
+      res.writeHead(302, {
+        Location: authorizeUrl.toString(),
+        "Set-Cookie": "icare_oauth_state=" + encodeURIComponent(state) + "; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=600",
+        "Cache-Control": "no-store"
+      });
+      return res.end();
+    }
+    if (req.method === "GET" && url.pathname === "/auth/discord/callback") {
+      const redirectUri = discordWebRedirectUri();
+      const code = url.searchParams.get("code") || "";
+      const state = url.searchParams.get("state") || "";
+      const cookieState = parseCookies(req).icare_oauth_state || "";
+      if (url.searchParams.has("error") || !code || !state || !cookieState || !secretMatches(state, cookieState)) {
+        res.writeHead(302, { Location: "/?auth=failed", "Set-Cookie": clearOAuthStateCookie(), "Cache-Control": "no-store" });
+        return res.end();
+      }
+      if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET || !redirectUri) {
+        return json(res, 503, { error: "Configuration OAuth Discord incomplète." });
+      }
+      try {
+        const tokenResponse = await fetch("https://discord.com/api/v10/oauth2/token", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            client_id: DISCORD_CLIENT_ID, client_secret: DISCORD_CLIENT_SECRET,
+            grant_type: "authorization_code", code, redirect_uri: redirectUri
+          }),
+          signal: AbortSignal.timeout(15000)
+        });
+        const tokenPayload = await tokenResponse.json();
+        if (!tokenResponse.ok || !tokenPayload.access_token) {
+          res.writeHead(302, { Location: "/?auth=failed", "Set-Cookie": clearOAuthStateCookie(), "Cache-Control": "no-store" });
+          return res.end();
+        }
+        const userResponse = await fetch("https://discord.com/api/v10/users/@me", {
+          headers: { Authorization: "Bearer " + tokenPayload.access_token },
+          signal: AbortSignal.timeout(10000)
+        });
+        if (!userResponse.ok) throw new Error("Discord n'a pas validé l'identité.");
+        const user = await userResponse.json();
+        const session = issueApiSession(db, { principalType: "discord", principalId: user.id });
+        res.writeHead(302, {
+          Location: "/",
+          "Set-Cookie": [sessionCookie(session.token), clearOAuthStateCookie()],
+          "Cache-Control": "no-store"
+        });
+        return res.end();
+      } catch (error) {
+        console.error("[ICARE auth] Échec de la connexion Discord :", error.message || error);
+        res.writeHead(302, { Location: "/?auth=failed", "Set-Cookie": clearOAuthStateCookie(), "Cache-Control": "no-store" });
+        return res.end();
+      }
+    }
+    if (url.pathname.startsWith("/api/") && !isLoopbackRequest(req) &&
+        !isAuthExemptApiPath(url.pathname) && !isPeerApiPath(url.pathname)) {
+      const session = resolveApiSession(db, sessionTokenFromRequest(req));
+      if (!session) return json(res, 401, { error: "Authentification requise. Connecte-toi avec Discord." });
+      if (session.principalType !== "discord") return json(res, 403, { error: "Type d'identité non autorisé pour cette API." });
+      req.apiSession = session;
+      req.apiProjectQuery = url.searchParams.get("projectId") || "";
+      const pathProjectMatch = /^\/api\/projects\/([^/]+)/.exec(url.pathname);
+      if (pathProjectMatch) {
+        let projectId;
+        try { projectId = decodeURIComponent(pathProjectMatch[1]); }
+        catch { return json(res, 400, { error: "Identifiant de projet invalide." }); }
+        if (!requireSessionProjectAccess(req, projectId)) {
+          return json(res, 403, { error: "Votre compte n'est pas membre de ce projet ICARE." });
+        }
+      }
+      if (req.apiProjectQuery && !requireSessionProjectAccess(req, req.apiProjectQuery)) {
+        return json(res, 403, { error: "Votre compte n'est pas membre de ce projet ICARE." });
+      }
+      if (["/api/state", "/api/timeline"].includes(url.pathname) && !req.apiProjectQuery) {
+        return json(res, 400, { error: "projectId est requis pour cette ressource." });
+      }
+      req.apiProjectBodyRequired =
+        (req.method === "POST" && ["/api/chat", "/api/propositions", "/api/references"].includes(url.pathname)) ||
+        (req.method === "POST" && (url.pathname.startsWith("/api/propositions/") ||
+          url.pathname.startsWith("/api/relations/") || url.pathname.startsWith("/api/dimensions/")));
+    }
+    if (req.method === "GET" && url.pathname === "/api/auth/session") {
+      const token = sessionTokenFromRequest(req);
+      const session = resolveApiSession(db, token);
+      if (!session) return json(res, 200, { authenticated: false, local: isLoopbackRequest(req) });
+      const projects = db.prepare("SELECT id,name,description,intention,created_at,updated_at FROM projects WHERE archived_at IS NULL ORDER BY updated_at DESC")
+        .all().filter(project => Boolean(getDiscordProjectAccess(db, project.id, session.principalId)));
+      return json(res, 200, {
+        authenticated: true, local: false,
+        user: { provider: session.principalType, id: session.principalId },
+        expiresAt: session.expiresAt, projects
+      });
+    }
+    if (req.method === "POST" && url.pathname === "/api/auth/logout") {
+      revokeApiSession(db, sessionTokenFromRequest(req));
+      res.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Set-Cookie": clearSessionCookie(), "Cache-Control": "no-store" });
+      return res.end(JSON.stringify({ ok: true }));
+    }
     if (req.method === "GET" && url.pathname === "/") return sendStatic(res, path.join(HERE, "..", "public", "index.html"), "text/html; charset=utf-8");
     if (req.method === "GET" && url.pathname.startsWith("/assets/")) return sendPublicAsset(res, url.pathname);
     if (req.method === "GET" && url.pathname === "/api/status") {
