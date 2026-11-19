@@ -13,6 +13,8 @@ import { parseSyncPeerConfig, startSyncScheduler } from "./collaboration/sync-sc
 import { readPropositionCrdtState } from "./collaboration/model.js";
 import { backfillCrdtProjections, projectPropositionToCrdt, projectRelationToCrdt, recordCrdtValidationDecision } from "./collaboration/projection-bridge.js";
 import { materializeCrdtOperation } from "./collaboration/projection-materializer.js";
+import { startDiscordBot } from "./discord-adapter.js";
+import { getDiscordBoundProject, initializeDiscordBindingStore } from "./discord-store.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
@@ -24,6 +26,9 @@ const API_KEY = process.env.LEMONADE_API_KEY || "";
 const HOST = process.env.ICARE_HOST || "127.0.0.1";
 const PORT = Number(process.env.ICARE_PORT || 8765);
 const SYNC_ADMIN_TOKEN = process.env.ICARE_SYNC_ADMIN_TOKEN || "";
+const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID || "";
+const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET || "";
+const DISCORD_ACTIVITY_ORIGIN = process.env.ICARE_DISCORD_ACTIVITY_ORIGIN || "";
 // L'ontologie JSON est la source de vérité des dimensions et des catégories.
 const ONTOLOGY = JSON.parse(await readFile(path.join(ROOT, "reference", "icare.json"), "utf8"));
 const DIMENSION_ORDER = ["I", "C", "A", "R", "E"];
@@ -48,6 +53,7 @@ initializeReplicaStore(db);
 getLocalReplicaIdentity(db);
 initializeCrdtOperationStore(db);
 initializeProjectPeerStore(db);
+initializeDiscordBindingStore(db);
 db.exec(`
   PRAGMA journal_mode = WAL;
   CREATE TABLE IF NOT EXISTS propositions (
@@ -838,6 +844,97 @@ const server = http.createServer(async (req, res) => {
         return json(res, stored.inserted ? 201 : 200, { ok: true, duplicate: !stored.inserted, eventId: event.eventId });
       }
     }
+    if (req.method === "GET" && url.pathname === "/api/discord/config") {
+      let originValid = false;
+      try { originValid = new URL(DISCORD_ACTIVITY_ORIGIN).origin === DISCORD_ACTIVITY_ORIGIN; } catch {}
+      return json(res, 200, {
+        enabled: Boolean(DISCORD_CLIENT_ID && DISCORD_CLIENT_SECRET && process.env.DISCORD_BOT_TOKEN && originValid),
+        clientId: DISCORD_CLIENT_ID || null
+      });
+    }
+    if (req.method === "POST" && url.pathname === "/api/discord/token") {
+      let originValid = false;
+      try { originValid = req.headers.origin === new URL(DISCORD_ACTIVITY_ORIGIN).origin; } catch {}
+      if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET || !process.env.DISCORD_BOT_TOKEN || !originValid) {
+        return json(res, 403, { error: "Échange OAuth Discord désactivé ou origine Activity non autorisée." });
+      }
+      const body = await readBody(req);
+      const code = typeof body.code === "string" ? body.code.trim() : "";
+      if (!code || code.length > 2048) return json(res, 400, { error: "Code OAuth Discord invalide." });
+      try {
+        const tokenResponse = await fetch("https://discord.com/api/v10/oauth2/token", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            client_id: DISCORD_CLIENT_ID, client_secret: DISCORD_CLIENT_SECRET,
+            grant_type: "authorization_code", code
+          }),
+          signal: AbortSignal.timeout(15000)
+        });
+        const tokenPayload = await tokenResponse.json();
+        if (!tokenResponse.ok || !tokenPayload.access_token) {
+          return json(res, 502, { error: "Discord a refusé l'échange du code OAuth." });
+        }
+        return json(res, 200, {
+          access_token: tokenPayload.access_token,
+          expires_in: tokenPayload.expires_in,
+          scope: tokenPayload.scope
+        });
+      } catch (error) {
+        return json(res, 502, { error: "Échec de l'échange OAuth Discord : " + (error.message || String(error)) });
+      }
+    }
+    if (req.method === "POST" && url.pathname === "/api/discord/context") {
+      const authorization = req.headers.authorization || "";
+      const match = /^Bearer ([A-Za-z0-9._~-]+)$/.exec(authorization);
+      if (!match) return json(res, 401, { error: "Authentification Discord requise." });
+      let discordUser;
+      try {
+        const userResponse = await fetch("https://discord.com/api/v10/users/@me", {
+          headers: { Authorization: "Bearer " + match[1] },
+          signal: AbortSignal.timeout(10000)
+        });
+        if (!userResponse.ok) return json(res, 401, { error: "Jeton utilisateur Discord invalide." });
+        discordUser = await userResponse.json();
+      } catch (error) {
+        return json(res, 502, { error: "Vérification Discord impossible : " + (error.message || String(error)) });
+      }
+      const body = await readBody(req);
+      const channelId = typeof body.channelId === "string" ? body.channelId : "";
+      const guildId = typeof body.guildId === "string" ? body.guildId : "";
+      const instanceId = typeof body.instanceId === "string" ? body.instanceId : "";
+      if (!process.env.DISCORD_BOT_TOKEN || !instanceId || !channelId) {
+        return json(res, 403, { error: "Une instance Activity Discord vérifiable est requise." });
+      }
+      let instance;
+      try {
+        const instanceResponse = await fetch(
+          "https://discord.com/api/v10/applications/" + encodeURIComponent(DISCORD_CLIENT_ID) +
+          "/activity-instances/" + encodeURIComponent(instanceId),
+          {
+            headers: { Authorization: "Bot " + process.env.DISCORD_BOT_TOKEN },
+            signal: AbortSignal.timeout(10000)
+          }
+        );
+        if (!instanceResponse.ok) return json(res, 403, { error: "Instance Activity Discord inconnue ou non autorisée." });
+        instance = await instanceResponse.json();
+      } catch (error) {
+        return json(res, 502, { error: "Vérification de l'instance Activity impossible : " + (error.message || String(error)) });
+      }
+      if (instance.location?.channel_id !== channelId ||
+          (guildId && instance.location?.guild_id !== guildId) ||
+          !Array.isArray(instance.users) || !instance.users.includes(discordUser.id)) {
+        return json(res, 403, { error: "L'utilisateur ou le salon ne correspond pas à cette instance Activity Discord." });
+      }
+      const projectId = getDiscordBoundProject(db, {
+        channelId,
+        defaultProjectId: guildId ? null : process.env.ICARE_DISCORD_DEFAULT_PROJECT_ID || null
+      });
+      return json(res, 200, {
+        user: { id: discordUser.id, username: discordUser.username, global_name: discordUser.global_name || null },
+        channelId: channelId || null, projectId, instanceId
+      });
+    }
     const peerCollectionMatch = /^\/api\/projects\/([^/]+)\/crdt\/peers$/.exec(url.pathname);
     if (peerCollectionMatch && ["GET", "POST"].includes(req.method)) {
       let projectId;
@@ -1121,6 +1218,9 @@ try {
     console.log(`ICARE prêt : http://${HOST}:${PORT}`);
     console.log(`Pi SDK connecté à Lemonade : ${modelName} (${modelId})`);
     console.log("Aucun outil shell, fichier arbitraire ou navigateur n'est exposé à l'agent.");
+    startDiscordBot({ db, port: PORT }).catch(error => {
+      console.error("[ICARE Discord] Le bot n'a pas pu démarrer :", error.message || error);
+    });
   });
 } catch (error) {
   console.error("[ICARE] Démarrage impossible :", error.message || error);

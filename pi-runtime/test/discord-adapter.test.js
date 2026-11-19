@@ -1,0 +1,57 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+
+const read = path => readFile(new URL(path, import.meta.url), "utf8");
+
+test("Discord bot is an optional server-side adapter using ICARE chat sessions", async () => {
+  const adapter = await read("../src/discord-adapter.js");
+  const server = await read("../src/server.js");
+  assert.ok(adapter.includes('from "discord.js"'));
+  assert.ok(adapter.includes("GatewayIntentBits.MessageContent"));
+  assert.ok(adapter.includes("message.mentions.has(client.user)"));
+  assert.ok(adapter.includes('fetch("http://127.0.0.1:" + port + "/api/chat"'));
+  assert.ok(adapter.includes('setName("bind")'));
+  assert.ok(adapter.includes("PermissionFlagsBits.ManageGuild"));
+  assert.ok(adapter.includes("allowedMentions: { parse: [] }"));
+  assert.ok(adapter.includes("defaultProjectId: isDm ? defaultProjectId : null"));
+  assert.ok(server.includes("startDiscordBot({ db, port: PORT })"));
+});
+
+test("Discord project bindings are channel-scoped, not dimension-scoped", async () => {
+  const store = await read("../src/discord-store.js");
+  assert.ok(store.includes("discord_project_bindings"));
+  assert.ok(store.includes("channel_id"));
+  assert.ok(!store.toLowerCase().includes("dimension"));
+});
+
+test("Activity OAuth secrets remain server-side and origin-restricted", async () => {
+  const server = await read("../src/server.js");
+  const activity = await read("../public/discord-activity.js");
+  const html = await read("../public/index.html");
+  assert.ok(server.includes("DISCORD_CLIENT_SECRET"));
+  assert.ok(server.includes("req.headers.origin === new URL(DISCORD_ACTIVITY_ORIGIN).origin"));
+  assert.ok(server.includes("/api/discord/token"));
+  assert.ok(server.includes("/api/discord/context"));
+  assert.ok(server.includes("defaultProjectId: guildId ? null : process.env.ICARE_DISCORD_DEFAULT_PROJECT_ID"));
+  assert.ok(server.includes("instance.users.includes(discordUser.id)"));
+  assert.ok(server.includes("activity-instances/"));
+  assert.ok(server.includes("process.env.DISCORD_BOT_TOKEN"));
+  assert.ok(activity.includes("@discord/embedded-app-sdk@2.5.0"));
+  assert.ok(activity.includes("discordSdk.commands.authenticate"));
+  assert.ok(activity.includes("getActivityInstanceConnectedParticipants"));
+  assert.ok(activity.includes("ACTIVITY_INSTANCE_PARTICIPANTS_UPDATE"));
+  assert.ok(activity.includes("instanceId: discordSdk.instanceId || \"\""));
+  assert.ok(!activity.includes("DISCORD_BOT_TOKEN"));
+  assert.ok(!activity.includes("DISCORD_CLIENT_SECRET"));
+  assert.ok(html.includes('src="/discord-activity.js"'));
+  assert.ok(html.includes("icare:discord-ready"));
+  assert.ok(html.includes('sessionId=("discord-activity-"+event.detail.instanceId)'));
+  assert.ok(html.includes("renderDiscordParticipants"));
+});
+
+test("Activity project selection refuses to silently fall back to another project", async () => {
+  const html = await read("../public/index.html");
+  assert.ok(html.includes("discordActivityProjectId"));
+  assert.ok(html.includes("Le projet Discord lié n'est pas encore présent"));
+});

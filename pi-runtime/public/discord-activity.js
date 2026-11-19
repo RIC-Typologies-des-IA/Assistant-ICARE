@@ -7,7 +7,7 @@ if (activityParams.has("frame_id")) {
       if (!configResponse.ok || !config.enabled || !config.clientId) {
         throw new Error("L'Activity Discord n'est pas configurée sur cette installation ICARE.");
       }
-      const { DiscordSDK } = await import("https://esm.sh/@discord/embedded-app-sdk@1.7.0");
+      const { DiscordSDK, Events } = await import("https://esm.sh/@discord/embedded-app-sdk@2.5.0");
       const discordSdk = new DiscordSDK(config.clientId);
       await discordSdk.ready();
 
@@ -32,24 +32,34 @@ if (activityParams.has("frame_id")) {
       });
       if (!auth?.user) throw new Error("Discord n'a pas fourni d'identité utilisateur.");
 
+      const initialParticipants = await discordSdk.commands.getActivityInstanceConnectedParticipants();
+      const onParticipantsUpdate = payload => {
+        window.dispatchEvent(new CustomEvent("icare:discord-participants", {
+          detail: { participants: payload?.participants || [] }
+        }));
+      };
+      await discordSdk.subscribe(Events.ACTIVITY_INSTANCE_PARTICIPANTS_UPDATE, onParticipantsUpdate);
+
       const contextResponse = await fetch("/api/discord/context", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": "Bearer " + tokenPayload.access_token
         },
-        body: JSON.stringify({ channelId: discordSdk.channelId || "" })
+        body: JSON.stringify({ channelId: discordSdk.channelId || "", guildId: discordSdk.guildId || "", instanceId: discordSdk.instanceId || "" })
       });
       const context = await contextResponse.json();
       if (!contextResponse.ok) throw new Error(context.error || "Contexte Discord indisponible.");
 
       window.__icareDiscordSdk = discordSdk;
+      window.__icareDiscordParticipantsUnsubscribe = () => discordSdk.unsubscribe(Events.ACTIVITY_INSTANCE_PARTICIPANTS_UPDATE, onParticipantsUpdate);
       window.dispatchEvent(new CustomEvent("icare:discord-ready", {
         detail: {
           context,
           channelId: discordSdk.channelId || null,
           guildId: discordSdk.guildId || null,
           instanceId: discordSdk.instanceId || null,
+          participants: initialParticipants?.participants || [],
           user: auth.user
         }
       }));
