@@ -10,6 +10,8 @@ import { getLocalReplicaIdentity, initializeReplicaStore } from "./collaboration
 import { applyCrdtOperation, getCrdtObjectState, initializeCrdtOperationStore, listCrdtOperations, validateCrdtOperation } from "./collaboration/operation-store.js";
 import { authenticateProjectSyncPeer, createProjectSyncPeer, initializeProjectPeerStore, listProjectSyncPeers, revokeProjectSyncPeer } from "./collaboration/peer-store.js";
 import { parseSyncPeerConfig, startSyncScheduler } from "./collaboration/sync-scheduler.js";
+import { createLocalCrdtOperation } from "./collaboration/sync-engine.js";
+import { readPropositionCrdtState } from "./collaboration/model.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
@@ -323,10 +325,22 @@ function getState(projectId = "legacy") {
 }
 function getPropositions(projectId = "legacy") {
   return db.prepare("SELECT * FROM propositions WHERE project_id=? ORDER BY created_at DESC").all(projectId)
-    .map(p => ({ ...p, dimensions: JSON.parse(p.dimensions) }));
+    .map(p => {
+      const crdt = getCrdtObjectState(db, projectId, "proposition", p.id);
+      const crdtState = crdt ? readPropositionCrdtState(crdt.state) : null;
+      return { ...p, dimensions: JSON.parse(p.dimensions),
+        crdt_decisions: crdtState?.validationDecisions || [],
+        crdt_fields: crdtState?.fields || null };
+    });
 }
 function getRelations(projectId = "legacy") {
-  return db.prepare("SELECT * FROM relations WHERE project_id=? ORDER BY created_at DESC LIMIT 200").all(projectId);
+  return db.prepare("SELECT * FROM relations WHERE project_id=? ORDER BY created_at DESC LIMIT 200").all(projectId)
+    .map(relation => {
+      const crdt = getCrdtObjectState(db, projectId, "proposition", relation.from_id);
+      const decisions = crdt ? readPropositionCrdtState(crdt.state).validationDecisions
+        .filter(decision => decision.targetType === "relation" && decision.targetId === relation.id) : [];
+      return { ...relation, crdt_decisions: decisions };
+    });
 }
 function recordSnapshot(projectId, sessionId = "manual", turnIndex = 0) {
   const id = randomUUID();
