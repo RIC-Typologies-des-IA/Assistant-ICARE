@@ -118,3 +118,16 @@ test("project-scoped APIs reject requests without a project identifier", async (
   assert.ok(server.includes("Identifiant de projet requis pour cette opération"));
   assert.ok(server.includes(".filter(project => { const access = getDiscordProjectAccess"));
 });
+
+test("new replication peers enforce participant identity and current membership", async () => {
+  const server = await read("../src/server.js");
+  const peerStore = await read("../src/collaboration/peer-store.js");
+  const syncEngine = await read("../src/collaboration/sync-engine.js");
+  assert.ok(server.includes("peerAuthorization?.requireParticipant"));
+  assert.ok(server.includes("participantAccess = getDiscordProjectAccess"));
+  assert.ok(server.includes("code: \"REJECTED_AUTHORIZATION\""));
+  assert.ok(peerStore.includes("require_participant INTEGER NOT NULL DEFAULT 1"));
+  assert.ok(syncEngine.includes("crdt_sync_rejections"));
+  assert.ok(syncEngine.includes("previousRejection"));
+  assert.ok(syncEngine.includes("rejectedAuthorization"));
+});
