@@ -951,7 +951,12 @@ const server = http.createServer(async (req, res) => {
       setSetting("chat_model", selectedModel.id);
       return json(res, 200, { ok: true, selected: selectedModel.id, toolCalling: Boolean(info.labels?.includes("tool-calling")) });
     }
-    if (req.method === "GET" && url.pathname === "/api/projects") return json(res, 200, { projects: db.prepare("SELECT id,name,description,intention,created_at,updated_at FROM projects WHERE archived_at IS NULL ORDER BY updated_at DESC").all().map(project => ({ ...project, uri: createProjectManifest(project).uri })) });
+    if (req.method === "GET" && url.pathname === "/api/projects") {
+      let projects = db.prepare("SELECT id,name,description,intention,created_at,updated_at FROM projects WHERE archived_at IS NULL ORDER BY updated_at DESC").all();
+      if (req.apiSession) projects = projects.filter(project =>
+        Boolean(getDiscordProjectAccess(db, project.id, req.apiSession.principalId)));
+      return json(res, 200, { projects: projects.map(project => ({ ...project, uri: createProjectManifest(project).uri })) });
+    }
     if (req.method === "POST" && url.pathname === "/api/projects") {
       const body = await readBody(req);
       const name = String(body.name || "").trim().slice(0,120);
@@ -960,14 +965,19 @@ const server = http.createServer(async (req, res) => {
       const description = String(body.description || "").trim().slice(0,4000);
       const context = body.context && typeof body.context === "object" && !Array.isArray(body.context) ? body.context : {};
       const requestId = typeof body.idempotencyKey === "string" ? body.idempotencyKey.trim().slice(0,160) : "";
-      const actor = body.actor ?? { type: "human", id: "local" };
-      const origin = body.origin ?? "local";
+      const actor = req.apiSession ? { type: "human", id: "discord:" + req.apiSession.principalId } : (body.actor ?? { type: "human", id: "local" });
+      const origin = req.apiSession ? "discord-web" : (body.origin ?? "local");
       if (body.context != null && (typeof body.context !== "object" || Array.isArray(body.context))) return json(res, 400, { error: "Le contexte doit être un objet JSON." });
       if (!actor || typeof actor !== "object" || Array.isArray(actor) || typeof actor.type !== "string" || !actor.type.trim()) return json(res, 400, { error: "L'acteur initial est invalide." });
       if (typeof origin !== "string" || !origin.trim()) return json(res, 400, { error: "L'origine initiale est invalide." });
       if (requestId) {
         const previous = db.prepare("SELECT project_id FROM project_creation_requests WHERE request_id=?").get(requestId);
-        if (previous) return json(res, 200, { ok: true, duplicate: true, project: db.prepare("SELECT id,name,description,intention,created_at,updated_at FROM projects WHERE id=?").get(previous.project_id), manifest: getProjectManifest(previous.project_id) });
+        if (previous) {
+          if (req.apiSession && !requireSessionProjectAccess(req, previous.project_id)) {
+            return json(res, 403, { error: "Cette clé d'idempotence correspond à un projet auquel vous n'avez pas accès." });
+          }
+          return json(res, 200, { ok: true, duplicate: true, project: db.prepare("SELECT id,name,description,intention,created_at,updated_at FROM projects WHERE id=?").get(previous.project_id), manifest: getProjectManifest(previous.project_id) });
+        }
       }
       const id = randomUUID();
       const created = now();
@@ -986,6 +996,12 @@ const server = http.createServer(async (req, res) => {
         persistProjectEvent(event);
       });
       createProject();
+      if (req.apiSession) {
+        grantDiscordProjectMember(db, {
+          projectId: id, discordUserId: req.apiSession.principalId,
+          role: "owner", actorDiscordUserId: req.apiSession.principalId
+        });
+      }
       recordSnapshot(id, "project-created", 0);
       const project = db.prepare("SELECT id,name,description,intention,created_at,updated_at FROM projects WHERE id=?").get(id);
       return json(res, 201, { ok: true, project, manifest: getProjectManifest(id) });
