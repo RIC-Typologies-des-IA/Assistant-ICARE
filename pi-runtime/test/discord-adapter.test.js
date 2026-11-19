@@ -35,10 +35,14 @@ test("Activity OAuth secrets remain server-side and origin-restricted", async ()
   assert.ok(server.includes("defaultProjectId: guildId ? null : process.env.ICARE_DISCORD_DEFAULT_PROJECT_ID"));
   assert.ok(activity.includes("@discord/embedded-app-sdk@2.5.0"));
   assert.ok(activity.includes("discordSdk.commands.authenticate"));
+  assert.ok(activity.includes("getActivityInstanceConnectedParticipants"));
+  assert.ok(activity.includes("ACTIVITY_INSTANCE_PARTICIPANTS_UPDATE"));
   assert.ok(!activity.includes("DISCORD_BOT_TOKEN"));
   assert.ok(!activity.includes("DISCORD_CLIENT_SECRET"));
   assert.ok(html.includes('src="/discord-activity.js"'));
   assert.ok(html.includes("icare:discord-ready"));
+  assert.ok(html.includes("discord-activity-"+ " + event.detail.instanceId"));
+  assert.ok(html.includes("renderDiscordParticipants"));
 });
 
 test("Activity project selection refuses to silently fall back to another project", async () => {
