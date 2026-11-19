@@ -4,6 +4,7 @@ import { mergeVersionVectors } from "./crdt.js";
 import {
   applyCrdtOperation, initializeCrdtOperationStore, listCrdtOperations, validateCrdtOperation
 } from "./operation-store.js";
+import { materializeCrdtOperation } from "./projection-materializer.js";
 
 const nonEmpty = value => typeof value === "string" && value.trim().length > 0;
 
@@ -128,7 +129,9 @@ export async function syncProjectWithPeer(db, {
     }
     for (const operation of batch.operations) {
       if (operation.projectId !== projectId) throw new Error("Le pair a renvoyé une opération d'un autre projet.");
-      if (applyCrdtOperation(db, operation).inserted) pulled++;
+      const applied = applyCrdtOperation(db, operation);
+      materializeCrdtOperation(db, operation);
+      if (applied.inserted) pulled++;
     }
     if (batch.operations.length === 0) break;
     if (batch.next === inboundCursor) throw new Error("Le curseur distant n'avance pas.");
