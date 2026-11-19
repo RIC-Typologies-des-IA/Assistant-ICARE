@@ -60,6 +60,33 @@ export function validateCrdtOperation(operation) {
   }
   if (!isRecord(operation.payload)) errors.push("Payload d'opération invalide.");
   if (isRecord(operation.payload)) {
+    if (operation.objectType === "project") {
+      if (!["project.member.grant", "project.member.revoke"].includes(operation.kind)) {
+        errors.push("Opération de projet non prise en charge.");
+      }
+      if (operation.actor?.type !== "human") errors.push("Une opération de membership doit être attribuée à un acteur humain.");
+      const member = operation.payload.member;
+      if (!isRecord(member) || member.principalType !== "discord" ||
+          !nonEmpty(member.principalId) || !["owner", "member"].includes(member.role)) {
+        errors.push("Membre de projet invalide.");
+      }
+      if (operation.kind === "project.member.revoke") {
+        if (!Array.isArray(operation.payload.observedAdds)) errors.push("La révocation doit déclarer les grants observés.");
+        else for (const entry of operation.payload.observedAdds) {
+          const dot = entry?.dot;
+          if (!isRecord(entry) || !isRecord(dot) || !nonEmpty(dot.replicaId) ||
+              !Number.isSafeInteger(dot.counter) || dot.counter < 1 ||
+              !isRecord(entry.value) || canonical(entry.value) !== canonical(member)) {
+            errors.push("Grant observé invalide.");
+          } else if ((context[dot.replicaId] || 0) < dot.counter) {
+            errors.push("Le contexte causal ne couvre pas tous les grants révoqués.");
+          }
+        }
+      }
+    }
+    if (operation.objectType === "proposition" && ["project.member.grant", "project.member.revoke"].includes(operation.kind)) {
+      errors.push("Une opération de membership doit cibler un objet projet.");
+    }
     if (operation.kind === "field.set" && (!nonEmpty(operation.payload.field) || !Object.hasOwn(operation.payload, "value"))) errors.push("Champ et valeur de proposition requis.");
     if (operation.kind === "proposition.snapshot") {
       if (!isRecord(operation.payload.fields) || Object.keys(operation.payload.fields).length === 0) {
