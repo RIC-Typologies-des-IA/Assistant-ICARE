@@ -69,13 +69,15 @@ export function validateCrdtOperation(operation) {
       errors.push("Décision invalide.");
     }
     if (operation.kind === "observation.remove" || operation.kind === "relation.remove") {
-      if (!Array.isArray(operation.payload.observedDots)) errors.push("Le retrait doit déclarer les dots observés.");
+      if (!Array.isArray(operation.payload.observedAdds)) errors.push("Le retrait doit déclarer les ajouts observés.");
       else {
-        for (const dot of operation.payload.observedDots) {
-          if (!isRecord(dot) || !nonEmpty(dot.replicaId) || !Number.isSafeInteger(dot.counter) || dot.counter < 1) {
-            errors.push("Dot observé invalide.");
+        for (const entry of operation.payload.observedAdds) {
+          const dot = entry?.dot;
+          if (!isRecord(entry) || !isRecord(dot) || !nonEmpty(dot.replicaId) ||
+              !Number.isSafeInteger(dot.counter) || dot.counter < 1 || !Object.hasOwn(entry, "value")) {
+            errors.push("Ajout observé invalide.");
           } else if ((context[dot.replicaId] || 0) < dot.counter) {
-            errors.push("Le contexte causal ne couvre pas tous les dots retirés.");
+            errors.push("Le contexte causal ne couvre pas tous les ajouts retirés.");
           }
         }
       }
@@ -98,7 +100,7 @@ export function applyPropositionOperation(state, operation) {
     case "observation.remove":
       return {
         ...structuredClone(state),
-        observations: removeORSetObserved(state.observations, payload.observation, payload.observedDots)
+        observations: removeORSetObserved(state.observations, payload.observation, payload.observedAdds)
       };
     case "relation.add":
       return addPropositionRelation(state, payload.relation, dot);
