@@ -223,6 +223,13 @@ async function refresh(){
    if(p.target_horizon)qualifiers.push("horizon : "+p.target_horizon);
    if(p.source)qualifiers.push("source : "+p.source);
    tags.textContent=qualifiers.join(" · ");row.append(tags);
+   if(p.crdt_decisions?.length){
+    const history=document.createElement("div");history.className="tags";
+    const statuses=new Set(p.crdt_decisions.map(d=>d.status));
+    const conflict=statuses.has("accepted")&&statuses.has("rejected");
+    history.textContent=(conflict?"Décisions divergentes conservées : ":"Historique des décisions : ")+p.crdt_decisions.map(d=>d.status+" — "+d.justification+" ("+d.actor.id+")").join(" | ");
+    row.append(history);
+   }
    if(status==="candidate"){
     const actions=document.createElement("div");actions.className="actions";
     for(const [nextStatus,label,cls] of [["accepted","Valider",""],["rejected","Rejeter","danger"]]){
@@ -242,6 +249,13 @@ async function refresh(){
   const from=data.propositions.find(p=>p.id===rel.from_id),to=data.propositions.find(p=>p.id===rel.to_id);
   const title=document.createElement("p");title.textContent=(from?.text||rel.from_id)+" → "+rel.relation+" → "+(to?.text||rel.to_id);row.append(title);
   if(rel.note){const note=document.createElement("div");note.className="tags";note.textContent=rel.note;row.append(note)}
+  if(rel.crdt_decisions?.length){
+   const history=document.createElement("div");history.className="tags";
+   const statuses=new Set(rel.crdt_decisions.map(d=>d.status));
+   const conflict=statuses.has("accepted")&&statuses.has("rejected");
+   history.textContent=(conflict?"Décisions divergentes conservées : ":"Historique des décisions : ")+rel.crdt_decisions.map(d=>d.status+" — "+d.justification+" ("+d.actor.id+")").join(" | ");
+   row.append(history);
+  }
   const actions=document.createElement("div");actions.className="actions";
   for(const [status,label,cls] of [["accepted","Valider",""],["rejected","Rejeter","danger"]]){
    const b=document.createElement("button");b.textContent=label;if(cls)b.className=cls;
