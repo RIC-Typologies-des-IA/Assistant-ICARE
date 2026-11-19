@@ -855,7 +855,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && url.pathname === "/api/discord/token") {
       let originValid = false;
       try { originValid = req.headers.origin === new URL(DISCORD_ACTIVITY_ORIGIN).origin; } catch {}
-      if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET || !originValid) {
+      if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET || !process.env.DISCORD_BOT_TOKEN || !originValid) {
         return json(res, 403, { error: "Échange OAuth Discord désactivé ou origine Activity non autorisée." });
       }
       const body = await readBody(req);
