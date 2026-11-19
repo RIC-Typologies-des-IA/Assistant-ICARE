@@ -182,3 +182,33 @@ test("older persisted proposition states are upgraded without losing existing re
   assert.ok(persisted.fields.sourceInteraction);
   db.close();
 });
+
+test("a conflict resolution waits for its referenced decision and must causally observe it", () => {
+  const db = database();
+  const initial = operation();
+  applyCrdtOperation(db, initial);
+  const prior = operation({
+    opId: "prior-decision", kind: "decision.record",
+    dot: { replicaId: "desktop", counter: 1 },
+    actor: { type: "human", id: "bob" },
+    payload: { decision: { id: "decision-prior", targetType: "proposition",
+      targetId: "proposal-1", status: "rejected", justification: "Contredite",
+      actor: { type: "human", id: "bob" }, recordedAt: "2026-11-19T08:01:00.000Z" } }
+  });
+  const resolution = operation({
+    opId: "resolution", kind: "decision.record",
+    dot: { replicaId: "phone", counter: 2 },
+    causalContext: { phone: 1, desktop: 1 },
+    payload: { decision: { id: "decision-resolution", targetType: "proposition",
+      targetId: "proposal-1", status: "accepted", justification: "Réexamen explicite",
+      resolves: ["decision-prior"],
+      actor: { type: "human", id: "alice" }, recordedAt: "2026-11-19T08:02:00.000Z" } }
+  });
+  assert.throws(() => applyCrdtOperation(db, resolution), /Dépendance de résolution manquante/);
+  applyCrdtOperation(db, prior);
+  const result = applyCrdtOperation(db, resolution);
+  assert.equal(result.inserted, true);
+  const state = getCrdtObjectState(db, "project-1", "proposition", "proposal-1").state;
+  assert.equal(readPropositionCrdtState(state).validationDecisions.length, 2);
+  db.close();
+});
