@@ -1009,21 +1009,55 @@ const server = http.createServer(async (req, res) => {
       const id = decodeURIComponent(url.pathname.split("/").pop());
       const body = await readBody(req);
       if (!["accepted", "rejected"].includes(body.review_status)) return json(res, 400, { error: "Statut de validation invalide." });
+      const justification = String(body.justification || "").trim();
+      if (justification.length < 8) return json(res, 400, { error: "Une justification d'au moins 8 caractères est requise pour historiser la décision." });
       const projectId = String(body.projectId || url.searchParams.get("projectId") || "legacy");
+      try { requireProject(projectId); } catch (error) { return json(res, 404, { error: error.message }); }
       const result = db.prepare("UPDATE propositions SET review_status=? WHERE id=? AND project_id=? AND review_status='candidate'").run(body.review_status, id, projectId);
       if (!result.changes) return json(res, 404, { error: "Proposition candidate introuvable." });
+      const actor = { type: "human", id: "local-user" };
+      const decisionId = randomUUID();
+      try {
+        createLocalCrdtOperation(db, {
+          projectId, objectId: id, kind: "decision.record", actor,
+          payload: { decision: { id: decisionId, targetType: "proposition", targetId: id,
+            status: body.review_status, justification, actor, recordedAt: now() } }
+        });
+      } catch (error) {
+        db.prepare("UPDATE propositions SET review_status='candidate' WHERE id=? AND project_id=? AND review_status=?")
+          .run(id, projectId, body.review_status);
+        return json(res, 500, { error: "La décision n'a pas pu être inscrite dans le journal CRDT : " + error.message });
+      }
       recordSnapshot(projectId, "proposal-" + id, Number(db.prepare("SELECT COALESCE(MAX(turn_index),0) AS current FROM conversation_turns WHERE project_id=?").get(projectId).current));
-      return json(res, 200, { ok: true });
+      return json(res, 200, { ok: true, decisionId });
     }
     if (req.method === "POST" && url.pathname.startsWith("/api/relations/")) {
       const id = decodeURIComponent(url.pathname.split("/").pop());
       const body = await readBody(req);
       if (!["accepted", "rejected"].includes(body.review_status)) return json(res, 400, { error: "Statut de validation invalide." });
+      const justification = String(body.justification || "").trim();
+      if (justification.length < 8) return json(res, 400, { error: "Une justification d'au moins 8 caractères est requise pour historiser la décision." });
       const projectId = String(body.projectId || url.searchParams.get("projectId") || "legacy");
+      try { requireProject(projectId); } catch (error) { return json(res, 404, { error: error.message }); }
+      const relation = db.prepare("SELECT * FROM relations WHERE id=? AND project_id=? AND review_status='candidate'").get(id, projectId);
+      if (!relation) return json(res, 404, { error: "Relation candidate introuvable." });
       const result = db.prepare("UPDATE relations SET review_status=? WHERE id=? AND project_id=? AND review_status='candidate'").run(body.review_status, id, projectId);
       if (!result.changes) return json(res, 404, { error: "Relation candidate introuvable." });
-      recordSnapshot(projectId, "relation-" + id, Number(db.prepare("SELECT COALESCE(MAX(turn_index),0) AS current FROM conversation_turns WHERE project_id=?").get(projectId).current));
-      return json(res, 200, { ok: true });
+      const actor = { type: "human", id: "local-user" };
+      const decisionId = randomUUID();
+      try {
+        createLocalCrdtOperation(db, {
+          projectId, objectId: relation.from_id, kind: "decision.record", actor,
+          payload: { decision: { id: decisionId, targetType: "relation", targetId: id,
+            status: body.review_status, justification, actor, recordedAt: now() } }
+        });
+      } catch (error) {
+        db.prepare("UPDATE relations SET review_status='candidate' WHERE id=? AND project_id=? AND review_status=?")
+          .run(id, projectId, body.review_status);
+        return json(res, 500, { error: "La décision n'a pas pu être inscrite dans le journal CRDT : " + error.message });
+      }
+      recordSnapshot(projectId, "relation-" + id, Number(db.prepare("SELECT COALESCE(MAX(turn_index),0)+1 AS current FROM conversation_turns WHERE project_id=?").get(projectId).current));
+      return json(res, 200, { ok: true, decisionId });
     }
     if (req.method === "POST" && url.pathname.startsWith("/api/dimensions/")) {
       const code = url.pathname.split("/").pop();
