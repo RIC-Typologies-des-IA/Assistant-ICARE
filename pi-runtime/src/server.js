@@ -13,6 +13,7 @@ import { parseSyncPeerConfig, startSyncScheduler } from "./collaboration/sync-sc
 import { readPropositionCrdtState } from "./collaboration/model.js";
 import { backfillCrdtProjections, projectPropositionToCrdt, projectRelationToCrdt, recordCrdtValidationDecision } from "./collaboration/projection-bridge.js";
 import { materializeCrdtOperation } from "./collaboration/projection-materializer.js";
+import { startDiscordBot } from "./discord-adapter.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
@@ -1121,6 +1122,9 @@ try {
     console.log(`ICARE prêt : http://${HOST}:${PORT}`);
     console.log(`Pi SDK connecté à Lemonade : ${modelName} (${modelId})`);
     console.log("Aucun outil shell, fichier arbitraire ou navigateur n'est exposé à l'agent.");
+    startDiscordBot({ db, port: PORT }).catch(error => {
+      console.error("[ICARE Discord] Le bot n'a pas pu démarrer :", error.message || error);
+    });
   });
 } catch (error) {
   console.error("[ICARE] Démarrage impossible :", error.message || error);
