@@ -35,7 +35,7 @@ const SYNC_ADMIN_TOKEN = process.env.ICARE_SYNC_ADMIN_TOKEN || "";
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID || "";
 const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET || "";
 const DISCORD_ACTIVITY_ORIGIN = process.env.ICARE_DISCORD_ACTIVITY_ORIGIN || "";
-const PUBLIC_BASE_URL = (process.env.ICARE_PUBLIC_BASE_URL || "").replace(/\\/$/, "");
+const PUBLIC_BASE_URL = (process.env.ICARE_PUBLIC_BASE_URL || "").replace(/\/$/, "");
 const DISCORD_REDIRECT_URI = process.env.ICARE_DISCORD_REDIRECT_URI ||
   (PUBLIC_BASE_URL ? PUBLIC_BASE_URL + "/auth/discord/callback" : "");
 // L'ontologie JSON est la source de vérité des dimensions et des catégories.
