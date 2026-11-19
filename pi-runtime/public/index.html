@@ -25,7 +25,7 @@ button{border:0;border-radius:9px;padding:10px 14px;background:#2458a6;color:whi
 </style>
 </head>
 <body>
-<header><div class="brand-lockup"><img class="ric-logo" src="/assets/ric-logo.png" alt="Logo du Réseau Intelligence de la Complexité" loading="eager" decoding="async"><div class="brand-copy"><h1>ICARE</h1><p>Dialogue maïeutique · représentation évolutive d'un système</p><p class="brand-affiliation">Un outil du laboratoire IA du <a href="https://www.intelligence-complexite.org/" target="_blank" rel="noopener noreferrer">Réseau Intelligence de la Complexité</a></p></div></div><div class="modelbar"><div class="projectbar"><select id="projectSelect" aria-label="Projet"><option>Chargement des projets…</option></select><input id="newProjectName" placeholder="Nouveau projet" aria-label="Nom du nouveau projet"><button id="createProject" class="secondary" type="button">Créer</button></div><select id="modelSelect" aria-label="Modèle de traitement du texte"><option>Chargement du catalogue…</option></select><select id="voiceModelSelect" class="voice-select" aria-label="Modèle de transcription vocale" title="Modèle de reconnaissance vocale"><option>Chargement des modèles vocaux…</option></select><button class="secondary" id="refreshModels" type="button">Actualiser</button><div class="badge" id="status">Connexion à Pi / Lemonade…</div></div></header>
+<header><div class="brand-lockup"><img class="ric-logo" src="/assets/ric-logo.png" alt="Logo du Réseau Intelligence de la Complexité" loading="eager" decoding="async"><div class="brand-copy"><h1>ICARE</h1><p>Dialogue maïeutique · représentation évolutive d'un système</p><p class="brand-affiliation">Un outil du laboratoire IA du <a href="https://www.intelligence-complexite.org/" target="_blank" rel="noopener noreferrer">Réseau Intelligence de la Complexité</a></p></div></div><div class="modelbar"><div class="projectbar"><select id="projectSelect" aria-label="Projet"><option>Chargement des projets…</option></select><input id="newProjectName" placeholder="Nouveau projet" aria-label="Nom du nouveau projet"><button id="createProject" class="secondary" type="button">Créer</button></div><select id="modelSelect" aria-label="Modèle de traitement du texte"><option>Chargement du catalogue…</option></select><select id="voiceModelSelect" class="voice-select" aria-label="Modèle de transcription vocale" title="Modèle de reconnaissance vocale"><option>Chargement des modèles vocaux…</option></select><button class="secondary" id="refreshModels" type="button">Actualiser</button><div class="badge" id="status">Connexion à Pi / Lemonade…</div><div class="badge" id="discordParticipants" hidden></div></div></header>
 <main>
 <section class="panel chat"><h2>Conversation</h2><div class="messages" id="messages"><div class="msg assistant">Bonjour. Quel système souhaites-tu explorer ? Nous allons construire sa représentation progressivement, sans dérouler un questionnaire rigide.</div></div><div id="error"></div><form class="composer" id="chatForm"><textarea id="message" placeholder="Décris une situation, une évolution, une difficulté…" required></textarea><button id="record" class="secondary mic-button" type="button" aria-label="Démarrer la dictée" title="Dicter un message">🎙</button><button id="send">Envoyer</button></form></section>
 <aside class="side">
@@ -319,6 +319,16 @@ $("#proposalForm").addEventListener("submit",async e=>{
  }catch(err){feedback.textContent=err.message;feedback.style.color="#9b2828"}
  finally{button.disabled=false}
 });
+function renderDiscordParticipants(participants){
+ const element=$("#discordParticipants");
+ if(!element)return;
+ const names=(participants||[]).map(person=>person.global_name||person.username||person.id).filter(Boolean);
+ element.hidden=names.length===0;
+ element.textContent=names.length?("Participants Activity ("+names.length+") : "+names.join(", ")):"";
+}
+window.addEventListener("icare:discord-participants",event=>{
+ renderDiscordParticipants(event.detail?.participants||[]);
+});
 window.addEventListener("icare:discord-ready",async event=>{
  const context=event.detail?.context||{};
  if(!context.projectId){
@@ -327,6 +337,8 @@ window.addEventListener("icare:discord-ready",async event=>{
  }
  discordActivityProjectId=context.projectId;
  currentProjectId=context.projectId;
+ if(event.detail.instanceId)sessionId=("discord-activity-"+event.detail.instanceId).slice(0,100);
+ renderDiscordParticipants(event.detail.participants||[]);
  try{
   await loadProjects();
   await refresh();
@@ -335,7 +347,7 @@ window.addEventListener("icare:discord-ready",async event=>{
   if(!activityRefreshTimer)activityRefreshTimer=setInterval(()=>{if(!chatInProgress)refresh().catch(error=>{$("#error").textContent=error.message||String(error)})},5000);
  }catch(error){$("#error").textContent=error.message||String(error)}
 });
-window.addEventListener("pagehide",()=>{if(activityRefreshTimer)clearInterval(activityRefreshTimer)});
+window.addEventListener("pagehide",()=>{if(activityRefreshTimer)clearInterval(activityRefreshTimer);window.__icareDiscordParticipantsUnsubscribe?.()});
 window.addEventListener("icare:discord-error",event=>{
  $("#error").textContent="Connexion à l'Activity Discord impossible : "+(event.detail?.message||"erreur inconnue");
 });
