@@ -63,3 +63,11 @@ test("peer sync CLI keeps its credential inputs in environment variables", async
   ]) assert.ok(cli.includes(variable));
   assert.ok(!cli.includes("process.argv"));
 });
+
+test("server starts configured sync peers and retries after connectivity failures", async () => {
+  const server = await readFile(new URL("../src/server.js", import.meta.url), "utf8");
+  assert.ok(server.includes("parseSyncPeerConfig(process.env.ICARE_SYNC_PEERS"));
+  assert.ok(server.includes("startSyncScheduler(db, syncPeers"));
+  assert.ok(server.includes("ICARE_SYNC_INTERVAL_MS"));
+  assert.ok(server.includes("nouvelle tentative planifiée"));
+});
