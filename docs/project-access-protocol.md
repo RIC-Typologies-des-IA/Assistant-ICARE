@@ -71,7 +71,7 @@ Les opérations rejetées ne sont ni effacées ni réattribuées silencieusement
 - **AC-7** : une opération offline d'un participant révoqué reste locale et n'est pas publiée au retour du réseau.
 - **AC-8** : aucune opération rejetée n'est effacée ni réattribuée silencieusement.
 - **AC-9** : la même demande pending n'est créée qu'une fois par projet et principal.
-- **AC-10** : accepter une demande et écrire son grant sont atomiques dans la base locale.
+- **AC-10** : l'acceptation est récupérable et idempotente si le grant CRDT est écrit mais que le statut de demande n'est pas encore actualisé.
 - **AC-11** : une décision de demande est à usage unique.
 - **AC-12** : les divergences de membership entre répliques ne doivent jamais être résolues par un simple horodatage.
 
@@ -98,4 +98,4 @@ Les opérations CRDT entrantes doivent également être contrôlées à la front
 
 La couche de demandes persistantes et ses règles de gouvernance sont introduites dans `membership-requests.js`. Les tests unitaires couvrent création idempotente, absence d'élévation de droit, acceptation/rejet par owner et usage unique de la décision.
 
-Les endpoints de dépôt, de liste owner et de décision sont maintenant disponibles sous `/api/projects/:projectId/membership-requests`. Ils exigent un jeton OAuth Discord vérifié auprès de Discord et l'origine configurée de l'Activity. Restent nécessaires avant le parcours complet : interface de demande et de traitement, résolution HTTPS du lien, contrôle d'accès global des routes métier et mise en quarantaine effective des opérations offline lors de la reconnexion. La présente spécification ne prétend pas que ces éléments sont déjà livrés.
+Le grant CRDT et le statut de demande sont deux écritures séquentielles : l'acceptation est conçue pour être rejouable ; si le grant existe déjà après une interruption, la reprise finalise la demande sans dupliquer le grant. Les endpoints de dépôt, de liste owner et de décision sont maintenant disponibles sous `/api/projects/:projectId/membership-requests`. Ils exigent un jeton OAuth Discord vérifié auprès de Discord et l'origine configurée de l'Activity. Restent nécessaires avant le parcours complet : interface de demande et de traitement, résolution HTTPS du lien, contrôle d'accès global des routes métier et mise en quarantaine effective des opérations offline lors de la reconnexion. La présente spécification ne prétend pas que ces éléments sont déjà livrés.
