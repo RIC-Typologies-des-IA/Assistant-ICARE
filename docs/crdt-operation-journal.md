@@ -41,3 +41,56 @@ La réception hors ordre ne dispense pas de conserver les opérations : le journ
 - `GET /api/projects/:projectId/crdt/objects/proposition/:objectId` renvoie l'état matérialisé.
 
 Le serveur vérifie que le projet existe et que l'identifiant de projet de l'opération correspond au chemin. Il ne peut pas encore authentifier l'acteur déclaré dans l'opération. Ces routes sont expérimentales et ne constituent pas une API fédérée sécurisée.
+
+## Réplication entre deux installations
+
+Le moteur `syncProjectWithPeer` effectue un échange bidirectionnel incrémental :
+
+1. il tire les opérations distantes après le curseur entrant local ;
+2. il les applique de manière idempotente au journal local ;
+3. il pousse les opérations locales après le curseur sortant local ;
+4. il avance chaque curseur seulement après le succès complet du lot.
+
+Les curseurs sont persistés dans `crdt_sync_cursors`, par projet, pair et direction. Si la connexion tombe au milieu d'un lot, le lot est rejoué ; l'identifiant d'opération garantit l'idempotence. Les lots sont plafonnés et la synchronisation peut reprendre à l'exécution suivante.
+
+Le transport utilise HTTP Fetch, avec HTTPS obligatoire hors boucle locale. Aucun serveur central n'est imposé : une installation peut initier l'échange vers une autre installation accessible. Les opérations répliquées peuvent être relayées vers d'autres pairs.
+
+### Authentification et révocation
+
+Les routes d'échange exigent un jeton de pair limité à un projet et aux permissions `read` et/ou `write`. Les jetons sont générés avec 256 bits aléatoires ; seule leur empreinte SHA-256 est conservée dans SQLite. Ils peuvent être révoqués individuellement. Le nombre de pairs actifs est limité à 100 par projet.
+
+La création, la liste et la révocation des pairs exigent un jeton administrateur configuré via `ICARE_SYNC_ADMIN_TOKEN` (au moins 32 caractères). Sans cette variable, l'administration des pairs est désactivée. Le jeton administrateur ne doit jamais être envoyé au navigateur ou à Discord.
+
+Exemple de création d'un jeton sur l'installation distante :
+
+```bash
+export ICARE_SYNC_ADMIN_TOKEN='une-valeur-secrete-longue-et-aleatoire-de-32-caracteres-minimum'
+curl -fsS -X POST "https://hote-distant/api/projects/PROJECT_ID/crdt/peers" \
+  -H "Authorization: Bearer $ICARE_SYNC_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"label":"installation-mobile","permissions":["read","write"]}'
+```
+
+La réponse contient le jeton du pair une seule fois. Le conserver dans un gestionnaire de secrets ou dans l'environnement protégé de l'installation initiatrice. Pour une réplication initiée depuis chaque côté, créer un jeton de pair sur chaque installation.
+
+### Exécution
+
+Depuis le répertoire `pi-runtime`, avec la base ICARE déjà créée :
+
+```bash
+ICARE_SYNC_PROJECT_ID='PROJECT_ID' \
+ICARE_SYNC_PEER_ID='PEER_ID_RENVOYE_PAR_LE_PAIR' \
+ICARE_SYNC_PEER_URL='https://hote-distant' \
+ICARE_SYNC_PEER_TOKEN='JETON_DU_PAIR' \
+npm run sync
+```
+
+Le jeton est fourni par variable d'environnement, pas par argument de ligne de commande. Les curseurs restent locaux et les secrets ne sont pas enregistrés dans SQLite. Pour automatiser la synchronisation, utiliser un ordonnanceur du système avec un environnement protégé.
+
+### Limites de sécurité et de méthode
+
+- Le HTTPS doit être fourni par le serveur ou un reverse proxy de confiance ; ne jamais exposer le port HTTP brut sur Internet.
+- Le jeton authentifie une installation autorisée sur un projet, pas l'identité humaine/agent inscrite dans `operation.actor`. Cette attribution reste déclarative tant qu'une couche d'identité et de signature n'est pas construite.
+- Les droits sont actuellement au niveau du projet, pas au niveau de chaque proposition.
+- Le protocole est un échange pull/push applicatif au-dessus de HTTP, pas encore une fédération pair-à-pair automatique, un relais temps réel ou une découverte de pairs.
+- Les données convergent techniquement ; les conflits sémantiques et les décisions contradictoires restent à examiner par les participants.
