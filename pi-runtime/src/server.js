@@ -1049,7 +1049,8 @@ const server = http.createServer((req, res) => requestContext.run({ discordIdent
       if (req.method === "POST" && !requestId) {
         try {
           const result = requestDiscordProjectMembership(db, {
-            projectId, discordUserId: discordUser.id
+            projectId, discordUserId: discordUser.id,
+            displayName: discordUser.global_name || discordUser.username || discordUser.id
           });
           if (result.alreadyMember) return json(res, 409, { error: "Vous êtes déjà membre de ce projet." });
           return json(res, result.duplicate ? 200 : 201, {
