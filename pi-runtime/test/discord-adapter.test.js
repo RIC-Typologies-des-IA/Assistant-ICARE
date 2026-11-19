@@ -73,3 +73,33 @@ test("membership request API is Discord-authenticated and owner-gated", async ()
   assert.ok(access.includes("Seul un propriétaire actif peut traiter une demande"));
   assert.ok(access.includes('role: "member"'));
 });
+
+test("project APIs require Discord authentication and current project membership", async () => {
+  const server = await read("../src/server.js");
+  assert.ok(server.includes("async function authenticateDiscordRequest(req)"));
+  assert.ok(server.includes("All project APIs require a live Discord identity"));
+  assert.ok(server.includes("getDiscordProjectAccess(db, projectId, identity.id)"));
+  assert.ok(server.includes("Ce compte Discord n'est pas membre de ce projet"));
+  assert.ok(server.includes("req.__icareBodyPromise"));
+  assert.ok(server.includes("isPeerReplicationApi"));
+});
+
+test("non-members can reach the request flow without project content being loaded", async () => {
+  const server = await read("../src/server.js");
+  const html = await read("../public/index.html");
+  const contextStart = server.indexOf('if (req.method === "POST" && url.pathname === "/api/discord/context")');
+  const contextEnd = server.indexOf('const membershipRequestMatch', contextStart);
+  const contextRoute = server.slice(contextStart, contextEnd);
+  assert.ok(contextRoute.includes("isMember: Boolean(access"));
+  assert.ok(!contextRoute.includes("if (projectId && !access)"));
+  assert.ok(html.includes("Demander à rejoindre"));
+  assert.ok(html.includes("await loadProjects();await refresh()"));
+  assert.ok(html.includes("if(!context.isMember)"));
+});
+
+test("standalone web view does not load private project data without Discord authentication", async () => {
+  const html = await read("../public/index.html");
+  assert.ok(html.includes('has("frame_id")'));
+  assert.ok(html.includes("ouvrez ICARE depuis son Activity Discord"));
+  assert.ok(html.includes("installDiscordApiFetch"));
+});
