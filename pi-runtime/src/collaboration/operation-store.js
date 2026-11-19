@@ -190,6 +190,29 @@ export function applyCrdtOperation(db, operation) {
     ).get(operation.projectId, operation.dot.replicaId, operation.dot.counter);
     if (dotCollision) throw new Error("Collision : ce dot CRDT est déjà attribué à une autre opération.");
 
+    if (operation.kind === "decision.record" && operation.payload.decision.resolves?.length) {
+      const rows = db.prepare(`SELECT operation_json FROM crdt_operations
+        WHERE project_id=? AND object_type=? AND object_id=? AND operation_kind='decision.record'`)
+        .all(operation.projectId, operation.objectType, operation.objectId);
+      const known = new Map();
+      for (const row of rows) {
+        const prior = JSON.parse(row.operation_json);
+        const decision = prior.payload?.decision;
+        if (decision?.id) known.set(decision.id, { decision, dot: prior.dot });
+      }
+      for (const resolvedId of operation.payload.decision.resolves) {
+        const prior = known.get(resolvedId);
+        if (!prior) throw new Error("Dépendance de résolution manquante : la décision " + resolvedId + " doit être reçue avant sa résolution.");
+        if ((operation.causalContext[prior.dot.replicaId] || 0) < prior.dot.counter) {
+          throw new Error("La résolution ne possède pas de contexte causal couvrant la décision " + resolvedId + ".");
+        }
+        if (prior.decision.targetType !== operation.payload.decision.targetType ||
+            prior.decision.targetId !== operation.payload.decision.targetId) {
+          throw new Error("Une décision ne peut résoudre qu'une décision portant sur la même cible.");
+        }
+      }
+    }
+
     const current = db.prepare(
       "SELECT state_json FROM crdt_object_states WHERE project_id=? AND object_type=? AND object_id=?"
     ).get(operation.projectId, operation.objectType, operation.objectId);
