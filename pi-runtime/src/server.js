@@ -1126,7 +1126,11 @@ const server = http.createServer((req, res) => requestContext.run({ discordIdent
         if (operation.projectId !== projectId) return json(res, 400, { error: "L'opération ne correspond pas au projet de l'URL." });
         const participant = operation.actor?.participant;
         if (peerAuthorization?.requireParticipant && !participant) {
-          return json(res, 403, { error: "Ce pair exige une attribution du participant authentifié pour chaque opération.", code: "REJECTED_AUTHORIZATION", operationId: operation.opId });
+          const operationTime = Date.parse(operation.createdAt);
+          const peerEnrollmentTime = Date.parse(peerAuthorization.createdAt);
+          if (!Number.isFinite(operationTime) || !Number.isFinite(peerEnrollmentTime) || operationTime >= peerEnrollmentTime) {
+            return json(res, 403, { error: "Ce pair exige une attribution du participant authentifié pour toute nouvelle opération.", code: "REJECTED_AUTHORIZATION", operationId: operation.opId });
+          }
         }
         if (participant) {
           if (participant.type !== "discord" || typeof participant.id !== "string" || !participant.id.trim()) {
