@@ -7,7 +7,7 @@ if (activityParams.has("frame_id")) {
       if (!configResponse.ok || !config.enabled || !config.clientId) {
         throw new Error("L'Activity Discord n'est pas configurée sur cette installation ICARE.");
       }
-      const { DiscordSDK } = await import("https://esm.sh/@discord/embedded-app-sdk@1.7.0");
+      const { DiscordSDK } = await import("https://esm.sh/@discord/embedded-app-sdk@2.5.0");
       const discordSdk = new DiscordSDK(config.clientId);
       await discordSdk.ready();
 
