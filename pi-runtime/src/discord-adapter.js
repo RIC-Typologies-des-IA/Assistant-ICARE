@@ -32,7 +32,7 @@ function channelBindingId(channel) {
 async function sendLongMessage(channel, text) {
   const output = String(text || "").trim() || "Je n'ai pas produit de réponse textuelle.";
   for (let offset = 0; offset < output.length; offset += MAX_DISCORD_MESSAGE) {
-    await channel.send(output.slice(offset, offset + MAX_DISCORD_MESSAGE));
+    await channel.send({ content: output.slice(offset, offset + MAX_DISCORD_MESSAGE), allowedMentions: { parse: [] } });
   }
 }
 
@@ -241,7 +241,7 @@ export async function startDiscordBot({
       .replace(new RegExp("<@!?" + client.user.id + ">", "g"), "")
       .trim();
     if (!content) {
-      await target.send("Je suis prêt. Quel est le sujet de travail ?");
+      await target.send({ content: "Je suis prêt. Quel est le sujet de travail ?", allowedMentions: { parse: [] } });
       return;
     }
     const sessionId = ("discord-" + target.id).slice(0, 100);
@@ -250,8 +250,8 @@ export async function startDiscordBot({
       const answer = await callIcareChat({ port, projectId, sessionId, message: content });
       await sendLongMessage(target, answer);
     } catch (error) {
-      await target.send("Je n'ai pas pu traiter ce message dans ICARE : " +
-        (error.message || String(error)).slice(0, 1200));
+      await target.send({ content: "Je n'ai pas pu traiter ce message dans ICARE : " +
+        (error.message || String(error)).slice(0, 1200), allowedMentions: { parse: [] } });
     }
   });
 
