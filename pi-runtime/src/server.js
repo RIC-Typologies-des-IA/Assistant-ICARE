@@ -431,7 +431,7 @@ function recordRelationCandidate(input, projectId = "legacy") {
   try {
     createLocalCrdtOperation(db, {
       projectId, objectId: fromId, kind: "relation.add",
-      payload: { relation: { id, targetId: toId, type: relation, note } },
+      payload: { relation: { id, targetId: toId, type: relation, note, reviewStatus: "candidate" } },
       actor: { type: "agent", id: "icare-agent" }
     });
   } catch (error) {
@@ -439,6 +439,53 @@ function recordRelationCandidate(input, projectId = "legacy") {
     throw error;
   }
   return { id, from_id: fromId, to_id: toId, relation, review_status: "candidate" };
+}
+
+function backfillCrdtProjections() {
+  let propositions = 0;
+  let relations = 0;
+  const rows = db.prepare("SELECT * FROM propositions ORDER BY created_at,id").all();
+  for (const proposal of rows) {
+    if (getCrdtObjectState(db, proposal.project_id, "proposition", proposal.id)) continue;
+    const actor = proposal.source === "user"
+      ? { type: "human", id: "local-user" }
+      : { type: "agent", id: String(proposal.source_agent || "icare-agent") };
+    const fields = {
+      text: proposal.text, dimensions: JSON.parse(proposal.dimensions),
+      primaryDimension: proposal.primary_dimension, temporal: proposal.temporal,
+      evaluation: proposal.evaluation, epistemic: proposal.epistemic,
+      practical: proposal.practical, confidence: proposal.confidence,
+      source: proposal.source, aspect: proposal.aspect,
+      utteranceTime: proposal.utterance_time, validTimeStart: proposal.valid_time_start,
+      validTimeEnd: proposal.valid_time_end, eventPeriodStart: proposal.event_period_start,
+      eventPeriodEnd: proposal.event_period_end, targetHorizon: proposal.target_horizon,
+      realizationTime: proposal.realization_time, modality: proposal.modality,
+      subject: proposal.subject, predicate: proposal.predicate, value: proposal.value,
+      author: proposal.author, sourceAgent: proposal.source_agent,
+      sourceInteraction: proposal.source_interaction, justification: proposal.justification,
+      reviewStatus: proposal.review_status
+    };
+    createLocalCrdtOperation(db, {
+      projectId: proposal.project_id, objectId: proposal.id,
+      kind: "proposition.snapshot", payload: { fields }, actor
+    });
+    propositions++;
+  }
+  const relationRows = db.prepare("SELECT * FROM relations ORDER BY created_at,id").all();
+  for (const relation of relationRows) {
+    const crdt = getCrdtObjectState(db, relation.project_id, "proposition", relation.from_id);
+    if (!crdt) continue;
+    const existing = readPropositionCrdtState(crdt.state).relations;
+    if (existing.some(item => item.id === relation.id)) continue;
+    createLocalCrdtOperation(db, {
+      projectId: relation.project_id, objectId: relation.from_id, kind: "relation.add",
+      payload: { relation: { id: relation.id, targetId: relation.to_id,
+        type: relation.relation, note: relation.note, reviewStatus: relation.review_status } },
+      actor: { type: "agent", id: "icare-agent" }
+    });
+    relations++;
+  }
+  return { propositions, relations };
 }
 
 async function refreshModelCatalog() {
@@ -1094,6 +1141,8 @@ const server = http.createServer(async (req, res) => {
 
 try {
   const { modelId, modelName } = await initializePi();
+  const backfill = backfillCrdtProjections();
+  if (backfill.propositions || backfill.relations) console.log("[ICARE CRDT] Projections historiques importées :", backfill.propositions, "propositions,", backfill.relations, "relations.");
   const syncPeers = parseSyncPeerConfig(process.env.ICARE_SYNC_PEERS || "[]");
   if (syncPeers.length) {
     const intervalMs = Number(process.env.ICARE_SYNC_INTERVAL_MS || 30000);
