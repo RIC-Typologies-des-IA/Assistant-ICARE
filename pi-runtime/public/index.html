@@ -223,6 +223,11 @@ async function refresh(){
    if(p.target_horizon)qualifiers.push("horizon : "+p.target_horizon);
    if(p.source)qualifiers.push("source : "+p.source);
    tags.textContent=qualifiers.join(" · ");row.append(tags);
+   if(p.crdt_conflicts&&Object.keys(p.crdt_conflicts).length){
+    const conflict=document.createElement("div");conflict.className="tags";
+    conflict.textContent="Conflits de champs à examiner : "+Object.entries(p.crdt_conflicts).map(([field,values])=>field+" = "+JSON.stringify(values)).join(" | ");
+    row.append(conflict);
+   }
    if(p.crdt_decisions?.length){
     const history=document.createElement("div");history.className="tags";
     const statuses=new Set(p.crdt_decisions.map(d=>d.status));
