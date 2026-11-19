@@ -100,7 +100,7 @@ test("non-members can reach the request flow without project content being loade
 test("standalone web view does not load private project data without Discord authentication", async () => {
   const html = await read("../public/index.html");
   assert.ok(html.includes('has("frame_id")'));
-  assert.ok(html.includes("ouvrez ICARE depuis son Activity Discord"));
+  assert.ok(html.includes("Connectez-vous avec Discord"));
   assert.ok(html.includes("installDiscordApiFetch"));
 });
 
@@ -116,7 +116,7 @@ test("project-scoped APIs reject requests without a project identifier", async (
   const server = await read("../src/server.js");
   assert.ok(server.includes("const projectScopedRoute"));
   assert.ok(server.includes("Identifiant de projet requis pour cette opération"));
-  assert.ok(server.includes(".filter(project => { const access = getDiscordProjectAccess"));
+  assert.ok(server.includes("const access = getDiscordProjectAccess(db, project.id, req.discordIdentity.id); return access && !access.roleConflict"));
 });
 
 test("new replication peers enforce participant identity and current membership", async () => {
@@ -142,7 +142,7 @@ test("web sharing uses stateful Discord OAuth and HttpOnly server sessions", asy
   assert.ok(server.includes("grant_type: \"authorization_code\""));
   assert.ok(server.includes("HttpOnly; SameSite=Lax; Path=/"));
   assert.ok(server.includes("function getWebSession(req)"));
-  assert.ok(server.includes("/api/projects/"));
+  assert.ok(server.includes("shareLinkMatch"));
   assert.ok(server.includes("/share/"));
   assert.ok(html.includes("Se connecter avec Discord"));
   assert.ok(html.includes("Copier un lien HTTPS vers ce projet"));
