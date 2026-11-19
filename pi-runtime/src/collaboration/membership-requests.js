@@ -38,7 +38,8 @@ function assertDiscordUserId(value) {
 export function requestDiscordProjectMembership(db, { projectId, discordUserId, displayName = "", requestedAt = new Date().toISOString() }) {
   assertProjectId(projectId);
   assertDiscordUserId(discordUserId);
-  if (getDiscordProjectAccess(db, projectId, discordUserId)) {
+  const existingAccess = getDiscordProjectAccess(db, projectId, discordUserId);
+  if (existingAccess && !existingAccess.roleConflict) {
     return { alreadyMember: true, request: null };
   }
   const pending = db.prepare(`
@@ -102,13 +103,17 @@ export function decideDiscordMembershipRequest(db, {
   `).get(requestId, projectId);
   if (!request) throw new Error("Demande introuvable ou déjà traitée.");
 
-  if (decision === "accepted" && !getDiscordProjectAccess(db, projectId, request.principal_id)) {
-    // CRDT dot allocation owns its SQLite transaction. This step is deliberately
-    // idempotent: a retry after a crash observes the already-created membership.
-    grantDiscordProjectMember(db, {
+  if (decision === "accepted") {
+    const existingAccess = getDiscordProjectAccess(db, projectId, request.principal_id);
+    if (existingAccess?.roleConflict) throw new Error("Le membership de cette personne est en conflit ; résous le conflit avant d’accepter la demande.");
+    if (!existingAccess) {
+      // CRDT dot allocation owns its SQLite transaction. This step is deliberately
+      // idempotent: a retry after a crash observes the already-created membership.
+      grantDiscordProjectMember(db, {
       projectId, discordUserId: request.principal_id,
-      role: "member", actorDiscordUserId
-    });
+        role: "member", actorDiscordUserId
+      });
+    }
   }
   const updated = db.prepare(`
     UPDATE project_membership_requests
