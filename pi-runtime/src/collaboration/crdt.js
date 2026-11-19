@@ -171,12 +171,25 @@ export function addORSet(state, value, dot) {
   return { type: "or-set", version: 1, adds: [...byDot.values()].sort((a, b) => dotKey(a.dot).localeCompare(dotKey(b.dot))), removed: state.removed.map(x => structuredClone(x)) };
 }
 
+export function removeORSetObserved(state, value, observedDots) {
+  assertORSet(state);
+  if (!Array.isArray(observedDots)) throw new TypeError("Les dots observés doivent être un tableau.");
+  const matching = new Map(state.adds.filter(add => canonical(add.value) === canonical(value)).map(add => [dotKey(add.dot), add.dot]));
+  const observed = observedDots.map(dot => {
+    assertDot(dot);
+    const key = dotKey(dot);
+    if (!matching.has(key)) throw new Error("Le retrait référence un ajout absent ou une valeur différente : " + key);
+    return matching.get(key);
+  });
+  const removed = new Map([...state.removed, ...observed].map(dot => [dotKey(dot), structuredClone(dot)]));
+  return { type: "or-set", version: 1, adds: state.adds.map(x => structuredClone(x)), removed: [...removed.values()].sort((a, b) => dotKey(a).localeCompare(dotKey(b))) };
+}
+
 export function removeORSet(state, value) {
   assertORSet(state);
   const key = canonical(value);
   const observed = state.adds.filter(add => canonical(add.value) === key).map(add => add.dot);
-  const removed = new Map([...state.removed, ...observed].map(dot => [dotKey(dot), structuredClone(dot)]));
-  return { type: "or-set", version: 1, adds: state.adds.map(x => structuredClone(x)), removed: [...removed.values()].sort((a, b) => dotKey(a).localeCompare(dotKey(b))) };
+  return removeORSetObserved(state, value, observed);
 }
 
 export function mergeORSets(left, right) {
