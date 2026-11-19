@@ -74,6 +74,18 @@ test("remote proposition and relation operations materialize into the existing I
   assert.equal(rel.from_id, "proposal-1");
   assert.equal(rel.to_id, "proposal-2");
   assert.equal(rel.review_status, "candidate");
+  const remove = op({
+    opId: "relation-remove", kind: "relation.remove",
+    dot: { replicaId: "phone", counter: 3 }, causalContext: { phone: 2 },
+    payload: { relation: { id: "rel-1", targetId: "proposal-2", type: "supports",
+      note: "Lien", reviewStatus: "candidate" },
+      observedAdds: [{ dot: { replicaId: "phone", counter: 2 },
+        value: { id: "rel-1", targetId: "proposal-2", type: "supports",
+          note: "Lien", reviewStatus: "candidate" } }] }
+  });
+  applyCrdtOperation(db, remove);
+  materializeCrdtOperation(db, remove);
+  assert.equal(db.prepare("SELECT id FROM relations WHERE id='rel-1'").get(), undefined);
   db.close();
 });
 
