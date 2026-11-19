@@ -115,3 +115,26 @@ Configurer les pairs via la variable d'environnement protégée `ICARE_SYNC_PEER
 La fréquence est réglable via `ICARE_SYNC_INTERVAL_MS` (défaut 30 secondes, bornes 5 secondes à 1 heure). La configuration est lue au démarrage ; une modification nécessite un redémarrage du service. Les jetons ne sont jamais copiés dans SQLite ni écrits dans les journaux. Préférer un fichier d'environnement protégé ou un gestionnaire de secrets plutôt qu'une variable définie dans un script partagé.
 
 Le serveur effectue une tentative au démarrage puis de nouvelles tentatives après les erreurs réseau. Ainsi, une connexion rétablie déclenche une réconciliation au cycle suivant. La synchronisation n'est pas un canal temps réel : le délai maximal nominal dépend de l'intervalle configuré et de la durée du cycle précédent.
+
+## Pont entre l'application ICARE et le journal CRDT
+
+Les écritures de l'application ne restent plus isolées dans les tables historiques :
+
+- une proposition créée par le formulaire ou l'agent est inscrite comme un `proposition.snapshot` unique, avec ses champs éditables et son statut historique ;
+- une relation créée est inscrite comme un ajout OR-set sur la proposition source ;
+- une validation humaine est une opération `decision.record` immuable, avec statut, justification, cible et acteur local déclaré ;
+- l'interface demande désormais une justification avant de valider ou rejeter une proposition ou une relation ;
+- au démarrage, les propositions et relations déjà présentes sont projetées de manière idempotente dans le journal. Les anciens statuts sont conservés comme données `reviewStatus` ; aucune justification historique absente n'est inventée.
+
+Les tables SQL existantes restent le modèle de lecture de compatibilité pour l'interface actuelle. Elles sont alimentées par `projection-materializer.js` à la réception d'opérations distantes.
+
+## Conflits et projections de lecture
+
+Le journal CRDT est la source de vérité répliquée ; les tables SQL ne sont que des projections de lecture. Lorsqu'un champ a plusieurs valeurs concurrentes :
+
+- une ligne SQL existante n'est pas écrasée par un choix arbitraire ;
+- si une ligne doit être créée alors que sa formulation est concurrente, la projection affiche un libellé explicite de conflit et expose toutes les alternatives dans `crdt_conflicts` ;
+- l'interface affiche les valeurs alternatives et l'historique complet des décisions ;
+- si des décisions acceptée et rejetée coexistent, la projection repasse à `candidate` pour signaler qu'aucune décision unique ne peut être présentée comme acquise.
+
+Une convergence CRDT n'est donc jamais assimilée à une décision sémantique. La résolution appartient aux participants, et une nouvelle décision justifiée s'ajoute à l'historique sans effacer les précédentes.
