@@ -221,16 +221,6 @@ export function applyProjectMembershipOperation(state, operation) {
   throw new TypeError("Opération de membership non prise en charge.");
 }
 
-export function _unusedApplyProjectMembershipOperationMarker(state, operation) {
-  if (operation.kind === "project.member.grant") {
-    return grantProjectMember(state, operation.payload.member, operation.dot);
-  }
-  if (operation.kind === "project.member.revoke") {
-    return revokeProjectMember(state, operation.payload.member, operation.payload.observedAdds);
-  }
-  throw new TypeError("Opération de membership non prise en charge.");
-}
-
 export function initializeCrdtOperationStore(db) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS crdt_operations (
