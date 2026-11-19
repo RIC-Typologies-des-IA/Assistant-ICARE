@@ -26,8 +26,8 @@ Dans le portail développeur Discord, activer l'intent privilégié **Message Co
 2. Dans un salon de confiance, exécuter `/icare bind project_id:<identifiant>`. Cette opération exige la permission Discord **Gérer le serveur**. Si le projet n'a encore aucun propriétaire, le premier binder devient son propriétaire initial ; sinon, il doit déjà être membre.
 3. Le propriétaire invite les participants avec `/icare invite user:@personne role:member` (ou `owner`), peut les retirer avec `/icare revoke user:@personne` et consulter la liste avec `/icare members`. Le dernier propriétaire ne peut pas être retiré.
 4. Mentionner le bot pour commencer une conversation.
-4. Le bot ouvre un fil dédié ; les messages suivants dans ce fil poursuivent la même session ICARE sans exiger une nouvelle mention.
-5. `/icare status` vérifie le projet lié ; `/icare unbind` retire la liaison.
+5. Le bot ouvre un fil dédié ; les messages suivants dans ce fil poursuivent la même session ICARE sans exiger une nouvelle mention.
+6. `/icare status` vérifie le projet lié ; `/icare unbind` retire la liaison.
 
 Les liaisons sont enregistrées localement dans `discord_project_bindings`, par identifiant de salon ou de fil. Les propriétaires et membres du projet sont des identités Discord explicites, stockées comme opérations CRDT de projet et répliquées avec le projet. La permission Discord Gérer le serveur sert uniquement à configurer la liaison ; elle n'accorde pas de droits métier après le bootstrap initial. Il n'existe **aucune organisation des salons par dimension ICARE**.
 
