@@ -174,12 +174,11 @@ export function addORSet(state, value, dot) {
 export function removeORSetObserved(state, value, observedDots) {
   assertORSet(state);
   if (!Array.isArray(observedDots)) throw new TypeError("Les dots observés doivent être un tableau.");
-  const matching = new Map(state.adds.filter(add => canonical(add.value) === canonical(value)).map(add => [dotKey(add.dot), add.dot]));
+  // A remove may arrive before the corresponding add during replication.
+  // Recording its observed dot now prevents that delayed add from reappearing.
   const observed = observedDots.map(dot => {
     assertDot(dot);
-    const key = dotKey(dot);
-    if (!matching.has(key)) throw new Error("Le retrait référence un ajout absent ou une valeur différente : " + key);
-    return matching.get(key);
+    return structuredClone(dot);
   });
   const removed = new Map([...state.removed, ...observed].map(dot => [dotKey(dot), structuredClone(dot)]));
   return { type: "or-set", version: 1, adds: state.adds.map(x => structuredClone(x)), removed: [...removed.values()].sort((a, b) => dotKey(a).localeCompare(dotKey(b))) };
