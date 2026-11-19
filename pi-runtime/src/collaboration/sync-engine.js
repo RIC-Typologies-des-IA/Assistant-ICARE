@@ -44,6 +44,7 @@ export function createLocalCrdtOperation(db, {
   }
   const operation = { ...candidate, dot };
   applyCrdtOperation(db, operation);
+  if (operation.objectType === "project") materializeCrdtOperation(db, operation);
   return operation;
 }
 

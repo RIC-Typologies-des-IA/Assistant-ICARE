@@ -23,12 +23,13 @@ Dans le portail développeur Discord, activer l'intent privilégié **Message Co
 ### Liaison d'un salon
 
 1. Ajouter le bot au serveur avec les permissions nécessaires pour lire/écrire dans les salons et créer des fils.
-2. Dans un salon de confiance, exécuter `/icare bind project_id:<identifiant>`. Cette opération exige la permission Discord **Gérer le serveur**.
-3. Mentionner le bot pour commencer une conversation.
-4. Le bot ouvre un fil dédié ; les messages suivants dans ce fil poursuivent la même session ICARE sans exiger une nouvelle mention.
-5. `/icare status` vérifie le projet lié ; `/icare unbind` retire la liaison.
+2. Dans un salon de confiance, exécuter `/icare bind project_id:<identifiant>`. Cette opération exige la permission Discord **Gérer le serveur**. Si le projet n'a encore aucun propriétaire, le premier binder devient son propriétaire initial ; sinon, il doit déjà être membre.
+3. Le propriétaire invite les participants avec `/icare invite user:@personne role:member` (ou `owner`), peut les retirer avec `/icare revoke user:@personne` et consulter la liste avec `/icare members`. Le dernier propriétaire ne peut pas être retiré.
+4. Mentionner le bot pour commencer une conversation.
+5. Le bot ouvre un fil dédié ; les messages suivants dans ce fil poursuivent la même session ICARE sans exiger une nouvelle mention.
+6. `/icare status` vérifie le projet lié ; `/icare unbind` retire la liaison.
 
-Les liaisons sont enregistrées localement dans `discord_project_bindings`, par identifiant de salon ou de fil. Il n'existe **aucune organisation des salons par dimension ICARE**.
+Les liaisons sont enregistrées localement dans `discord_project_bindings`, par identifiant de salon ou de fil. Les propriétaires et membres du projet sont des identités Discord explicites, stockées comme opérations CRDT de projet et répliquées avec le projet. La permission Discord Gérer le serveur sert uniquement à configurer la liaison ; elle n'accorde pas de droits métier après le bootstrap initial. Il n'existe **aucune organisation des salons par dimension ICARE**.
 
 Les messages sont envoyés au même endpoint `/api/chat` que l'interface web. Les sessions de conversation et les propositions restent dans la base locale ICARE ; elles peuvent être répliquées par le moteur CRDT si les pairs du projet sont configurés.
 
@@ -66,8 +67,8 @@ Les opérations reçues alimentent la même projection applicative que l'interfa
 
 - Les jetons `DISCORD_BOT_TOKEN` et `DISCORD_CLIENT_SECRET` sont des secrets serveur ; ne jamais les mettre dans le HTML, le JavaScript client, les journaux ou les messages Discord.
 - La liaison d'un salon exige **Gérer le serveur** ; cette permission ne devient pas une permission métier ICARE.
-- Les utilisateurs ayant accès à un salon lié peuvent actuellement interagir avec le projet de ce salon. Jusqu'à la livraison d'une authentification et d'une autorisation ICARE par utilisateur, ne lier que des salons privés et de confiance.
-- L'authentification OAuth Activity identifie le compte Discord, mais ne lui attribue pas encore des droits métier ICARE.
+- Le bot et l'Activity vérifient désormais l'appartenance explicite au projet ; le premier binder devient propriétaire seulement si aucun propriétaire n'existe. Les rôles ICARE `owner` et `member` sont indépendants des rôles Discord.
+- L'authentification OAuth Activity identifie le compte Discord et le journal CRDT vérifie son membership. Les routes API génériques ne disposent toutefois pas encore d'une session utilisateur obligatoire : ne pas exposer directement le runtime à un réseau non fiable avant la livraison du contrôle d'accès global.
 - Le bot et l'Activity ne doivent pas être exposés à des communautés non fiables avant l'ajout des ACL projet/utilisateur.
 - L'Activity utilise le SDK Embedded App épinglé à une version précise via un module ESM externe ; l'accès au CDN est nécessaire au chargement de ce module.
 - La présence, les invitations et les événements de participants Discord ne remplacent pas le journal d'opérations CRDT. La collaboration métier s'appuie sur les projets et les répliques ICARE.

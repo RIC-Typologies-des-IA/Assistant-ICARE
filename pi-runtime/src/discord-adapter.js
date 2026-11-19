@@ -6,6 +6,11 @@ import {
   bindDiscordChannelToProject, getDiscordBoundProject,
   initializeDiscordBindingStore, unbindDiscordChannel
 } from "./discord-store.js";
+import {
+  bootstrapDiscordProjectOwner, getDiscordProjectAccess,
+  grantDiscordProjectMember, listDiscordProjectMembers,
+  revokeDiscordProjectMember
+} from "./discord-access.js";
 
 const MAX_DISCORD_MESSAGE = 1900;
 
@@ -21,6 +26,16 @@ function commandDefinition() {
       .setName("unbind").setDescription("Retirer le lien de ce salon"))
     .addSubcommand(command => command
       .setName("status").setDescription("Afficher le projet ICARE lié à ce salon"))
+    .addSubcommand(command => command
+      .setName("invite").setDescription("Ajouter un membre au projet lié")
+      .addUserOption(option => option.setName("user").setDescription("Personne à inviter").setRequired(true))
+      .addStringOption(option => option.setName("role").setDescription("Rôle ICARE")
+        .addChoices({ name: "Membre", value: "member" }, { name: "Propriétaire", value: "owner" })))
+    .addSubcommand(command => command
+      .setName("revoke").setDescription("Retirer un membre du projet lié")
+      .addUserOption(option => option.setName("user").setDescription("Personne à retirer").setRequired(true)))
+    .addSubcommand(command => command
+      .setName("members").setDescription("Lister les membres du projet lié"))
     .addSubcommand(command => command
       .setName("help").setDescription("Afficher les commandes ICARE"));
 }
@@ -146,13 +161,19 @@ export async function startDiscordBot({
           });
         }
         const projectId = interaction.options.getString("project_id", true);
+        const access = bootstrapDiscordProjectOwner(db, projectId, interaction.user.id);
+        if (!access) throw new Error("Impossible d'établir votre appartenance au projet.");
+        if (access.roleConflict || !["owner", "member"].includes(access.role)) {
+          throw new Error("Votre appartenance présente un conflit de rôle ou n'est pas valide. Demandez à un propriétaire de clarifier vos droits.");
+        }
         bindDiscordChannelToProject(db, {
           channelId: bindingId || interaction.channelId,
           projectId, boundBy: interaction.user.id
         });
         return interaction.reply({
-          content: "Ce salon est maintenant relié au projet ICARE " + projectId +
-            ". Mentionnez le bot pour démarrer une conversation ; les échanges suivants peuvent se poursuivre dans le fil créé.",
+          content: "Ce salon est relié au projet ICARE " + projectId +
+            (access.role === "owner" ? ". Vous êtes propriétaire du projet." : ". Vous êtes membre du projet.") +
+            " Mentionnez le bot pour démarrer une conversation ; les échanges suivants se poursuivent dans le fil créé.",
           flags: MessageFlags.Ephemeral
         });
       }
@@ -181,9 +202,51 @@ export async function startDiscordBot({
           flags: MessageFlags.Ephemeral
         });
       }
+      if (["invite", "revoke", "members"].includes(subcommand)) {
+        const projectId = getDiscordBoundProject(db, {
+          channelId: interaction.channelId, parentChannelId: interaction.channel?.parentId,
+          defaultProjectId: interaction.inGuild() ? null : defaultProjectId
+        });
+        if (!projectId) throw new Error("Aucun projet ICARE n'est lié à ce salon.");
+        const access = getDiscordProjectAccess(db, projectId, interaction.user.id);
+        if (!access) throw new Error("Vous n'êtes pas membre de ce projet.");
+        if (subcommand === "members") {
+          const members = listDiscordProjectMembers(db, projectId);
+          const lines = members.map(member => "• " + member.principalId + " — " + member.role);
+          return interaction.reply({
+            content: lines.length ? "Membres du projet " + projectId + " :\n" + lines.join("\n") : "Aucun membre enregistré.",
+            flags: MessageFlags.Ephemeral
+          });
+        }
+        if (access.role !== "owner" || access.roleConflict) {
+          throw new Error("Seul un propriétaire du projet peut gérer ses membres.");
+        }
+        const target = interaction.options.getUser("user", true);
+        if (subcommand === "invite") {
+          const existing = getDiscordProjectAccess(db, projectId, target.id);
+          if (existing) throw new Error("Cette personne est déjà membre du projet.");
+          const role = interaction.options.getString("role") || "member";
+          grantDiscordProjectMember(db, {
+            projectId, discordUserId: target.id, role,
+            actorDiscordUserId: interaction.user.id
+          });
+          return interaction.reply({
+            content: target.username + " a été ajouté au projet avec le rôle " + role + ".",
+            flags: MessageFlags.Ephemeral
+          });
+        }
+        const removed = revokeDiscordProjectMember(db, {
+          projectId, discordUserId: target.id,
+          actorDiscordUserId: interaction.user.id
+        });
+        return interaction.reply({
+          content: removed ? target.username + " a été retiré du projet." : "Cette personne n'était pas membre du projet.",
+          flags: MessageFlags.Ephemeral
+        });
+      }
       return interaction.reply({
         content: "Dans un salon lié, mentionnez le bot pour démarrer une conversation. " +
-          "Utilisez /icare bind pour lier un projet, /icare status pour vérifier le lien.",
+          "Utilisez /icare bind pour lier un projet, /icare invite pour ajouter un membre, /icare members pour les lister.",
         flags: MessageFlags.Ephemeral
       });
     } catch (error) {
@@ -212,14 +275,18 @@ export async function startDiscordBot({
       parentChannelId: message.channel.parentId || null,
       defaultProjectId: isDm ? defaultProjectId : null
     });
-    if (isThread && !threadProject && projectId) {
-      bindDiscordChannelToProject(db, {
-        channelId: message.channel.id, projectId, boundBy: message.author.id
-      });
-    }
     if (!projectId) {
       await message.reply("Aucun projet ICARE n'est lié à ce salon. Un administrateur peut utiliser /icare bind.");
       return;
+    }
+    if (!getDiscordProjectAccess(db, projectId, message.author.id)) {
+      await message.reply("Vous n'êtes pas membre de ce projet. Demandez à un propriétaire de vous inviter avec /icare invite.");
+      return;
+    }
+    if (isThread && !threadProject) {
+      bindDiscordChannelToProject(db, {
+        channelId: message.channel.id, projectId, boundBy: message.author.id
+      });
     }
 
     let target = message.channel;

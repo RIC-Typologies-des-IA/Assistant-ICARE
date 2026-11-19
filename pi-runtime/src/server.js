@@ -15,6 +15,7 @@ import { backfillCrdtProjections, projectPropositionToCrdt, projectRelationToCrd
 import { materializeCrdtOperation } from "./collaboration/projection-materializer.js";
 import { startDiscordBot } from "./discord-adapter.js";
 import { getDiscordBoundProject, initializeDiscordBindingStore } from "./discord-store.js";
+import { getDiscordProjectAccess } from "./discord-access.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
@@ -930,9 +931,14 @@ const server = http.createServer(async (req, res) => {
         channelId,
         defaultProjectId: guildId ? null : process.env.ICARE_DISCORD_DEFAULT_PROJECT_ID || null
       });
+      const access = projectId ? getDiscordProjectAccess(db, projectId, discordUser.id) : null;
+      if (projectId && !access) {
+        return json(res, 403, { error: "Votre compte Discord n'est pas membre de ce projet ICARE. Demandez à un propriétaire de vous inviter." });
+      }
       return json(res, 200, {
         user: { id: discordUser.id, username: discordUser.username, global_name: discordUser.global_name || null },
-        channelId: channelId || null, projectId, instanceId
+        channelId: channelId || null, projectId, instanceId,
+        projectRole: access?.role || null
       });
     }
     const peerCollectionMatch = /^\/api\/projects\/([^/]+)\/crdt\/peers$/.exec(url.pathname);

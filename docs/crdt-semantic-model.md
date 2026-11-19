@@ -46,3 +46,17 @@ Les marqueurs de suppression OR-set ne sont pas purgés dans cette version. Aucu
 Le serveur initialise maintenant au démarrage l'identité technique persistée par `replica-store.js`. Le compteur monotone est alloué transactionnellement par `allocateLocalDot` ; il n'est pas encore branché à toutes les écritures métier. La table SQLite dédiée est additive et ne remplace aucune donnée existante.
 
 Les tests de `replica-store.test.js` couvrent la stabilité de l'identité, la monotonie du compteur, l'avancement au-delà du contexte causal local et le fait qu'un contexte invalide ne consomme pas de compteur.
+
+## Membership de projet
+
+Les accès Discord sont également des données de projet répliquées :
+
+- l'objet CRDT `project` (identifiant égal à `projectId`) contient un OR-set de grants `{principalType, principalId, role}` ;
+- `project.member.grant` ajoute un grant ;
+- `project.member.revoke` ne retire que les tags observés, avec contexte causal ;
+- les rôles actuellement admis sont `owner` et `member` ;
+- le premier grant owner doit être auto-attribué par son acteur Discord, et n'est accepté qu'en l'absence de propriétaire actif ;
+- ensuite, seul un propriétaire actif peut accorder ou révoquer des grants ; le dernier propriétaire ne peut pas être supprimé ;
+- une révocation reçue avant le grant qu'elle cite est mise en attente par rejet/retry plutôt que d'être appliquée sans preuve de l'ajout observé.
+
+La table SQLite `project_members` est une projection matérialisée reconstruisible. Elle n'est pas la source de vérité. Les identités humaines sont distinctes des identités de réplique ; les acteurs sont pour l'instant des identifiants Discord déclaratifs, pas des signatures cryptographiques.

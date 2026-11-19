@@ -12,6 +12,10 @@ import {
   addPropositionObservation, addPropositionRelation, initializePropositionFields,
   recordPropositionDecision, upgradePropositionCrdtState
 } from "./model.js";
+import {
+  assertProjectMembershipState, createProjectMembershipState,
+  grantProjectMember, getProjectMemberAccess, readProjectMembers, revokeProjectMember
+} from "./project-membership.js";
 
 const isRecord = value => value !== null && typeof value === "object" && !Array.isArray(value);
 const nonEmpty = value => typeof value === "string" && value.trim().length > 0;
@@ -24,7 +28,8 @@ function canonical(value) {
 
 const OPERATION_KINDS = new Set([
   "field.set", "proposition.snapshot", "observation.add", "observation.remove",
-  "relation.add", "relation.remove", "decision.record"
+  "relation.add", "relation.remove", "decision.record",
+  "project.member.grant", "project.member.revoke"
 ]);
 
 export function validateCrdtOperation(operation) {
@@ -34,7 +39,8 @@ export function validateCrdtOperation(operation) {
   for (const key of ["opId", "projectId", "objectId", "createdAt"]) {
     if (!nonEmpty(operation[key])) errors.push("Champ requis invalide : " + key);
   }
-  if (operation.objectType !== "proposition") errors.push("Type d'objet CRDT non pris en charge.");
+  if (!["proposition", "project"].includes(operation.objectType)) errors.push("Type d'objet CRDT non pris en charge.");
+  if (operation.objectType === "project" && operation.objectId !== operation.projectId) errors.push("L'objet de membership doit être le projet lui-même.");
   if (!OPERATION_KINDS.has(operation.kind)) errors.push("Type d'opération CRDT non pris en charge.");
   if (!isRecord(operation.dot) || !nonEmpty(operation.dot.replicaId) ||
       !Number.isSafeInteger(operation.dot.counter) || operation.dot.counter < 1) {
@@ -54,6 +60,33 @@ export function validateCrdtOperation(operation) {
   }
   if (!isRecord(operation.payload)) errors.push("Payload d'opération invalide.");
   if (isRecord(operation.payload)) {
+    if (operation.objectType === "project") {
+      if (!["project.member.grant", "project.member.revoke"].includes(operation.kind)) {
+        errors.push("Opération de projet non prise en charge.");
+      }
+      if (operation.actor?.type !== "human") errors.push("Une opération de membership doit être attribuée à un acteur humain.");
+      const member = operation.payload.member;
+      if (!isRecord(member) || member.principalType !== "discord" ||
+          !nonEmpty(member.principalId) || !["owner", "member"].includes(member.role)) {
+        errors.push("Membre de projet invalide.");
+      }
+      if (operation.kind === "project.member.revoke") {
+        if (!Array.isArray(operation.payload.observedAdds)) errors.push("La révocation doit déclarer les grants observés.");
+        else for (const entry of operation.payload.observedAdds) {
+          const dot = entry?.dot;
+          if (!isRecord(entry) || !isRecord(dot) || !nonEmpty(dot.replicaId) ||
+              !Number.isSafeInteger(dot.counter) || dot.counter < 1 ||
+              !isRecord(entry.value) || canonical(entry.value) !== canonical(member)) {
+            errors.push("Grant observé invalide.");
+          } else if ((context[dot.replicaId] || 0) < dot.counter) {
+            errors.push("Le contexte causal ne couvre pas tous les grants révoqués.");
+          }
+        }
+      }
+    }
+    if (operation.objectType === "proposition" && ["project.member.grant", "project.member.revoke"].includes(operation.kind)) {
+      errors.push("Une opération de membership doit cibler un objet projet.");
+    }
     if (operation.kind === "field.set" && (!nonEmpty(operation.payload.field) || !Object.hasOwn(operation.payload, "value"))) errors.push("Champ et valeur de proposition requis.");
     if (operation.kind === "proposition.snapshot") {
       if (!isRecord(operation.payload.fields) || Object.keys(operation.payload.fields).length === 0) {
@@ -144,6 +177,50 @@ export function applyPropositionOperation(state, operation) {
   }
 }
 
+export function applyProjectMembershipOperation(state, operation) {
+  const validation = validateCrdtOperation(operation);
+  if (!validation.valid) throw new TypeError("Opération de membership CRDT invalide : " + validation.errors.join(" "));
+  assertProjectMembershipState(state);
+  const actorId = operation.actor.id.startsWith("discord:")
+    ? operation.actor.id.slice("discord:".length) : "";
+  if (!actorId) throw new Error("L'acteur de membership doit être une identité Discord vérifiée.");
+  const members = readProjectMembers(state);
+  const owners = new Set(members.filter(member => member.role === "owner").map(member => member.principalId));
+  const actorAccess = getProjectMemberAccess(state, "discord", actorId);
+
+  if (operation.kind === "project.member.grant") {
+    const target = operation.payload.member;
+    if (owners.size === 0) {
+      if (target.role !== "owner" || target.principalId !== actorId) {
+        throw new Error("Seul le premier propriétaire peut initialiser l'accès au projet.");
+      }
+    } else if (actorAccess?.role !== "owner" || actorAccess.roleConflict) {
+      throw new Error("Seul un propriétaire actif peut accorder un accès au projet.");
+    }
+    return grantProjectMember(state, target, operation.dot);
+  }
+  if (operation.kind === "project.member.revoke") {
+    if (actorAccess?.role !== "owner" || actorAccess.roleConflict) {
+      throw new Error("Seul un propriétaire actif peut révoquer un accès au projet.");
+    }
+    const target = operation.payload.member;
+    const targetAccess = getProjectMemberAccess(state, "discord", target.principalId);
+    if (!targetAccess) throw new Error("Le grant à révoquer doit être reçu avant sa révocation.");
+    if (target.role === "owner" && owners.size <= 1) {
+      throw new Error("Le dernier propriétaire du projet ne peut pas être révoqué.");
+    }
+    for (const entry of operation.payload.observedAdds) {
+      const existing = state.members.adds.find(add =>
+        add.dot.replicaId === entry.dot.replicaId && add.dot.counter === entry.dot.counter);
+      if (!existing || canonical(existing.value) !== canonical(entry.value)) {
+        throw new Error("Le grant observé doit être reçu avant sa révocation.");
+      }
+    }
+    return revokeProjectMember(state, target, operation.payload.observedAdds);
+  }
+  throw new TypeError("Opération de membership non prise en charge.");
+}
+
 export function initializeCrdtOperationStore(db) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS crdt_operations (
@@ -216,8 +293,14 @@ export function applyCrdtOperation(db, operation) {
     const current = db.prepare(
       "SELECT state_json FROM crdt_object_states WHERE project_id=? AND object_type=? AND object_id=?"
     ).get(operation.projectId, operation.objectType, operation.objectId);
-    const state = current ? upgradePropositionCrdtState(JSON.parse(current.state_json)) : createPropositionCrdtState();
-    const nextState = applyPropositionOperation(state, operation);
+    const state = current
+      ? (operation.objectType === "proposition"
+        ? upgradePropositionCrdtState(JSON.parse(current.state_json))
+        : JSON.parse(current.state_json))
+      : (operation.objectType === "proposition" ? createPropositionCrdtState() : createProjectMembershipState());
+    const nextState = operation.objectType === "proposition"
+      ? applyPropositionOperation(state, operation)
+      : applyProjectMembershipOperation(state, operation);
     const now = new Date().toISOString();
 
     db.prepare(`INSERT INTO crdt_operations(
@@ -248,7 +331,10 @@ export function getCrdtObjectState(db, projectId, objectType, objectId) {
   ).get(projectId, objectType, objectId);
   if (!row) return null;
   const storedState = JSON.parse(row.state_json);
-  const state = upgradePropositionCrdtState(storedState);
+  const state = objectType === "proposition"
+    ? upgradePropositionCrdtState(storedState)
+    : storedState;
+  if (objectType === "project") assertProjectMembershipState(state);
   if (JSON.stringify(state) !== JSON.stringify(storedState)) {
     db.prepare("UPDATE crdt_object_states SET state_json=? WHERE project_id=? AND object_type=? AND object_id=?")
       .run(JSON.stringify(state), projectId, objectType, objectId);
