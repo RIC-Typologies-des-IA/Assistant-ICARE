@@ -386,7 +386,34 @@ function recordCandidate(input, projectId = "legacy") {
       optionalText("realization_time"), modality, optionalText("subject"), optionalText("predicate"), optionalText("value"),
       optionalText("author"), optionalText("source_agent"), optionalText("source_interaction"), optionalText("justification"), projectId
     );
-  return db.prepare("SELECT * FROM propositions WHERE id=? AND project_id=?").get(id, projectId);
+  const proposal = db.prepare("SELECT * FROM propositions WHERE id=? AND project_id=?").get(id, projectId);
+  const actor = input.source === "user"
+    ? { type: "human", id: "local-user" }
+    : { type: "agent", id: String(input.source_agent || "icare-agent") };
+  const fields = {
+    text: proposal.text, dimensions: JSON.parse(proposal.dimensions),
+    primaryDimension: proposal.primary_dimension, temporal: proposal.temporal,
+    evaluation: proposal.evaluation, epistemic: proposal.epistemic,
+    practical: proposal.practical, confidence: proposal.confidence,
+    source: proposal.source, aspect: proposal.aspect,
+    utteranceTime: proposal.utterance_time, validTimeStart: proposal.valid_time_start,
+    validTimeEnd: proposal.valid_time_end, eventPeriodStart: proposal.event_period_start,
+    eventPeriodEnd: proposal.event_period_end, targetHorizon: proposal.target_horizon,
+    realizationTime: proposal.realization_time, modality: proposal.modality,
+    subject: proposal.subject, predicate: proposal.predicate, value: proposal.value,
+    author: proposal.author, sourceAgent: proposal.source_agent,
+    sourceInteraction: proposal.source_interaction, justification: proposal.justification,
+    reviewStatus: proposal.review_status
+  };
+  try {
+    createLocalCrdtOperation(db, {
+      projectId, objectId: id, kind: "proposition.snapshot", payload: { fields }, actor
+    });
+  } catch (error) {
+    db.prepare("DELETE FROM propositions WHERE id=? AND project_id=?").run(id, projectId);
+    throw error;
+  }
+  return proposal;
 }
 function recordRelationCandidate(input, projectId = "legacy") {
   const allowed = new Set(ONTOLOGY.relations);
@@ -398,8 +425,19 @@ function recordRelationCandidate(input, projectId = "legacy") {
   const exists = db.prepare("SELECT id FROM propositions WHERE id IN (?,?) AND project_id=?").all(fromId, toId, projectId);
   if (exists.length !== 2) throw new Error("Les deux propositions doivent exister.");
   const id = randomUUID();
+  const note = String(input.note || "").slice(0,1000);
   db.prepare("INSERT INTO relations(id,from_id,to_id,relation,note,review_status,created_at,project_id) VALUES(?,?,?,?,?,?,?,?)")
-    .run(id, fromId, toId, relation, String(input.note || "").slice(0,1000), "candidate", now(), projectId);
+    .run(id, fromId, toId, relation, note, "candidate", now(), projectId);
+  try {
+    createLocalCrdtOperation(db, {
+      projectId, objectId: fromId, kind: "relation.add",
+      payload: { relation: { id, targetId: toId, type: relation, note } },
+      actor: { type: "agent", id: "icare-agent" }
+    });
+  } catch (error) {
+    db.prepare("DELETE FROM relations WHERE id=? AND project_id=?").run(id, projectId);
+    throw error;
+  }
   return { id, from_id: fromId, to_id: toId, relation, review_status: "candidate" };
 }
 
