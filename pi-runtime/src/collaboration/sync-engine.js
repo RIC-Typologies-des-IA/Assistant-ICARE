@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { allocateLocalDot, getLocalReplicaState } from "./replica-store.js";
 import { mergeVersionVectors } from "./crdt.js";
 import {
-  applyCrdtOperation, listCrdtOperations, validateCrdtOperation
+  applyCrdtOperation, initializeCrdtOperationStore, listCrdtOperations
 } from "./operation-store.js";
 
 const nonEmpty = value => typeof value === "string" && value.trim().length > 0;
@@ -101,6 +101,7 @@ export async function syncProjectWithPeer(db, {
   const remote = validateRemote(baseUrl);
   const safeLimit = Math.max(1, Math.min(100, Number.isSafeInteger(limit) ? limit : 100));
   const safeBatches = Math.max(1, Math.min(50, Number.isSafeInteger(maxBatches) ? maxBatches : 10));
+  initializeCrdtOperationStore(db);
   initializeCrdtSyncCursorStore(db);
   const endpoint = remote + "/api/projects/" + encodeURIComponent(projectId) + "/crdt/operations";
   const headers = { Authorization: "Bearer " + token, Accept: "application/json" };
