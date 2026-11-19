@@ -946,7 +946,7 @@ const server = http.createServer(async (req, res) => {
         projectRole: access?.role || null
       });
     }
-    const membershipRequestMatch = /^\\/api\\/projects\\/([^/]+)\\/membership-requests(?:\\/([^/]+))?$/.exec(url.pathname);
+    const membershipRequestMatch = /^\/api\/projects\/([^/]+)\/membership-requests(?:\/([^/]+))?$/.exec(url.pathname);
     if (membershipRequestMatch && ["GET", "POST"].includes(req.method)) {
       let projectId, requestId;
       try {
