@@ -8,9 +8,9 @@ ASSUME Members0 \subseteq Users
 ASSUME Owners0 \cap Members0 = {}
 ASSUME LinkHolders0 \subseteq Users
 
-VARIABLES owners, members, requests, localOps, publishedOps, rejectedOps
+VARIABLES owners, members, requests, localOps, publishedOps, authorizedOps, rejectedOps
 
-vars == <<owners, members, requests, localOps, publishedOps, rejectedOps>>
+vars == <<owners, members, requests, localOps, publishedOps, authorizedOps, rejectedOps>>
 
 Init ==
   /\ owners = Owners0
@@ -25,7 +25,7 @@ RequestJoin(u) ==
   /\ u \notin owners \cup members
   /\ requests[u] = "none"
   /\ requests' = [requests EXCEPT ![u] = "pending"]
-  /\ UNCHANGED <<owners, members, localOps, publishedOps, rejectedOps>>
+  /\ UNCHANGED <<owners, members, localOps, publishedOps, authorizedOps, rejectedOps>>
 
 OwnerAccept(actor, u) ==
   /\ actor \in owners
@@ -50,14 +50,14 @@ Revoke(actor, u) ==
   /\ actor \in owners
   /\ u \in members
   /\ members' = members \ {u}
-  /\ UNCHANGED <<owners, requests, localOps, publishedOps, rejectedOps>>
+  /\ UNCHANGED <<owners, requests, localOps, publishedOps, authorizedOps, rejectedOps>>
 
 DraftOffline(u, op) ==
   /\ u \in Users
   /\ op \in Ops
   /\ op \notin localOps \cup publishedOps \cup rejectedOps
   /\ localOps' = localOps \cup {<<u, op>>}
-  /\ UNCHANGED <<owners, members, requests, publishedOps, rejectedOps>>
+  /\ UNCHANGED <<owners, members, requests, publishedOps, authorizedOps, rejectedOps>>
 
 ReconnectAuthorized(u, op) ==
   /\ <<u, op>> \in localOps
@@ -108,6 +108,6 @@ Spec == Init /\ [][Next]_vars
 THEOREM Spec => []TypeOK
 THEOREM Spec => []PendingIsNotMembership
 THEOREM Spec => []OnlyOwnersCanGrant
-THEOREM Spec => []NoUnauthorizedPublication
+THEOREM Spec => []EveryPublicationWasAuthorized
 THEOREM Spec => []RejectedOperationsAreNotPublished
 ==========================================================
