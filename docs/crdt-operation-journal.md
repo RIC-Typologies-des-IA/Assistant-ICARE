@@ -33,3 +33,11 @@ La réception hors ordre ne dispense pas de conserver les opérations : le journ
 - Les routes HTTP expérimentales ne doivent pas être exposées à un réseau non fiable avant authentification, autorisation, quotas et protections anti-rejeu.
 - Aucun protocole de transport, relais, serveur central ou pair-à-pair n'est choisi.
 - La convergence des données ne tranche jamais les divergences de sens ni la légitimité d'une décision humaine.
+
+## API locale expérimentale
+
+- `POST /api/projects/:projectId/crdt/operations` valide puis applique une opération au journal.
+- `GET /api/projects/:projectId/crdt/operations?after=<sequence>&limit=<n>` fournit un lot incrémental et un curseur local.
+- `GET /api/projects/:projectId/crdt/objects/proposition/:objectId` renvoie l'état matérialisé.
+
+Le serveur vérifie que le projet existe et que l'identifiant de projet de l'opération correspond au chemin. Il ne peut pas encore authentifier l'acteur déclaré dans l'opération. Ces routes sont expérimentales et ne constituent pas une API fédérée sécurisée.
