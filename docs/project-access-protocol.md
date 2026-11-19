@@ -107,7 +107,7 @@ Toutes les API applicatives non publiques exigent désormais un jeton OAuth Disc
 
 La liste `GET /api/projects` ne retourne que les projets auxquels le compte authentifié appartient. La création `POST /api/projects` attribue automatiquement le rôle owner au compte Discord authentifié ; les champs d'acteur fournis par le navigateur ne font pas autorité.
 
-L'accès web autonome sans Activity Discord n'est pas encore doté d'un flux OAuth complet : l'interface masque donc le contenu et invite à ouvrir le projet depuis l'Activity Discord. Le résolveur HTTPS public et l'authentification web hors Discord restent à construire.
+Le parcours web autonome est désormais disponible lorsque `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `ICARE_PUBLIC_BASE_URL` et l'URI de callback Discord sont configurés. Il utilise une session serveur HttpOnly et un résolveur `/share/<projectId>`. Sans cette configuration, l'interface invite à ouvrir le projet depuis l'Activity Discord. Une URL HTTPS publiquement joignable reste nécessaire ; une installation locale n'est pas rendue accessible par le seul fait de générer un lien.
 
 ### Limite de la révocation et de la réplication
 
