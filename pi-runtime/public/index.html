@@ -399,7 +399,7 @@ window.addEventListener("icare:discord-error",event=>{
 $("#docForm").addEventListener("submit",async e=>{e.preventDefault();const r=await fetch("/api/references",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({projectId:currentProjectId,title:$("#docTitle").value,content:$("#docContent").value})});const x=await r.json();if(!r.ok){alert(x.error);return}$("#docTitle").value="";$("#docContent").value="";alert("Document ajouté à la mémoire ICARE.")});
 (async()=>{try{const s=await fetch("/api/status").then(r=>r.json());await loadModels();
  const inDiscordActivity=new URLSearchParams(location.search).has("frame_id");
- const authConfig=await fetch("/api/auth/config").then(r=>r.json());$("#shareProject").disabled=!authConfig.publicBaseUrl;$("#shareProject").title=authConfig.publicBaseUrl?"Copier un lien HTTPS vers ce projet":"Configure ICARE_PUBLIC_BASE_URL pour activer le partage web";
+ const authConfig=await fetch("/api/auth/config").then(r=>r.json());$("#shareProject").disabled=!(authConfig.enabled&&authConfig.publicBaseUrl);$("#shareProject").title=authConfig.enabled&&authConfig.publicBaseUrl?"Copier un lien HTTPS vers ce projet":"Configure l’URL publique et OAuth Discord pour activer le partage web";
  if(!inDiscordActivity){
   const auth=await fetch("/api/auth/session").then(r=>r.json());webSessionUser=auth.user;
   if(!auth.authenticated){showAccessGate("Connectez-vous avec Discord pour ouvrir un projet partagé.",[{label:"Se connecter avec Discord",run:()=>{location.href="/auth/discord/start"+(webTargetProjectId?"?projectId="+encodeURIComponent(webTargetProjectId):"")}}]);}
