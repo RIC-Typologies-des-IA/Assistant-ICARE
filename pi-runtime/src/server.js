@@ -1160,25 +1160,16 @@ const server = http.createServer((req, res) => requestContext.run({ discordIdent
       try { requireProject(projectId); }
       catch (error) { return json(res, 404, { error: error.message }); }
 
-      let originValid = false;
-      try { originValid = req.headers.origin === new URL(DISCORD_ACTIVITY_ORIGIN).origin; } catch {}
-      if ((req.method !== "GET" && !originValid) || !DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET) {
+      const requestOrigin = req.headers.origin || "";
+      const allowedOrigins = new Set();
+      for (const configured of [DISCORD_ACTIVITY_ORIGIN, PUBLIC_BASE_URL]) {
+        try { if (configured) allowedOrigins.add(new URL(configured).origin); } catch {}
+      }
+      if ((req.method !== "GET" && !allowedOrigins.has(requestOrigin)) || !DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET) {
         return json(res, 403, { error: "Origine ou authentification Discord non autorisée." });
       }
-      const authorization = req.headers.authorization || "";
-      const bearer = /^Bearer ([A-Za-z0-9._~-]+)$/.exec(authorization);
-      if (!bearer) return json(res, 401, { error: "Authentification Discord requise." });
-      let discordUser;
-      try {
-        const userResponse = await fetch("https://discord.com/api/v10/users/@me", {
-          headers: { Authorization: "Bearer " + bearer[1] },
-          signal: AbortSignal.timeout(10000)
-        });
-        if (!userResponse.ok) return json(res, 401, { error: "Jeton utilisateur Discord invalide." });
-        discordUser = await userResponse.json();
-      } catch (error) {
-        return json(res, 502, { error: "Vérification Discord impossible : " + (error.message || String(error)) });
-      }
+      const discordUser = await authenticateDiscordRequest(req);
+      if (!discordUser) return json(res, 401, { error: "Authentification Discord requise." });
 
       if (req.method === "GET" && !requestId) {
         try {
@@ -1193,6 +1184,7 @@ const server = http.createServer((req, res) => requestContext.run({ discordIdent
       }
       if (req.method === "POST" && !requestId) {
         try {
+          requestContext.getStore().discordIdentity = discordUser;
           const result = requestDiscordProjectMembership(db, {
             projectId, discordUserId: discordUser.id,
             displayName: discordUser.global_name || discordUser.username || discordUser.id
