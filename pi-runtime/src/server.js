@@ -810,6 +810,15 @@ const server = http.createServer((req, res) => requestContext.run({ discordIdent
       }
       req.discordIdentity = identity;
       requestContext.getStore().discordIdentity = identity;
+      if (!internalDiscordCall && !bearerToken(req) && !["GET", "HEAD", "OPTIONS"].includes(req.method)) {
+        const trustedOrigins = new Set();
+        for (const configured of [PUBLIC_BASE_URL, DISCORD_REDIRECT_URI, DISCORD_ACTIVITY_ORIGIN]) {
+          try { if (configured) trustedOrigins.add(new URL(configured).origin); } catch {}
+        }
+        if (!trustedOrigins.has(req.headers.origin || "")) {
+          return json(res, 403, { error: "Origine non autorisée pour une opération avec session web." });
+        }
+      }
     }
     if (req.method === "GET" && url.pathname === "/auth/discord/start") {
       if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET || !DISCORD_REDIRECT_URI) {
