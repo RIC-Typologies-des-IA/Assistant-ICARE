@@ -154,11 +154,7 @@ $("#shareProject").addEventListener("click",async()=>{
   await navigator.clipboard.writeText(x.url);$("#error").textContent="Lien de partage copié. Il identifie le projet, mais chaque personne devra s'authentifier et obtenir un accès.";
  }catch(error){$("#error").textContent=error.message||String(error)}
 });
-$("#projectSelect").addEventListener("change",async()=>{
- currentProjectId=$("#projectSelect").value;webTargetProjectId="";localStorage.setItem("icare-current-project",currentProjectId);
- const response=await fetch("/api/projects");const data=await response.json();const project=data.projects?.find(p=>p.id===currentProjectId);icareProjectRole=project?.role||null;
- await refresh();if(icareProjectRole==="owner")await loadOwnerMembershipRequests();
-});
+
 
 function renderConversation(turns){
  $("#messages").innerHTML="";
@@ -193,7 +189,7 @@ async function loadTimeline(){
  if(timelineSnapshots.length)renderTimeline(timelineSnapshots.length-1);
 }
 $("#timelineSlider").addEventListener("input",e=>renderTimeline(Number(e.target.value)));
-$("#projectSelect").addEventListener("change",async()=>{currentProjectId=$("#projectSelect").value;localStorage.setItem("icare-current-project",currentProjectId);sessionKey="icare-pi-session:"+currentProjectId;sessionId=localStorage.getItem(sessionKey)||crypto.randomUUID();localStorage.setItem(sessionKey,sessionId);await refresh()});
+$("#projectSelect").addEventListener("change",async()=>{currentProjectId=$("#projectSelect").value;webTargetProjectId="";localStorage.setItem("icare-current-project",currentProjectId);sessionKey="icare-pi-session:"+currentProjectId;sessionId=localStorage.getItem(sessionKey)||crypto.randomUUID();localStorage.setItem(sessionKey,sessionId);const response=await fetch("/api/projects");const data=await response.json();icareProjectRole=data.projects?.find(p=>p.id===currentProjectId)?.role||null;await refresh();if(icareProjectRole==="owner")await loadOwnerMembershipRequests()});
 $("#createProject").addEventListener("click",async()=>{const name=$("#newProjectName").value.trim();if(!name)return;const r=await fetch("/api/projects",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name})});const x=await r.json();if(!r.ok){$("#error").textContent=x.error;return}$("#newProjectName").value="";currentProjectId=x.project.id;await loadProjects();$("#projectSelect").value=currentProjectId;sessionKey="icare-pi-session:"+currentProjectId;sessionId=crypto.randomUUID();localStorage.setItem(sessionKey,sessionId);await refresh()});
 function audioBufferToWav(audioBuffer){
  const targetRate=16000, sourceRate=audioBuffer.sampleRate, length=Math.ceil(audioBuffer.duration*targetRate);
