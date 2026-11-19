@@ -291,6 +291,13 @@ function cookieValue(req, name) {
 function hashSecret(value) {
   return createHash("sha256").update(value, "utf8").digest("hex");
 }
+function isHttpsOrLoopback(value) {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "https:" ||
+      (parsed.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(parsed.hostname));
+  } catch { return false; }
+}
 function getWebSession(req) {
   const token = cookieValue(req, "icare_session");
   if (!token) return null;
@@ -821,7 +828,7 @@ const server = http.createServer((req, res) => requestContext.run({ discordIdent
       }
     }
     if (req.method === "GET" && url.pathname === "/auth/discord/start") {
-      if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET || !DISCORD_REDIRECT_URI) {
+      if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET || !DISCORD_REDIRECT_URI || !isHttpsOrLoopback(DISCORD_REDIRECT_URI) || (PUBLIC_BASE_URL && !isHttpsOrLoopback(PUBLIC_BASE_URL))) {
         return json(res, 503, { error: "Connexion web Discord indisponible : configure l'URL de redirection OAuth." });
       }
       const projectId = url.searchParams.get("projectId") || null;
@@ -903,8 +910,8 @@ const server = http.createServer((req, res) => requestContext.run({ discordIdent
     }
     if (req.method === "GET" && url.pathname === "/api/auth/config") {
       return json(res, 200, {
-        enabled: Boolean(DISCORD_CLIENT_ID && DISCORD_CLIENT_SECRET && DISCORD_REDIRECT_URI),
-        publicBaseUrl: PUBLIC_BASE_URL || null,
+        enabled: Boolean(DISCORD_CLIENT_ID && DISCORD_CLIENT_SECRET && DISCORD_REDIRECT_URI && isHttpsOrLoopback(DISCORD_REDIRECT_URI)),
+        publicBaseUrl: isHttpsOrLoopback(PUBLIC_BASE_URL) ? PUBLIC_BASE_URL : null,
         redirectUri: DISCORD_REDIRECT_URI || null
       });
     }
@@ -923,7 +930,7 @@ const server = http.createServer((req, res) => requestContext.run({ discordIdent
     }
     const shareLinkMatch = /^\/api\/projects\/([^/]+)\/share-link$/.exec(url.pathname);
     if (req.method === "GET" && shareLinkMatch) {
-      if (!PUBLIC_BASE_URL || !DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET || !DISCORD_REDIRECT_URI) return json(res, 503, { error: "Le partage web nécessite ICARE_PUBLIC_BASE_URL et une configuration OAuth Discord complète." });
+      if (!PUBLIC_BASE_URL || !isHttpsOrLoopback(PUBLIC_BASE_URL) || !DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET || !DISCORD_REDIRECT_URI || !isHttpsOrLoopback(DISCORD_REDIRECT_URI)) return json(res, 503, { error: "Le partage web nécessite ICARE_PUBLIC_BASE_URL et une configuration OAuth Discord complète." });
       let projectId;
       try { projectId = decodeURIComponent(shareLinkMatch[1]); } catch { return json(res, 400, { error: "Identifiant de projet invalide." }); }
       return json(res, 200, { url: PUBLIC_BASE_URL + "/share/" + encodeURIComponent(projectId) });
