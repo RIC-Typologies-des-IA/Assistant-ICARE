@@ -14,7 +14,7 @@ export const PROPOSITION_REGISTER_FIELDS = Object.freeze([
   "epistemic", "practical", "confidence", "source", "aspect",
   "utteranceTime", "validTimeStart", "validTimeEnd", "eventPeriodStart",
   "eventPeriodEnd", "targetHorizon", "realizationTime", "modality",
-  "subject", "predicate", "value", "justification"
+  "subject", "predicate", "value", "author", "sourceAgent", "sourceInteraction", "justification", "reviewStatus"
 ]);
 
 const FIELD_SET = new Set(PROPOSITION_REGISTER_FIELDS);
@@ -70,6 +70,21 @@ export function editPropositionField(state, field, value, dot, causalContext = {
       [field]: assignMVRegister(state.fields[field], value, dot, causalContext)
     }
   };
+}
+
+/** Initialize or import a proposition snapshot in one immutable CRDT operation. */
+export function initializePropositionFields(state, fields, dot, causalContext = {}) {
+  assertState(state);
+  if (!isRecord(fields) || Object.keys(fields).length === 0) {
+    throw new TypeError("Un instantané de proposition doit contenir au moins un champ.");
+  }
+  assertDotAndContext(dot, causalContext);
+  const nextFields = structuredClone(state.fields);
+  for (const [field, value] of Object.entries(fields)) {
+    if (!FIELD_SET.has(field)) throw new TypeError("Champ de proposition non éditable ou inconnu : " + field);
+    nextFields[field] = assignMVRegister(nextFields[field], value, dot, causalContext);
+  }
+  return { ...structuredClone(state), fields: nextFields };
 }
 
 export function addPropositionObservation(state, observation, dot) {
