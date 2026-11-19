@@ -47,11 +47,19 @@ export function requestDiscordProjectMembership(db, { projectId, discordUserId, 
     principal_type: "discord", principal_id: discordUserId,
     status: "pending", requested_at: requestedAt
   };
-  db.prepare(`
-    INSERT INTO project_membership_requests
+  const inserted = db.prepare(`
+    INSERT OR IGNORE INTO project_membership_requests
       (request_id,project_id,principal_type,principal_id,status,requested_at)
     VALUES (?,?,?,?,?,?)
   `).run(request.request_id, projectId, "discord", discordUserId, "pending", requestedAt);
+  if (inserted.changes === 0) {
+    const concurrent = db.prepare(`
+      SELECT * FROM project_membership_requests
+      WHERE project_id=? AND principal_type='discord' AND principal_id=? AND status='pending'
+    `).get(projectId, discordUserId);
+    if (concurrent) return { alreadyMember: false, duplicate: true, request: concurrent };
+    throw new Error("La demande n'a pas pu être enregistrée ; réessaie.");
+  }
   return { alreadyMember: false, duplicate: false, request };
 }
 
