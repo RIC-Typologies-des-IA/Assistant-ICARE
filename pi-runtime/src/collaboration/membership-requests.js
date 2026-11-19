@@ -20,6 +20,10 @@ export function initializeMembershipRequestStore(db) {
       ON project_membership_requests(project_id, requested_at)
       WHERE status='pending';
   `);
+  const columns = new Set(db.prepare("PRAGMA table_info(project_membership_requests)").all().map(column => column.name));
+  if (!columns.has("principal_label")) {
+    db.exec("ALTER TABLE project_membership_requests ADD COLUMN principal_label TEXT NOT NULL DEFAULT ''");
+  }
 }
 
 function assertProjectId(value) {
@@ -30,7 +34,7 @@ function assertDiscordUserId(value) {
 }
 
 /** A request records intent only; it never creates membership or grants a role. */
-export function requestDiscordProjectMembership(db, { projectId, discordUserId, requestedAt = new Date().toISOString() }) {
+export function requestDiscordProjectMembership(db, { projectId, discordUserId, displayName = "", requestedAt = new Date().toISOString() }) {
   assertProjectId(projectId);
   assertDiscordUserId(discordUserId);
   if (getDiscordProjectAccess(db, projectId, discordUserId)) {
@@ -45,13 +49,14 @@ export function requestDiscordProjectMembership(db, { projectId, discordUserId, 
   const request = {
     request_id: randomUUID(), project_id: projectId,
     principal_type: "discord", principal_id: discordUserId,
+    principal_label: String(displayName || "").trim().slice(0, 100),
     status: "pending", requested_at: requestedAt
   };
   const inserted = db.prepare(`
     INSERT OR IGNORE INTO project_membership_requests
-      (request_id,project_id,principal_type,principal_id,status,requested_at)
-    VALUES (?,?,?,?,?,?)
-  `).run(request.request_id, projectId, "discord", discordUserId, "pending", requestedAt);
+      (request_id,project_id,principal_type,principal_id,principal_label,status,requested_at)
+    VALUES (?,?,?,?,?,?,?)
+  `).run(request.request_id, projectId, "discord", discordUserId, request.principal_label, "pending", requestedAt);
   if (inserted.changes === 0) {
     const concurrent = db.prepare(`
       SELECT * FROM project_membership_requests
@@ -75,7 +80,7 @@ export function listPendingDiscordMembershipRequests(db, { projectId, actorDisco
   assertProjectId(projectId);
   requireOwner(db, projectId, actorDiscordUserId);
   return db.prepare(`
-    SELECT request_id,project_id,principal_type,principal_id,status,requested_at
+    SELECT request_id,project_id,principal_type,principal_id,principal_label,status,requested_at
     FROM project_membership_requests
     WHERE project_id=? AND status='pending'
     ORDER BY requested_at,request_id
