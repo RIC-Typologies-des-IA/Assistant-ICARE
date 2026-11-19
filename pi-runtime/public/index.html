@@ -353,8 +353,11 @@ window.addEventListener("icare:discord-ready",async event=>{
  if(event.detail.instanceId)sessionId=("discord-activity-"+event.detail.instanceId).slice(0,100);
  renderDiscordParticipants(event.detail.participants||[]);
  try{
+  const status=await fetch("/api/status").then(response=>response.json());
   await loadProjects();
+  await loadModels();
   await refresh();
+  if(!status.toolCalling)$("#error").textContent="Le modèle actif ne déclare pas le tool-calling : le formulaire manuel reste disponible.";
   $("#status").textContent+=" · Discord Activity";
   $("#error").textContent="Connecté à Discord comme "+(event.detail.user?.username||"participant")+". Les changements partagés sont actualisés périodiquement.";
   if(!activityRefreshTimer)activityRefreshTimer=setInterval(()=>{if(!chatInProgress)refresh().catch(error=>{$("#error").textContent=error.message||String(error)})},5000);
