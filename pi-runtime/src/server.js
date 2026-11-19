@@ -3,7 +3,7 @@ import { readFile, mkdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { createProjectEvent, createProjectManifest, validateProjectEvent, validateProjectManifest } from "./collaboration/project.js";
 import { getLocalReplicaIdentity, initializeReplicaStore } from "./collaboration/replica-store.js";
@@ -15,7 +15,8 @@ import { backfillCrdtProjections, projectPropositionToCrdt, projectRelationToCrd
 import { materializeCrdtOperation } from "./collaboration/projection-materializer.js";
 import { startDiscordBot } from "./discord-adapter.js";
 import { getDiscordBoundProject, initializeDiscordBindingStore } from "./discord-store.js";
-import { getDiscordProjectAccess } from "./discord-access.js";
+import { getDiscordProjectAccess, grantDiscordProjectMember } from "./discord-access.js";
+import { initializeApiSessionStore, issueApiSession, resolveApiSession, revokeApiSession } from "./api-session-store.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
@@ -30,6 +31,7 @@ const SYNC_ADMIN_TOKEN = process.env.ICARE_SYNC_ADMIN_TOKEN || "";
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID || "";
 const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET || "";
 const DISCORD_ACTIVITY_ORIGIN = process.env.ICARE_DISCORD_ACTIVITY_ORIGIN || "";
+const DISCORD_WEB_REDIRECT_URI = process.env.ICARE_DISCORD_WEB_REDIRECT_URI || "";
 // L'ontologie JSON est la source de vérité des dimensions et des catégories.
 const ONTOLOGY = JSON.parse(await readFile(path.join(ROOT, "reference", "icare.json"), "utf8"));
 const DIMENSION_ORDER = ["I", "C", "A", "R", "E"];
@@ -55,6 +57,7 @@ getLocalReplicaIdentity(db);
 initializeCrdtOperationStore(db);
 initializeProjectPeerStore(db);
 initializeDiscordBindingStore(db);
+initializeApiSessionStore(db);
 db.exec(`
   PRAGMA journal_mode = WAL;
   CREATE TABLE IF NOT EXISTS propositions (
