@@ -69,7 +69,7 @@ Aucun identifiant de modèle n'est imposé dans le dépôt. Pi interroge le cata
 - La restauration automatique d'une conversation Pi après redémarrage et le test d'inférence réel sur la machine cible restent à valider.
 - Cette version est expérimentale ; la CI vérifie les tests Node.js et la construction de la VM, pas l'intégration réelle avec le NPU de chaque machine.
 
-Les détails techniques, la réplication CRDT et l’intégration Discord sont décrits dans [pi-runtime/README.md](pi-runtime/README.md), [docs/crdt-operation-journal.md](docs/crdt-operation-journal.md), [docs/discord-integration.md](docs/discord-integration.md) et [nixos/icare-vm.nix](nixos/icare-vm.nix). Les [références et documentations externes](REFERENCES.md) recensent les sources primaires des composants et des cadres conceptuels cités.
+Les détails techniques, la réplication CRDT et l’intégration Discord sont décrits dans [pi-runtime/README.md](pi-runtime/README.md), [docs/crdt-operation-journal.md](docs/crdt-operation-journal.md), [docs/discord-integration.md](docs/discord-integration.md), [docs/project-access-control.md](docs/project-access-control.md) et [nixos/icare-vm.nix](nixos/icare-vm.nix). Les [références et documentations externes](REFERENCES.md) recensent les sources primaires des composants et des cadres conceptuels cités.
 
 ## Références
 
