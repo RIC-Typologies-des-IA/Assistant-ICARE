@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { allocateLocalDot, getLocalReplicaState } from "./replica-store.js";
 import { mergeVersionVectors } from "./crdt.js";
 import {
-  applyCrdtOperation, initializeCrdtOperationStore, listCrdtOperations
+  applyCrdtOperation, initializeCrdtOperationStore, listCrdtOperations, validateCrdtOperation
 } from "./operation-store.js";
 
 const nonEmpty = value => typeof value === "string" && value.trim().length > 0;
