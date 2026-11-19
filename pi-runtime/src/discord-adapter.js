@@ -173,7 +173,7 @@ export async function startDiscordBot({
       if (subcommand === "status") {
         const projectId = getDiscordBoundProject(db, {
           channelId: interaction.channelId, parentChannelId: interaction.channel?.parentId,
-          defaultProjectId
+          defaultProjectId: interaction.inGuild() ? null : defaultProjectId
         });
         return interaction.reply({
           content: projectId ? "Projet ICARE lié : " + projectId :
@@ -210,7 +210,7 @@ export async function startDiscordBot({
     const projectId = getDiscordBoundProject(db, {
       channelId: message.channel.id,
       parentChannelId: message.channel.parentId || null,
-      defaultProjectId
+      defaultProjectId: isDm ? defaultProjectId : null
     });
     if (isThread && !threadProject && projectId) {
       bindDiscordChannelToProject(db, {
