@@ -32,16 +32,24 @@ export function revokeDiscordProjectMember(db, {
   if (!stored) return false;
   const access = getProjectMemberAccess(stored.state, "discord", discordUserId);
   if (!access) return false;
-  if (access.roles.includes("owner")) throw new Error("Un propriétaire ne peut pas être révoqué par cette commande.");
-  const member = { principalType: "discord", principalId: discordUserId, role: "member" };
-  const observedAdds = getObservedProjectMemberAdds(stored.state, "discord", discordUserId, "member");
-  if (!observedAdds.length) return false;
-  createLocalCrdtOperation(db, {
-    projectId, objectType: "project", objectId: projectId,
-    kind: "project.member.revoke", payload: { member, observedAdds },
-    actor: { type: "human", id: "discord:" + actorDiscordUserId }
-  });
-  return true;
+  if (access.roles.includes("owner")) {
+    const owners = new Set(readProjectMembers(stored.state)
+      .filter(member => member.role === "owner").map(member => member.principalId));
+    if (owners.size <= 1) throw new Error("Le dernier propriétaire du projet ne peut pas être révoqué.");
+  }
+  let revoked = false;
+  for (const role of access.roles) {
+    const member = { principalType: "discord", principalId: discordUserId, role };
+    const observedAdds = getObservedProjectMemberAdds(stored.state, "discord", discordUserId, role);
+    if (!observedAdds.length) continue;
+    createLocalCrdtOperation(db, {
+      projectId, objectType: "project", objectId: projectId,
+      kind: "project.member.revoke", payload: { member, observedAdds },
+      actor: { type: "human", id: "discord:" + actorDiscordUserId }
+    });
+    revoked = true;
+  }
+  return revoked;
 }
 
 /**
