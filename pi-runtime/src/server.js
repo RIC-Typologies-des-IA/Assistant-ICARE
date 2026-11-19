@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
+import { requestContext } from "./collaboration/request-context.js";
 import { DatabaseSync } from "node:sqlite";
 import { createProjectEvent, createProjectManifest, validateProjectEvent, validateProjectManifest } from "./collaboration/project.js";
 import { getLocalReplicaIdentity, initializeReplicaStore } from "./collaboration/replica-store.js";
@@ -724,7 +725,7 @@ function sendPublicAsset(res, pathname) {
   return sendStatic(res, file, type, "public, max-age=3600");
 }
 
-const server = http.createServer(async (req, res) => {
+const server = http.createServer((req, res) => requestContext.run({ discordIdentity: null }, async () => {
   const url = new URL(req.url, "http://" + req.headers.host);
   try {
     // All project APIs require a live Discord identity. Project-scoped APIs
@@ -760,6 +761,7 @@ const server = http.createServer(async (req, res) => {
         }
       }
       req.discordIdentity = identity;
+      requestContext.getStore().discordIdentity = identity;
     }
     if (req.method === "GET" && url.pathname === "/") return sendStatic(res, path.join(HERE, "..", "public", "index.html"), "text/html; charset=utf-8");
     if (req.method === "GET" && url.pathname.startsWith("/assets/")) return sendPublicAsset(res, url.pathname);
@@ -964,6 +966,7 @@ const server = http.createServer(async (req, res) => {
         return json(res, 502, { error: "Vérification Discord impossible : " + (error.message || String(error)) });
       }
       const body = await readBody(req);
+      requestContext.getStore().discordIdentity = discordUser;
       const channelId = typeof body.channelId === "string" ? body.channelId : "";
       const guildId = typeof body.guildId === "string" ? body.guildId : "";
       const instanceId = typeof body.instanceId === "string" ? body.instanceId : "";
@@ -1331,7 +1334,7 @@ const server = http.createServer(async (req, res) => {
     if (!res.headersSent) json(res, 500, { error: error.message || String(error) });
     else res.end();
   }
-});
+}));
 
 try {
   const { modelId, modelName } = await initializePi();
