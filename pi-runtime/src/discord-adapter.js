@@ -57,6 +57,13 @@ async function readChatStream(response) {
     let payload;
     try { payload = JSON.parse(data); } catch { return; }
     if (eventName === "delta") answer += payload.text || "";
+    if (eventName === "persistence" && payload.created > 0) {
+      answer += "\n\n✓ " + payload.created + " proposition(s) candidate(s) enregistrée(s) dans ICARE.";
+    } else if (eventName === "persistence" && payload.unconfirmedClaim) {
+      answer += "\n\n⚠️ Aucune proposition n'a été retrouvée dans le registre ICARE.";
+    } else if (eventName === "persistence" && payload.reconciliationError) {
+      answer += "\n\n⚠️ Vérification de persistance impossible : " + payload.reconciliationError;
+    }
     if (eventName === "error") streamError = payload.message || "Erreur de conversation ICARE.";
   };
   while (true) {
