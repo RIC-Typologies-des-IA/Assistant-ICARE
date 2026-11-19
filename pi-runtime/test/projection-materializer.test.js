@@ -45,7 +45,7 @@ function op(overrides = {}) {
       text: "Hypothèse initiale", dimensions: ["I"], primaryDimension: "I",
       temporal: "present", evaluation: "unknown", epistemic: "reported",
       practical: "unspecified", confidence: 0.7, source: "user",
-      aspect: "", reviewStatus: "candidate"
+      aspect: ""
     } },
     createdAt: "2026-11-19T08:00:00.000Z",
     ...overrides
