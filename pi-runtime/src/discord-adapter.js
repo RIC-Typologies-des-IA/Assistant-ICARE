@@ -98,8 +98,8 @@ export async function startDiscordBot({
 }) {
   const token = process.env.DISCORD_BOT_TOKEN || "";
   const clientId = process.env.DISCORD_CLIENT_ID || "";
-  if (!token && !clientId) return null;
-  if (!token || !clientId) {
+  if (!token) return null;
+  if (!clientId) {
     throw new Error("DISCORD_BOT_TOKEN et DISCORD_CLIENT_ID doivent être configurés ensemble.");
   }
   initializeDiscordBindingStore(db);
@@ -205,6 +205,11 @@ export async function startDiscordBot({
       parentChannelId: message.channel.parentId || null,
       defaultProjectId
     });
+    if (isThread && !threadProject && projectId) {
+      bindDiscordChannelToProject(db, {
+        channelId: message.channel.id, projectId, boundBy: message.author.id
+      });
+    }
     if (!projectId) {
       await message.reply("Aucun projet ICARE n'est lié à ce salon. Un administrateur peut utiliser /icare bind.");
       return;
