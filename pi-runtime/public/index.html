@@ -227,7 +227,7 @@ async function refresh(){
     const actions=document.createElement("div");actions.className="actions";
     for(const [nextStatus,label,cls] of [["accepted","Valider",""],["rejected","Rejeter","danger"]]){
      const b=document.createElement("button");b.textContent=label;if(cls)b.className=cls;
-     b.onclick=async()=>{const r=await fetch("/api/propositions/"+p.id,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({projectId:currentProjectId,review_status:nextStatus})});if(!r.ok){const x=await r.json();$("#error").textContent=x.error||"Échec de la décision";return}refresh()};actions.append(b)
+     b.onclick=async()=>{const justification=prompt("Justification de cette décision (8 caractères minimum) :");if(justification===null)return;if(justification.trim().length<8){$("#error").textContent="Une justification d'au moins 8 caractères est requise.";return}const r=await fetch("/api/propositions/"+p.id,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({projectId:currentProjectId,review_status:nextStatus,justification})});if(!r.ok){const x=await r.json();$("#error").textContent=x.error||"Échec de la décision";return}$("#error").textContent="";refresh()};actions.append(b)
     }
     row.append(actions)
    }
@@ -245,7 +245,7 @@ async function refresh(){
   const actions=document.createElement("div");actions.className="actions";
   for(const [status,label,cls] of [["accepted","Valider",""],["rejected","Rejeter","danger"]]){
    const b=document.createElement("button");b.textContent=label;if(cls)b.className=cls;
-   b.onclick=async()=>{await fetch("/api/relations/"+rel.id,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({projectId:currentProjectId,review_status:status})});refresh()};actions.append(b)
+   b.onclick=async()=>{const justification=prompt("Justification de cette décision (8 caractères minimum) :");if(justification===null)return;if(justification.trim().length<8){$("#error").textContent="Une justification d'au moins 8 caractères est requise.";return}const response=await fetch("/api/relations/"+rel.id,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({projectId:currentProjectId,review_status:status,justification})});if(!response.ok){const x=await response.json();$("#error").textContent=x.error||"Échec de la décision";return}$("#error").textContent="";refresh()};actions.append(b)
   }
   row.append(actions);$("#relations").append(row)
  }
