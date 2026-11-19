@@ -80,7 +80,9 @@ test("legacy proposition creation and human decisions are mirrored into the CRDT
     "projectRelationToCrdt(db, {",
     "recordCrdtValidationDecision(db,",
     "backfillCrdtProjections()",
-    "crdt_decisions: crdtState?.validationDecisions || []"
+    "crdt_decisions: decisions",
+    "materializeCrdtOperation(db, operation)",
+    "crdt_conflicts: conflicts"
   ]) assert.ok(server.includes(fragment), "Missing CRDT projection contract: " + fragment);
   assert.ok(ui.includes("Justification de cette décision"));
   assert.ok(ui.includes("Décisions divergentes conservées"));
