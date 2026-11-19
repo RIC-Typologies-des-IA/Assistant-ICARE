@@ -38,6 +38,7 @@ const DISCORD_ACTIVITY_ORIGIN = process.env.ICARE_DISCORD_ACTIVITY_ORIGIN || "";
 const PUBLIC_BASE_URL = (process.env.ICARE_PUBLIC_BASE_URL || "").replace(/\/$/, "");
 const DISCORD_REDIRECT_URI = process.env.ICARE_DISCORD_REDIRECT_URI ||
   (PUBLIC_BASE_URL ? PUBLIC_BASE_URL + "/auth/discord/callback" : "");
+const INTERNAL_DISCORD_API_TOKEN = randomBytes(32).toString("base64url");
 // L'ontologie JSON est la source de vérité des dimensions et des catégories.
 const ONTOLOGY = JSON.parse(await readFile(path.join(ROOT, "reference", "icare.json"), "utf8"));
 const DIMENSION_ORDER = ["I", "C", "A", "R", "E"];
@@ -781,7 +782,12 @@ const server = http.createServer((req, res) => requestContext.run({ discordIdent
     const isPeerReplicationApi = /^\/api\/projects\/[^/]+\/crdt\//.test(url.pathname);
     if (url.pathname.startsWith("/api/") && !publicApiPaths.has(url.pathname) &&
         !isMembershipRequestApi && !isPeerReplicationApi) {
-      const identity = await authenticateDiscordRequest(req);
+      const internalUserId = req.headers["x-icare-discord-user"];
+      const internalDiscordCall = secretMatches(req.headers["x-icare-internal-token"], INTERNAL_DISCORD_API_TOKEN) &&
+        typeof internalUserId === "string" && internalUserId.trim().length > 0 && internalUserId.length <= 64;
+      const identity = internalDiscordCall
+        ? { id: internalUserId, username: "Discord participant", global_name: null }
+        : await authenticateDiscordRequest(req);
       if (!identity) return json(res, 401, { error: "Authentification Discord requise. Ouvre ICARE depuis une Activity Discord autorisée." });
       let projectId = url.searchParams.get("projectId");
       const projectPath = /^\/api\/projects\/([^/]+)/.exec(url.pathname);
@@ -1525,7 +1531,7 @@ try {
     console.log(`ICARE prêt : http://${HOST}:${PORT}`);
     console.log(`Pi SDK connecté à Lemonade : ${modelName} (${modelId})`);
     console.log("Aucun outil shell, fichier arbitraire ou navigateur n'est exposé à l'agent.");
-    startDiscordBot({ db, port: PORT }).catch(error => {
+    startDiscordBot({ db, port: PORT, internalApiToken: INTERNAL_DISCORD_API_TOKEN }).catch(error => {
       console.error("[ICARE Discord] Le bot n'a pas pu démarrer :", error.message || error);
     });
   });
