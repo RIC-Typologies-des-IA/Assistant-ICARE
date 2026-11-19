@@ -125,3 +125,31 @@ test("a non-owner cannot grant or revoke project membership", () => {
   assert.equal(readProjectMembers(getCrdtObjectState(db, "project-1", "project", "project-1").state).length, 1);
   db.close();
 });
+
+test("membership revocations wait for the grant they observe", () => {
+  const db = database();
+  const owner = operation({
+    opId: "owner", actor: { type: "human", id: "discord:owner" },
+    payload: { member: { principalType: "discord", principalId: "owner", role: "owner" } }
+  });
+  const member = { principalType: "discord", principalId: "member", role: "member" };
+  const grant = operation({
+    opId: "member-grant", dot: { replicaId: "phone", counter: 2 },
+    causalContext: { phone: 1 }, actor: { type: "human", id: "discord:owner" },
+    payload: { member }
+  });
+  const revoke = operation({
+    opId: "member-revoke", kind: "project.member.revoke",
+    dot: { replicaId: "phone", counter: 3 }, causalContext: { phone: 2 },
+    actor: { type: "human", id: "discord:owner" },
+    payload: { member, observedAdds: [{ dot: grant.dot, value: member }] }
+  });
+  applyCrdtOperation(db, owner);
+  assert.throws(() => applyCrdtOperation(db, revoke), /grant à révoquer doit être reçu/);
+  applyCrdtOperation(db, grant);
+  applyCrdtOperation(db, revoke);
+  assert.equal(getCrdtObjectState(db, "project-1", "project", "project-1").state.members.adds.length, 2);
+  assert.deepEqual(readProjectMembers(getCrdtObjectState(db, "project-1", "project", "project-1").state),
+    [{ principalType: "discord", principalId: "owner", role: "owner" }]);
+  db.close();
+});
