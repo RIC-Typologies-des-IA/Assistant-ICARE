@@ -15,7 +15,7 @@ import { backfillCrdtProjections, projectPropositionToCrdt, projectRelationToCrd
 import { materializeCrdtOperation } from "./collaboration/projection-materializer.js";
 import { startDiscordBot } from "./discord-adapter.js";
 import { getDiscordBoundProject, initializeDiscordBindingStore } from "./discord-store.js";
-import { getDiscordProjectAccess } from "./discord-access.js";
+import { bootstrapDiscordProjectOwner, getDiscordProjectAccess } from "./discord-access.js";
 import {
   decideDiscordMembershipRequest, initializeMembershipRequestStore,
   listPendingDiscordMembershipRequests, requestDiscordProjectMembership
@@ -828,7 +828,7 @@ const server = http.createServer(async (req, res) => {
       setSetting("chat_model", selectedModel.id);
       return json(res, 200, { ok: true, selected: selectedModel.id, toolCalling: Boolean(info.labels?.includes("tool-calling")) });
     }
-    if (req.method === "GET" && url.pathname === "/api/projects") return json(res, 200, { projects: db.prepare("SELECT id,name,description,intention,created_at,updated_at FROM projects WHERE archived_at IS NULL ORDER BY updated_at DESC").all().map(project => ({ ...project, uri: createProjectManifest(project).uri })) });
+    if (req.method === "GET" && url.pathname === "/api/projects") return json(res, 200, { projects: db.prepare("SELECT id,name,description,intention,created_at,updated_at FROM projects WHERE archived_at IS NULL ORDER BY updated_at DESC").all().filter(project => getDiscordProjectAccess(db, project.id, req.discordIdentity.id)).map(project => ({ ...project, uri: createProjectManifest(project).uri })) });
     if (req.method === "POST" && url.pathname === "/api/projects") {
       const body = await readBody(req);
       const name = String(body.name || "").trim().slice(0,120);
@@ -837,14 +837,14 @@ const server = http.createServer(async (req, res) => {
       const description = String(body.description || "").trim().slice(0,4000);
       const context = body.context && typeof body.context === "object" && !Array.isArray(body.context) ? body.context : {};
       const requestId = typeof body.idempotencyKey === "string" ? body.idempotencyKey.trim().slice(0,160) : "";
-      const actor = body.actor ?? { type: "human", id: "local" };
-      const origin = body.origin ?? "local";
+      const actor = { type: "human", id: "discord:" + req.discordIdentity.id };
+      const origin = "discord-activity";
       if (body.context != null && (typeof body.context !== "object" || Array.isArray(body.context))) return json(res, 400, { error: "Le contexte doit être un objet JSON." });
       if (!actor || typeof actor !== "object" || Array.isArray(actor) || typeof actor.type !== "string" || !actor.type.trim()) return json(res, 400, { error: "L'acteur initial est invalide." });
       if (typeof origin !== "string" || !origin.trim()) return json(res, 400, { error: "L'origine initiale est invalide." });
       if (requestId) {
         const previous = db.prepare("SELECT project_id FROM project_creation_requests WHERE request_id=?").get(requestId);
-        if (previous) return json(res, 200, { ok: true, duplicate: true, project: db.prepare("SELECT id,name,description,intention,created_at,updated_at FROM projects WHERE id=?").get(previous.project_id), manifest: getProjectManifest(previous.project_id) });
+        if (previous) { if (!getDiscordProjectAccess(db, previous.project_id, req.discordIdentity.id)) return json(res, 403, { error: "Ce projet existe déjà mais votre compte n’en est pas membre." }); return json(res, 200, { ok: true, duplicate: true, project: db.prepare("SELECT id,name,description,intention,created_at,updated_at FROM projects WHERE id=?").get(previous.project_id), manifest: getProjectManifest(previous.project_id) }); }
       }
       const id = randomUUID();
       const created = now();
@@ -863,6 +863,7 @@ const server = http.createServer(async (req, res) => {
         persistProjectEvent(event);
       });
       createProject();
+      bootstrapDiscordProjectOwner(db, id, req.discordIdentity.id);
       recordSnapshot(id, "project-created", 0);
       const project = db.prepare("SELECT id,name,description,intention,created_at,updated_at FROM projects WHERE id=?").get(id);
       return json(res, 201, { ok: true, project, manifest: getProjectManifest(id) });
