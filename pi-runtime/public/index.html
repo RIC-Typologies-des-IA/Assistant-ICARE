@@ -361,20 +361,16 @@ window.addEventListener("icare:discord-participants",event=>{
 });
 window.addEventListener("icare:discord-ready",async event=>{
  const context=event.detail?.context||{};
- if(!context.projectId){
-  $("#error").textContent="Activity Discord connectée, mais aucun projet ICARE n'est lié à ce salon. Utilise /icare bind dans le salon Discord.";
-  return;
- }
- discordActivityProjectId=context.projectId;
- currentProjectId=context.projectId;
+ discordAccessToken=event.detail?.accessToken||"";installDiscordApiFetch();
+ if(!context.projectId){showAccessGate("Cette Activity Discord n’est reliée à aucun projet ICARE. Un propriétaire doit relier le salon avec /icare bind.");return}
+ discordActivityProjectId=context.projectId;currentProjectId=context.projectId;
  if(event.detail.instanceId)sessionId=("discord-activity-"+event.detail.instanceId).slice(0,100);
  renderDiscordParticipants(event.detail.participants||[]);
- try{
-  await loadProjects();
-  await refresh();
-  $("#status").textContent+=" · Discord Activity";
-  $("#error").textContent="Connecté à Discord comme "+(event.detail.user?.username||"participant")+". Les changements partagés sont actualisés périodiquement.";
-  if(!activityRefreshTimer)activityRefreshTimer=setInterval(()=>{if(!chatInProgress)refresh().catch(error=>{$("#error").textContent=error.message||String(error)})},5000);
+ if(!context.isMember){showAccessGate("Ce projet est privé. Votre compte Discord n’en est pas membre. Vous pouvez demander à le rejoindre ; son contenu restera masqué jusqu’à l’accord d’un propriétaire.",[{label:"Demander à rejoindre",run:async()=>{try{await submitMembershipRequest()}catch(error){$("#accessMessage").textContent=error.message}}}]);return}
+ hideAccessGate();
+ try{await loadProjects();await refresh();$("#status").textContent+=" · Discord Activity";
+  $("#error").textContent="Connecté à Discord comme "+(event.detail.user?.username||"participant")+". Les changements partagés sont actualisés périodiquement.";if(context.projectRole==="owner")await loadOwnerMembershipRequests();
+  if(!activityRefreshTimer)activityRefreshTimer=setInterval(()=>{if(!chatInProgress){refresh().catch(error=>{$("#error").textContent=error.message||String(error)});if(context.projectRole==="owner")loadOwnerMembershipRequests()}},10000);
  }catch(error){$("#error").textContent=error.message||String(error)}
 });
 window.addEventListener("pagehide",()=>{if(activityRefreshTimer)clearInterval(activityRefreshTimer);window.__icareDiscordParticipantsUnsubscribe?.()});
@@ -382,9 +378,10 @@ window.addEventListener("icare:discord-error",event=>{
  $("#error").textContent="Connexion à l'Activity Discord impossible : "+(event.detail?.message||"erreur inconnue");
 });
 $("#docForm").addEventListener("submit",async e=>{e.preventDefault();const r=await fetch("/api/references",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({projectId:currentProjectId,title:$("#docTitle").value,content:$("#docContent").value})});const x=await r.json();if(!r.ok){alert(x.error);return}$("#docTitle").value="";$("#docContent").value="";alert("Document ajouté à la mémoire ICARE.")});
-(async()=>{try{const s=await fetch("/api/status").then(r=>r.json());await loadProjects();await loadModels();await refresh();
- if(!s.toolCalling)$("#error").textContent="Le modèle actif ne déclare pas le tool-calling : les propositions automatiques peuvent échouer. Le formulaire manuel reste disponible.";
- else if(s.toolInitialization==="failed")$("#error").textContent="Échec de l'initialisation des outils ICARE : "+(s.toolInitializationError||"cause inconnue")+". Le formulaire manuel reste disponible.";
+(async()=>{try{const s=await fetch("/api/status").then(r=>r.json());await loadModels();
+ if(!new URLSearchParams(location.search).has("frame_id"))showAccessGate("Pour accéder à un projet collaboratif, ouvrez ICARE depuis son Activity Discord afin de vous authentifier. Le lien du projet seul ne donne aucun droit.");
+ if(!s.toolCalling)$("#error").textContent="Le modèle actif ne déclare pas le tool-calling : les propositions automatiques peuvent échouer. Le formulaire manuel reste disponible."; 
+ else if(s.toolInitialization==="failed")$("#error").textContent="Échec de l'initialisation des outils ICARE : "+(s.toolInitializationError||"cause inconnue")+". Le formulaire manuel reste disponible."; 
  }catch(e){$("#status").textContent="Serveur indisponible"}})();
 </script>
 <script type="module" src="/discord-activity.js"></script>
