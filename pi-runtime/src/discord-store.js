@@ -41,7 +41,8 @@ export function getDiscordBoundProject(db, {
   const ids = [channelId, parentChannelId].filter(Boolean);
   for (const id of ids) {
     const row = db.prepare("SELECT project_id FROM discord_project_bindings WHERE channel_id=?").get(id);
-    if (row) return row.project_id;
+    if (row && db.prepare("SELECT id FROM projects WHERE id=?").get(row.project_id)) return row.project_id;
+    if (row) db.prepare("DELETE FROM discord_project_bindings WHERE channel_id=?").run(id);
   }
   if (defaultProjectId && db.prepare("SELECT id FROM projects WHERE id=?").get(defaultProjectId)) {
     return defaultProjectId;
