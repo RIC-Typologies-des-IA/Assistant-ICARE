@@ -94,3 +94,24 @@ Le jeton est fourni par variable d'environnement, pas par argument de ligne de c
 - Les droits sont actuellement au niveau du projet, pas au niveau de chaque proposition.
 - Le protocole est un échange pull/push applicatif au-dessus de HTTP, pas encore une fédération pair-à-pair automatique, un relais temps réel ou une découverte de pairs.
 - Les données convergent techniquement ; les conflits sémantiques et les décisions contradictoires restent à examiner par les participants.
+
+## Reprise automatique à la reconnexion
+
+Le serveur ICARE peut lancer un ordonnanceur de réplication au démarrage. Il effectue un premier cycle immédiatement, puis réessaie périodiquement. Les pairs sont traités en série ; l'indisponibilité d'un pair ne bloque pas les autres. Une erreur ne fait pas avancer le curseur du lot concerné et le cycle suivant reprend donc sans perte.
+
+Configurer les pairs via la variable d'environnement protégée `ICARE_SYNC_PEERS`, tableau JSON contenant pour chaque pair `projectId`, `peerKey`, `baseUrl` et `token`. Exemple de forme (valeurs fictives) :
+
+```json
+[
+  {
+    "projectId": "mon-projet",
+    "peerKey": "identifiant-du-pair-distant",
+    "baseUrl": "https://icare-autre-installation.example",
+    "token": "jeton-fourni-par-cette-installation"
+  }
+]
+```
+
+La fréquence est réglable via `ICARE_SYNC_INTERVAL_MS` (défaut 30 secondes, bornes 5 secondes à 1 heure). La configuration est lue au démarrage ; une modification nécessite un redémarrage du service. Les jetons ne sont jamais copiés dans SQLite ni écrits dans les journaux. Préférer un fichier d'environnement protégé ou un gestionnaire de secrets plutôt qu'une variable définie dans un script partagé.
+
+Le serveur effectue une tentative au démarrage puis de nouvelles tentatives après les erreurs réseau. Ainsi, une connexion rétablie déclenche une réconciliation au cycle suivant. La synchronisation n'est pas un canal temps réel : le délai maximal nominal dépend de l'intervalle configuré et de la durée du cycle précédent.
