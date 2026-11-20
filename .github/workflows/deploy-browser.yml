@@ -30,6 +30,7 @@ jobs:
           node --check browser/storage.js
           node --check browser/inference.js
           node --check browser/sw.js
+          node --check browser/theme.js
           node --test browser/test/*.test.js
           python -m json.tool browser/icare.json >/dev/null
           python -m json.tool browser/manifest.webmanifest >/dev/null
