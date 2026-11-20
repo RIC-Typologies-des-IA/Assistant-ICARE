@@ -1,5 +1,6 @@
 import { openDatabase, getAll, put, get } from "./storage.js";
-import { chatCompletion, chatCompletionMessage, listModels, transcribeAudio, audioBlobToWav } from "./inference.js";\nimport { runAgentTurn } from "./agent.js";
+import { chatCompletion, chatCompletionMessage, listModels, transcribeAudio, audioBlobToWav } from "./inference.js";
+import { runAgentTurn } from "./agent.js";
 const $=id=>document.getElementById(id), db=await openDatabase();
 $("app-version").textContent=`v${window.ICARE_VERSION} · alpha`;
 const state={projectId:null,projects:[],turns:[],settings:{},transcriptionSettings:{},workspace:null,busy:false};
