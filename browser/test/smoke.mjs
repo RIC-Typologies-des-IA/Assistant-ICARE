@@ -15,7 +15,7 @@ try{
   browser=await chromium.launch({headless:true});
   const context=await browser.newContext();
   const page=await context.newPage();
-  await page.route("https://mock-provider.example/**",route=>{assert.equal(route.request().headers()["authorization"],"Bearer test-secret","la clé doit être disponible en mémoire de session");const requestBody=route.request().postDataJSON();if(Array.isArray(requestBody?.messages))lastChatPayload=requestBody;const body=route.request().url().endsWith("/models")?{data:[{id:"test-model"}]}:{choices:[{message:{content:"Réponse locale de test."}}]};return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(body)});});
+  await page.route("https://mock-provider.example/**",route=>{assert.equal(route.request().headers()["authorization"],"Bearer test-secret","la clé doit être disponible en mémoire de session");const requestBody=route.request().postDataJSON();if(Array.isArray(requestBody?.messages))lastChatPayload=requestBody;const body=route.request().url().endsWith("/models")?{data:[{id:"test-model"}]}:{choices:[{message:{content:"Réponse locale de test.\n\n### Votre avis\n\n#### Auto-évaluation\n\n**Texte en gras**."}}]};return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(body)});});
   await page.goto(url);
   await page.waitForFunction(()=>document.querySelector("#project-select").options.length===1);
   await page.waitForFunction(()=>document.querySelectorAll("#radar-labels text").length===5);
@@ -38,6 +38,9 @@ try{
   await page.locator("#message-input").fill("Bonjour ICARE");
   await page.locator("#composer").evaluate(form=>form.requestSubmit());
   await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Réponse locale de test."));
+  assert.equal(await page.locator(".message.assistant h3").textContent(),"Votre avis","les titres Markdown de niveau 3 doivent être rendus");
+  assert.equal(await page.locator(".message.assistant h4").textContent(),"Auto-évaluation","les titres Markdown de niveau 4 doivent être rendus sans dièses visibles");
+  assert.equal(await page.locator(".message.assistant strong").textContent(),"Texte en gras","le gras Markdown doit être rendu sans astérisques");
   const systemMessage=lastChatPayload?.messages?.find(message=>message.role==="system")?.content||"";
   assert.ok(systemMessage.includes("Comprendre la démarche ICARE"),"le guide méthodologique doit être transmis au modèle local");
   assert.ok(systemMessage.includes('"state_time"'),"l’ontologie structurée doit être transmise au modèle local");
