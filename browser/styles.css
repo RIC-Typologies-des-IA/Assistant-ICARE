@@ -23,3 +23,76 @@
 .message-content th:last-child,.message-content td:last-child{border-right:0}
 .message-content tbody tr:nth-child(even){background:#f8fafc}
 @media(max-width:700px){.message-content table{min-width:560px}.message-content th,.message-content td{padding:8px}}
+
+/* Thème sombre : palette centralisée pour conserver les contrastes de lecture. */
+:root{color-scheme:light}
+:root[data-theme="dark"]{color-scheme:dark;background:#111b2b;color:#e5edf7}
+:root[data-theme="dark"] body{background:#111b2b;color:#e5edf7}
+:root[data-theme="dark"] .sidebar,
+:root[data-theme="dark"] .chat-panel,
+:root[data-theme="dark"] .insight-panel{background:#1b293b;border-color:#34445a;box-shadow:0 2px 12px #0003}
+:root[data-theme="dark"] .topbar{background:#0b1422}
+:root[data-theme="dark"] .project-heading h1,
+:root[data-theme="dark"] .chat-heading h2,
+:root[data-theme="dark"] .section-heading h2,
+:root[data-theme="dark"] .insight-panel h2,
+:root[data-theme="dark"] .message-content h1,
+:root[data-theme="dark"] .message-content h2,
+:root[data-theme="dark"] .message-content h3,
+:root[data-theme="dark"] .message-content h4,
+:root[data-theme="dark"] .message-content h5,
+:root[data-theme="dark"] .message-content h6{color:#e7eef8}
+:root[data-theme="dark"] .muted,
+:root[data-theme="dark"] .sidebar-note,
+:root[data-theme="dark"] .privacy-hint,
+:root[data-theme="dark"] .hint,
+:root[data-theme="dark"] .timeline-label,
+:root[data-theme="dark"] .replay-summary,
+:root[data-theme="dark"] .proposal-meta,
+:root[data-theme="dark"] .provider-help{color:#a8b7ca}
+:root[data-theme="dark"] .eyebrow{color:#9bb9df}
+:root[data-theme="dark"] .chat-heading,
+:root[data-theme="dark"] .composer,
+:root[data-theme="dark"] .proposal-form,
+:root[data-theme="dark"] .proposal-item,
+:root[data-theme="dark"] .dimension-status-row{border-color:#34445a}
+:root[data-theme="dark"] .message.user{background:#29466a;color:#f2f6fc}
+:root[data-theme="dark"] .message.assistant{background:#263448;color:#e5edf7}
+:root[data-theme="dark"] .message.error{background:#482c31;border-color:#82454d;color:#ffd9d9}
+:root[data-theme="dark"] .message-content blockquote{background:#263448;border-color:#7296c3;color:#c2d0e1}
+:root[data-theme="dark"] .message-content :not(pre)>code{background:#34445a;color:#f1f5fb}
+:root[data-theme="dark"] .message-content a,
+:root[data-theme="dark"] .text-button{color:#9fc5ff}
+:root[data-theme="dark"] .message-content .markdown-table-wrap{background:#1b293b;border-color:#40516a}
+:root[data-theme="dark"] .message-content th{background:#2c4059;color:#f0f5fc}
+:root[data-theme="dark"] .message-content td,
+:root[data-theme="dark"] .message-content th{border-color:#40516a}
+:root[data-theme="dark"] .message-content tbody tr:nth-child(even){background:#223247}
+:root[data-theme="dark"] .composer textarea,
+:root[data-theme="dark"] .proposal-form textarea,
+:root[data-theme="dark"] .dimension-status-row select,
+:root[data-theme="dark"] .sidebar select,
+:root[data-theme="dark"] .sidebar option,
+:root[data-theme="dark"] .dialog-content input:not([type=checkbox]),
+:root[data-theme="dark"] .dialog-content textarea,
+:root[data-theme="dark"] .dialog-content select{background:#142235;color:#e5edf7;border-color:#465a74}
+:root[data-theme="dark"] .sidebar option:checked{background:#29466a;color:#fff}
+:root[data-theme="dark"] .button.secondary,
+:root[data-theme="dark"] .icon-button{background:#34465e;color:#e6eef9}
+:root[data-theme="dark"] .button.primary{background:#477fc8;color:#fff}
+:root[data-theme="dark"] .dimension-status-row b,
+:root[data-theme="dark"] .dimension>b{background:#30445f;color:#c9ddf7}
+:root[data-theme="dark"] .proposal-actions .accept{background:#244b3a;color:#b9f0cd}
+:root[data-theme="dark"] .proposal-actions .reject{background:#542f34;color:#ffd0d0}
+:root[data-theme="dark"] .model-config{background:#17263a;border-color:#3b4c63}
+:root[data-theme="dark"] .model-config h3{color:#b8d3f5}
+:root[data-theme="dark"] .notice{background:#26374d;border-color:#83a9d6;color:#d1deed}
+:root[data-theme="dark"] dialog{background:#1b293b;color:#e5edf7}
+:root[data-theme="dark"] dialog::backdrop{background:#020914bb}
+:root[data-theme="dark"] #radar-grid line{stroke:#50627a!important}
+:root[data-theme="dark"] #radar-labels text{fill:#c8d6e8!important}
+:root[data-theme="dark"] .radar-wrap svg{color:#d8e4f3}
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] textarea,
+:root[data-theme="dark"] select{accent-color:#79a9e8}
+:root[data-theme="dark"] ::placeholder{color:#8294aa;opacity:1}
