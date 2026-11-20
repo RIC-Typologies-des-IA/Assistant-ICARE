@@ -26,7 +26,9 @@ jobs:
           test -s browser/app.js
           node --check browser/app.js
           node --check browser/storage.js
+          node --check browser/inference.js
           node --check browser/sw.js
+          node --test browser/test/*.test.js
           python -m json.tool browser/icare.json >/dev/null
           python -m json.tool browser/manifest.webmanifest >/dev/null
       - uses: actions/upload-pages-artifact@v3
