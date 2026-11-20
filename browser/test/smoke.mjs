@@ -93,7 +93,7 @@ try{
   await autoPage.goto(url);
   await autoPage.waitForFunction(()=>document.querySelector("#project-select").options.length===1);
   assert.equal(await autoPage.locator("html").getAttribute("data-theme"),"light","le thème clair du navigateur doit être détecté");
-  await autoContext.emulateMedia({colorScheme:"dark"});
+  await autoPage.emulateMedia({colorScheme:"dark"});
   await autoPage.waitForFunction(()=>document.documentElement.dataset.theme==="dark");
   await autoContext.close();
 
