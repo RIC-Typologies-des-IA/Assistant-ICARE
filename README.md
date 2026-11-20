@@ -8,6 +8,16 @@ ICARE est une méthode de dialogue et de réflexion systémique. Elle aide à co
 
 L'assistant ICARE est un partenaire intellectuel exigeant et non directif, inspiré de la maïeutique. Il questionne, reformule et met les hypothèses à l'épreuve. L'utilisateur reste maître de l'intention, des arbitrages et des décisions.
 
+## Utiliser ICARE dans le navigateur
+
+La décision d'architecture détaillée est consignée dans [ADR 0002 — version autonome navigateur en priorité](docs/adr/0002-autonomous-browser-first.md).
+
+**URL cible :** https://ric-typologies-des-ia.github.io/Assistant-ICARE/ (après fusion et activation de GitHub Pages).
+
+La priorité de développement est le client Web autonome, local-first et sans serveur ICARE personnel. Il conserve projets et conversations dans le navigateur, permet de configurer directement un fournisseur d'inférence et propose l'import/export des données. La première tranche est en cours dans le dossier browser/. Les fonctions avancées (propositions structurées, relations, tableaux de bord ontologiques, CRDT et migration des anciens projets) seront réintégrées progressivement.
+
+Discord, le bot et toute infrastructure partagée sont hors du chemin critique de cette version autonome. Le runtime Pi/Node.js historique reste une base de transition pour préserver et porter les fonctions métier existantes.
+
 ## La boussole ICARE
 
 Les cinq dimensions sont interdépendantes ; elles ne forment ni une checklist ni une séquence linéaire :
@@ -35,9 +45,9 @@ Trois niveaux sont conservés :
 
 Consulter le [README de l'approche par prompt](prompt/README.md) pour choisir et installer la bonne version.
 
-### 2. Approche agentique — application Pi, Lemonade, QEMU et nono
+### 2. Prototype historique — application Pi, Lemonade, QEMU et nono
 
-Cette approche ajoute un runtime applicatif à la méthode : [**Pi**](https://github.com/earendil-works/pi), via son [SDK Node.js](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/sdk.md), dialogue avec les modèles servis par [**Lemonade Server**](https://github.com/lemonade-sdk/lemonade), tandis qu'un backend conserve l'état d'exploration, les propositions et les documents dans [SQLite](https://www.sqlite.org/docs.html).
+Cette approche historique ajoute un runtime applicatif à la méthode ; elle est conservée comme environnement de transition pendant la réalisation du client navigateur : [**Pi**](https://github.com/earendil-works/pi), via son [SDK Node.js](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/sdk.md), dialogue avec les modèles servis par [**Lemonade Server**](https://github.com/lemonade-sdk/lemonade), tandis qu'un backend conserve l'état d'exploration, les propositions et les documents dans [SQLite](https://www.sqlite.org/docs.html).
 
 L'application s'exécute dans une VM Linux [**QEMU**](https://www.qemu.org/docs/master/system/) / [**NixOS**](https://nixos.org/manual/nixos/stable/). Le processus ICARE y est sandboxé par [**nono**](https://github.com/nolabs-ai/nono). Lemonade reste sur la machine hôte pour garder l'accès au NPU. Le réseau de la VM est fermé par défaut ; les échanges autorisés passent par le proxy filtré de l'hôte. L'interface est ouverte automatiquement dans le navigateur lorsque l'environnement graphique le permet.
 

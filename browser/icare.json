@@ -1,0 +1,228 @@
+{
+  "version": "0.3.0",
+  "dimensions": {
+    "I": "Intention / finalité",
+    "C": "Contexte / situation",
+    "A": "Action / opération",
+    "R": "Régulation / organisation",
+    "E": "Évolution / temporalité"
+  },
+  "architecture": {
+    "principle": "ICARE est la couche descriptive du système. Les couches complémentaires qualifient les propositions et leurs relations ; elles ne constituent pas de nouvelles dimensions ICARE.",
+    "layers": [
+      {
+        "id": "icare",
+        "name": "Ontologie descriptive ICARE",
+        "purpose": "Décrire les dimensions constitutives et fonctionnelles du système étudié.",
+        "source": "dimensions"
+      },
+      {
+        "id": "state_time",
+        "name": "Ontologie des états et de la temporalité",
+        "purpose": "Qualifier les états, événements, processus, périodes de validité et horizons temporels.",
+        "inspirations": [
+          "DOLCE",
+          "BFO",
+          "Allen interval algebra"
+        ]
+      },
+      {
+        "id": "evaluation_modality",
+        "name": "Ontologie évaluative et modale",
+        "purpose": "Distinguer les préférences et jugements de valeur des possibilités, nécessités, permissions et interdictions.",
+        "inspirations": [
+          "UFO",
+          "théorie des intentions et plans de Michael Bratman"
+        ]
+      },
+      {
+        "id": "epistemic_provenance",
+        "name": "Ontologie épistémique et de provenance",
+        "purpose": "Qualifier le statut de connaissance d'une proposition et conserver son auteur, sa source, son contexte et sa confiance d'extraction.",
+        "inspirations": [
+          "PROV-O",
+          "DOLCE"
+        ]
+      },
+      {
+        "id": "practical_status",
+        "name": "Statut pratique",
+        "purpose": "Distinguer ce qui est envisagé, proposé, décidé, engagé, en cours, réalisé ou abandonné.",
+        "inspirations": [
+          "théorie des intentions et plans de Michael Bratman",
+          "UFO"
+        ]
+      },
+      {
+        "id": "proposition_relations",
+        "name": "Modèle relationnel et historique",
+        "purpose": "Relier les propositions sans écraser l'historique ni confondre évolution temporelle et contradiction.",
+        "inspirations": [
+          "PROV-O",
+          "Allen interval algebra"
+        ]
+      }
+    ],
+    "adoptionPolicy": "Les références externes sont des sources d'inspiration conceptuelle. Le runtime adopte un modèle JSON léger et typé ; il n'embarque pas intégralement DOLCE, BFO, UFO, PROV-O ni une implémentation RDF/OWL."
+  },
+  "exploration_status": [
+    "unexplored",
+    "insufficient",
+    "sufficient",
+    "not_applicable"
+  ],
+  "temporal": [
+    "past",
+    "present",
+    "future",
+    "unknown"
+  ],
+  "temporal_qualifiers": {
+    "utterance_time": "Moment où la proposition est exprimée.",
+    "valid_time": "Période pendant laquelle l'état décrit est censé être vrai.",
+    "event_period": "Période de déroulement d'un événement ou processus.",
+    "target_horizon": "Horizon ou échéance projetée.",
+    "realization_time": "Moment de réalisation effective, lorsqu'il est connu."
+  },
+  "evaluation": [
+    "desired",
+    "undesired",
+    "feared",
+    "preferred",
+    "unfavorable",
+    "neutral",
+    "unknown"
+  ],
+  "modality": [
+    "possible",
+    "impossible",
+    "necessary",
+    "permitted",
+    "forbidden",
+    "unknown"
+  ],
+  "epistemic": [
+    "observed",
+    "asserted",
+    "reported",
+    "inferred",
+    "hypothesis",
+    "predicted",
+    "unknown"
+  ],
+  "practical": [
+    "considered",
+    "proposed",
+    "decided",
+    "committed",
+    "in_progress",
+    "completed",
+    "abandoned",
+    "unspecified"
+  ],
+  "proposition_model": {
+    "description": "Une proposition est une assertion autonome et historisée. Les champs inconnus restent absents ou explicitement inconnus ; aucune valeur ne doit être inventée.",
+    "required": [
+      "id",
+      "text",
+      "dimensions",
+      "primary_dimension",
+      "epistemic",
+      "confidence",
+      "source",
+      "review_status",
+      "created_at"
+    ],
+    "optional": [
+      "subject",
+      "predicate",
+      "value",
+      "temporal",
+      "valid_time",
+      "event_period",
+      "target_horizon",
+      "realization_time",
+      "evaluation",
+      "modality",
+      "practical",
+      "author",
+      "source_agent",
+      "source_interaction",
+      "justification",
+      "aspect",
+      "relations"
+    ],
+    "confidenceSemantics": "La confiance mesure la confiance du système dans l'extraction et la qualification. Elle ne représente pas la certitude exprimée par la source."
+  },
+  "relations": [
+    "confirms",
+    "specifies",
+    "complements",
+    "nuances",
+    "contradicts",
+    "revises",
+    "derived_from",
+    "same_aspect",
+    "precedes",
+    "succeeds",
+    "previous_state_of",
+    "current_state_of",
+    "target_state_of",
+    "contributes_to",
+    "prevents",
+    "conditions",
+    "desired_by",
+    "rejected_by",
+    "decided_by",
+    "committed_by",
+    "realized_by"
+  ],
+  "relation_rules": [
+    "Une différence entre deux périodes peut décrire une évolution et ne constitue pas automatiquement une contradiction.",
+    "Deux propositions incompatibles portant sur le même aspect et la même période doivent être conservées avec leurs sources et points de vue.",
+    "Une révision ou révocation est explicite et ne supprime pas silencieusement la proposition antérieure.",
+    "Les relations sont elles-mêmes traçables et peuvent rester candidates à validation humaine."
+  ],
+  "distinctions": [
+    "souhaité ≠ décidé",
+    "décidé ≠ engagé",
+    "engagé ≠ réalisé",
+    "futur ≠ planifié",
+    "non souhaité ≠ faux",
+    "souhaité ≠ vrai",
+    "absence d'information ≠ absence de pertinence",
+    "évolution temporelle ≠ contradiction"
+  ],
+  "reference_frameworks": [
+    {
+      "name": "DOLCE",
+      "role": "Distinctions entre objets, événements, états et processus ; inspiration conceptuelle uniquement.",
+      "url": "https://www.loa.istc.cnr.it/index.php/dolce/"
+    },
+    {
+      "name": "BFO",
+      "role": "Distinctions ontologiques générales utiles pour les entités, processus et continuants ; inspiration uniquement.",
+      "url": "https://github.com/BFO-ontology/BFO-2020"
+    },
+    {
+      "name": "UFO",
+      "role": "Distinctions autour des agents, intentions, événements et engagements ; inspiration uniquement.",
+      "url": "https://ontouml.org/ufo/"
+    },
+    {
+      "name": "Allen interval algebra",
+      "role": "Relations temporelles entre intervalles.",
+      "url": "https://cse.unl.edu/~choueiry/Documents/Allen-CACM1983.pdf"
+    },
+    {
+      "name": "PROV-O",
+      "role": "Provenance des entités, activités et agents.",
+      "url": "https://www.w3.org/TR/prov-o/"
+    },
+    {
+      "name": "Théorie des intentions et plans de Michael Bratman",
+      "role": "Distinction entre désir, intention, plan et engagement.",
+      "url": "https://press.uchicago.edu/ucp/books/book/distributed/I/bo3629095.html"
+    }
+  ]
+}
