@@ -15,11 +15,14 @@ try{
   browser=await chromium.launch({headless:true});
   const context=await browser.newContext();
   const page=await context.newPage();
-  await page.route("https://mock-provider.example/**",route=>{assert.equal(route.request().headers()["authorization"],"Bearer test-secret","la clé doit être disponible en mémoire de session");const requestBody=route.request().postDataJSON();if(Array.isArray(requestBody?.messages))lastChatPayload=requestBody;const body=route.request().url().endsWith("/models")?{data:[{id:"test-model"}]}:{choices:[{message:{content:"Réponse locale de test."}}]};return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(body)});});
+  await page.route("https://mock-provider.example/**",route=>{assert.equal(route.request().headers()["authorization"],"Bearer test-secret","la clé doit être disponible en mémoire de session");const requestBody=route.request().postDataJSON();if(Array.isArray(requestBody?.messages))lastChatPayload=requestBody;const body=route.request().url().endsWith("/models")?{data:[{id:"test-model"}]}:{choices:[{message:{content:"Réponse locale de test.\\n\\n### Votre avis\\n\\n#### Auto-évaluation\\n\\n**Texte en gras**."}}]};return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(body)});});
   await page.goto(url);
   await page.waitForFunction(()=>document.querySelector("#project-select").options.length===1);
   await page.waitForFunction(()=>document.querySelectorAll("#radar-labels text").length===5);
   assert.equal(await page.locator("#radar").count(),1,"le radar ICARE doit être présent");
+  assert.equal(await page.locator(".message.assistant h3").textContent(),"Votre avis","les titres Markdown de niveau 3 doivent être rendus");
+  assert.equal(await page.locator(".message.assistant h4").textContent(),"Auto-évaluation","les titres Markdown de niveau 4 doivent être rendus sans dièses visibles");
+  assert.equal(await page.locator(".message.assistant strong").textContent(),"Texte en gras","le gras Markdown doit être rendu sans astérisques");
   assert.deepEqual(await page.locator("#radar-labels text").allTextContents(),["Intention","Contexte","Action","Régulation","Évolution"],"le radar doit afficher les noms complets des cinq dimensions");
   assert.equal(await page.locator("#dimensions").count(),0,"la rangée de dimensions au-dessus du dialogue ne doit plus être affichée");
   assert.equal(await page.locator(".brand-affiliation a").count(),1,"le lien institutionnel doit rester dans la ligne d’affiliation");
