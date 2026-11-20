@@ -38,7 +38,7 @@ Les appareils mobiles restent accessibles via leur navigateur. Les applications 
 - Le propriétaire choisit explicitement « Partager via Discord ».
 - Le projet local est associé à un identifiant stable dans le service ICARE relié au bot.
 - Le service conserve le manifeste, les ACL, le journal d'opérations, les projections métier et l'historique partagé.
-- Dans le premier incrément, les clients/instances autorisés échangent leurs opérations avec le service ICARE relié au bot via un protocole versionné (HTTP pour commandes/reprise, WebSocket ou mécanisme équivalent pour diffusion).
+- Pour le premier prototype, le bot peut servir de relais de synchronisation temporaire afin de valider les enveloppes et les ACL. Cette étape ne doit pas imposer un service de stockage canonique ni un serveur ICARE chez l'utilisateur.
 - Le bot textuel peut lire et contribuer au même projet.
 - Les CRDT et identifiants causaux servent à fusionner les contributions concurrentes. Le premier incrément centralise coordination et relais dans le service du bot. Une évolution pourra établir des liens directs entre instances ICARE indépendantes : Discord ne transporterait alors que les informations de signalisation nécessaires (découverte, capacités, offres/réponses de session et candidats ICE), pas le contenu des projets.
 - Les opérations locales en attente sont conservées et synchronisées à la reconnexion. Le partage peut être suspendu ou révoqué selon les règles du projet.
@@ -119,15 +119,42 @@ La fédération n'est pas supprimée : elle est différée et doit être abordé
 
 - Ne jamais publier de données de projet, secrets, tokens ou clés dans Discord pour établir une session.
 - La signalisation Discord peut être retardée, limitée ou indisponible ; les opérations locales doivent rester durables et la synchronisation doit reprendre.
-- Le relais bot reste une solution de compatibilité et de secours, pas une hypothèse de transport unique à long terme.
+- Le relais bot ou TURN est une solution de compatibilité/secours à évaluer. La cible minimale ne doit pas exiger de serveur ICARE auto-hébergé. Si toute infrastructure tierce hors Discord est proscrite, il faut accepter que certaines connexions P2P échouent et que le bot automatisé ne puisse pas être exécuté uniquement par Discord.
 - Avant d'adopter WebRTC/libp2p/QUIC, produire un prototype à deux nœuds, mesurer la réussite de connexion sur réseaux variés, la latence, la reprise, la consommation et la complexité d'exploitation.
+
+
+
+## Contrainte d'infrastructure : aucun serveur ICARE à domicile
+
+La cible recherchée est : Discord + navigateur de chaque participant, sans serveur ICARE installé ou maintenu par l'utilisateur.
+
+Cette cible est réalisable pour le stockage et le transport métier en mode pair-à-pair, mais il faut distinguer trois choses :
+
+1. **Application web** : les fichiers statiques (HTML/JS/WASM) doivent être servis en HTTPS depuis un hébergement statique/CDN ou installés localement comme PWA. Cela ne nécessite pas de serveur applicatif ICARE.
+2. **Bot Discord** : Discord héberge la plateforme et l'API, pas le code du bot. Un bot Gateway doit maintenir une connexion WebSocket depuis un processus exécuté quelque part. Le mode HTTP Interactions évite le processus permanent, mais exige un endpoint HTTPS public. Donc un bot automatisé ne peut pas être exécuté exclusivement « dans Discord ».
+3. **Données de projet** : elles restent dans IndexedDB/OPFS sur chaque navigateur et sont synchronisées directement entre pairs par WebRTC DataChannel. Discord ne reçoit que la signalisation minimale (offre/réponse ICE/SDP ou identifiant de rendez-vous), idéalement chiffrée au niveau applicatif.
+
+### Deux profils opérationnels
+
+- **Profil strict zéro infrastructure tierce** : pas de bot automatisé. Les participants utilisent Discord comme canal de rendez-vous et déclenchent/échangent la signalisation manuellement ou via une interface non automatisée. Le P2P est best-effort ; sans TURN, certains réseaux ne pourront pas se connecter.
+- **Profil recommandé sans serveur personnel** : hébergement statique pour l'application et une très petite fonction serverless HTTP pour les interactions du bot. Cette fonction ne stocke aucune donnée de projet et ne fait que valider les interactions, gérer les invitations/rendez-vous et transmettre les signaux. Elle peut être hébergée chez un fournisseur managé ; aucun serveur ICARE n'est installé chez l'utilisateur. Si l'on veut une connexion fiable derrière NAT restrictifs, un service TURN managé peut être ajouté, au coût et avec le transit réseau correspondants.
+
+Le bot ne doit jamais exposer son token au navigateur. Les self-bots sont interdits par Discord. Les interactions HTTP nécessitent un endpoint développeur public ; le Gateway nécessite un client connecté en permanence. Cette contrainte est un fait de plateforme, pas un choix d'architecture ICARE.
+
+### Limites fonctionnelles du pair-à-pair pur
+
+- La synchronisation a lieu lorsque les pairs sont simultanément en ligne et que le navigateur est actif.
+- Aucun pair disponible signifie qu'aucune réplique distante ne peut être récupérée ; les opérations restent dans la base locale jusqu'à la prochaine rencontre.
+- Pas de disponibilité permanente, d'historique central ni de sauvegarde distante sans ajouter un nœud toujours disponible ou un service de stockage.
+- Le protocole doit être indépendant du transport et supporter découverte différée, reconnexion, déduplication, causalité et convergence.
+
 
 ## Critères d'acceptation
 
 - Un navigateur moderne suffit pour charger ICARE ; aucune installation OS n'est requise.
 - Le même noyau métier WASM est utilisé en mode privé et partagé.
 - Un projet privé ne communique pas avec Discord.
-- Un projet partagé est synchronisé uniquement avec le service ICARE rattaché au bot choisi.
+- Un projet partagé est synchronisé directement entre navigateurs autorisés lorsque possible ; Discord ne transporte que la signalisation. Un relais tiers est facultatif et n'est pas un stockage canonique.
 - Le bot textuel et les navigateurs autorisés manipulent le même projet et le même journal d'opérations.
 - Les clés d'inférence sont privées à chaque participant et ne sont jamais synchronisées.
 - Chaque membre peut choisir son fournisseur d'inférence indépendamment.
