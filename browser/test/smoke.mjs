@@ -38,7 +38,8 @@ try{
   await page.locator("#message-input").fill("Bonjour ICARE");
   await page.locator("#composer").evaluate(form=>form.requestSubmit());
   await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Réponse locale de test."));
-  console.log("DEBUG HEADINGS", await page.locator(".message.assistant h1,.message.assistant h2,.message.assistant h3,.message.assistant h4,.message.assistant h5,.message.assistant h6").evaluateAll(nodes=>nodes.map(node=>node.outerHTML)));\n  for (const [level,title] of [[1,"Niveau 1"],[2,"Niveau 2"],[3,"Votre avis"],[4,"Auto-évaluation"],[5,"Niveau 5"],[6,"Niveau 6"]]) {
+  console.log("DEBUG HEADINGS", await page.locator(".message.assistant h1,.message.assistant h2,.message.assistant h3,.message.assistant h4,.message.assistant h5,.message.assistant h6").evaluateAll(nodes=>nodes.map(node=>node.outerHTML)));
+  for (const [level,title] of [[1,"Niveau 1"],[2,"Niveau 2"],[3,"Votre avis"],[4,"Auto-évaluation"],[5,"Niveau 5"],[6,"Niveau 6"]]) {
     assert.equal(await page.locator(".message.assistant h"+level).first().textContent(),title,"le titre Markdown de niveau "+level+" doit être rendu sans dièses visibles");
   }
   assert.equal(await page.locator(".message.assistant h4").nth(1).textContent(),"Points d’attention / tensions éventuelles","le titre français exact signalé doit être rendu sans dièses visibles");
