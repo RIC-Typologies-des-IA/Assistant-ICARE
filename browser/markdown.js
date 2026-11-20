@@ -1,4 +1,4 @@
-const TAGS=new Set(["A","BR","P","STRONG","B","EM","I","DEL","UL","OL","LI","BLOCKQUOTE","PRE","CODE","H1","H2","H3","HR"]);
+const TAGS=new Set(["A","BR","P","STRONG","B","EM","I","DEL","UL","OL","LI","BLOCKQUOTE","PRE","CODE","H1","H2","H3","H4","H5","H6","HR"]);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 function inline(s){let x=esc(s);x=x.replace(/&lt;br\s*\/?&gt;/gi,"<br>");x=x.replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>").replace(/\*(.+?)\*/g,"<em>$1</em>").replace(/~~(.+?)~~/g,"<del>$1</del>");x=x.replace(/\x60([^\x60]+)\x60/g,"<code>$1</code>");x=x.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,'<a href="$2">$1</a>');return x;}
 function clean(root){for(const n of [...root.childNodes]){if(n.nodeType===3)continue;if(n.nodeType!==1||!TAGS.has(n.tagName)){n.replaceWith(document.createTextNode(n.textContent||""));continue;}for(const a of [...n.attributes]){if(n.tagName==="A"&&a.name==="href"&&/^https?:/i.test(a.value))continue;n.removeAttribute(a.name);}if(n.tagName==="A"){n.target="_blank";n.rel="noopener noreferrer";}clean(n);}}
