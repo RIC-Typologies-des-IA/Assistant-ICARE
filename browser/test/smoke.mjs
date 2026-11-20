@@ -43,7 +43,7 @@ try{
   assert.ok(systemMessage.includes('"state_time"'),"l’ontologie structurée doit être transmise au modèle local");
   assert.ok(systemMessage.includes("ÉTAT ACTUEL DU TABLEAU ICARE"),"l’état du projet doit être transmis au modèle local");
   assert.ok(systemMessage.includes('"I": "unexplored"'),"les statuts des dimensions doivent être présents dans le contexte");
-  assert.ok(systemMessage.includes("tu ne disposes pas d'outils d'écriture"),"les limites d’action du client local doivent être explicites");
+  assert.ok(systemMessage.includes("utilise réellement les outils pour enregistrer les observations substantielles"),"les capacités d’action agentique doivent être transmises au modèle local");
   await page.waitForFunction(()=>Number(document.querySelector("#timeline-slider").max)>=1);
   await page.locator("#timeline-slider").evaluate(slider=>{slider.value="0";slider.dispatchEvent(new Event("input",{bubbles:true}));});
   assert.equal(await page.locator(".message.user").count(),0,"le premier instantané doit rejouer le dialogue avant le premier échange");

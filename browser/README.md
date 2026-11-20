@@ -28,6 +28,17 @@ La version produit est définie dans `package.json`, répercutée dans `version.
 
 Il ajoute ensuite les 16 derniers échanges au plus, puis le message courant de l'utilisateur. Le fournisseur configuré reçoit ces messages via l'API Chat Completions compatible OpenAI.
 
-Cette version du client navigateur ne fournit pas d'outils au modèle : il peut analyser le contexte et formuler des propositions, mais ne peut pas écrire lui-même dans IndexedDB, modifier les statuts ou valider une proposition.
+Le client navigateur fournit un moteur agentique à appels d'outils. Les opérations sont exécutées localement dans le projet courant : consultation de l'ontologie et des documents, recherche documentaire, propositions et relations candidates, mise à jour justifiée des statuts, création et modification de documents de référence. La validation/rejet des propositions reste humaine. Le moteur impose une limite de huit étapes d'outils par tour et ne dispose d'aucun accès arbitraire au système de fichiers ou au navigateur.
 
 Le runtime Pi est distinct : il expose des outils ICARE (état d'exploration, ontologie, recherche documentaire, propositions et relations). Son corpus documentaire est initialisé pour chaque projet local et consultable par `search_reference_documents`.
+
+
+## Moteur agentique navigateur — 0.8.0
+
+Le runtime `browser/agent.js` implémente un cycle tool-calling compatible avec les API OpenAI Chat Completions. Il expose les outils métier ICARE sans embarquer Node.js ni le SDK Pi. Les données sont écrites dans l'espace de travail du projet via IndexedDB.
+
+Outils disponibles : `list_available_models`, `get_ontology`, `get_exploration_state`, `search_reference_documents`, `list_propositions`, `propose_observation`, `propose_relation`, `update_exploration_status`, `create_reference_document` et `update_reference_document`.
+
+Les observations et relations sont créées au statut candidat. Les changements de statuts `sufficient` et `not_applicable` exigent une justification. Les documents de référence sont isolés par projet. Le fournisseur de modèle doit prendre en charge les appels d'outils ; un modèle qui ne les prend pas en charge ne peut pas assurer la parité agentique.
+
+Cette livraison restaure un premier socle d'écriture agentique, mais ne prétend pas encore à la parité complète : la réplication CRDT, la migration SQLite et l'intégralité des métadonnées/projections du runtime historique restent des étapes distinctes.
