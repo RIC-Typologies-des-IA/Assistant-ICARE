@@ -19,7 +19,7 @@ test("Discord bot is an optional server-side adapter using ICARE chat sessions",
   assert.ok(adapter.includes('setName("invite")'));
   assert.ok(adapter.includes('setName("revoke")'));
   assert.ok(adapter.includes("defaultProjectId: isDm ? defaultProjectId : null"));
-  assert.ok(server.includes("startDiscordBot({ db, port: PORT })"));
+  assert.ok(server.includes("startDiscordBot({ db, port: PORT, internalApiToken: INTERNAL_DISCORD_API_TOKEN })"));
 });
 
 test("Discord project bindings are channel-scoped, not dimension-scoped", async () => {
@@ -59,4 +59,119 @@ test("Activity project selection refuses to silently fall back to another projec
   const html = await read("../public/index.html");
   assert.ok(html.includes("discordActivityProjectId"));
   assert.ok(html.includes("Le projet Discord lié n'est pas encore présent"));
+});
+
+test("membership request API is Discord-authenticated and owner-gated", async () => {
+  const server = await read("../src/server.js");
+  const access = await read("../src/collaboration/membership-requests.js");
+  assert.ok(server.includes("/membership-requests"));
+  assert.ok(server.includes('req.headers.origin === new URL(DISCORD_ACTIVITY_ORIGIN).origin'));
+  assert.ok(server.includes('https://discord.com/api/v10/users/@me'));
+  assert.ok(server.includes("requestDiscordProjectMembership(db"));
+  assert.ok(server.includes("listPendingDiscordMembershipRequests(db"));
+  assert.ok(server.includes("decideDiscordMembershipRequest(db"));
+  assert.ok(access.includes("Seul un propriétaire actif peut traiter une demande"));
+  assert.ok(access.includes('role: "member"'));
+});
+
+test("project APIs require Discord authentication and current project membership", async () => {
+  const server = await read("../src/server.js");
+  assert.ok(server.includes("async function authenticateDiscordRequest(req)"));
+  assert.ok(server.includes("All project APIs require a live Discord identity"));
+  assert.ok(server.includes("getDiscordProjectAccess(db, projectId, identity.id)"));
+  assert.ok(server.includes("Ce compte Discord n'est pas membre de ce projet"));
+  assert.ok(server.includes("req.__icareBodyPromise"));
+  assert.ok(server.includes("isPeerReplicationApi"));
+});
+
+test("non-members can reach the request flow without project content being loaded", async () => {
+  const server = await read("../src/server.js");
+  const html = await read("../public/index.html");
+  const contextStart = server.indexOf('if (req.method === "POST" && url.pathname === "/api/discord/context")');
+  const contextEnd = server.indexOf('const membershipRequestMatch', contextStart);
+  const contextRoute = server.slice(contextStart, contextEnd);
+  assert.ok(contextRoute.includes("isMember: Boolean(access"));
+  assert.ok(!contextRoute.includes("if (projectId && !access)"));
+  assert.ok(html.includes("Demander à rejoindre"));
+  assert.ok(html.includes("await loadProjects();await refresh()"));
+  assert.ok(html.includes("if(!context.isMember)"));
+});
+
+test("standalone web view does not load private project data without Discord authentication", async () => {
+  const html = await read("../public/index.html");
+  assert.ok(html.includes('has("frame_id")'));
+  assert.ok(html.includes("Connectez-vous avec Discord"));
+  assert.ok(html.includes("installDiscordApiFetch"));
+});
+
+test("project list and creation are bound to the authenticated Discord participant", async () => {
+  const server = await read("../src/server.js");
+  assert.ok(server.includes("const access = getDiscordProjectAccess(db, project.id, req.discordIdentity.id); return access && !access.roleConflict ? { ...project, role: access.role"));
+  assert.ok(server.includes('id: "discord:" + req.discordIdentity.id'));
+  assert.ok(server.includes('bootstrapDiscordProjectOwner(db, id, req.discordIdentity.id)'));
+  assert.ok(!server.includes('const actor = body.actor ?? { type: "human", id: "local" }'));
+});
+
+test("project-scoped APIs reject requests without a project identifier", async () => {
+  const server = await read("../src/server.js");
+  assert.ok(server.includes("const projectScopedRoute"));
+  assert.ok(server.includes("Identifiant de projet requis pour cette opération"));
+  assert.ok(server.includes("const access = getDiscordProjectAccess(db, project.id, req.discordIdentity.id); return access && !access.roleConflict"));
+});
+
+test("new replication peers enforce participant identity and current membership", async () => {
+  const server = await read("../src/server.js");
+  const peerStore = await read("../src/collaboration/peer-store.js");
+  const syncEngine = await read("../src/collaboration/sync-engine.js");
+  assert.ok(server.includes("peerAuthorization?.requireParticipant"));
+  assert.ok(server.includes("participantAccess = getDiscordProjectAccess"));
+  assert.ok(server.includes("code: \"REJECTED_AUTHORIZATION\""));
+  assert.ok(peerStore.includes("require_participant INTEGER NOT NULL DEFAULT 1"));
+  assert.ok(syncEngine.includes("crdt_sync_rejections"));
+  assert.ok(syncEngine.includes("previousRejection"));
+  assert.ok(syncEngine.includes("rejectedAuthorization"));
+});
+
+test("web sharing uses stateful Discord OAuth and HttpOnly server sessions", async () => {
+  const server = await read("../src/server.js");
+  const html = await read("../public/index.html");
+  assert.ok(server.includes("discord_web_sessions"));
+  assert.ok(server.includes("discord_oauth_states"));
+  assert.ok(server.includes("/auth/discord/start"));
+  assert.ok(server.includes("/auth/discord/callback"));
+  assert.ok(server.includes("grant_type: \"authorization_code\""));
+  assert.ok(server.includes("HttpOnly; SameSite=Lax; Path=/"));
+  assert.ok(server.includes("function getWebSession(req)"));
+  assert.ok(server.includes("shareLinkMatch"));
+  assert.ok(server.includes("/share/"));
+  assert.ok(html.includes("Se connecter avec Discord"));
+  assert.ok(html.includes("Copier un lien HTTPS vers ce projet"));
+  assert.ok(html.includes("Demander à rejoindre"));
+});
+
+test("Discord bot chat uses a private server credential and the gateway-authenticated author", async () => {
+  const server = await read("../src/server.js");
+  const adapter = await read("../src/discord-adapter.js");
+  assert.ok(server.includes("INTERNAL_DISCORD_API_TOKEN = randomBytes(32)"));
+  assert.ok(server.includes("secretMatches(req.headers[\"x-icare-internal-token\"]"));
+  assert.ok(server.includes("internalUserId"));
+  assert.ok(adapter.includes('"x-icare-internal-token": internalApiToken'));
+  assert.ok(adapter.includes('"x-icare-discord-user": discordUserId'));
+  assert.ok(adapter.includes("discordUserId: message.author.id"));
+});
+
+test("cookie-authenticated write APIs enforce a trusted browser origin", async () => {
+  const server = await read("../src/server.js");
+  assert.ok(server.includes('!bearerToken(req) && !["GET", "HEAD", "OPTIONS"].includes(req.method)'));
+  assert.ok(server.includes("trustedOrigins.has(req.headers.origin || \"\")"));
+  assert.ok(server.includes("Origine non autorisée pour une opération avec session web"));
+});
+
+test("replication permits only the self-attributed first owner grant on an empty replica", async () => {
+  const server = await read("../src/server.js");
+  const access = await read("../src/discord-access.js");
+  assert.ok(server.includes("const initialOwnerBootstrap = existingMembers.length === 0 && !participantAccess && !hasOwner"));
+  assert.ok(server.includes("grantedMember?.principalId === participant.id"));
+  assert.ok(server.includes("!initialOwnerBootstrap && participantAccess?.role !== \"owner\""));
+  assert.ok(access.includes('participant: { type: "discord", id: actorDiscordUserId }'));
 });

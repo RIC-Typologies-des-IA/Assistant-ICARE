@@ -6,6 +6,7 @@ import { initializeReplicaStore } from "../src/collaboration/replica-store.js";
 import { createLocalCrdtOperation, syncProjectWithPeer } from "../src/collaboration/sync-engine.js";
 import { createProjectSyncPeer, authenticateProjectSyncPeer } from "../src/collaboration/peer-store.js";
 import { readPropositionCrdtState } from "../src/collaboration/model.js";
+import { requestContext } from "../src/collaboration/request-context.js";
 
 function database() {
   const db = new DatabaseSync(":memory:");
@@ -111,5 +112,54 @@ test("local operation creation allocates monotonic dots and carries causal conte
   });
   assert.equal(second.dot.counter, first.dot.counter + 1);
   assert.equal(second.causalContext[first.dot.replicaId], first.dot.counter);
+  db.close();
+});
+
+test("authenticated participant attribution is attached to new CRDT operations", () => {
+  const db = database();
+  const operation = requestContext.run({ discordIdentity: { id: "discord-user-7" } }, () =>
+    createLocalCrdtOperation(db, {
+      projectId: "project-1", objectId: "proposal-auth", kind: "field.set",
+      payload: { field: "text", value: "Contribution authentifiée" },
+      actor: { type: "human", id: "local-user" }
+    })
+  );
+  assert.deepEqual(operation.actor.participant, { type: "discord", id: "discord-user-7" });
+  db.close();
+});
+
+test("revoked participant operations are quarantined and never retried for publication", async () => {
+  const db = database();
+  const operation = createLocalCrdtOperation(db, {
+    projectId: "project-1", objectId: "proposal-revoked", kind: "field.set",
+    payload: { field: "text", value: "Modification hors ligne" },
+    actor: { type: "human", id: "local-user", participant: { type: "discord", id: "revoked-user" } }
+  });
+  let postAttempts = 0;
+  const fetchImpl = async (_input, init = {}) => {
+    if (init.method === "POST") {
+      postAttempts++;
+      return response({
+        error: "Participant révoqué.",
+        code: "REJECTED_AUTHORIZATION",
+        operationId: operation.opId
+      }, 403);
+    }
+    return response({ operations: [], next: 0 });
+  };
+  const options = {
+    projectId: "project-1", peerKey: "peer-1",
+    baseUrl: "https://replica.example.test", token: "peer-token", fetchImpl
+  };
+  const first = await syncProjectWithPeer(db, options);
+  assert.equal(first.pushed, 0);
+  assert.equal(first.rejectedAuthorization, 1);
+  assert.equal(postAttempts, 1);
+  const stored = db.prepare("SELECT state FROM crdt_sync_rejections WHERE project_id=? AND peer_key=? AND operation_id=?")
+    .get("project-1", "peer-1", operation.opId);
+  assert.equal(stored.state, "REJECTED_AUTHORIZATION");
+  const second = await syncProjectWithPeer(db, options);
+  assert.equal(second.pushed, 0);
+  assert.equal(postAttempts, 1);
   db.close();
 });

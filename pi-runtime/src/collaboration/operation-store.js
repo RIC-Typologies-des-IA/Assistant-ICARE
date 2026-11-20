@@ -58,6 +58,12 @@ export function validateCrdtOperation(operation) {
   if (!isRecord(operation.actor) || !nonEmpty(operation.actor.type) || !nonEmpty(operation.actor.id)) {
     errors.push("Identité de l'acteur humain ou agent invalide.");
   }
+  if (isRecord(operation.actor) && operation.actor.participant != null) {
+    const participant = operation.actor.participant;
+    if (!isRecord(participant) || participant.type !== "discord" || !nonEmpty(participant.id)) {
+      errors.push("Identité du participant authentifié invalide.");
+    }
+  }
   if (!isRecord(operation.payload)) errors.push("Payload d'opération invalide.");
   if (isRecord(operation.payload)) {
     if (operation.objectType === "project") {

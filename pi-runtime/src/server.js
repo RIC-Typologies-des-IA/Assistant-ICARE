@@ -3,7 +3,8 @@ import { readFile, mkdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
+import { requestContext } from "./collaboration/request-context.js";
 import { DatabaseSync } from "node:sqlite";
 import { createProjectEvent, createProjectManifest, validateProjectEvent, validateProjectManifest } from "./collaboration/project.js";
 import { getLocalReplicaIdentity, initializeReplicaStore } from "./collaboration/replica-store.js";
@@ -15,7 +16,11 @@ import { backfillCrdtProjections, projectPropositionToCrdt, projectRelationToCrd
 import { materializeCrdtOperation } from "./collaboration/projection-materializer.js";
 import { startDiscordBot } from "./discord-adapter.js";
 import { getDiscordBoundProject, initializeDiscordBindingStore } from "./discord-store.js";
-import { getDiscordProjectAccess } from "./discord-access.js";
+import { bootstrapDiscordProjectOwner, getDiscordProjectAccess, listDiscordProjectMembers } from "./discord-access.js";
+import {
+  decideDiscordMembershipRequest, initializeMembershipRequestStore,
+  listPendingDiscordMembershipRequests, requestDiscordProjectMembership
+} from "./collaboration/membership-requests.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
@@ -30,6 +35,10 @@ const SYNC_ADMIN_TOKEN = process.env.ICARE_SYNC_ADMIN_TOKEN || "";
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID || "";
 const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET || "";
 const DISCORD_ACTIVITY_ORIGIN = process.env.ICARE_DISCORD_ACTIVITY_ORIGIN || "";
+const PUBLIC_BASE_URL = (process.env.ICARE_PUBLIC_BASE_URL || "").replace(/\/$/, "");
+const DISCORD_REDIRECT_URI = process.env.ICARE_DISCORD_REDIRECT_URI ||
+  (PUBLIC_BASE_URL ? PUBLIC_BASE_URL + "/auth/discord/callback" : "");
+const INTERNAL_DISCORD_API_TOKEN = randomBytes(32).toString("base64url");
 // L'ontologie JSON est la source de vérité des dimensions et des catégories.
 const ONTOLOGY = JSON.parse(await readFile(path.join(ROOT, "reference", "icare.json"), "utf8"));
 const DIMENSION_ORDER = ["I", "C", "A", "R", "E"];
@@ -55,8 +64,25 @@ getLocalReplicaIdentity(db);
 initializeCrdtOperationStore(db);
 initializeProjectPeerStore(db);
 initializeDiscordBindingStore(db);
+initializeMembershipRequestStore(db);
 db.exec(`
   PRAGMA journal_mode = WAL;
+  CREATE TABLE IF NOT EXISTS discord_web_sessions (
+    session_hash TEXT PRIMARY KEY,
+    discord_user_id TEXT NOT NULL,
+    username TEXT NOT NULL,
+    global_name TEXT,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS discord_web_sessions_expiry ON discord_web_sessions(expires_at);
+  CREATE TABLE IF NOT EXISTS discord_oauth_states (
+    state_hash TEXT PRIMARY KEY,
+    project_id TEXT,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS discord_oauth_states_expiry ON discord_oauth_states(expires_at);
   CREATE TABLE IF NOT EXISTS propositions (
     id TEXT PRIMARY KEY, text TEXT NOT NULL, dimensions TEXT NOT NULL,
     primary_dimension TEXT NOT NULL, temporal TEXT NOT NULL,
@@ -241,13 +267,65 @@ function json(res, status, value) {
   res.end(JSON.stringify(value));
 }
 async function readBody(req) {
-  let raw = "";
-  for await (const chunk of req) {
-    raw += chunk;
-    if (raw.length > 1_000_000) throw new Error("Requête trop volumineuse.");
-  }
-  return raw ? JSON.parse(raw) : {};
+  if (req.__icareBodyPromise) return req.__icareBodyPromise;
+  req.__icareBodyPromise = (async () => {
+    let raw = "";
+    for await (const chunk of req) {
+      raw += chunk;
+      if (raw.length > 1_000_000) throw new Error("Requête trop volumineuse.");
+    }
+    return raw ? JSON.parse(raw) : {};
+  })();
+  return req.__icareBodyPromise;
 }
+const discordIdentityCache = new Map();
+function cookieValue(req, name) {
+  const cookie = req.headers.cookie || "";
+  for (const part of cookie.split(";")) {
+    const index = part.indexOf("=");
+    if (index < 0) continue;
+    if (part.slice(0, index).trim() === name) return decodeURIComponent(part.slice(index + 1).trim());
+  }
+  return null;
+}
+function hashSecret(value) {
+  return createHash("sha256").update(value, "utf8").digest("hex");
+}
+function isHttpsOrLoopback(value) {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "https:" ||
+      (parsed.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(parsed.hostname));
+  } catch { return false; }
+}
+function getWebSession(req) {
+  const token = cookieValue(req, "icare_session");
+  if (!token) return null;
+  const row = db.prepare("SELECT discord_user_id,username,global_name,expires_at FROM discord_web_sessions WHERE session_hash=?")
+    .get(hashSecret(token));
+  if (!row || Date.parse(row.expires_at) <= Date.now()) return null;
+  return { id: row.discord_user_id, username: row.username, global_name: row.global_name || null };
+}
+async function authenticateDiscordRequest(req) {
+  const token = bearerToken(req);
+  if (token) {
+    const cacheKey = createHash("sha256").update(token).digest("hex");
+    const cached = discordIdentityCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) return cached.user;
+    try {
+      const response = await fetch("https://discord.com/api/v10/users/@me", {
+        headers: { Authorization: "Bearer " + token },
+        signal: AbortSignal.timeout(10000)
+      });
+      if (!response.ok) return null;
+      const user = await response.json();
+      discordIdentityCache.set(cacheKey, { user, expiresAt: Date.now() + 30000 });
+      return user;
+    } catch { return null; }
+  }
+  return getWebSession(req);
+}
+
 function bearerToken(req) {
   const header = req.headers.authorization || "";
   const match = /^Bearer ([A-Za-z0-9._~-]+)$/.exec(header);
@@ -696,9 +774,167 @@ function sendPublicAsset(res, pathname) {
   return sendStatic(res, file, type, "public, max-age=3600");
 }
 
-const server = http.createServer(async (req, res) => {
+const server = http.createServer((req, res) => requestContext.run({ discordIdentity: null }, async () => {
   const url = new URL(req.url, "http://" + req.headers.host);
   try {
+    // All project APIs require a live Discord identity. Project-scoped APIs
+    // additionally require current owner/member access. Replication endpoints
+    // retain their dedicated peer-token authorization.
+    const publicApiPaths = new Set([
+      "/api/status", "/api/models", "/api/models/refresh",
+      "/api/discord/config", "/api/discord/token", "/api/discord/context",
+      "/api/auth/config", "/api/auth/session", "/api/auth/logout"
+    ]);
+    const isMembershipRequestApi = /^\/api\/projects\/[^/]+\/membership-requests(?:\/[^/]+)?$/.test(url.pathname);
+    const isPeerReplicationApi = /^\/api\/projects\/[^/]+\/crdt\//.test(url.pathname);
+    if (url.pathname.startsWith("/api/") && !publicApiPaths.has(url.pathname) &&
+        !isMembershipRequestApi && !isPeerReplicationApi) {
+      const internalUserId = req.headers["x-icare-discord-user"];
+      const internalDiscordCall = secretMatches(req.headers["x-icare-internal-token"], INTERNAL_DISCORD_API_TOKEN) &&
+        typeof internalUserId === "string" && internalUserId.trim().length > 0 && internalUserId.length <= 64;
+      const identity = internalDiscordCall
+        ? { id: internalUserId, username: "Discord participant", global_name: null }
+        : await authenticateDiscordRequest(req);
+      if (!identity) return json(res, 401, { error: "Authentification Discord requise. Ouvre ICARE depuis une Activity Discord autorisée." });
+      let projectId = url.searchParams.get("projectId");
+      const projectPath = /^\/api\/projects\/([^/]+)/.exec(url.pathname);
+      if (!projectId && projectPath) {
+        try { projectId = decodeURIComponent(projectPath[1]); } catch {}
+      }
+      if (!projectId && req.method !== "GET" && req.method !== "HEAD") {
+        const body = await readBody(req);
+        projectId = typeof body.projectId === "string" ? body.projectId : null;
+      }
+      const projectScopedRoute = /^\/api\/(state|timeline|chat|propositions|relations|references|dimensions|snapshots)(?:\/|$)/.test(url.pathname);
+      if (projectScopedRoute && !projectId) {
+        return json(res, 400, { error: "Identifiant de projet requis pour cette opération." });
+      }
+      if (projectId) {
+        const access = getDiscordProjectAccess(db, projectId, identity.id);
+        if (!access || access.roleConflict) {
+          return json(res, 403, { error: "Ce compte Discord n'est pas membre de ce projet. Demande à rejoindre le projet depuis son lien." });
+        }
+      }
+      req.discordIdentity = identity;
+      requestContext.getStore().discordIdentity = identity;
+      if (!internalDiscordCall && !bearerToken(req) && !["GET", "HEAD", "OPTIONS"].includes(req.method)) {
+        const trustedOrigins = new Set();
+        for (const configured of [PUBLIC_BASE_URL, DISCORD_REDIRECT_URI, DISCORD_ACTIVITY_ORIGIN]) {
+          try { if (configured) trustedOrigins.add(new URL(configured).origin); } catch {}
+        }
+        if (!trustedOrigins.has(req.headers.origin || "")) {
+          return json(res, 403, { error: "Origine non autorisée pour une opération avec session web." });
+        }
+      }
+    }
+    if (req.method === "GET" && url.pathname === "/auth/discord/start") {
+      if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET || !DISCORD_REDIRECT_URI || !isHttpsOrLoopback(DISCORD_REDIRECT_URI) || (PUBLIC_BASE_URL && !isHttpsOrLoopback(PUBLIC_BASE_URL))) {
+        return json(res, 503, { error: "Connexion web Discord indisponible : configure l'URL de redirection OAuth." });
+      }
+      const projectId = url.searchParams.get("projectId") || null;
+      if (projectId) {
+        try { requireProject(projectId); } catch (error) { return json(res, 404, { error: error.message }); }
+      }
+      db.prepare("DELETE FROM discord_oauth_states WHERE expires_at<=?").run(now());
+      const state = randomBytes(32).toString("base64url");
+      const createdAt = now();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+      db.prepare("INSERT INTO discord_oauth_states(state_hash,project_id,created_at,expires_at) VALUES(?,?,?,?)")
+        .run(hashSecret(state), projectId, createdAt, expiresAt);
+      const authorize = new URL("https://discord.com/oauth2/authorize");
+      authorize.search = new URLSearchParams({
+        client_id: DISCORD_CLIENT_ID, redirect_uri: DISCORD_REDIRECT_URI,
+        response_type: "code", scope: "identify", state
+      }).toString();
+      res.writeHead(302, { Location: authorize.toString(), "Cache-Control": "no-store" });
+      return res.end();
+    }
+    if (req.method === "GET" && url.pathname === "/auth/discord/callback") {
+      const code = url.searchParams.get("code") || "";
+      const state = url.searchParams.get("state") || "";
+      if (!code || !state || code.length > 2048 || state.length > 256) {
+        return json(res, 400, { error: "Retour OAuth Discord incomplet." });
+      }
+      const oauthState = db.prepare("SELECT * FROM discord_oauth_states WHERE state_hash=?")
+        .get(hashSecret(state));
+      db.prepare("DELETE FROM discord_oauth_states WHERE state_hash=?").run(hashSecret(state));
+      if (!oauthState || Date.parse(oauthState.expires_at) <= Date.now()) {
+        return json(res, 400, { error: "État OAuth expiré ou invalide. Relance la connexion." });
+      }
+      try {
+        const tokenResponse = await fetch("https://discord.com/api/v10/oauth2/token", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            client_id: DISCORD_CLIENT_ID, client_secret: DISCORD_CLIENT_SECRET,
+            grant_type: "authorization_code", code, redirect_uri: DISCORD_REDIRECT_URI
+          }),
+          signal: AbortSignal.timeout(15000)
+        });
+        const tokenPayload = await tokenResponse.json();
+        if (!tokenResponse.ok || !tokenPayload.access_token) {
+          return json(res, 502, { error: "Discord a refusé l'échange du code OAuth." });
+        }
+        const userResponse = await fetch("https://discord.com/api/v10/users/@me", {
+          headers: { Authorization: "Bearer " + tokenPayload.access_token },
+          signal: AbortSignal.timeout(10000)
+        });
+        if (!userResponse.ok) return json(res, 502, { error: "Impossible de vérifier l'identité Discord." });
+        const user = await userResponse.json();
+        const sessionToken = randomBytes(32).toString("base64url");
+        const createdAt = now();
+        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+        db.prepare("DELETE FROM discord_web_sessions WHERE expires_at<=?").run(createdAt);
+        db.prepare("INSERT INTO discord_web_sessions(session_hash,discord_user_id,username,global_name,created_at,expires_at) VALUES(?,?,?,?,?,?)")
+          .run(hashSecret(sessionToken), user.id, user.username || user.id, user.global_name || null, createdAt, expiresAt);
+        const secure = DISCORD_REDIRECT_URI.startsWith("https://") ? "; Secure" : "";
+        const cookie = "icare_session=" + sessionToken + "; HttpOnly; SameSite=Lax; Path=/; Max-Age=2592000" + secure;
+        const destination = oauthState.project_id
+          ? "/share/" + encodeURIComponent(oauthState.project_id)
+          : "/";
+        res.writeHead(302, { Location: destination, "Set-Cookie": cookie, "Cache-Control": "no-store" });
+        return res.end();
+      } catch (error) {
+        return json(res, 502, { error: "Échec de la connexion Discord : " + (error.message || String(error)) });
+      }
+    }
+    const sharePageMatch = /^\/share\/([^/]+)$/.exec(url.pathname);
+    if (req.method === "GET" && sharePageMatch) {
+      let projectId;
+      try { projectId = decodeURIComponent(sharePageMatch[1]); }
+      catch { return json(res, 400, { error: "Lien de projet invalide." }); }
+      try { requireProject(projectId); }
+      catch (error) { return json(res, 404, { error: error.message }); }
+      res.writeHead(302, { Location: "/?projectId=" + encodeURIComponent(projectId), "Cache-Control": "no-store" });
+      return res.end();
+    }
+    if (req.method === "GET" && url.pathname === "/api/auth/config") {
+      return json(res, 200, {
+        enabled: Boolean(DISCORD_CLIENT_ID && DISCORD_CLIENT_SECRET && DISCORD_REDIRECT_URI && isHttpsOrLoopback(DISCORD_REDIRECT_URI)),
+        publicBaseUrl: isHttpsOrLoopback(PUBLIC_BASE_URL) ? PUBLIC_BASE_URL : null,
+        redirectUri: DISCORD_REDIRECT_URI || null
+      });
+    }
+    if (req.method === "GET" && url.pathname === "/api/auth/session") {
+      const user = getWebSession(req);
+      return json(res, 200, { authenticated: Boolean(user), user: user ? { id: user.id, username: user.username, global_name: user.global_name } : null });
+    }
+    if (req.method === "POST" && url.pathname === "/api/auth/logout") {
+      const token = cookieValue(req, "icare_session");
+      if (token) db.prepare("DELETE FROM discord_web_sessions WHERE session_hash=?").run(hashSecret(token));
+      res.writeHead(200, {
+        "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store",
+        "Set-Cookie": "icare_session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0" + (DISCORD_REDIRECT_URI.startsWith("https://") ? "; Secure" : "")
+      });
+      return res.end(JSON.stringify({ ok: true }));
+    }
+    const shareLinkMatch = /^\/api\/projects\/([^/]+)\/share-link$/.exec(url.pathname);
+    if (req.method === "GET" && shareLinkMatch) {
+      if (!PUBLIC_BASE_URL || !isHttpsOrLoopback(PUBLIC_BASE_URL) || !DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET || !DISCORD_REDIRECT_URI || !isHttpsOrLoopback(DISCORD_REDIRECT_URI)) return json(res, 503, { error: "Le partage web nécessite ICARE_PUBLIC_BASE_URL et une configuration OAuth Discord complète." });
+      let projectId;
+      try { projectId = decodeURIComponent(shareLinkMatch[1]); } catch { return json(res, 400, { error: "Identifiant de projet invalide." }); }
+      return json(res, 200, { url: PUBLIC_BASE_URL + "/share/" + encodeURIComponent(projectId) });
+    }
     if (req.method === "GET" && url.pathname === "/") return sendStatic(res, path.join(HERE, "..", "public", "index.html"), "text/html; charset=utf-8");
     if (req.method === "GET" && url.pathname.startsWith("/assets/")) return sendPublicAsset(res, url.pathname);
     if (req.method === "GET" && url.pathname === "/api/status") {
@@ -770,7 +1006,7 @@ const server = http.createServer(async (req, res) => {
       setSetting("chat_model", selectedModel.id);
       return json(res, 200, { ok: true, selected: selectedModel.id, toolCalling: Boolean(info.labels?.includes("tool-calling")) });
     }
-    if (req.method === "GET" && url.pathname === "/api/projects") return json(res, 200, { projects: db.prepare("SELECT id,name,description,intention,created_at,updated_at FROM projects WHERE archived_at IS NULL ORDER BY updated_at DESC").all().map(project => ({ ...project, uri: createProjectManifest(project).uri })) });
+    if (req.method === "GET" && url.pathname === "/api/projects") return json(res, 200, { projects: db.prepare("SELECT id,name,description,intention,created_at,updated_at FROM projects WHERE archived_at IS NULL ORDER BY updated_at DESC").all().map(project => { const access = getDiscordProjectAccess(db, project.id, req.discordIdentity.id); return access && !access.roleConflict ? { ...project, role: access.role, uri: createProjectManifest(project).uri } : null; }).filter(Boolean) });
     if (req.method === "POST" && url.pathname === "/api/projects") {
       const body = await readBody(req);
       const name = String(body.name || "").trim().slice(0,120);
@@ -779,14 +1015,14 @@ const server = http.createServer(async (req, res) => {
       const description = String(body.description || "").trim().slice(0,4000);
       const context = body.context && typeof body.context === "object" && !Array.isArray(body.context) ? body.context : {};
       const requestId = typeof body.idempotencyKey === "string" ? body.idempotencyKey.trim().slice(0,160) : "";
-      const actor = body.actor ?? { type: "human", id: "local" };
-      const origin = body.origin ?? "local";
+      const actor = { type: "human", id: "discord:" + req.discordIdentity.id };
+      const origin = "discord-activity";
       if (body.context != null && (typeof body.context !== "object" || Array.isArray(body.context))) return json(res, 400, { error: "Le contexte doit être un objet JSON." });
       if (!actor || typeof actor !== "object" || Array.isArray(actor) || typeof actor.type !== "string" || !actor.type.trim()) return json(res, 400, { error: "L'acteur initial est invalide." });
       if (typeof origin !== "string" || !origin.trim()) return json(res, 400, { error: "L'origine initiale est invalide." });
       if (requestId) {
         const previous = db.prepare("SELECT project_id FROM project_creation_requests WHERE request_id=?").get(requestId);
-        if (previous) return json(res, 200, { ok: true, duplicate: true, project: db.prepare("SELECT id,name,description,intention,created_at,updated_at FROM projects WHERE id=?").get(previous.project_id), manifest: getProjectManifest(previous.project_id) });
+        if (previous) { if (!getDiscordProjectAccess(db, previous.project_id, req.discordIdentity.id)) return json(res, 403, { error: "Ce projet existe déjà mais votre compte n’en est pas membre." }); return json(res, 200, { ok: true, duplicate: true, project: db.prepare("SELECT id,name,description,intention,created_at,updated_at FROM projects WHERE id=?").get(previous.project_id), manifest: getProjectManifest(previous.project_id) }); }
       }
       const id = randomUUID();
       const created = now();
@@ -805,6 +1041,7 @@ const server = http.createServer(async (req, res) => {
         persistProjectEvent(event);
       });
       createProject();
+      bootstrapDiscordProjectOwner(db, id, req.discordIdentity.id);
       recordSnapshot(id, "project-created", 0);
       const project = db.prepare("SELECT id,name,description,intention,created_at,updated_at FROM projects WHERE id=?").get(id);
       return json(res, 201, { ok: true, project, manifest: getProjectManifest(id) });
@@ -901,6 +1138,7 @@ const server = http.createServer(async (req, res) => {
         return json(res, 502, { error: "Vérification Discord impossible : " + (error.message || String(error)) });
       }
       const body = await readBody(req);
+      requestContext.getStore().discordIdentity = discordUser;
       const channelId = typeof body.channelId === "string" ? body.channelId : "";
       const guildId = typeof body.guildId === "string" ? body.guildId : "";
       const instanceId = typeof body.instanceId === "string" ? body.instanceId : "";
@@ -932,14 +1170,73 @@ const server = http.createServer(async (req, res) => {
         defaultProjectId: guildId ? null : process.env.ICARE_DISCORD_DEFAULT_PROJECT_ID || null
       });
       const access = projectId ? getDiscordProjectAccess(db, projectId, discordUser.id) : null;
-      if (projectId && !access) {
-        return json(res, 403, { error: "Votre compte Discord n'est pas membre de ce projet ICARE. Demandez à un propriétaire de vous inviter." });
-      }
       return json(res, 200, {
         user: { id: discordUser.id, username: discordUser.username, global_name: discordUser.global_name || null },
         channelId: channelId || null, projectId, instanceId,
-        projectRole: access?.role || null
+        projectRole: access?.role || null,
+        isMember: Boolean(access && !access.roleConflict)
       });
+    }
+    const membershipRequestMatch = /^\/api\/projects\/([^/]+)\/membership-requests(?:\/([^/]+))?$/.exec(url.pathname);
+    if (membershipRequestMatch && ["GET", "POST"].includes(req.method)) {
+      let projectId, requestId;
+      try {
+        projectId = decodeURIComponent(membershipRequestMatch[1]);
+        requestId = membershipRequestMatch[2] ? decodeURIComponent(membershipRequestMatch[2]) : null;
+      } catch { return json(res, 400, { error: "Identifiant de projet ou de demande invalide." }); }
+      try { requireProject(projectId); }
+      catch (error) { return json(res, 404, { error: error.message }); }
+
+      const requestOrigin = req.headers.origin || "";
+      const allowedOrigins = new Set();
+      for (const configured of [DISCORD_ACTIVITY_ORIGIN, PUBLIC_BASE_URL]) {
+        try { if (configured) allowedOrigins.add(new URL(configured).origin); } catch {}
+      }
+      if ((req.method !== "GET" && !allowedOrigins.has(requestOrigin)) || !DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET) {
+        return json(res, 403, { error: "Origine ou authentification Discord non autorisée." });
+      }
+      const discordUser = await authenticateDiscordRequest(req);
+      if (!discordUser) return json(res, 401, { error: "Authentification Discord requise." });
+
+      if (req.method === "GET" && !requestId) {
+        try {
+          return json(res, 200, {
+            requests: listPendingDiscordMembershipRequests(db, {
+              projectId, actorDiscordUserId: discordUser.id
+            })
+          });
+        } catch (error) {
+          return json(res, 403, { error: error.message });
+        }
+      }
+      if (req.method === "POST" && !requestId) {
+        try {
+          requestContext.getStore().discordIdentity = discordUser;
+          const result = requestDiscordProjectMembership(db, {
+            projectId, discordUserId: discordUser.id,
+            displayName: discordUser.global_name || discordUser.username || discordUser.id
+          });
+          if (result.alreadyMember) return json(res, 409, { error: "Vous êtes déjà membre de ce projet." });
+          return json(res, result.duplicate ? 200 : 201, {
+            ok: true, duplicate: Boolean(result.duplicate), request: result.request
+          });
+        } catch (error) {
+          return json(res, 400, { error: error.message });
+        }
+      }
+      if (req.method === "POST" && requestId) {
+        const body = await readBody(req);
+        try {
+          const result = decideDiscordMembershipRequest(db, {
+            projectId, requestId, actorDiscordUserId: discordUser.id,
+            decision: body.decision
+          });
+          return json(res, 200, { ok: true, ...result });
+        } catch (error) {
+          const forbidden = /Seul un propriétaire actif/.test(error.message);
+          return json(res, forbidden ? 403 : 400, { error: error.message });
+        }
+      }
     }
     const peerCollectionMatch = /^\/api\/projects\/([^/]+)\/crdt\/peers$/.exec(url.pathname);
     if (peerCollectionMatch && ["GET", "POST"].includes(req.method)) {
@@ -976,7 +1273,8 @@ const server = http.createServer(async (req, res) => {
       try { requireProject(projectId); }
       catch (error) { return json(res, 404, { error: error.message }); }
       const requiredPermission = req.method === "GET" ? "read" : req.method === "POST" ? "write" : null;
-      if (requiredPermission && !authorizeSyncPeer(req, res, projectId, requiredPermission)) return;
+      const peerAuthorization = requiredPermission ? authorizeSyncPeer(req, res, projectId, requiredPermission) : null;
+      if (requiredPermission && !peerAuthorization) return;
       if (req.method === "GET") {
         const after = Number(url.searchParams.get("after") || 0);
         const limit = Number(url.searchParams.get("limit") || 200);
@@ -991,6 +1289,38 @@ const server = http.createServer(async (req, res) => {
         const validation = validateCrdtOperation(operation);
         if (!validation.valid) return json(res, 400, { error: "Opération CRDT invalide.", details: validation.errors });
         if (operation.projectId !== projectId) return json(res, 400, { error: "L'opération ne correspond pas au projet de l'URL." });
+        const participant = operation.actor?.participant;
+        if (peerAuthorization?.requireParticipant && !participant) {
+          const operationTime = Date.parse(operation.createdAt);
+          const peerEnrollmentTime = Date.parse(peerAuthorization.createdAt);
+          if (!Number.isFinite(operationTime) || !Number.isFinite(peerEnrollmentTime) || operationTime >= peerEnrollmentTime) {
+            return json(res, 403, { error: "Ce pair exige une attribution du participant authentifié pour toute nouvelle opération.", code: "REJECTED_AUTHORIZATION", operationId: operation.opId });
+          }
+        }
+        if (participant) {
+          if (participant.type !== "discord" || typeof participant.id !== "string" || !participant.id.trim()) {
+            return json(res, 400, { error: "Attribution du participant invalide." });
+          }
+          const participantAccess = getDiscordProjectAccess(db, projectId, participant.id);
+          const grantedMember = operation.kind === "project.member.grant" ? operation.payload?.member : null;
+          const existingMembers = listDiscordProjectMembers(db, projectId);
+          const hasOwner = existingMembers.some(member => member.role === "owner");
+          const initialOwnerBootstrap = existingMembers.length === 0 && !participantAccess && !hasOwner &&
+            grantedMember?.principalType === "discord" &&
+            grantedMember?.principalId === participant.id &&
+            grantedMember?.role === "owner";
+          if ((!participantAccess || participantAccess.roleConflict) && !initialOwnerBootstrap) {
+            return json(res, 403, {
+              error: "Opération refusée : le participant associé à cette contribution n'est plus membre du projet.",
+              code: "REJECTED_AUTHORIZATION",
+              operationId: operation.opId
+            });
+          }
+          if (["project.member.grant", "project.member.revoke"].includes(operation.kind) &&
+              !initialOwnerBootstrap && participantAccess?.role !== "owner") {
+            return json(res, 403, { error: "Seul un propriétaire peut répliquer une décision de membership.", code: "REJECTED_AUTHORIZATION" });
+          }
+        }
         try {
           const result = applyCrdtOperation(db, operation);
           const projection = materializeCrdtOperation(db, operation);
@@ -1202,7 +1532,7 @@ const server = http.createServer(async (req, res) => {
     if (!res.headersSent) json(res, 500, { error: error.message || String(error) });
     else res.end();
   }
-});
+}));
 
 try {
   const { modelId, modelName } = await initializePi();
@@ -1224,7 +1554,7 @@ try {
     console.log(`ICARE prêt : http://${HOST}:${PORT}`);
     console.log(`Pi SDK connecté à Lemonade : ${modelName} (${modelId})`);
     console.log("Aucun outil shell, fichier arbitraire ou navigateur n'est exposé à l'agent.");
-    startDiscordBot({ db, port: PORT }).catch(error => {
+    startDiscordBot({ db, port: PORT, internalApiToken: INTERNAL_DISCORD_API_TOKEN }).catch(error => {
       console.error("[ICARE Discord] Le bot n'a pas pu démarrer :", error.message || error);
     });
   });

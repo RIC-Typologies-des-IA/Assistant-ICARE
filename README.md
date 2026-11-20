@@ -66,6 +66,7 @@ Aucun identifiant de modèle n'est imposé dans le dépôt. Pi interroge le cata
 - Les statuts « suffisamment explorée » et « non applicable » exigent une justification.
 - Les données ICARE et la base SQLite sont conservées sur le disque virtuel de la VM.
 - Le runtime propose un bot Discord textuel (mentions, fils dédiés, sessions ICARE) et une Discord Activity qui réutilise la même interface web. Leur configuration et leurs limites de sécurité sont décrites dans [docs/discord-integration.md](docs/discord-integration.md).
+- Les projets peuvent aussi être partagés par un lien web HTTPS avec authentification Discord, demandes d’adhésion et gouvernance `owner/member`. La configuration OAuth, les règles d’accès, la révocation et la réplication sont décrites dans [docs/project-access-protocol.md](docs/project-access-protocol.md).
 - La restauration automatique d'une conversation Pi après redémarrage et le test d'inférence réel sur la machine cible restent à valider.
 - Cette version est expérimentale ; la CI vérifie les tests Node.js et la construction de la VM, pas l'intégration réelle avec le NPU de chaque machine.
 

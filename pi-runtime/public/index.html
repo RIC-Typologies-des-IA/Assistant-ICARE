@@ -22,13 +22,13 @@ button{border:0;border-radius:9px;padding:10px 14px;background:#2458a6;color:whi
 .docs{padding:14px}.radar-wrap{padding:10px 14px 14px}.radar-wrap svg{display:block;width:100%;max-width:330px;margin:auto}.timeline{padding:0 15px 14px}.timeline input{width:100%;padding:0}.timeline-label{font-size:11px;color:#657287;display:flex;justify-content:space-between;gap:10px}.replay-summary{font-size:11px;color:#657287;margin-top:6px}.docs input{width:100%;margin-bottom:7px}.docs textarea{width:100%;min-height:80px;margin-bottom:7px}.hint{font-size:12px;color:#718096;line-height:1.5;padding:0 15px 14px}
 #status{font-size:12px;color:#dbeafe}#error{color:#9b2828;font-size:13px;padding:0 16px}
 @media(max-width:850px){main{grid-template-columns:1fr}.chat{min-height:65vh}.messages{max-height:52vh}header{padding:15px}}
-</style>
+.access-gate[hidden]{display:none!important}.access-gate{position:fixed;inset:0;z-index:1000;background:#f3f5f8;display:flex;align-items:center;justify-content:center;padding:20px}.access-card{width:min(520px,100%);background:white;border:1px solid #dfe5ed;border-radius:16px;padding:24px;box-shadow:0 12px 40px #172b4d20}.access-card h2{margin:0 0 10px;font-size:20px}.access-card p{font-size:14px;line-height:1.55;color:#526176}.access-card button{margin:5px 6px 5px 0}.access-request{background:#f7f9fc;border-radius:10px;padding:12px;margin-top:14px}.access-request button{padding:7px 10px;font-size:12px}#ownerRequests{margin-top:16px;border-top:1px solid #edf0f4;padding-top:12px}#ownerRequests h3{font-size:14px;margin:0 0 8px}</style>
 </head>
 <body>
-<header><div class="brand-lockup"><img class="ric-logo" src="/assets/ric-logo.png" alt="Logo du Réseau Intelligence de la Complexité" loading="eager" decoding="async"><div class="brand-copy"><h1>ICARE</h1><p>Dialogue maïeutique · représentation évolutive d'un système</p><p class="brand-affiliation">Un outil du laboratoire IA du <a href="https://www.intelligence-complexite.org/" target="_blank" rel="noopener noreferrer">Réseau Intelligence de la Complexité</a></p></div></div><div class="modelbar"><div class="projectbar"><select id="projectSelect" aria-label="Projet"><option>Chargement des projets…</option></select><input id="newProjectName" placeholder="Nouveau projet" aria-label="Nom du nouveau projet"><button id="createProject" class="secondary" type="button">Créer</button></div><select id="modelSelect" aria-label="Modèle de traitement du texte"><option>Chargement du catalogue…</option></select><select id="voiceModelSelect" class="voice-select" aria-label="Modèle de transcription vocale" title="Modèle de reconnaissance vocale"><option>Chargement des modèles vocaux…</option></select><button class="secondary" id="refreshModels" type="button">Actualiser</button><div class="badge" id="status">Connexion à Pi / Lemonade…</div><div class="badge" id="discordParticipants" hidden></div></div></header>
-<main>
+<header><div class="brand-lockup"><img class="ric-logo" src="/assets/ric-logo.png" alt="Logo du Réseau Intelligence de la Complexité" loading="eager" decoding="async"><div class="brand-copy"><h1>ICARE</h1><p>Dialogue maïeutique · représentation évolutive d'un système</p><p class="brand-affiliation">Un outil du laboratoire IA du <a href="https://www.intelligence-complexite.org/" target="_blank" rel="noopener noreferrer">Réseau Intelligence de la Complexité</a></p></div></div><div class="modelbar"><div class="projectbar"><select id="projectSelect" aria-label="Projet"><option>Chargement des projets…</option></select><input id="newProjectName" placeholder="Nouveau projet" aria-label="Nom du nouveau projet"><button id="createProject" class="secondary" type="button">Créer</button><button id="shareProject" class="secondary" type="button" disabled title="Configure le lien public pour partager ce projet">Partager</button><button id="logoutWeb" class="secondary" type="button" hidden>Déconnexion</button></div><select id="modelSelect" aria-label="Modèle de traitement du texte"><option>Chargement du catalogue…</option></select><select id="voiceModelSelect" class="voice-select" aria-label="Modèle de transcription vocale" title="Modèle de reconnaissance vocale"><option>Chargement des modèles vocaux…</option></select><button class="secondary" id="refreshModels" type="button">Actualiser</button><div class="badge" id="status">Connexion à Pi / Lemonade…</div><div class="badge" id="discordParticipants" hidden></div></div></header>
+<div id="accessGate" class="access-gate" hidden><section class="access-card" role="dialog" aria-modal="true"><h2>Accès au projet ICARE</h2><p id="accessMessage">Vérification de votre accès…</p><div id="accessActions"></div></section></div><main>
 <section class="panel chat"><h2>Conversation</h2><div class="messages" id="messages"><div class="msg assistant">Bonjour. Quel système souhaites-tu explorer ? Nous allons construire sa représentation progressivement, sans dérouler un questionnaire rigide.</div></div><div id="error"></div><form class="composer" id="chatForm"><textarea id="message" placeholder="Décris une situation, une évolution, une difficulté…" required></textarea><button id="record" class="secondary mic-button" type="button" aria-label="Démarrer la dictée" title="Dicter un message">🎙</button><button id="send">Envoyer</button></form></section>
-<aside class="side">
+<aside class="side"><section class="panel" id="ownerRequests" hidden><h2>Demandes d’accès</h2><div id="ownerRequestList" style="padding:12px 15px"></div></section>
 <section class="panel"><h2>Progression de l’exploration</h2><div class="radar-wrap"><svg id="radar" viewBox="0 0 320 270" role="img" aria-label="Couverture des cinq dimensions ICARE"><g id="radarGrid"></g><polygon id="radarArea" points="" fill="#6d9fe0" fill-opacity=".25" stroke="#2458a6" stroke-width="2"></polygon><g id="radarLabels"></g></svg><p class="hint">Centre : non exploré · niveau intermédiaire : insuffisamment documenté · périphérie : suffisamment exploré. N/A reste hors périmètre.</p></div><div class="timeline"><div class="timeline-label"><span id="timelineStart">Début du projet</span><span id="timelinePosition">État actuel</span></div><input id="timelineSlider" type="range" min="0" max="0" value="0" disabled><div class="replay-summary" id="replaySummary">La progression apparaîtra au fil des échanges.</div><div class="replay-summary" id="replayPropositions"></div></div></section>
 <section class="panel"><h2>État d'exploration ICARE</h2><div id="dimensions"></div><p class="hint">Choisis un statut, ajoute une justification si nécessaire, puis clique sur « Enregistrer ». Les modifications ne sont jamais silencieuses.</p></section>
 <section class="panel"><h2>Registre des propositions</h2>
@@ -55,6 +55,11 @@ const $=s=>document.querySelector(s);
 let sessionKey="icare-pi-session:legacy";
 let currentProjectId=localStorage.getItem("icare-current-project")||"";
 let discordActivityProjectId="";
+let discordAccessToken="";
+let discordFetchPatched=false;
+let webTargetProjectId=new URLSearchParams(location.search).get("projectId")||"";
+let webSessionUser=null;
+let icareProjectRole=null;
 let chatInProgress=false;
 let activityRefreshTimer=null;
 sessionKey="icare-pi-session:"+currentProjectId;
@@ -62,6 +67,41 @@ let sessionId=localStorage.getItem(sessionKey)||crypto.randomUUID();localStorage
 let timelineSnapshots=[];
 let projectTurns=[];
 function projectUrl(path){return path+(path.includes("?")?"&":"?")+"projectId="+encodeURIComponent(currentProjectId)}
+function showAccessGate(message, actions=[]) {
+ const gate=$("#accessGate");gate.hidden=false;$("#accessMessage").textContent=message;
+ const container=$("#accessActions");container.innerHTML="";
+ for(const action of actions){const button=document.createElement("button");button.textContent=action.label;button.onclick=action.run;container.append(button)}
+}
+function hideAccessGate(){$("#accessGate").hidden=true}
+function installDiscordApiFetch(){
+ if(discordFetchPatched)return;discordFetchPatched=true;
+ const originalFetch=window.fetch.bind(window);
+ window.fetch=(input,init={})=>{const url=typeof input==="string"?input:input?.url||"";
+  if(url.startsWith("/api/")&&!url.includes("/api/discord/context")&&!url.includes("/api/discord/token")){
+   const headers=new Headers(init.headers||(input instanceof Request?input.headers:undefined));
+   if(discordAccessToken)headers.set("Authorization","Bearer "+discordAccessToken);init={...init,headers};
+  }return originalFetch(input,init)};
+}
+async function createProjectFromAccessGate(){
+ const name=prompt("Nom du nouveau projet ICARE :");if(!name||!name.trim())return;
+ try{const r=await fetch("/api/projects",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:name.trim()})});const x=await r.json();if(!r.ok)throw new Error(x.error||"Création impossible.");
+  webTargetProjectId="";currentProjectId=x.project.id;hideAccessGate();await loadProjects();await refresh();
+ }catch(error){$("#accessMessage").textContent=error.message}
+}
+async function submitMembershipRequest(){
+ const targetProjectId=discordActivityProjectId||webTargetProjectId||currentProjectId;
+ const r=await fetch("/api/projects/"+encodeURIComponent(targetProjectId)+"/membership-requests",{method:"POST"});
+ const x=await r.json();if(!r.ok)throw new Error(x.error||"Impossible d’envoyer la demande.");
+ $("#accessMessage").textContent="Demande envoyée. Le contenu du projet restera masqué jusqu’à l’accord d’un propriétaire.";$("#accessActions").innerHTML="";
+}
+async function loadOwnerMembershipRequests(){
+ const section=$("#ownerRequests"),list=$("#ownerRequestList");
+ try{const r=await fetch("/api/projects/"+encodeURIComponent(discordActivityProjectId)+"/membership-requests");const x=await r.json();if(!r.ok)throw new Error(x.error||"Chargement impossible.");
+ section.hidden=false;list.innerHTML="";if(!x.requests.length){list.textContent="Aucune demande en attente.";return}
+ for(const request of x.requests){const row=document.createElement("div");row.className="access-request";const label=document.createElement("p");label.textContent=(request.principal_label||"Compte Discord "+request.principal_id)+" · "+new Date(request.requested_at).toLocaleString();row.append(label);
+  for(const [decision,title] of [["accepted","Accepter"],["rejected","Refuser"]]){const b=document.createElement("button");b.textContent=title;b.className=decision==="rejected"?"danger":"";b.onclick=async()=>{b.disabled=true;try{const response=await fetch("/api/projects/"+encodeURIComponent(discordActivityProjectId)+"/membership-requests/"+encodeURIComponent(request.request_id),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({decision})});const data=await response.json();if(!response.ok)throw new Error(data.error||"Décision impossible.");await loadOwnerMembershipRequests()}catch(error){$("#accessMessage").textContent=error.message;b.disabled=false}};row.append(b)}list.append(row)}
+ }catch(error){section.hidden=false;list.textContent=error.message}
+}
 function addMessage(role,text){const el=document.createElement("div");el.className="msg "+role;el.textContent=text;$("#messages").append(el);$("#messages").scrollTop=$("#messages").scrollHeight;return el}
 function updateModelStatus(modelId, models){
  const model=models.find(m=>m.id===modelId);
@@ -109,10 +149,19 @@ async function loadProjects(){
  if(discordActivityProjectId){
   if(!data.projects.some(p=>p.id===discordActivityProjectId))throw new Error("Le projet Discord lié n'est pas encore présent sur cette installation ICARE. Vérifie sa synchronisation.");
   currentProjectId=discordActivityProjectId;
- }else if(!data.projects.some(p=>p.id===currentProjectId))currentProjectId=data.projects[0].id;
+ }else if(webTargetProjectId){if(!data.projects.some(p=>p.id===webTargetProjectId))throw new Error("Ce projet n’est pas accessible avec ce compte Discord.");currentProjectId=webTargetProjectId}
+ else if(!data.projects.some(p=>p.id===currentProjectId))currentProjectId=data.projects[0].id;
+ const activeProject=data.projects.find(p=>p.id===currentProjectId);icareProjectRole=activeProject?.role||null;
  select.value=currentProjectId;localStorage.setItem("icare-current-project",currentProjectId);
  sessionKey="icare-pi-session:"+currentProjectId;sessionId=localStorage.getItem(sessionKey)||crypto.randomUUID();localStorage.setItem(sessionKey,sessionId);
 }
+ $("#logoutWeb").addEventListener("click",async()=>{await fetch("/api/auth/logout",{method:"POST"});location.href="/"});$("#shareProject").addEventListener("click",async()=>{
+ try{const r=await fetch("/api/projects/"+encodeURIComponent(currentProjectId)+"/share-link");const x=await r.json();if(!r.ok)throw new Error(x.error||"Lien indisponible.");
+  if(navigator.share){try{await navigator.share({title:"Projet ICARE",url:x.url})}catch(error){if(error.name==="AbortError")return;throw error}}else{await navigator.clipboard.writeText(x.url);$("#error").textContent="Lien de partage copié. Le destinataire devra s’authentifier et obtenir un accès."}
+ }catch(error){$("#error").textContent=error.message||String(error)}
+});
+
+
 function renderConversation(turns){
  $("#messages").innerHTML="";
  if(!turns.length){addMessage("assistant","Bonjour. Quel système souhaites-tu explorer ? Nous allons construire sa représentation progressivement, sans dérouler un questionnaire rigide.");return}
@@ -146,7 +195,7 @@ async function loadTimeline(){
  if(timelineSnapshots.length)renderTimeline(timelineSnapshots.length-1);
 }
 $("#timelineSlider").addEventListener("input",e=>renderTimeline(Number(e.target.value)));
-$("#projectSelect").addEventListener("change",async()=>{currentProjectId=$("#projectSelect").value;localStorage.setItem("icare-current-project",currentProjectId);sessionKey="icare-pi-session:"+currentProjectId;sessionId=localStorage.getItem(sessionKey)||crypto.randomUUID();localStorage.setItem(sessionKey,sessionId);await refresh()});
+$("#projectSelect").addEventListener("change",async()=>{currentProjectId=$("#projectSelect").value;webTargetProjectId="";localStorage.setItem("icare-current-project",currentProjectId);sessionKey="icare-pi-session:"+currentProjectId;sessionId=localStorage.getItem(sessionKey)||crypto.randomUUID();localStorage.setItem(sessionKey,sessionId);const response=await fetch("/api/projects");const data=await response.json();icareProjectRole=data.projects?.find(p=>p.id===currentProjectId)?.role||null;await refresh();if(icareProjectRole==="owner")await loadOwnerMembershipRequests()});
 $("#createProject").addEventListener("click",async()=>{const name=$("#newProjectName").value.trim();if(!name)return;const r=await fetch("/api/projects",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name})});const x=await r.json();if(!r.ok){$("#error").textContent=x.error;return}$("#newProjectName").value="";currentProjectId=x.project.id;await loadProjects();$("#projectSelect").value=currentProjectId;sessionKey="icare-pi-session:"+currentProjectId;sessionId=crypto.randomUUID();localStorage.setItem(sessionKey,sessionId);await refresh()});
 function audioBufferToWav(audioBuffer){
  const targetRate=16000, sourceRate=audioBuffer.sampleRate, length=Math.ceil(audioBuffer.duration*targetRate);
@@ -331,20 +380,16 @@ window.addEventListener("icare:discord-participants",event=>{
 });
 window.addEventListener("icare:discord-ready",async event=>{
  const context=event.detail?.context||{};
- if(!context.projectId){
-  $("#error").textContent="Activity Discord connectée, mais aucun projet ICARE n'est lié à ce salon. Utilise /icare bind dans le salon Discord.";
-  return;
- }
- discordActivityProjectId=context.projectId;
- currentProjectId=context.projectId;
+ discordAccessToken=event.detail?.accessToken||"";installDiscordApiFetch();
+ if(!context.projectId){showAccessGate("Cette Activity Discord n’est reliée à aucun projet ICARE. Un propriétaire doit relier le salon avec /icare bind.");return}
+ discordActivityProjectId=context.projectId;currentProjectId=context.projectId;
  if(event.detail.instanceId)sessionId=("discord-activity-"+event.detail.instanceId).slice(0,100);
  renderDiscordParticipants(event.detail.participants||[]);
- try{
-  await loadProjects();
-  await refresh();
-  $("#status").textContent+=" · Discord Activity";
-  $("#error").textContent="Connecté à Discord comme "+(event.detail.user?.username||"participant")+". Les changements partagés sont actualisés périodiquement.";
-  if(!activityRefreshTimer)activityRefreshTimer=setInterval(()=>{if(!chatInProgress)refresh().catch(error=>{$("#error").textContent=error.message||String(error)})},5000);
+ if(!context.isMember){showAccessGate("Ce projet est privé. Votre compte Discord n’en est pas membre. Vous pouvez demander à le rejoindre ; son contenu restera masqué jusqu’à l’accord d’un propriétaire.",[{label:"Demander à rejoindre",run:async()=>{try{await submitMembershipRequest()}catch(error){$("#accessMessage").textContent=error.message}}}]);return}
+ hideAccessGate();
+ try{await loadProjects();await refresh();$("#status").textContent+=" · Discord Activity";
+  $("#error").textContent="Connecté à Discord comme "+(event.detail.user?.username||"participant")+". Les changements partagés sont actualisés périodiquement.";if(context.projectRole==="owner")await loadOwnerMembershipRequests();
+  if(!activityRefreshTimer)activityRefreshTimer=setInterval(()=>{if(!chatInProgress){refresh().catch(error=>{$("#error").textContent=error.message||String(error)});if(context.projectRole==="owner")loadOwnerMembershipRequests()}},10000);
  }catch(error){$("#error").textContent=error.message||String(error)}
 });
 window.addEventListener("pagehide",()=>{if(activityRefreshTimer)clearInterval(activityRefreshTimer);window.__icareDiscordParticipantsUnsubscribe?.()});
@@ -352,10 +397,21 @@ window.addEventListener("icare:discord-error",event=>{
  $("#error").textContent="Connexion à l'Activity Discord impossible : "+(event.detail?.message||"erreur inconnue");
 });
 $("#docForm").addEventListener("submit",async e=>{e.preventDefault();const r=await fetch("/api/references",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({projectId:currentProjectId,title:$("#docTitle").value,content:$("#docContent").value})});const x=await r.json();if(!r.ok){alert(x.error);return}$("#docTitle").value="";$("#docContent").value="";alert("Document ajouté à la mémoire ICARE.")});
-(async()=>{try{const s=await fetch("/api/status").then(r=>r.json());await loadProjects();await loadModels();await refresh();
- if(!s.toolCalling)$("#error").textContent="Le modèle actif ne déclare pas le tool-calling : les propositions automatiques peuvent échouer. Le formulaire manuel reste disponible.";
- else if(s.toolInitialization==="failed")$("#error").textContent="Échec de l'initialisation des outils ICARE : "+(s.toolInitializationError||"cause inconnue")+". Le formulaire manuel reste disponible.";
- }catch(e){$("#status").textContent="Serveur indisponible"}})();
+(async()=>{try{const s=await fetch("/api/status").then(r=>r.json());await loadModels();
+ const inDiscordActivity=new URLSearchParams(location.search).has("frame_id");
+ const authConfig=await fetch("/api/auth/config").then(r=>r.json());$("#shareProject").disabled=!(authConfig.enabled&&authConfig.publicBaseUrl);$("#shareProject").title=authConfig.enabled&&authConfig.publicBaseUrl?"Copier un lien HTTPS vers ce projet":"Configure l’URL publique et OAuth Discord pour activer le partage web";
+ if(!inDiscordActivity){
+  const auth=await fetch("/api/auth/session").then(r=>r.json());webSessionUser=auth.user;$("#logoutWeb").hidden=!auth.authenticated;
+  if(!auth.authenticated){if(authConfig.enabled)showAccessGate("Connectez-vous avec Discord pour ouvrir un projet partagé.",[{label:"Se connecter avec Discord",run:()=>{location.href="/auth/discord/start"+(webTargetProjectId?"?projectId="+encodeURIComponent(webTargetProjectId):"")}}]);else showAccessGate("La connexion web Discord n’est pas encore configurée sur cette installation ICARE. L’accès reste possible depuis une Activity Discord configurée.");}
+  else if(webTargetProjectId){
+   const accessible=await fetch("/api/projects").then(r=>r.json());const target=accessible.projects?.find(p=>p.id===webTargetProjectId);
+   if(!target){currentProjectId=webTargetProjectId;showAccessGate("Ce projet est privé. Votre compte Discord n’en est pas membre. Vous pouvez demander à le rejoindre ; aucun contenu ne sera chargé avant l’accord d’un propriétaire.",[{label:"Demander à rejoindre",run:async()=>{try{await submitMembershipRequest()}catch(error){$("#accessMessage").textContent=error.message}}}]);}
+   else{currentProjectId=webTargetProjectId;await loadProjects();await refresh();if(icareProjectRole==="owner")await loadOwnerMembershipRequests()}
+  }else{const accessible=await fetch("/api/projects").then(r=>r.json());if(!accessible.projects?.length){showAccessGate("Votre compte Discord est authentifié mais ne possède encore aucun projet ICARE.",[{label:"Créer un projet",run:createProjectFromAccessGate}])}else{await loadProjects();await refresh();if(icareProjectRole==="owner")await loadOwnerMembershipRequests()}}
+ }
+ if(!s.toolCalling)$("#error").textContent="Le modèle actif ne déclare pas le tool-calling : les propositions automatiques peuvent échouer. Le formulaire manuel reste disponible."; 
+ else if(s.toolInitialization==="failed")$("#error").textContent="Échec de l'initialisation des outils ICARE : "+(s.toolInitializationError||"cause inconnue")+". Le formulaire manuel reste disponible."; 
+ }catch(e){$("#status").textContent="Serveur indisponible";if(!new URLSearchParams(location.search).has("frame_id"))showAccessGate(e.message||"Impossible d’ouvrir le projet.")}})();
 </script>
 <script type="module" src="/discord-activity.js"></script>
 </body></html>

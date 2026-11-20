@@ -97,10 +97,10 @@ async function readChatStream(response) {
   return answer || (streamError ? "La réponse a rencontré une erreur : " + streamError : "");
 }
 
-async function callIcareChat({ port, projectId, sessionId, message }) {
+async function callIcareChat({ port, projectId, sessionId, message, discordUserId, internalApiToken }) {
   const response = await fetch("http://127.0.0.1:" + port + "/api/chat", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "x-icare-internal-token": internalApiToken, "x-icare-discord-user": discordUserId },
     body: JSON.stringify({ projectId, sessionId, message }),
     signal: AbortSignal.timeout(180000)
   });
@@ -116,7 +116,7 @@ async function registerCommands(clientId, token, guildId) {
 }
 
 export async function startDiscordBot({
-  db, port, defaultProjectId = process.env.ICARE_DISCORD_DEFAULT_PROJECT_ID || ""
+  db, port, internalApiToken, defaultProjectId = process.env.ICARE_DISCORD_DEFAULT_PROJECT_ID || ""
 }) {
   const token = process.env.DISCORD_BOT_TOKEN || "";
   const clientId = process.env.DISCORD_CLIENT_ID || "";
@@ -314,7 +314,7 @@ export async function startDiscordBot({
     const sessionId = ("discord-" + target.id).slice(0, 100);
     try {
       await target.sendTyping();
-      const answer = await callIcareChat({ port, projectId, sessionId, message: content });
+      const answer = await callIcareChat({ port, projectId, sessionId, message: content, discordUserId: message.author.id, internalApiToken });
       await sendLongMessage(target, answer);
     } catch (error) {
       await target.send({ content: "Je n'ai pas pu traiter ce message dans ICARE : " +
