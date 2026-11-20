@@ -1,0 +1,45 @@
+import assert from "node:assert/strict";
+import { createServer } from "node:http";
+import { readFile } from "node:fs/promises";
+import { resolve, extname, sep } from "node:path";
+import { fileURLToPath } from "node:url";
+import { chromium } from "playwright";
+
+const root=resolve(fileURLToPath(new URL("..",import.meta.url)));
+const mime={".html":"text/html; charset=utf-8",".js":"text/javascript; charset=utf-8",".css":"text/css; charset=utf-8",".json":"application/json; charset=utf-8",".webmanifest":"application/manifest+json",".svg":"image/svg+xml",".md":"text/markdown; charset=utf-8"};
+const server=createServer(async(req,res)=>{try{let pathname=decodeURIComponent(new URL(req.url,"http://localhost").pathname);if(pathname==="/")pathname="/index.html";const file=resolve(root,"."+pathname);if(file!==root&&!file.startsWith(root+sep)){res.writeHead(403).end();return;}const body=await readFile(file);res.writeHead(200,{"Content-Type":mime[extname(file)]||"application/octet-stream"}).end(body);}catch{res.writeHead(404).end("Not found");}});
+await new Promise(resolveListen=>server.listen(0,"127.0.0.1",resolveListen));
+const address=server.address(),url="http://127.0.0.1:"+address.port+"/";
+let browser;
+try{
+  browser=await chromium.launch({headless:true});
+  const context=await browser.newContext();
+  const page=await context.newPage();
+  await page.route("https://mock-provider.example/**",route=>route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({choices:[{message:{content:"Réponse locale de test."}}]})}));
+  await page.goto(url);
+  await page.locator("#project-title").waitFor();
+  assert.equal(await page.locator(".dimension").count(),5,"les cinq dimensions doivent être alimentées par l'ontologie");
+  assert.equal(await page.locator("#project-title").textContent(),"Mon premier projet");
+  await page.locator("#settings-button").click();
+  await page.locator("#api-base").fill("https://mock-provider.example/v1");
+  await page.locator("#api-model").fill("test-model");
+  await page.locator("#api-key").fill("test-secret");
+  await page.locator("#test-provider").click();
+  await page.waitForFunction(()=>document.querySelector("#provider-status").textContent.includes("Réponse locale de test"));
+  await page.locator('#settings-form button[value="save"]').click();
+  await page.locator("#message-input").fill("Bonjour ICARE");
+  await page.locator("#composer").evaluate(form=>form.requestSubmit());
+  await page.getByText("Réponse locale de test.",{exact:true}).waitFor();
+  await page.reload();
+  await page.getByText("Bonjour ICARE",{exact:true}).waitFor();
+  await page.getByText("Réponse locale de test.",{exact:true}).waitFor();
+  await page.locator("#new-project").click();
+  await page.locator("#project-name").fill("Projet navigateur");
+  await page.locator("#project-intention").fill("Vérifier la persistance locale");
+  await page.locator('#project-form button[value="save"]').click();
+  await page.waitForFunction(()=>document.querySelector("#project-title").textContent==="Projet navigateur");
+  console.log("Browser smoke test passed: ontology, provider, conversation persistence and project creation.");
+}finally{
+  if(browser)await browser.close();
+  await new Promise(resolveClose=>server.close(resolveClose));
+}
