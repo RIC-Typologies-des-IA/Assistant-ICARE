@@ -20,6 +20,8 @@ try{
   await page.waitForFunction(()=>document.querySelectorAll(".dimension").length===5);
   await page.waitForFunction(()=>document.querySelector("#project-select").options.length===1);
   assert.equal(await page.locator(".dimension").count(),5,"les cinq dimensions doivent être alimentées par l'ontologie");
+  assert.equal(await page.locator("#radar").count(),1,"le radar ICARE doit être présent");
+  assert.equal(await page.locator("#dimension-statuses .dimension-status-row").count(),5,"les cinq statuts doivent être éditables");
   assert.equal(await page.locator("#project-title").textContent(),"Mon premier projet");
   await page.locator("#settings-button").click();
   await page.locator("#api-base").fill("https://mock-provider.example/v1");
@@ -37,6 +39,11 @@ try{
   await page.reload();
   await page.waitForFunction(()=>[...document.querySelectorAll(".message.user p")].some(p=>p.textContent==="Bonjour ICARE"));
   await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Réponse locale de test."));
+  await page.locator("#proposal-text").fill("Le système doit conserver son identité visuelle.");
+  await page.locator("#proposal-form").evaluate(form=>form.requestSubmit());
+  await page.waitForFunction(()=>document.querySelectorAll("#proposal-list .proposal-item").length===1);
+  await page.locator("#proposal-list .accept").click();
+  await page.waitForFunction(()=>document.querySelector("#proposal-list").textContent.includes("Validée"));
   await page.locator("#new-project").click();
   await page.locator("#project-name").fill("Projet navigateur");
   await page.locator("#project-intention").fill("Vérifier la persistance locale");
