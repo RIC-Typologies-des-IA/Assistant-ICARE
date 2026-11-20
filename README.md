@@ -35,7 +35,11 @@ Trois niveaux sont conservés :
 
 Consulter le [README de l'approche par prompt](prompt/README.md) pour choisir et installer la bonne version.
 
-### 2. Approche agentique — application Pi, Lemonade, QEMU et nono
+### 2. Prototype agentique actuel — runtime transitoire
+
+> **Orientation produit (20 novembre 2026) :** le développement prioritaire porte désormais sur une application web universelle dont le noyau métier s'exécute en WebAssembly dans le navigateur. Le projet reste local par défaut ; le partage est facultatif et passe par le service ICARE associé au bot Discord. Les portages natifs macOS/Linux ARM64, les installateurs OS, les applications Android/iOS autonomes et la fédération multi-nœuds sont différés. Voir [ADR 0001](docs/adr/0001-browser-wasm-discord-sharing-hub.md), [contrat d'inférence](docs/inference-provider-contract.md), [issue #23](https://github.com/RIC-Typologies-des-IA/Assistant-ICARE/issues/23), [issue #27](https://github.com/RIC-Typologies-des-IA/Assistant-ICARE/issues/27) et [issue #44](https://github.com/RIC-Typologies-des-IA/Assistant-ICARE/issues/44).
+
+Le runtime Pi/Node.js décrit ci-dessous est le prototype agentique existant et une base de transition pour réutiliser le domaine métier et le bot ; il ne constitue plus la cible de déploiement final.
 
 Cette approche ajoute un runtime applicatif à la méthode : [**Pi**](https://github.com/earendil-works/pi), via son [SDK Node.js](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/sdk.md), dialogue avec les modèles servis par [**Lemonade Server**](https://github.com/lemonade-sdk/lemonade), tandis qu'un backend conserve l'état d'exploration, les propositions et les documents dans [SQLite](https://www.sqlite.org/docs.html).
 
