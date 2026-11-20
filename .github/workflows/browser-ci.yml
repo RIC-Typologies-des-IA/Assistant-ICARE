@@ -14,6 +14,7 @@ jobs:
         with:
           node-version: "24"
       - name: Install browser test runtime
+        working-directory: browser
         run: |
           npm install --no-save playwright
           npx playwright install --with-deps chromium
