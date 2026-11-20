@@ -15,7 +15,7 @@ try{
   browser=await chromium.launch({headless:true});
   const context=await browser.newContext();
   const page=await context.newPage();
-  await page.route("https://mock-provider.example/**",route=>{assert.equal(route.request().headers()["authorization"],"Bearer test-secret","la clé doit être disponible en mémoire de session");return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({choices:[{message:{content:"Réponse locale de test."}}]})});});
+  await page.route("https://mock-provider.example/**",route=>{assert.equal(route.request().headers()["authorization"],"Bearer test-secret","la clé doit être disponible en mémoire de session");const body=route.request().url().endsWith("/models")?{data:[{id:"test-model"}]}:{choices:[{message:{content:"Réponse locale de test."}}]};return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(body)});});
   await page.goto(url);
   await page.waitForFunction(()=>document.querySelectorAll(".dimension").length===5);
   await page.waitForFunction(()=>document.querySelector("#project-select").options.length===1);
@@ -25,6 +25,8 @@ try{
   await page.locator("#api-base").fill("https://mock-provider.example/v1");
   await page.locator("#api-model").fill("test-model");
   await page.locator("#api-key").fill("test-secret");
+  await page.locator("#load-models").click();
+  await page.waitForFunction(()=>document.querySelectorAll("#available-models option").length===1);
   await page.locator("#test-provider").click();
   await page.waitForFunction(()=>document.querySelector("#provider-status").textContent.includes("Réponse locale de test"));
   await page.locator('#settings-form button[value="save"]').click();
