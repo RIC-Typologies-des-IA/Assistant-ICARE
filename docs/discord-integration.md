@@ -77,6 +77,19 @@ Un projet qui n'a pas été explicitement partagé ne produit aucun événement 
 
 ## Décision produit du 20 novembre 2026
 
-Le client principal devient l'application web exécutant le noyau ICARE en WebAssembly. Les clients Android/iOS natifs et les installateurs spécifiques aux OS sont différés. La fédération est également progressive : relais par le bot d'abord, signalisation Discord puis transport pair-à-pair avec relais de secours ensuite. Le bot Discord reste une interface textuelle de première classe et le service ICARE qui lui est associé est le hub de synchronisation uniquement pour les projets dont le partage a été activé explicitement. Un projet privé reste local au navigateur.
+Le client principal devient l'application web exécutant le noyau ICARE en WebAssembly. Les clients Android/iOS natifs et les installateurs spécifiques aux OS sont différés. La cible d'infrastructure n'exige aucun serveur ICARE chez l'utilisateur : les données restent dans le stockage local de chaque navigateur et la synchronisation part directement entre pairs lorsque possible. Discord sert de plan de signalisation. Attention : Discord n'héberge pas le code d'un bot. Un bot Gateway nécessite un processus connecté en permanence ; le mode HTTP Interactions nécessite un endpoint HTTPS public. La cible sans serveur personnel peut donc utiliser une fonction serverless managée, sans base de données ICARE, pour le seul traitement des interactions et rendez-vous. Le transport P2P peut utiliser WebRTC ; STUN/TURN ou un relais applicatif sont à évaluer pour les réseaux restrictifs. Un projet privé reste local au navigateur.
 
 L'inférence est indépendante de Discord et du stockage : chaque participant configure son propre fournisseur et son credential. Les clés d'API ne transitent jamais par le bot et ne sont jamais enregistrées dans les données partagées. Voir [ADR 0001 — Client WebAssembly et partage via Discord](adr/0001-browser-wasm-discord-sharing-hub.md).
+
+
+## Contrainte d'exploitation : Discord + navigateurs, sans serveur personnel
+
+Discord héberge les comptes, guildes, API et Gateway, mais pas le code d'exécution du bot ICARE. Deux modèles officiels existent : un bot connecté au Gateway par WebSocket (processus à exécuter) ou une application recevant les interactions sur un endpoint HTTP public (fonction serverless possible). Le token du bot ne doit jamais être embarqué dans le navigateur ; l'automatisation d'un compte utilisateur (« self-bot ») est interdite.
+
+La cible recommandée est donc :
+- client ICARE statique/PWA servi en HTTPS, noyau WASM et stockage local IndexedDB/OPFS ;
+- une fonction serverless minimale pour le bot Discord, sans stockage métier, uniquement pour invitations et signalisation ;
+- WebRTC DataChannel entre navigateurs pour les opérations CRDT ;
+- STUN pour aider à établir le chemin direct et TURN managé ou relais applicatif facultatif pour les réseaux qui bloquent le P2P.
+
+En mode strictement limité à Discord et aux navigateurs, sans même fonction serverless ni TURN, le bot ne peut pas être automatisé de façon sûre et certaines connexions P2P échoueront. Il faut alors accepter une signalisation manuelle et une synchronisation best-effort. En P2P pur, la synchronisation se fait lorsque les navigateurs sont simultanément actifs ; il n'existe ni sauvegarde distante ni disponibilité permanente si aucun pair n'est en ligne.
