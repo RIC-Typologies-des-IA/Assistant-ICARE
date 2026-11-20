@@ -1,5 +1,4 @@
 name: Pi runtime tests
-
 on:
   push:
     branches: [main, "implementation/**"]
@@ -7,6 +6,7 @@ on:
       - "pi-runtime/**"
       - "flake.nix"
       - "nixos/**"
+      - "tools/**"
       - ".github/workflows/pi-runtime-tests.yml"
   pull_request:
     paths:
@@ -17,7 +17,6 @@ on:
       - "flake.nix"
       - "README.md"
       - ".github/workflows/pi-runtime-tests.yml"
-
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -36,11 +35,16 @@ jobs:
       - name: Run runtime tests
         working-directory: pi-runtime
         run: npm test
-
   nix-build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@main
-      - name: Evaluate and build the QEMU VM image
+      - name: Evaluate Linux and macOS launchers
+        run: |
+          nix eval --raw .#packages.x86_64-linux.default.name
+          nix eval --raw .#packages.aarch64-linux.default.name
+          nix eval --raw .#packages.x86_64-darwin.default.name
+          nix eval --raw .#packages.aarch64-darwin.default.name
+      - name: Evaluate and build the x86_64 QEMU VM image
         run: nix build --no-link .#nixosConfigurations.icare-vm.config.system.build.vm
