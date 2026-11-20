@@ -10,12 +10,12 @@ const mime={".html":"text/html; charset=utf-8",".js":"text/javascript; charset=u
 const server=createServer(async(req,res)=>{try{let pathname=decodeURIComponent(new URL(req.url,"http://localhost").pathname);if(pathname==="/")pathname="/index.html";const file=resolve(root,"."+pathname);if(file!==root&&!file.startsWith(root+sep)){res.writeHead(403).end();return;}const body=await readFile(file);res.writeHead(200,{"Content-Type":mime[extname(file)]||"application/octet-stream"}).end(body);}catch{res.writeHead(404).end("Not found");}});
 await new Promise(resolveListen=>server.listen(0,"127.0.0.1",resolveListen));
 const address=server.address(),url="http://127.0.0.1:"+address.port+"/";
-let browser;
+let browser,lastChatPayload=null;
 try{
   browser=await chromium.launch({headless:true});
   const context=await browser.newContext();
   const page=await context.newPage();
-  await page.route("https://mock-provider.example/**",route=>{assert.equal(route.request().headers()["authorization"],"Bearer test-secret","la clé doit être disponible en mémoire de session");const body=route.request().url().endsWith("/models")?{data:[{id:"test-model"}]}:{choices:[{message:{content:"Réponse locale de test."}}]};return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(body)});});
+  await page.route("https://mock-provider.example/**",route=>{assert.equal(route.request().headers()["authorization"],"Bearer test-secret","la clé doit être disponible en mémoire de session");const requestBody=route.request().postDataJSON();if(Array.isArray(requestBody?.messages))lastChatPayload=requestBody;const body=route.request().url().endsWith("/models")?{data:[{id:"test-model"}]}:{choices:[{message:{content:"Réponse locale de test."}}]};return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(body)});});
   await page.goto(url);
   await page.waitForFunction(()=>document.querySelector("#project-select").options.length===1);
   await page.waitForFunction(()=>document.querySelectorAll("#radar-labels text").length===5);
@@ -38,6 +38,9 @@ try{
   await page.locator("#message-input").fill("Bonjour ICARE");
   await page.locator("#composer").evaluate(form=>form.requestSubmit());
   await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Réponse locale de test."));
+  const systemMessage=lastChatPayload?.messages?.find(message=>message.role==="system")?.content||"";
+  assert.ok(systemMessage.includes("Comprendre la démarche ICARE"),"le guide méthodologique doit être transmis au modèle local");
+  assert.ok(systemMessage.includes('"state_time"'),"l’ontologie structurée doit être transmise au modèle local");
   await page.waitForFunction(()=>Number(document.querySelector("#timeline-slider").max)>=1);
   await page.locator("#timeline-slider").evaluate(slider=>{slider.value="0";slider.dispatchEvent(new Event("input",{bubbles:true}));});
   assert.equal(await page.locator(".message.user").count(),0,"le premier instantané doit rejouer le dialogue avant le premier échange");
