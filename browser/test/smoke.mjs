@@ -56,7 +56,7 @@ try{
   assert.equal(await summaryTable.locator("tbody tr").count(),2,"les deux champs du tableau doivent être conservés");
   assert.equal(await summaryTable.locator("tbody tr").nth(0).locator("td code").textContent(),"proj-foret-I-001","le code inline doit être interprété dans une cellule");
   assert.equal(await summaryTable.locator("tbody tr").nth(1).locator("td em").textContent(),"Instruire les politiques publiques de la forêt.","l’italique doit être interprété dans une cellule");
-  assert.equal(await page.locator(".message.assistant blockquote").last().textContent()).trim(),"undefined","les citations Markdown doivent être rendues");
+  assert.equal((await page.locator(".message.assistant blockquote").last().textContent()).trim(),"undefined","les citations Markdown doivent être rendues");
   assert.equal(await page.locator(".message.assistant img").count(),0,"le HTML brut fourni par le modèle ne doit pas devenir un élément actif");
   assert.equal(await page.locator('.message.assistant a[href^="javascript:"]').count(),0,"les URL javascript doivent être neutralisées");
   const systemMessage=lastChatPayload?.messages?.find(message=>message.role==="system")?.content||"";
