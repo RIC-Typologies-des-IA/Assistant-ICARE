@@ -31,6 +31,7 @@ jobs:
           node --test browser/test/*.test.js
           python -m json.tool browser/icare.json >/dev/null
           python -m json.tool browser/manifest.webmanifest >/dev/null
+          node -e 'const fs=require("fs"); const p=JSON.parse(fs.readFileSync("browser/package.json")); const s=fs.readFileSync("browser/version.js","utf8"); const v=s.match(/"([^"]+)"/)?.[1]; const parts=v?.split("."); if (p.version!==v || parts?.length!==3 || parts.some(x=>!/^[0-9]+$/.test(x))) throw new Error("Invalid or inconsistent MAJOR.MINOR.PATCH: "+p.version+" / "+v);'
       - uses: actions/upload-pages-artifact@v3
         with:
           path: browser
