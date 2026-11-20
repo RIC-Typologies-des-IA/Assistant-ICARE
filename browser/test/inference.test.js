@@ -2,9 +2,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { chatCompletionsEndpoint, chatCompletion } from "../inference.js";
 test("normalise les endpoints OpenAI compatibles",()=>{assert.equal(chatCompletionsEndpoint("https://api.example/v1"),"https://api.example/v1/chat/completions");assert.equal(chatCompletionsEndpoint("https://api.example"),"https://api.example/v1/chat/completions");assert.equal(chatCompletionsEndpoint("https://api.example/v1/chat/completions"),"https://api.example/v1/chat/completions");});
-test("refuse une URL vide",()=>assert.throws(()=>chatCompletionsEndpoint("  "),/adresse de l'API/));
+test("refuse une URL vide",()=>assert.throws(()=>chatCompletionsEndpoint("  "),/adresse de l.?API/i));
 test("envoie le modèle, les messages et le bearer token",async()=>{let captured;const answer=await chatCompletion({baseUrl:"https://api.example/v1",model:"model-x",apiKey:"secret",messages:[{role:"user",content:"bonjour"}],fetchImpl:async(url,options)=>{captured={url,options};return{ok:true,json:async()=>({choices:[{message:{content:"Bonjour."}}]})};}});assert.equal(answer,"Bonjour.");assert.equal(captured.url,"https://api.example/v1/chat/completions");assert.equal(captured.options.headers.Authorization,"Bearer secret");assert.equal(JSON.parse(captured.options.body).model,"model-x");});
 test("expose les erreurs HTTP du fournisseur",async()=>{await assert.rejects(()=>chatCompletion({baseUrl:"https://api.example/v1",model:"x",messages:[],fetchImpl:async()=>({ok:false,status:401,json:async()=>({error:{message:"invalid key"}})})}),/401 : invalid key/);});
 
 import { listModels } from "../inference.js";
 test("charge les identifiants de modèles du catalogue compatible",async()=>{const models=await listModels({baseUrl:"http://localhost:11434/v1",fetchImpl:async(url)=>{assert.equal(url,"http://localhost:11434/v1/models");return{ok:true,json:async()=>({data:[{id:"model-b"},{id:"model-a"}]})};}});assert.deepEqual(models,["model-a","model-b"]);});
+
+test("normalise un endpoint collé avec /models",async()=>{const models=await listModels({baseUrl:"https://api.example/v1/models",fetchImpl:async url=>{assert.equal(url,"https://api.example/v1/models");return{ok:true,json:async()=>({data:[{id:"x"}]})};}});assert.deepEqual(models,["x"]);});
+test("explique les erreurs réseau et CORS",async()=>{await assert.rejects(()=>chatCompletion({baseUrl:"http://localhost:11434/v1",model:"x",messages:[],fetchImpl:async()=>{throw new TypeError("Failed to fetch");}}),/CORS/);});
+test("refuse les protocoles non HTTP",()=>assert.throws(()=>chatCompletionsEndpoint("file:///tmp/api"),/HTTP ou HTTPS/));
