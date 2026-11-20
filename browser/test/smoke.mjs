@@ -15,7 +15,14 @@ try{
   browser=await chromium.launch({headless:true});
   const context=await browser.newContext();
   const page=await context.newPage();
-  await page.route("https://mock-provider.example/**",route=>{assert.equal(route.request().headers()["authorization"],"Bearer test-secret","la clé doit être disponible en mémoire de session");const requestBody=route.request().postDataJSON();if(Array.isArray(requestBody?.messages))lastChatPayload=requestBody;const body=route.request().url().endsWith("/models")?{data:[{id:"test-model"}]}:{choices:[{message:{content:"Réponse locale de test.\n\n# Niveau 1\n\n## Niveau 2\n\n### Votre avis ###\n\n#### Auto-évaluation\n\n##### Niveau 5\n\n###### Niveau 6\n\n####Titre sans espace\n\n**Texte en gras**."}}]};return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(body)});});
+  await page.route("https://mock-provider.example/**",route=>{assert.equal(route.request().headers()["authorization"],"Bearer test-secret","la clé doit être disponible en mémoire de session");const requestBody=route.request().postDataJSON();if(Array.isArray(requestBody?.messages))lastChatPayload=requestBody;const body=route.request().url().endsWith("/models")?{data:[{id:"test-model"}]}:{choices:[{message:{content:"Réponse locale de test.\n\n# Niveau 1\n\n## Niveau 2\n\n### Votre avis ###\n\n#### Auto-évaluation\n\n##### Niveau 5\n\n###### Niveau 6\n\n####Titre sans espace\n\n**Texte en gras**.
+
+| Étape | Ce qui a été réalisé | Conformité aux principes ICARE & maïeutiques |
+|-------|----------------------|----------------------------------------------|
+| **1. Capture de l’intention (I)** | - Vous avez exprimé votre **but** : fournir des connaissances. | ✅ Reformulation pour vérification ; ✅ distinction claire. |
+| **2. Confirmation de l’intention** | Vous avez confirmé la reformulation (« Oui »). | ✅ Attente d’un accord avant de passer à la suite. |
+| **3. Passage à la dimension suivante (C)** | J’ai présenté les cinq axes possibles du **Contexte**. | ✅ Question unique, ouverte. |
+"}}]};return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(body)});});
   await page.goto(url);
   await page.waitForFunction(()=>document.querySelector("#project-select").options.length===1);
   await page.waitForFunction(()=>document.querySelectorAll("#radar-labels text").length===5);
@@ -42,7 +49,14 @@ try{
     assert.equal(await page.locator(".message.assistant h"+level).first().textContent(),title,"le titre Markdown de niveau "+level+" doit être rendu sans dièses visibles");
   }
   assert.equal(await page.locator(".message.assistant h4").nth(1).textContent(),"Titre sans espace","un titre sans espace après les dièses doit être toléré");
-  assert.equal(await page.locator(".message.assistant strong").textContent(),"Texte en gras","le gras Markdown doit être rendu sans astérisques");
+  assert.equal(await page.locator(".message.assistant strong").first().textContent(),"Texte en gras","le gras Markdown doit être rendu sans astérisques");
+  const table=page.locator(".message.assistant table").first();
+  assert.equal(await table.locator("thead th").count(),3,"le tableau Markdown doit avoir trois colonnes");
+  assert.equal(await table.locator("tbody tr").count(),3,"les trois lignes du tableau doivent être rendues");
+  assert.equal(await table.locator("tbody tr").nth(0).locator("td").nth(0).textContent(),"1. Capture de l’intention (I)","le contenu Markdown des cellules doit être interprété");
+  assert.equal(await table.locator("tbody tr").nth(1).locator("td").nth(0).textContent(),"2. Confirmation de l’intention","la deuxième ligne doit rester dans le tableau");
+  assert.equal(await table.locator("tbody tr").nth(2).locator("td").nth(0).textContent(),"3. Passage à la dimension suivante (C)","la troisième ligne doit rester dans le tableau");
+  assert.equal(await table.locator("tbody tr").nth(0).locator("td strong").textContent(),"but","le gras doit être rendu à l’intérieur d’une cellule");
   const systemMessage=lastChatPayload?.messages?.find(message=>message.role==="system")?.content||"";
   assert.ok(systemMessage.includes("Comprendre la démarche ICARE"),"le guide méthodologique doit être transmis au modèle local");
   assert.ok(systemMessage.includes('"state_time"'),"l’ontologie structurée doit être transmise au modèle local");
