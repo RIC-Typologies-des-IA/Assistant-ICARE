@@ -82,6 +82,10 @@ try{
   await darkPage.goto(url);
   await darkPage.waitForFunction(()=>document.querySelector("#project-select").options.length===1);
   assert.equal(await darkPage.locator("html").getAttribute("data-theme"),"dark","le thème sombre du navigateur doit être détecté automatiquement");
+  assert.equal(await darkPage.locator("body").evaluate(el=>getComputedStyle(el).backgroundColor),"rgb(16, 24, 39)","le fond de page doit réellement devenir sombre");
+  assert.equal(await darkPage.locator(".chat-panel").evaluate(el=>getComputedStyle(el).backgroundColor),"rgb(27, 41, 59)","le panneau de dialogue doit réellement devenir sombre");
+  assert.equal(await darkPage.locator("#theme-toggle").evaluate(el=>getComputedStyle(el).width),"34px","le sélecteur de thème doit rester une petite icône");
+  assert.ok(await darkPage.locator("#settings-button").evaluate((el,theme)=>el.nextElementSibling?.id===theme,"theme-toggle"),"l’icône de thème doit être immédiatement à droite de Configuration");
   await darkPage.locator("#theme-toggle").click();
   assert.equal(await darkPage.locator("html").getAttribute("data-theme"),"light","le bouton doit permettre de choisir le thème clair");
   await darkPage.reload();
