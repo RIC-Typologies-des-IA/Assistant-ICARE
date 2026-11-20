@@ -40,7 +40,7 @@ const SANITIZE_OPTIONS = {
 function renderMarkdown(source) {
   // Retain ICARE's earlier tolerance for headings written without a space after #.
   // (?!#) prevents the regex engine from backtracking and consuming only part of a heading marker.
-  const normalized = String(source ?? "").replace(/^( {0,3}#{1,6})(?!#)(?=\\S)/gm, "$1 ");
+  const normalized = String(source ?? "").replace(/^( {0,3}#{1,6})(?!#)(?=\S)/gm, "$1 ");
   const html = markdown.render(normalized);
   const fragment = window.DOMPurify.sanitize(html, SANITIZE_OPTIONS);
   if (fragment instanceof DocumentFragment) return fragment;
