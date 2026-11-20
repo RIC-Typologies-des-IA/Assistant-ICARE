@@ -25,6 +25,8 @@ jobs:
           test -s browser/index.html
           test -s browser/app.js
           node --check browser/app.js
+          node --check browser/agent.js
+          node --check browser/workspace-tools.js
           node --check browser/storage.js
           node --check browser/inference.js
           node --check browser/sw.js
