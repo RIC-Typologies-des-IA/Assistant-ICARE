@@ -59,7 +59,9 @@ L'Activity récupère le projet lié au salon Discord. Si ce projet n'existe pas
 
 ## Collaboration distribuée
 
-Les navigateurs n'établissent pas de connexions pair-à-pair. Ils synchronisent leurs opérations avec le service ICARE du bot Discord : envoi idempotent, journal partagé, curseurs de reprise et diffusion des événements aux membres autorisés. Les CRDT restent utiles pour représenter et fusionner les contributions concurrentes ; le service centralise la coordination, les ACL et la distribution.
+Dans le premier incrément, les clients synchronisent leurs opérations avec le service ICARE associé au bot Discord : envoi idempotent, journal, curseurs de reprise et diffusion aux membres autorisés. Cette étape fournit un relais simple et testable. Elle ne ferme pas la voie à la fédération.
+
+À terme, Discord peut servir uniquement de plan de signalisation entre instances ICARE indépendantes : découverte, présence, échange de capacités et négociation d'une session. Les données du projet ne transitent alors plus par Discord. Un transport direct (par exemple WebRTC DataChannel pour les navigateurs) est privilégié lorsque possible ; un relais ICARE, éventuellement TURN ou applicatif, reste nécessaire lorsque NAT/pare-feu empêchent la connexion directe. Le même protocole d'opérations, d'ACL, d'authentification, de causalité et de reprise doit fonctionner sur les deux transports. Discord ne fournit pas lui-même le transport pair-à-pair.
 
 Un projet qui n'a pas été explicitement partagé ne produit aucun événement vers Discord. Les opérations reçues alimentent la même projection applicative que le bot et les clients web. Les décisions contradictoires restent visibles ; la convergence technique ne les arbitre pas.
 
@@ -75,6 +77,6 @@ Un projet qui n'a pas été explicitement partagé ne produit aucun événement 
 
 ## Décision produit du 20 novembre 2026
 
-Le client principal devient l'application web exécutant le noyau ICARE en WebAssembly. Les clients Android/iOS natifs, les installateurs spécifiques aux OS et la fédération multi-nœuds sont différés. Le bot Discord reste une interface textuelle de première classe et le service ICARE qui lui est associé est le hub de synchronisation uniquement pour les projets dont le partage a été activé explicitement. Un projet privé reste local au navigateur.
+Le client principal devient l'application web exécutant le noyau ICARE en WebAssembly. Les clients Android/iOS natifs et les installateurs spécifiques aux OS sont différés. La fédération est également progressive : relais par le bot d'abord, signalisation Discord puis transport pair-à-pair avec relais de secours ensuite. Le bot Discord reste une interface textuelle de première classe et le service ICARE qui lui est associé est le hub de synchronisation uniquement pour les projets dont le partage a été activé explicitement. Un projet privé reste local au navigateur.
 
 L'inférence est indépendante de Discord et du stockage : chaque participant configure son propre fournisseur et son credential. Les clés d'API ne transitent jamais par le bot et ne sont jamais enregistrées dans les données partagées. Voir [ADR 0001 — Client WebAssembly et partage via Discord](adr/0001-browser-wasm-discord-sharing-hub.md).
