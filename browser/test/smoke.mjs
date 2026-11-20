@@ -15,7 +15,7 @@ try{
   browser=await chromium.launch({headless:true});
   const context=await browser.newContext();
   const page=await context.newPage();
-  await page.route("https://mock-provider.example/**",route=>{assert.equal(route.request().headers()["authorization"],"Bearer test-secret","la clé doit être disponible en mémoire de session");const requestBody=route.request().postDataJSON();if(Array.isArray(requestBody?.messages))lastChatPayload=requestBody;const body=route.request().url().endsWith("/models")?{data:[{id:"test-model"}]}:{choices:[{message:{content:"Réponse locale de test.\\n\\n### Votre avis\\n\\n#### Auto-évaluation\\n\\n**Texte en gras**."}}]};return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(body)});});
+  await page.route("https://mock-provider.example/**",route=>{assert.equal(route.request().headers()["authorization"],"Bearer test-secret","la clé doit être disponible en mémoire de session");const requestBody=route.request().postDataJSON();if(Array.isArray(requestBody?.messages))lastChatPayload=requestBody;const body=route.request().url().endsWith("/models")?{data:[{id:"test-model"}]}:{choices:[{message:{content:"Réponse locale de test.\n\n### Votre avis\n\n#### Auto-évaluation\n\n**Texte en gras**."}}]};return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(body)});});
   await page.goto(url);
   await page.waitForFunction(()=>document.querySelector("#project-select").options.length===1);
   await page.waitForFunction(()=>document.querySelectorAll("#radar-labels text").length===5);
