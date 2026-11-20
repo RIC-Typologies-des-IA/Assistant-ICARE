@@ -11,7 +11,7 @@ Le workflow de déploiement publie le contenu de browser/ sur GitHub Pages. Dans
 
 ## Versionnement
 
-Le client navigateur suit [Semantic Versioning 2.0.0](https://semver.org/) avec une séquence propre au produit **ICARE Browser**. La version initiale déclarée était **0.6.0**. La version courante est **0.8.0**, qui ajoute le moteur agentique navigateur et les capacités d'écriture contrôlée dans les projets ICARE, en complément de la relecture temporelle du dialogue. Le produit reste en développement initial (pré-1.0), sans promesse de stabilité de son interface ou de ses données. Les trois composantes sont toujours conservées (`MAJOR.MINOR.PATCH`). Avant 1.0.0, toute évolution incompatible du contrat public du navigateur incrémente au minimum MINOR ; PATCH est réservé aux corrections compatibles. Les changements éditoriaux ou internes sans changement de contrat ne nécessitent pas d’incrément. Les commits et tags identifient les révisions/publications ; le numéro SemVer ne remplace pas ces identités. Les anciens suffixes de cache `v5` et `v6` étaient des identifiants techniques internes, pas des versions produit, et ne sont pas convertis rétroactivement.
+Le client navigateur suit [Semantic Versioning 2.0.0](https://semver.org/) avec une séquence propre au produit **ICARE Browser**. La version initiale déclarée était **0.6.0**. La version courante est **0.8.2**, qui ajoute le moteur agentique navigateur et les capacités d'écriture contrôlée dans les projets ICARE, en complément de la relecture temporelle du dialogue. Le produit reste en développement initial (pré-1.0), sans promesse de stabilité de son interface ou de ses données. Les trois composantes sont toujours conservées (`MAJOR.MINOR.PATCH`). Avant 1.0.0, toute évolution incompatible du contrat public du navigateur incrémente au minimum MINOR ; PATCH est réservé aux corrections compatibles. Les changements éditoriaux ou internes sans changement de contrat ne nécessitent pas d’incrément. Les commits et tags identifient les révisions/publications ; le numéro SemVer ne remplace pas ces identités. Les anciens suffixes de cache `v5` et `v6` étaient des identifiants techniques internes, pas des versions produit, et ne sont pas convertis rétroactivement.
 
 La version produit est définie dans `package.json`, répercutée dans `version.js` pour l’application et le service worker, et vérifiée par la CI. Le cache PWA utilise le nom `icare-browser-<version SemVer>` afin qu’une nouvelle version invalide explicitement les ressources précédentes.
 
@@ -33,12 +33,12 @@ Le client navigateur fournit un moteur agentique à appels d'outils. Les opérat
 Le runtime Pi est distinct : il expose des outils ICARE (état d'exploration, ontologie, recherche documentaire, propositions et relations). Son corpus documentaire est initialisé pour chaque projet local et consultable par `search_reference_documents`.
 
 
-## Moteur agentique navigateur — 0.8.0
+## Moteur agentique navigateur — 0.8.2
 
 Le runtime `browser/agent.js` implémente un cycle tool-calling compatible avec les API OpenAI Chat Completions. Il expose les outils métier ICARE sans embarquer Node.js ni le SDK Pi. Les données sont écrites dans l'espace de travail du projet via IndexedDB.
 
 Outils disponibles : `list_available_models`, `get_ontology`, `get_exploration_state`, `search_reference_documents`, `list_propositions`, `propose_observation`, `propose_relation`, `update_exploration_status`, `create_reference_document` et `update_reference_document`.
 
-Les observations et relations sont créées au statut candidat. Les changements de statuts `sufficient` et `not_applicable` exigent une justification. Les documents de référence sont isolés par projet. Le fournisseur de modèle doit prendre en charge les appels d'outils ; un modèle qui ne les prend pas en charge ne peut pas assurer la parité agentique.
+Les opérations agentiques sont couvertes par des tests de comportement : consultation de l'ontologie et de l'état, ajout et relecture d'une proposition issue du dialogue, validation des relations et des statuts, isolation du projet et annulation en cas d'échec de persistance. Les observations et relations sont créées au statut candidat. Les changements de statuts `sufficient` et `not_applicable` exigent une justification. Les documents de référence sont isolés par projet. Le fournisseur de modèle doit prendre en charge les appels d'outils ; un modèle qui ne les prend pas en charge ne peut pas assurer la parité agentique.
 
 Cette livraison restaure un premier socle d'écriture agentique, mais ne prétend pas encore à la parité complète : la réplication CRDT, la migration SQLite et l'intégralité des métadonnées/projections du runtime historique restent des étapes distinctes.
