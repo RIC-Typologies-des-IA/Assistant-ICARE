@@ -31,6 +31,7 @@ test("expose les outils métier de consultation et de mise à jour", () => {
 test("le chat consulte l'ontologie et l'état puis enregistre une proposition issue du dialogue", async () => {
   const project = workspace();
   const otherProject = workspace();
+  otherProject.proposals.push({ id: "local-only-proposal", text: "Autre projet" });
   const persisted = [];
   const snapshots = [];
   let id = 0;
@@ -42,6 +43,7 @@ test("le chat consulte l'ontologie et l'état puis enregistre une proposition is
     uid: () => "proposal-" + (++id),
     now: () => "2026-11-20T12:00:00.000Z"
   });
+  const executeOtherProject = createIcareToolExecutor({ workspace: otherProject, ontology });
   const plan = [
     { name: "get_ontology", args: {} },
     { name: "get_exploration_state", args: {} },
@@ -85,7 +87,12 @@ test("le chat consulte l'ontologie et l'état puis enregistre une proposition is
   assert.equal(project.proposals.length, 1);
   assert.equal(project.proposals[0].status, "candidate");
   assert.equal(project.proposals[0].source, "conversation");
-  assert.equal(otherProject.proposals.length, 0);
+  assert.equal(otherProject.proposals.length, 1);
+  await assert.rejects(
+    executeOtherProject("propose_relation", { from_id: "proposal-1", to_id: "local-only-proposal", relation: "complements" }),
+    /doivent exister/
+  );
+  assert.equal(otherProject.relations.length, 0);
   assert.equal(persisted.length, 1);
   assert.deepEqual(snapshots, ["Proposition agentique"]);
 });
