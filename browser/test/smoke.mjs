@@ -17,10 +17,12 @@ try{
   const page=await context.newPage();
   await page.route("https://mock-provider.example/**",route=>{assert.equal(route.request().headers()["authorization"],"Bearer test-secret","la clé doit être disponible en mémoire de session");const body=route.request().url().endsWith("/models")?{data:[{id:"test-model"}]}:{choices:[{message:{content:"Réponse locale de test."}}]};return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(body)});});
   await page.goto(url);
-  await page.waitForFunction(()=>document.querySelectorAll(".dimension").length===5);
   await page.waitForFunction(()=>document.querySelector("#project-select").options.length===1);
-  assert.equal(await page.locator(".dimension").count(),5,"les cinq dimensions doivent être alimentées par l'ontologie");
+  await page.waitForFunction(()=>document.querySelectorAll("#radar-labels text").length===5);
   assert.equal(await page.locator("#radar").count(),1,"le radar ICARE doit être présent");
+  assert.deepEqual(await page.locator("#radar-labels text").allTextContents(),["Intention","Contexte","Action","Régulation","Évolution"],"le radar doit afficher les noms complets des cinq dimensions");
+  assert.equal(await page.locator("#dimensions").count(),0,"la rangée de dimensions au-dessus du dialogue ne doit plus être affichée");
+  assert.equal(await page.locator(".brand-affiliation a").count(),1,"le lien institutionnel doit rester dans la ligne d’affiliation");
   assert.equal(await page.locator("#dimension-statuses .dimension-status-row").count(),5,"les cinq statuts doivent être éditables");
   assert.equal(await page.locator("#project-title").textContent(),"Mon premier projet");
   await page.locator("#settings-button").click();
