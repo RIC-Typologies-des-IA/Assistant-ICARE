@@ -2,7 +2,7 @@
 
 - Date : 2026-11-20
 - Statut : acceptée
-- Remplace : les priorités de déploiement natif et la fédération pair-à-pair décrites dans les documents antérieurs
+- Remplace : les priorités de déploiement natif ; précise une trajectoire progressive de fédération décrite dans les documents antérieurs
 - Issues de référence : #23 et #27
 
 ## Décision
@@ -18,7 +18,7 @@ Le bot Discord reste également une interface conversationnelle de première cla
 - Installateurs et runtimes natifs dédiés à Linux, macOS ou Windows.
 - Qualification spécifique de Linux ARM64 ou macOS Intel/Apple Silicon.
 - Applications Android et iOS autonomes.
-- Fédération entre serveurs ICARE indépendants, découverte de pairs et synchronisation pair-à-pair.
+- Fédération complète entre serveurs ICARE indépendants et transport pair-à-pair : différés comme livrable initial, mais conservés dans la trajectoire.
 - Obligation d'utiliser Lemonade, Ollama, un NPU ou tout autre moteur local.
 
 Les appareils mobiles restent accessibles via leur navigateur. Les applications natives pourront être réexaminées ultérieurement, sans constituer un chemin critique.
@@ -38,9 +38,9 @@ Les appareils mobiles restent accessibles via leur navigateur. Les applications 
 - Le propriétaire choisit explicitement « Partager via Discord ».
 - Le projet local est associé à un identifiant stable dans le service ICARE relié au bot.
 - Le service conserve le manifeste, les ACL, le journal d'opérations, les projections métier et l'historique partagé.
-- Les navigateurs autorisés poussent leurs opérations et récupèrent les événements par un protocole client versionné (HTTP pour commandes/reprise, WebSocket ou mécanisme équivalent pour diffusion).
+- Dans le premier incrément, les clients/instances autorisés échangent leurs opérations avec le service ICARE relié au bot via un protocole versionné (HTTP pour commandes/reprise, WebSocket ou mécanisme équivalent pour diffusion).
 - Le bot textuel peut lire et contribuer au même projet.
-- Les CRDT et identifiants causaux servent à fusionner les contributions concurrentes ; le service du bot coordonne l'ordre accepté, les droits et la distribution. Il n'y a pas de maillage de pairs entre navigateurs.
+- Les CRDT et identifiants causaux servent à fusionner les contributions concurrentes. Le premier incrément centralise coordination et relais dans le service du bot. Une évolution pourra établir des liens directs entre instances ICARE indépendantes : Discord ne transporterait alors que les informations de signalisation nécessaires (découverte, capacités, offres/réponses de session et candidats ICE), pas le contenu des projets.
 - Les opérations locales en attente sont conservées et synchronisées à la reconnexion. Le partage peut être suspendu ou révoqué selon les règles du projet.
 
 Discord est le point d'entrée social et le mécanisme de liaison des identités. Le stockage canonique est le service ICARE hébergeant le bot, pas les messages Discord eux-mêmes. Le domaine ICARE et les formats de projet restent indépendants du modèle de données Discord.
@@ -71,7 +71,7 @@ Le protocole d'inférence est indépendant du protocole de collaboration : deux 
 1. **Noyau WASM** : logique métier déterministe, validation des commandes, transformations du modèle de domaine, calculs et règles ICARE. Aucun accès direct au DOM, au réseau, au système de fichiers ou aux secrets.
 2. **Hôte navigateur** : interface HTML/CSS/JS, Web Workers, IndexedDB/OPFS, gestion de fichiers, réseau, coffre de credentials et adaptateurs d'inférence.
 3. **Service de partage** : API authentifiée du bot ICARE, ACL projet, journal append-only, déduplication/idempotence, curseurs de reprise, diffusion d'événements et stockage partagé.
-4. **Adaptateur Discord** : bot conversationnel, commandes, invitations et liens vers le client web/Activity. Les jetons Discord restent côté serveur.
+4. **Adaptateur Discord** : bot conversationnel, commandes, invitations, présence, découverte et signalisation entre instances. Les jetons Discord restent côté serveur ; les messages de signalisation ne doivent contenir ni contenu métier ni secrets.
 
 Les contrats entre ces frontières doivent être sérialisables, versionnés et testables indépendamment. Le WASM ne doit pas dépendre des API Node.js du runtime actuel.
 
@@ -86,6 +86,41 @@ Les contrats entre ces frontières doivent être sérialisables, versionnés et 
 7. Définir et implémenter l'API du service de partage piloté par le bot Discord.
 8. Rattacher un projet local à Discord, synchroniser le journal d'opérations et distribuer les événements.
 9. Tester deux navigateurs et le bot textuel en parallèle, y compris concurrence, déconnexion, reprise, révocation et idempotence.
+
+
+
+## Trajectoire de fédération et séparation signalisation/transport
+
+La fédération n'est pas supprimée : elle est différée et doit être abordée par incréments vérifiables.
+
+### Incrément A — relais par le service ICARE du bot
+
+- Deux instances ICARE peuvent être configurées pour participer à un même espace/projet fédéré.
+- Le bot/service assure la découverte initiale, l'authentification, l'autorisation et le relais des enveloppes d'opérations.
+- Les messages sont versionnés, signés ou authentifiés, dédupliqués et associés à un curseur de reprise.
+- Les données restent des données ICARE ; Discord n'est pas le stockage canonique.
+
+### Incrément B — Discord comme plan de signalisation
+
+- Le bot facilite la découverte des instances, l'échange de descripteurs publics, la négociation des capacités et la signalisation d'établissement de session.
+- Les échanges de signalisation sont minimaux, authentifiés et expirables. Ils ne contiennent pas les opérations métier, pièces jointes ou clés privées.
+- Le protocole de signalisation doit rester abstrait : Discord est un transport de messages de rendez-vous, pas une dépendance du protocole de fédération.
+- Ne pas supposer que Discord fournit lui-même une connexion pair-à-pair, un canal de données fiable ou un service STUN/TURN.
+
+### Incrément C — transport direct et repli
+
+- Prototype navigateur : WebRTC DataChannel entre deux instances, avec échange des offres/réponses SDP et candidats ICE via le bot.
+- Pour les instances serveur, comparer WebRTC avec QUIC/TLS ou un transport direct HTTPS/WebSocket selon le contexte d'hébergement.
+- Les connexions directes peuvent échouer derrière certains NAT, pare-feu ou réseaux d'entreprise. Prévoir STUN et un relais TURN ou le relais applicatif ICARE comme fallback.
+- La synchronisation doit fonctionner de la même manière quel que soit le transport : mêmes enveloppes, authentification, ACL, causalité, déduplication, reprise et tests de convergence.
+- Étudier le chiffrement de bout en bout au niveau des enveloppes, sans dépendre de la confidentialité des messages Discord ou du relais.
+
+### Contraintes et critères de décision
+
+- Ne jamais publier de données de projet, secrets, tokens ou clés dans Discord pour établir une session.
+- La signalisation Discord peut être retardée, limitée ou indisponible ; les opérations locales doivent rester durables et la synchronisation doit reprendre.
+- Le relais bot reste une solution de compatibilité et de secours, pas une hypothèse de transport unique à long terme.
+- Avant d'adopter WebRTC/libp2p/QUIC, produire un prototype à deux nœuds, mesurer la réussite de connexion sur réseaux variés, la latence, la reprise, la consommation et la complexité d'exploitation.
 
 ## Critères d'acceptation
 
