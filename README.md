@@ -10,6 +10,8 @@ L'assistant ICARE est un partenaire intellectuel exigeant et non directif, inspi
 
 ## Utiliser ICARE dans le navigateur
 
+La décision d'architecture détaillée est consignée dans [ADR 0002 — version autonome navigateur en priorité](docs/adr/0002-autonomous-browser-first.md).
+
 **URL cible :** https://ric-typologies-des-ia.github.io/Assistant-ICARE/ (après fusion et activation de GitHub Pages).
 
 La priorité de développement est le client Web autonome, local-first et sans serveur ICARE personnel. Il conserve projets et conversations dans le navigateur, permet de configurer directement un fournisseur d'inférence et propose l'import/export des données. La première tranche est en cours dans le dossier browser/. Les fonctions avancées (propositions structurées, relations, tableaux de bord ontologiques, CRDT et migration des anciens projets) seront réintégrées progressivement.
