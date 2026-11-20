@@ -50,7 +50,7 @@ try{
   assert.equal(await table.locator("tbody tr").nth(0).locator("td").nth(0).textContent(),"1. Capture de l’intention (I)","le contenu Markdown des cellules doit être interprété");
   assert.equal(await table.locator("tbody tr").nth(1).locator("td").nth(0).textContent(),"2. Confirmation de l’intention","la deuxième ligne doit rester dans le tableau");
   assert.equal(await table.locator("tbody tr").nth(2).locator("td").nth(0).textContent(),"3. Passage à la dimension suivante (C)","la troisième ligne doit rester dans le tableau");
-  assert.equal(await table.locator("tbody tr").nth(0).locator("td strong").textContent(),"but","le gras doit être rendu à l’intérieur d’une cellule");
+  assert.equal(await table.locator("tbody tr").nth(0).locator("td strong").nth(1).textContent(),"but","le gras doit être rendu à l’intérieur d’une cellule");
   const systemMessage=lastChatPayload?.messages?.find(message=>message.role==="system")?.content||"";
   assert.ok(systemMessage.includes("Comprendre la démarche ICARE"),"le guide méthodologique doit être transmis au modèle local");
   assert.ok(systemMessage.includes('"state_time"'),"l’ontologie structurée doit être transmise au modèle local");
