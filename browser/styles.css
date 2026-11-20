@@ -6,3 +6,5 @@
 @media(max-width:700px){.workspace{display:flex;flex-direction:column}.insights{display:flex}.chat-panel{min-height:60vh}.brand .brand-affiliation{display:none}.dimension-status-row{grid-template-columns:28px minmax(0,1fr) minmax(120px,auto)}}
 
 .brand-affiliation a{color:inherit;text-decoration:underline;text-decoration-color:#91a9c7;text-underline-offset:2px}.brand-affiliation a:hover{color:#fff;text-decoration-color:#fff}.model-config{display:grid;gap:11px;padding:14px;border:1px solid #e1e6ed;border-radius:11px;background:#fbfcfe}.model-config h3{font-size:15px;margin:0;color:#244d83}.model-config .dialog-actions{justify-content:flex-start}.model-config .dialog-actions .muted{flex:1;min-width:160px}@media(max-width:440px){.model-config{padding:11px}}
+
+#mic-button{min-width:46px;font-size:17px}#mic-button[aria-pressed="true"]{background:#f8e4e2;color:#8b2b27}#mic-status:empty{display:none}.composer{align-items:flex-end}
