@@ -187,13 +187,23 @@ for (const code of DIMENSION_ORDER) {
 
 
 const seedDoc = db.prepare("INSERT OR IGNORE INTO reference_docs(id,title,content,created_at,project_id) VALUES(?,?,?,?,?)");
+const referenceDocuments = [];
 for (const [id, title, filename] of [
   ["guide-icare", "Guide de la démarche ICARE", "guide-icare.md"],
   ["ontology-icare", "Ontologie ICARE (JSON)", "icare.json"]
 ]) {
   const file = path.join(HERE, "..", "reference", filename);
-  if (existsSync(file)) seedDoc.run(id, title, await readFile(file, "utf8"), now(), "legacy");
+  if (existsSync(file)) referenceDocuments.push({ id, title, content: await readFile(file, "utf8") });
 }
+function seedReferenceDocuments(projectId, createdAt = now()) {
+  for (const document of referenceDocuments) {
+    // reference_docs.id est globalement unique : chaque projet possède sa copie isolée.
+    const id = projectId === "legacy" ? document.id : projectId + ":" + document.id;
+    seedDoc.run(id, document.title, document.content, createdAt, projectId);
+  }
+}
+// Mise à niveau transparente : les projets déjà présents reçoivent aussi le corpus ICARE.
+for (const project of db.prepare("SELECT id FROM projects").all()) seedReferenceDocuments(project.id);
 
 if (db.prepare("SELECT COUNT(*) AS n FROM exploration_snapshots WHERE project_id='legacy'").get().n === 0) recordSnapshot("legacy", "migration", 0);
 
@@ -1041,6 +1051,7 @@ const server = http.createServer((req, res) => requestContext.run({ discordIdent
         persistProjectEvent(event);
       });
       createProject();
+      seedReferenceDocuments(id, created);
       bootstrapDiscordProjectOwner(db, id, req.discordIdentity.id);
       recordSnapshot(id, "project-created", 0);
       const project = db.prepare("SELECT id,name,description,intention,created_at,updated_at FROM projects WHERE id=?").get(id);
