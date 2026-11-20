@@ -14,7 +14,7 @@ header h1{font-size:20px;margin:0;letter-spacing:.02em}header p{font-size:12px;m
 main{max-width:1320px;margin:22px auto;padding:0 18px;display:grid;grid-template-columns:minmax(0,1.6fr) minmax(310px,1fr);gap:18px}
 .panel{background:white;border:1px solid #e1e6ed;border-radius:14px;box-shadow:0 2px 10px #1c2b3a0a;overflow:hidden}.panel h2{font-size:15px;margin:0;padding:15px 17px;border-bottom:1px solid #edf0f4}
 .chat{display:flex;flex-direction:column;min-height:72vh}.messages{padding:18px;display:flex;flex-direction:column;gap:13px;flex:1;overflow:auto;max-height:62vh}
-.msg{max-width:88%;padding:12px 14px;border-radius:13px;line-height:1.5;font-size:14px;white-space:pre-wrap}.user{align-self:flex-end;background:#e5efff}.assistant{align-self:flex-start;background:#f1f3f6}.composer{padding:14px;border-top:1px solid #edf0f4;display:flex;gap:9px}
+.msg{max-width:88%;padding:12px 14px;border-radius:13px;line-height:1.6;font-size:14px;white-space:normal}.user{align-self:flex-end;background:#e5efff;white-space:pre-wrap}.assistant{align-self:flex-start;background:#f1f3f6}.assistant>*:first-child{margin-top:0}.assistant>*:last-child{margin-bottom:0}.assistant h1,.assistant h2,.assistant h3,.assistant h4,.assistant h5,.assistant h6{line-height:1.25;font-weight:700;margin:1em 0 .45em;color:#202b3b}.assistant h1{font-size:1.65em}.assistant h2{font-size:1.45em}.assistant h3{font-size:1.28em}.assistant h4{font-size:1.14em}.assistant h5{font-size:1.06em}.assistant h6{font-size:1em}.assistant p{margin:.45em 0}.assistant ul,.assistant ol{padding-left:1.5em;margin:.45em 0}.assistant li{margin:.2em 0}.assistant strong{font-weight:700}.assistant blockquote{margin:.6em 0;padding:.2em .9em;border-left:3px solid #9aabc2;color:#526176}.assistant pre{overflow:auto;padding:10px 12px;border-radius:8px;background:#e7ebf1}.assistant code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.92em}.assistant a{color:#2458a6;text-decoration:underline}.composer{padding:14px;border-top:1px solid #edf0f4;display:flex;gap:9px}
 textarea,input,select{font:inherit;border:1px solid #d6dde7;border-radius:9px;padding:10px;background:#fff;color:#202733}textarea{resize:vertical;min-height:54px;flex:1}
 button{border:0;border-radius:9px;padding:10px 14px;background:#2458a6;color:white;font-weight:600;cursor:pointer}button:disabled{opacity:.5;cursor:wait}.secondary{background:#e8edf5;color:#25354c}.danger{background:#fae9e8;color:#8b2b27}
 .side{display:flex;flex-direction:column;gap:18px}.dimension{padding:12px 15px;border-bottom:1px solid #f0f2f5}.dimtop{display:flex;justify-content:space-between;align-items:center;gap:10px}.dimtop strong{font-size:14px}.dimtop small{color:#758195}.dimmeta{font-size:12px;color:#657287;margin:6px 0}.dimension select{padding:6px;font-size:12px;max-width:150px}.just{width:100%;font-size:12px;margin-top:7px}.dimension .save-dimension{margin-top:7px;padding:6px 10px;font-size:11px}.feedback{font-size:12px;margin-left:8px;color:#28633a}.proposal-form{padding:12px 15px;border-bottom:1px solid #edf0f4}.proposal-form textarea{width:100%;min-height:78px;margin-bottom:8px}.dimension-checks{display:flex;flex-wrap:wrap;gap:8px 12px;margin:4px 0 10px}.dimension-checks label{font-size:12px;white-space:nowrap}.dimension-checks input{vertical-align:middle}
@@ -50,7 +50,8 @@ button{border:0;border-radius:9px;padding:10px 14px;background:#2458a6;color:whi
 <section class="panel"><h2>Mémoire documentaire</h2><div class="docs"><form id="docForm"><input id="docTitle" placeholder="Titre du document" required><textarea id="docContent" placeholder="Colle ici un extrait ou un document de référence…" required></textarea><button class="secondary" type="submit">Ajouter à la mémoire</button></form></div><p class="hint">Les documents enrichissent la référence méthodologique locale. Ils ne sont pas utilisés comme preuves sur le système étudié.</p></section>
 </aside>
 </main>
-<script>
+<script type="module">
+import {renderMarkdown} from "/markdown.js";
 const $=s=>document.querySelector(s);
 let sessionKey="icare-pi-session:legacy";
 let currentProjectId=localStorage.getItem("icare-current-project")||"";
@@ -102,7 +103,8 @@ async function loadOwnerMembershipRequests(){
   for(const [decision,title] of [["accepted","Accepter"],["rejected","Refuser"]]){const b=document.createElement("button");b.textContent=title;b.className=decision==="rejected"?"danger":"";b.onclick=async()=>{b.disabled=true;try{const response=await fetch("/api/projects/"+encodeURIComponent(discordActivityProjectId)+"/membership-requests/"+encodeURIComponent(request.request_id),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({decision})});const data=await response.json();if(!response.ok)throw new Error(data.error||"Décision impossible.");await loadOwnerMembershipRequests()}catch(error){$("#accessMessage").textContent=error.message;b.disabled=false}};row.append(b)}list.append(row)}
  }catch(error){section.hidden=false;list.textContent=error.message}
 }
-function addMessage(role,text){const el=document.createElement("div");el.className="msg "+role;el.textContent=text;$("#messages").append(el);$("#messages").scrollTop=$("#messages").scrollHeight;return el}
+function setAssistantMessage(el,text){el.replaceChildren(renderMarkdown(text))}
+function addMessage(role,text){const el=document.createElement("div");el.className="msg "+role;if(role==="assistant"){el._rawText=String(text??"");setAssistantMessage(el,el._rawText)}else el.textContent=text;$("#messages").append(el);$("#messages").scrollTop=$("#messages").scrollHeight;return el}
 function updateModelStatus(modelId, models){
  const model=models.find(m=>m.id===modelId);
  const tools=Boolean(model?.labels?.includes("tool-calling"));
@@ -334,17 +336,17 @@ $("#chatForm").addEventListener("submit",async e=>{
   const reader=response.body.getReader(),decoder=new TextDecoder();let buffer="";
   while(true){const {value,done}=await reader.read();if(done)break;buffer+=decoder.decode(value,{stream:true});let cut;
    while((cut=buffer.indexOf("\n\n"))>=0){const frame=buffer.slice(0,cut);buffer=buffer.slice(cut+2);const lines=frame.split("\n");const event=lines.find(l=>l.startsWith("event:"))?.slice(6).trim();const data=lines.find(l=>l.startsWith("data:"))?.slice(5).trim();if(!data)continue;const payload=JSON.parse(data);
-    if(event==="delta"){bubble.textContent+=payload.text;$("#messages").scrollTop=$("#messages").scrollHeight}
+    if(event==="delta"){bubble._rawText+=payload.text;setAssistantMessage(bubble,bubble._rawText);$("#messages").scrollTop=$("#messages").scrollHeight}
     if(event==="persistence"){
      if(payload.created>0){
-      bubble.textContent+="\n\n✓ "+payload.created+" proposition(s) candidate(s) réellement enregistrée(s) et visible(s) dans le panneau ICARE.";
+      bubble._rawText+="\n\n✓ "+payload.created+" proposition(s) candidate(s) réellement enregistrée(s) et visible(s) dans le panneau ICARE.";setAssistantMessage(bubble,bubble._rawText);
      }else if(payload.unconfirmedClaim){
-      bubble.textContent+="\n\n⚠️ Aucune proposition n'a été retrouvée dans le registre. Le texte précédent ne constitue donc pas un enregistrement ; vérifie la compatibilité tool-calling du modèle actif.";
+      bubble._rawText+="\n\n⚠️ Aucune proposition n'a été retrouvée dans le registre. Le texte précédent ne constitue donc pas un enregistrement ; vérifie la compatibilité tool-calling du modèle actif.";setAssistantMessage(bubble,bubble._rawText);
      }else if(payload.reconciliationError){
-      bubble.textContent+="\n\n⚠️ La vérification de persistance a échoué : "+payload.reconciliationError;
+      bubble._rawText+="\n\n⚠️ La vérification de persistance a échoué : "+payload.reconciliationError;setAssistantMessage(bubble,bubble._rawText);
      }
      if(payload.created===0&&Array.isArray(payload.toolEvents)&&payload.toolEvents.length===0){
-      bubble.textContent+=String.fromCharCode(10)+"Diagnostic technique : aucun événement d'exécution d'outil Pi n'a été observé pendant ce tour. Le panneau manuel reste utilisable.";
+      bubble._rawText+=String.fromCharCode(10)+"Diagnostic technique : aucun événement d'exécution d'outil Pi n'a été observé pendant ce tour. Le panneau manuel reste utilisable.";setAssistantMessage(bubble,bubble._rawText);
      }else if(payload.created===0&&payload.toolEvents?.length){
       bubble.textContent+=String.fromCharCode(10)+"Événements outils observés : "+payload.toolEvents.map(x=>x.name||x.type).join(", ")+".";
      }
@@ -353,7 +355,7 @@ $("#chatForm").addEventListener("submit",async e=>{
    }
   }
   await refresh();
- }catch(err){$("#error").textContent=err.message||String(err);if(!bubble.textContent)bubble.textContent="Je n'ai pas pu produire de réponse."}
+ }catch(err){$("#error").textContent=err.message||String(err);if(!bubble._rawText){bubble._rawText="Je n'ai pas pu produire de réponse.";setAssistantMessage(bubble,bubble._rawText)}}
  finally{chatInProgress=false;$("#send").disabled=false;$("#message").focus()}
 });
 $("#proposalForm").addEventListener("submit",async e=>{
