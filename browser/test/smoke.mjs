@@ -38,6 +38,11 @@ try{
   await page.locator("#message-input").fill("Bonjour ICARE");
   await page.locator("#composer").evaluate(form=>form.requestSubmit());
   await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Réponse locale de test."));
+  await page.waitForFunction(()=>Number(document.querySelector("#timeline-slider").max)>=1);
+  await page.locator("#timeline-slider").evaluate(slider=>{slider.value="0";slider.dispatchEvent(new Event("input",{bubbles:true}));});
+  assert.equal(await page.locator(".message.user").count(),0,"le premier instantané doit rejouer le dialogue avant le premier échange");
+  await page.locator("#timeline-slider").evaluate(slider=>{slider.value=slider.max;slider.dispatchEvent(new Event("input",{bubbles:true}));});
+  assert.equal(await page.locator(".message.user p").first().textContent(),"Bonjour ICARE","le dernier instantané doit réafficher l’échange complet");
   await page.reload();
   await page.waitForFunction(()=>[...document.querySelectorAll(".message.user p")].some(p=>p.textContent==="Bonjour ICARE"));
   await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Réponse locale de test."));
