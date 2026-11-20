@@ -30,6 +30,7 @@ try{
   await page.locator("#test-provider").click();
   await page.waitForFunction(()=>document.querySelector("#provider-status").textContent.includes("Réponse locale de test"));
   await page.locator('#settings-form button[value="save"]').click();
+  await page.locator("#settings-dialog").waitFor({state:"hidden"});
   await page.locator("#message-input").fill("Bonjour ICARE");
   await page.locator("#composer").evaluate(form=>form.requestSubmit());
   await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Réponse locale de test."));
@@ -40,6 +41,7 @@ try{
   await page.locator("#project-name").fill("Projet navigateur");
   await page.locator("#project-intention").fill("Vérifier la persistance locale");
   await page.locator('#project-form button[value="save"]').click();
+  await page.locator("#project-dialog").waitFor({state:"hidden"});
   await page.waitForFunction(()=>document.querySelector("#project-title").textContent==="Projet navigateur");
   console.log("Browser smoke test passed: ontology, provider, conversation persistence and project creation.");
 }finally{
