@@ -1,0 +1,18 @@
+{
+  "version": "0.3.0",
+  "dimensions": {
+    "I": "Intention / finalité",
+    "C": "Contexte / situation",
+    "A": "Action / opération",
+    "R": "Régulation / organisation",
+    "E": "Évolution / temporalité"
+  },
+  "layers": [
+    "state_time",
+    "evaluation_modality",
+    "epistemic_provenance",
+    "practical_status",
+    "proposition_relations"
+  ],
+  "source": "pi-runtime/reference/icare.json"
+}
