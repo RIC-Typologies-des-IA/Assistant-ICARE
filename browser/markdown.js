@@ -1,10 +1,52 @@
-const TAGS=new Set(["A","BR","P","STRONG","B","EM","I","DEL","UL","OL","LI","BLOCKQUOTE","PRE","CODE","H1","H2","H3","H4","H5","H6","HR","TABLE","THEAD","TBODY","TR","TH","TD","DIV"]);
-const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-function inline(s){let x=esc(s);x=x.replace(/&lt;br\s*\/?&gt;/gi,"<br>");x=x.replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>").replace(/\*(.+?)\*/g,"<em>$1</em>").replace(/~~(.+?)~~/g,"<del>$1</del>");x=x.replace(/\x60([^\x60]+)\x60/g,"<code>$1</code>");x=x.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,'<a href="$2">$1</a>');return x;}
-function tableCells(line){let value=String(line).trim().replace(/\\\|/g,"|").replace(/\\$/,"");if(value.startsWith("\\"))value=value.slice(1);if(value.startsWith("|"))value=value.slice(1);if(value.endsWith("|"))value=value.slice(0,-1);return value.split("|").map(cell=>cell.trim());}
-function isTableSeparator(line){const cells=tableCells(line);return cells.length>0&&cells.every(cell=>/^:?-{3,}:?$/.test(cell));}
-function isTableStart(lines,index){return index+1<lines.length&&lines[index].includes("|")&&isTableSeparator(lines[index+1]);}
-function renderTable(lines,start){const headers=tableCells(lines[start]),alignments=tableCells(lines[start+1]).map(cell=>cell.startsWith(":")?(cell.endsWith(":")?"center":"left"):(cell.endsWith(":")?"right":"left"));const rows=[];let i=start+2;while(i<lines.length&&lines[i].trim()&&lines[i].includes("|")){rows.push(tableCells(lines[i]));i++;}const cell=(tag,value,index)=>{const align=alignments[index]||"left";return "<"+tag+' style="text-align:'+align+'">'+inline(value??"")+"</"+tag+">";};let html='<div class="markdown-table-wrap"><table><thead><tr>'+headers.map((v,j)=>cell("th",v,j)).join("")+"</tr></thead><tbody>";for(const row of rows)html+="<tr>"+headers.map((_,j)=>cell("td",row[j],j)).join("")+"</tr>";html+="</tbody></table></div>";return {html,next:i};}
-function clean(root){for(const n of [...root.childNodes]){if(n.nodeType===3)continue;if(n.nodeType!==1||!TAGS.has(n.tagName)){n.replaceWith(document.createTextNode(n.textContent||""));continue;}for(const a of [...n.attributes]){if(n.tagName==="A"&&a.name==="href"&&/^https?:/i.test(a.value))continue;if((n.tagName==="TH"||n.tagName==="TD")&&a.name==="style"&&/^text-align:(left|center|right)$/.test(a.value))continue;if(n.tagName==="DIV"&&a.name==="class"&&a.value==="markdown-table-wrap")continue;n.removeAttribute(a.name);}if(n.tagName==="A"){n.target="_blank";n.rel="noopener noreferrer";}clean(n);}}
-function renderMarkdown(source){const lines=String(source??"").replace(/\r\n?/g,"\n").split("\n"),out=[];let para=[],list=null,code=null,quote=[];const flush=()=>{if(para.length){out.push("<p>"+para.map(inline).join("<br>")+"</p>");para=[];}};const close=()=>{if(list){out.push("</"+list+">");list=null;}};const qflush=()=>{if(quote.length){out.push("<blockquote>"+renderMarkdown(quote.join("\n")).innerHTML+"</blockquote>");quote=[];}};for(let i=0;i<lines.length;i++){const l=lines[i],f=/^\s*\x60{3}/.test(l);if(code){if(f){out.push("<pre><code>"+esc(code.join("\n"))+"</code></pre>");code=null;}else code.push(l);continue;}if(f){flush();close();qflush();code=[];continue;}if(isTableStart(lines,i)){flush();close();qflush();const table=renderTable(lines,i);out.push(table.html);i=table.next-1;continue;}if(/^\s*>/.test(l)){flush();close();quote.push(l.replace(/^\s*>\s?/,""));continue;}qflush();if(!l.trim()){flush();close();continue;}const h=l.match(/^\s{0,3}(#{1,6})(?:[ \t]+|(?=\S))(.+?)(?:[ \t]+#+[ \t]*)?$/);if(h){flush();close();out.push("<h"+h[1].length+">"+inline(h[2])+"</h"+h[1].length+">");continue;}const it=l.match(/^\s*([-+*]|\d+[.)])\s+(.+)$/);if(it){flush();const k=/^\d/.test(it[1])?"ol":"ul";if(list!==k){close();out.push("<"+k+">");list=k;}out.push("<li>"+inline(it[2])+"</li>");continue;}close();para.push(l);}flush();close();qflush();if(code)out.push("<pre><code>"+esc(code.join("\n"))+"</code></pre>");const t=document.createElement("template");t.innerHTML=out.join("");clean(t.content);return t.content;}
-export {renderMarkdown};
+// Markdown-it provides the Markdown parser; DOMPurify sanitizes its generated HTML.
+// Pinned packages are bundled locally by npm run build:vendor.
+if (typeof window.markdownit !== "function") {
+  throw new Error("Le moteur Markdown-it n'a pas pu être chargé.");
+}
+if (!window.DOMPurify || typeof window.DOMPurify.sanitize !== "function") {
+  throw new Error("Le module de sécurisation DOMPurify n'a pas pu être chargé.");
+}
+
+const markdown = window.markdownit({
+  html: false,       // Raw HTML from model output is treated as text, never trusted markup.
+  xhtmlOut: false,
+  breaks: false,
+  linkify: true,
+  typographer: false
+});
+
+// Keep table markup inside a responsive wrapper without rewriting table parsing.
+markdown.renderer.rules.table_open = () => '<div class="markdown-table-wrap"><table>';
+markdown.renderer.rules.table_close = () => '</table></div>';
+
+// External links opened in a new tab must not gain access to the opener window.
+const defaultLinkOpen = markdown.renderer.rules.link_open
+  || ((tokens, idx, options, env, self) => self.renderToken(tokens, idx, options));
+markdown.renderer.rules.link_open = (tokens, idx, options, env, self) => {
+  const token = tokens[idx];
+  token.attrSet("target", "_blank");
+  token.attrSet("rel", "noopener noreferrer");
+  return defaultLinkOpen(tokens, idx, options, env, self);
+};
+
+const SANITIZE_OPTIONS = {
+  USE_PROFILES: { html: true },
+  RETURN_DOM_FRAGMENT: true,
+  ALLOW_DATA_ATTR: false,
+  FORBID_TAGS: ["script", "style", "iframe", "object", "embed", "form"],
+  FORBID_ATTR: ["srcdoc"]
+};
+
+function renderMarkdown(source) {
+  // Retain ICARE's earlier tolerance for headings written without a space after #.
+  // (?!#) prevents the regex engine from backtracking and consuming only part of a heading marker.
+  const normalized = String(source ?? "").replace(/^( {0,3}#{1,6})(?!#)(?=\S)/gm, "$1 ");
+  const html = markdown.render(normalized);
+  const fragment = window.DOMPurify.sanitize(html, SANITIZE_OPTIONS);
+  if (fragment instanceof DocumentFragment) return fragment;
+  const template = document.createElement("template");
+  template.innerHTML = String(fragment);
+  return template.content;
+}
+
+export { renderMarkdown };

@@ -17,6 +17,7 @@ jobs:
         working-directory: browser
         run: |
           npm install --no-save playwright
+          npm run build:vendor
           npx playwright install --with-deps chromium
       - name: Validate browser modules
         run: |
@@ -26,6 +27,7 @@ jobs:
           node --check browser/storage.js
           node --check browser/inference.js
           node --check browser/sw.js
+          node --check browser/markdown.js
           node --check browser/theme.js
           node --test browser/test/*.test.js
           node browser/test/smoke.mjs
