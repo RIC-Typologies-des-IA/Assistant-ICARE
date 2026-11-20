@@ -39,22 +39,25 @@ Consulter le [README de l'approche par prompt](prompt/README.md) pour choisir et
 
 Cette approche ajoute un runtime applicatif à la méthode : [**Pi**](https://github.com/earendil-works/pi), via son [SDK Node.js](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/sdk.md), dialogue avec les modèles servis par [**Lemonade Server**](https://github.com/lemonade-sdk/lemonade), tandis qu'un backend conserve l'état d'exploration, les propositions et les documents dans [SQLite](https://www.sqlite.org/docs.html).
 
-L'application s'exécute dans une VM Linux [**QEMU**](https://www.qemu.org/docs/master/system/) / [**NixOS**](https://nixos.org/manual/nixos/stable/). Le processus ICARE y est sandboxé par [**nono**](https://github.com/nolabs-ai/nono). Lemonade reste sur la machine hôte pour garder l'accès au NPU. Le réseau de la VM est fermé par défaut ; les échanges autorisés passent par le proxy filtré de l'hôte. L'interface est ouverte automatiquement dans le navigateur lorsque l'environnement graphique le permet.
+Le déploiement s'adapte au système : Linux utilise une VM [**QEMU**](https://www.qemu.org/docs/master/system/) / [**NixOS**](https://nixos.org/manual/nixos/stable/) confinée par [**nono/Landlock**](https://github.com/nolabs-ai/nono), tandis que macOS exécute le runtime nativement dans un sandbox [**nono/Seatbelt**](https://github.com/nolabs-ai/nono). Lemonade reste sur la machine hôte pour garder l'accès au NPU. Le réseau du runtime est bloqué par défaut ; les échanges autorisés passent par un proxy filtré.
 
-#### Installation et lancement sous Linux x86_64
+#### Installation et lancement (Linux et macOS)
 
-1. Démarrer **Lemonade Server sur la machine hôte** et vérifier que son API est disponible sur `http://127.0.0.1:13305/v1`.
-2. Exécuter cette unique commande dans un terminal :
+Prérequis : démarrer **Lemonade Server sur la machine hôte** et vérifier que son API est disponible sur `http://127.0.0.1:13305/v1`.
+
+ICARE prend en charge :
+- Linux x86_64 et ARM64 : VM NixOS/QEMU confinée par nono/Landlock ;
+- macOS Intel et Apple Silicon : runtime natif confiné par nono/Seatbelt, sans VM QEMU.
+
+Exécuter cette unique commande dans un terminal :
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/RIC-Typologies-des-IA/Assistant-ICARE/main/tools/icare | bash
 ```
 
-Le script [tools/icare](tools/icare) est le lanceur du dépôt. Il installe Nix si nécessaire, puis exécute le flake Nix qui construit et démarre la VM. L'installation de Nix peut demander une autorisation système. Au premier lancement, le téléchargement et la construction de la VM peuvent prendre quelques minutes.
+Le script [tools/icare](tools/icare) détecte le système et l'architecture, installe Nix si nécessaire, puis lance la configuration adaptée. L'installation de Nix peut demander une autorisation système. Au premier lancement, le téléchargement et la construction de la VM Linux peuvent prendre quelques minutes ; sur macOS, les dépendances applicatives sont installées dans le répertoire de l'utilisateur.
 
-Si aucun navigateur graphique n'est disponible, l'interface locale de secours est `http://127.0.0.1:8765`. Cette adresse est liée au loopback de l'hôte ; elle n'est pas à configurer dans Lemonade et n'est pas exposée sur le réseau local.
-
-Les journaux du service sont également exportés sur la machine hôte dans `~/.local/share/icare-vm/logs/icare.log` (ou dans le répertoire `$XDG_DATA_HOME/icare-vm/logs/` si cette variable est définie). En cas de problème de démarrage, ce fichier permet de consulter l'erreur sans se connecter à la console de la VM.
+L'interface locale est `http://127.0.0.1:8765`, liée au loopback et non exposée sur le réseau local. Sous Linux, les journaux sont exportés dans `~/.local/share/icare-vm/logs/` (ou sous `$XDG_DATA_HOME`). Sous macOS, ils sont conservés dans `~/.local/state/icare/logs/` (ou sous `$XDG_STATE_HOME`).
 
 #### Choix du modèle
 
