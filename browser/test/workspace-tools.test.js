@@ -34,12 +34,14 @@ test("le chat consulte l'ontologie et l'état puis enregistre une proposition is
   otherProject.proposals.push({ id: "local-only-proposal", text: "Autre projet" });
   const persisted = [];
   const snapshots = [];
+  let renders = 0;
   let id = 0;
   const executeTool = createIcareToolExecutor({
     workspace: project,
     ontology,
     persist: async () => persisted.push(structuredClone(project)),
     snapshot: reason => snapshots.push(reason),
+    render: () => renders++,
     uid: () => "proposal-" + (++id),
     now: () => "2026-11-20T12:00:00.000Z"
   });
@@ -48,6 +50,8 @@ test("le chat consulte l'ontologie et l'état puis enregistre une proposition is
     { name: "get_ontology", args: {} },
     { name: "get_exploration_state", args: {} },
     { name: "propose_observation", args: validObservation() },
+    { name: "propose_observation", args: validObservation({ text: "Après discussion, le collectif souhaite réduire les délais tout en préservant la concertation.", justification: "Précision issue du dialogue." }) },
+    { name: "propose_relation", args: { from_id: "proposal-1", to_id: "proposal-2", relation: "revises", note: "La seconde proposition précise la première." } },
     { name: "list_propositions", args: { status: "candidate" } }
   ];
   let step = 0;
@@ -71,10 +75,21 @@ test("le chat consulte l'ontologie et l'état puis enregistre une proposition is
         assert.equal(writeResult.proposal.primaryDimension, "I");
       }
       if (step === 4) {
+        const revised = JSON.parse(messages.at(-1).content);
+        assert.equal(revised.status, "candidate");
+        assert.match(revised.proposal.text, /préservant la concertation/);
+      }
+      if (step === 5) {
+        const relation = JSON.parse(messages.at(-1).content);
+        assert.equal(relation.status, "candidate");
+        assert.equal(relation.relation.relation, "revises");
+      }
+      if (step === 6) {
         const listResult = JSON.parse(messages.at(-1).content);
-        assert.equal(listResult.propositions.length, 1);
+        assert.equal(listResult.propositions.length, 2);
         assert.equal(listResult.propositions[0].text, validObservation().text);
-        return { content: "J'ai consulté l'ontologie et ajouté une proposition candidate à valider." };
+        assert.match(listResult.propositions[1].text, /préservant la concertation/);
+        return { content: "J'ai consulté l'ontologie, conservé la proposition initiale et ajouté sa révision candidate." };
       }
       const call = plan[step++];
       return { tool_calls: [{ id: "call-" + step, function: { name: call.name, arguments: JSON.stringify(call.args) } }] };
@@ -84,17 +99,21 @@ test("le chat consulte l'ontologie et l'état puis enregistre une proposition is
 
   assert.match(result.content, /consulté l'ontologie/);
   assert.deepEqual(result.executed.map(item => item.name), plan.map(item => item.name));
-  assert.equal(project.proposals.length, 1);
+  assert.equal(project.proposals.length, 2);
   assert.equal(project.proposals[0].status, "candidate");
   assert.equal(project.proposals[0].source, "conversation");
+  assert.equal(project.proposals[1].status, "candidate");
+  assert.equal(project.relations.length, 1);
+  assert.equal(project.relations[0].relation, "revises");
   assert.equal(otherProject.proposals.length, 1);
   await assert.rejects(
     executeOtherProject("propose_relation", { from_id: "proposal-1", to_id: "local-only-proposal", relation: "complements" }),
     /doivent exister/
   );
   assert.equal(otherProject.relations.length, 0);
-  assert.equal(persisted.length, 1);
-  assert.deepEqual(snapshots, ["Proposition agentique"]);
+  assert.equal(persisted.length, 3);
+  assert.deepEqual(snapshots, ["Proposition agentique", "Proposition agentique", "Relation agentique"]);
+  assert.equal(renders, 3);
 });
 
 test("une simple consultation ne modifie ni le projet ni son historique", async () => {
