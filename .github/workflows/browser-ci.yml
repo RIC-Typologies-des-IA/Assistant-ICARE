@@ -13,6 +13,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
+      - name: Install browser test runtime
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
       - name: Validate browser modules
         run: |
           node --check browser/app.js
@@ -20,6 +24,7 @@ jobs:
           node --check browser/inference.js
           node --check browser/sw.js
           node --test browser/test/*.test.js
+          node browser/test/smoke.mjs
           python -m json.tool browser/icare.json >/dev/null
           python -m json.tool browser/manifest.webmanifest >/dev/null
           test -s browser/system-prompt.md
