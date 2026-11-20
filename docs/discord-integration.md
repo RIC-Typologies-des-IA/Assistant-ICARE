@@ -5,7 +5,7 @@ L'intégration Discord comporte deux interfaces complémentaires qui réutilisen
 - **Bot textuel** : conversation naturelle avec l'agent, dans un salon lié ou un fil de discussion.
 - **Discord Activity** : interface graphique ICARE complète intégrée dans Discord, sans seconde application métier.
 
-Discord reste un point d'entrée et un espace de collaboration. Il ne devient ni le propriétaire des données, ni l'ontologie, ni le serveur central obligatoire.
+Le navigateur est le client ICARE principal et chaque projet peut rester privé/local. Lorsqu'un utilisateur active explicitement le partage, le service ICARE hébergé avec le bot Discord devient la maison du projet partagé : point de rendez-vous, autorité de coordination, stockage partagé et distributeur des événements. Le stockage canonique est celui du service ICARE, pas les messages Discord eux-mêmes. Le domaine et le format du projet restent indépendants du modèle de données Discord.
 
 ## Bot textuel
 
@@ -31,7 +31,7 @@ Dans le portail développeur Discord, activer l'intent privilégié **Message Co
 
 Les liaisons sont enregistrées localement dans `discord_project_bindings`, par identifiant de salon ou de fil. Les propriétaires et membres du projet sont des identités Discord explicites, stockées comme opérations CRDT de projet et répliquées avec le projet. La permission Discord Gérer le serveur sert uniquement à configurer la liaison ; elle n'accorde pas de droits métier après le bootstrap initial. Il n'existe **aucune organisation des salons par dimension ICARE**.
 
-Les messages sont envoyés au même endpoint `/api/chat` que l'interface web. Les sessions de conversation et les propositions restent dans la base locale ICARE ; elles peuvent être répliquées par le moteur CRDT si les pairs du projet sont configurés.
+Les messages sont envoyés au même endpoint `/api/chat` que l'interface web. Les sessions de conversation et les propositions sont enregistrées dans le service ICARE qui héberge le bot. Ce service est le stockage partagé de référence pour les projets explicitement partagés.
 
 ## Discord Activity
 
@@ -59,9 +59,9 @@ L'Activity récupère le projet lié au salon Discord. Si ce projet n'existe pas
 
 ## Collaboration distribuée
 
-Un bot hébergé est une installation ICARE parmi d'autres. Pour accéder aux projets créés depuis un téléphone ou une autre installation, il doit disposer d'une réplique locale à jour et de pairs CRDT configurés. Discord ne contourne pas la synchronisation et ne transforme pas un message en vérité validée.
+Les navigateurs n'établissent pas de connexions pair-à-pair. Ils synchronisent leurs opérations avec le service ICARE du bot Discord : envoi idempotent, journal partagé, curseurs de reprise et diffusion des événements aux membres autorisés. Les CRDT restent utiles pour représenter et fusionner les contributions concurrentes ; le service centralise la coordination, les ACL et la distribution.
 
-Les opérations reçues alimentent la même projection applicative que l'interface locale. Les décisions contradictoires restent visibles ; la convergence technique ne les arbitre pas.
+Un projet qui n'a pas été explicitement partagé ne produit aucun événement vers Discord. Les opérations reçues alimentent la même projection applicative que le bot et les clients web. Les décisions contradictoires restent visibles ; la convergence technique ne les arbitre pas.
 
 ## Sécurité et limites actuelles
 
@@ -72,3 +72,9 @@ Les opérations reçues alimentent la même projection applicative que l'interfa
 - Le bot et l'Activity ne doivent pas être exposés à des communautés non fiables avant l'ajout des ACL projet/utilisateur.
 - L'Activity utilise le SDK Embedded App épinglé à une version précise via un module ESM externe ; l'accès au CDN est nécessaire au chargement de ce module.
 - La présence, les invitations et les événements de participants Discord ne remplacent pas le journal d'opérations CRDT. La collaboration métier s'appuie sur les projets et les répliques ICARE.
+
+## Décision produit du 20 novembre 2026
+
+Le client principal devient l'application web exécutant le noyau ICARE en WebAssembly. Les clients Android/iOS natifs, les installateurs spécifiques aux OS et la fédération multi-nœuds sont différés. Le bot Discord reste une interface textuelle de première classe et le service ICARE qui lui est associé est le hub de synchronisation uniquement pour les projets dont le partage a été activé explicitement. Un projet privé reste local au navigateur.
+
+L'inférence est indépendante de Discord et du stockage : chaque participant configure son propre fournisseur et son credential. Les clés d'API ne transitent jamais par le bot et ne sont jamais enregistrées dans les données partagées. Voir [ADR 0001 — Client WebAssembly et partage via Discord](adr/0001-browser-wasm-discord-sharing-hub.md).
