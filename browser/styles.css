@@ -23,3 +23,14 @@
 .message-content th:last-child,.message-content td:last-child{border-right:0}
 .message-content tbody tr:nth-child(even){background:#f8fafc}
 @media(max-width:700px){.message-content table{min-width:560px}.message-content th,.message-content td{padding:8px}}
+
+
+/* Markdown-it table wrapper: preserve ICARE styling and allow narrow-screen scrolling. */
+.message-content .markdown-table-wrap{display:block;max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;margin:.75em 0;border:1px solid #dce3ec;border-radius:8px;background:#fff}
+.message-content .markdown-table-wrap table{width:100%;border-collapse:collapse;font-size:.92em;line-height:1.45;white-space:normal}
+.message-content .markdown-table-wrap th,.message-content .markdown-table-wrap td{padding:9px 11px;border-bottom:1px solid #e5eaf0;border-right:1px solid #e5eaf0;vertical-align:top;text-align:left;overflow-wrap:anywhere}
+.message-content .markdown-table-wrap th{background:#eaf0f8;color:#263b58;font-weight:700}
+.message-content .markdown-table-wrap tr:last-child td{border-bottom:0}
+.message-content .markdown-table-wrap th:last-child,.message-content .markdown-table-wrap td:last-child{border-right:0}
+.message-content .markdown-table-wrap tbody tr:nth-child(even){background:#f8fafc}
+@media(max-width:700px){.message-content .markdown-table-wrap table{min-width:560px}.message-content .markdown-table-wrap th,.message-content .markdown-table-wrap td{padding:8px}}
