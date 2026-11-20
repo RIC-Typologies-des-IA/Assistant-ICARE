@@ -6,7 +6,7 @@ ICARE est une méthode de dialogue et de réflexion systémique. Elle aide à co
 
 La priorité de développement est désormais le client Web autonome, accessible sans installation ni serveur ICARE personnel.
 
-**Application :** https://ric-typologies-des-ia.github.io/Assistant-ICARE/
+**URL cible (après activation de GitHub Pages et fusion de la première version) :** https://ric-typologies-des-ia.github.io/Assistant-ICARE/
 
 Le client autonome est développé dans le dossier browser/. Il vise :
 - un espace de travail local et privé par défaut ;
