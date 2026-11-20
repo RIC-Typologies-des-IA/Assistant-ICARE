@@ -47,7 +47,7 @@ export function createIcareToolExecutor({
       return {
         ok: true,
         results: documents
-          .filter(document => !query || (document.title + "\\n" + document.content).toLocaleLowerCase("fr").includes(query))
+          .filter(document => !query || (document.title + "\n" + document.content).toLocaleLowerCase("fr").includes(query))
           .map(({ id, title, content }) => ({ id, title, excerpt: content.slice(0, 5000) }))
       };
     }
@@ -118,6 +118,7 @@ export function createIcareToolExecutor({
       workspace.relations.push(relation);
       await commit(() => workspace.relations.pop());
       snapshot("Relation agentique");
+      render();
       return { ok: true, id: relation.id, status: "candidate", relation };
     }
 
