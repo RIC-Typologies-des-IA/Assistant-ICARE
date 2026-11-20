@@ -17,7 +17,8 @@ try{
   const page=await context.newPage();
   await page.route("https://mock-provider.example/**",route=>{assert.equal(route.request().headers()["authorization"],"Bearer test-secret","la clé doit être disponible en mémoire de session");return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({choices:[{message:{content:"Réponse locale de test."}}]})});});
   await page.goto(url);
-  await page.locator("#project-title").waitFor();
+  await page.waitForFunction(()=>document.querySelectorAll(".dimension").length===5);
+  await page.waitForFunction(()=>document.querySelector("#project-select").options.length===1);
   assert.equal(await page.locator(".dimension").count(),5,"les cinq dimensions doivent être alimentées par l'ontologie");
   assert.equal(await page.locator("#project-title").textContent(),"Mon premier projet");
   await page.locator("#settings-button").click();
@@ -29,10 +30,10 @@ try{
   await page.locator('#settings-form button[value="save"]').click();
   await page.locator("#message-input").fill("Bonjour ICARE");
   await page.locator("#composer").evaluate(form=>form.requestSubmit());
-  await page.getByText("Réponse locale de test.",{exact:true}).waitFor();
+  await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Réponse locale de test."));
   await page.reload();
-  await page.getByText("Bonjour ICARE",{exact:true}).waitFor();
-  await page.getByText("Réponse locale de test.",{exact:true}).waitFor();
+  await page.waitForFunction(()=>[...document.querySelectorAll(".message.user p")].some(p=>p.textContent==="Bonjour ICARE"));
+  await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Réponse locale de test."));
   await page.locator("#new-project").click();
   await page.locator("#project-name").fill("Projet navigateur");
   await page.locator("#project-intention").fill("Vérifier la persistance locale");
