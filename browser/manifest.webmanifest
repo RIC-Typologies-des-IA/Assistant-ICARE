@@ -10,9 +10,10 @@
   "theme_color": "#172b4d",
   "icons": [
     {
-      "src": "../pi-runtime/public/assets/ric-logo.png",
+      "src": "./icon.svg",
       "sizes": "any",
-      "type": "image/png"
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     }
   ]
 }
