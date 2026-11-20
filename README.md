@@ -1,49 +1,91 @@
 # ICARE — Penser et transformer les systèmes
 
-ICARE est une méthode de dialogue et de réflexion systémique. Elle aide à comprendre une situation, un projet ou une organisation dans ses interactions, puis à penser les transformations possibles. L'utilisateur reste maître de l'intention, des arbitrages et des décisions.
+> **Un outil du laboratoire IA du [Réseau Intelligence de la Complexité](https://www.intelligence-complexite.org/).**
+
+L'interface agentique reprend cette affiliation institutionnelle dans son en-tête, avec un lien direct vers le site du Réseau.
+
+ICARE est une méthode de dialogue et de réflexion systémique. Elle aide à comprendre une situation, un projet ou une organisation dans ses interactions, puis à penser les transformations possibles.
+
+L'assistant ICARE est un partenaire intellectuel exigeant et non directif, inspiré de la maïeutique. Il questionne, reformule et met les hypothèses à l'épreuve. L'utilisateur reste maître de l'intention, des arbitrages et des décisions.
 
 ## Utiliser ICARE dans le navigateur
 
-La priorité de développement est désormais le client Web autonome, accessible sans installation ni serveur ICARE personnel.
+**URL cible :** https://ric-typologies-des-ia.github.io/Assistant-ICARE/ (après fusion et activation de GitHub Pages).
 
-**URL cible (après activation de GitHub Pages et fusion de la première version) :** https://ric-typologies-des-ia.github.io/Assistant-ICARE/
+La priorité de développement est le client Web autonome, local-first et sans serveur ICARE personnel. Il conserve projets et conversations dans le navigateur, permet de configurer directement un fournisseur d'inférence et propose l'import/export des données. La première tranche est en cours dans le dossier browser/. Les fonctions avancées (propositions structurées, relations, tableaux de bord ontologiques, CRDT et migration des anciens projets) seront réintégrées progressivement.
 
-Le client autonome est développé dans le dossier browser/. Il vise :
-- un espace de travail local et privé par défaut ;
-- des projets et conversations persistés dans IndexedDB ;
-- une configuration directe du moteur d'inférence par l'utilisateur ;
-- l'export et l'import des sauvegardes ;
-- une application installable (PWA), sans compte ICARE.
-
-La première tranche est en cours de réalisation. Les fonctions avancées de l'interface actuelle (propositions structurées, relations, tableaux de bord ontologiques, CRDT) sont réintégrées progressivement. Le runtime Pi/Node.js existant reste une base de transition et de référence métier ; il n'est pas la cible du client final.
+Discord, le bot et toute infrastructure partagée sont hors du chemin critique de cette version autonome. Le runtime Pi/Node.js historique reste une base de transition pour préserver et porter les fonctions métier existantes.
 
 ## La boussole ICARE
 
 Les cinq dimensions sont interdépendantes ; elles ne forment ni une checklist ni une séquence linéaire :
-- **I — Intention** : finalités et sens ;
-- **C — Contexte** : situation, environnement et acteurs ;
-- **A — Action** : opérations et transformations ;
-- **R — Régulation / organisation** : rôles, processus, règles et coordination ;
-- **E — Évolution** : temporalités, apprentissages et transformations.
 
-Le référentiel détaillé est décrit dans [ICARE_referentiel.md](ICARE_referentiel.md), et l'ontologie structurée dans [pi-runtime/reference/icare.json](pi-runtime/reference/icare.json).
+- **I — Intention** : pourquoi travailler sur ce système et quelle finalité poursuivre ?
+- **C — Contexte** : dans quel environnement le système existe-t-il et interagit-il ?
+- **A — Action** : que veut-on faire advenir, et par quelles actions ?
+- **R — Régulation / organisation** : comment les acteurs, responsabilités, processus et flux s'organisent-ils ?
+- **E — Évolution** : comment le système apprend-il, se transforme-t-il et réorganise-t-il ses relations ?
 
-## Moteurs d'inférence
+Le référentiel commun est décrit dans [ICARE_referentiel.md](ICARE_referentiel.md).
 
-Le client navigateur vise les API compatibles OpenAI Chat Completions en premier. L'utilisateur fournit son endpoint, son modèle et éventuellement sa clé. Les appels sont effectués directement depuis le navigateur : le fournisseur doit donc autoriser CORS. La clé n'est jamais incluse dans les exports de projets. Le stockage local d'une clé reste un compromis de sécurité propre à l'appareil et au profil du navigateur.
+## Deux façons d'utiliser ICARE
 
-## Données et confidentialité
+Le dépôt conserve deux approches complémentaires. Elles partagent la même méthode, mais ne répondent pas aux mêmes besoins.
 
-Les projets et conversations sont conservés dans le stockage du navigateur. Ils ne sont pas envoyés à GitHub, Discord ou à un serveur ICARE. Ils ne sont pas synchronisés entre appareils : utilisez l'export JSON pour sauvegarder ou transférer vos données. Une suppression des données du navigateur ou une politique de nettoyage du stockage peut les faire perdre.
+### 1. Approche par prompt — la forme initiale
 
-## Approche par prompt
+La méthode est portée par des instructions données à un modèle conversationnel. Elle est simple à déployer et ne nécessite pas d'application dédiée.
 
-Les versions standard, locale et web compacte restent disponibles dans [prompt/README.md](prompt/README.md).
+Trois niveaux sont conservés :
+- **Standard** : agent configurable ou projet ChatGPT ;
+- **Local** : modèle exécuté sur une machine ou une infrastructure maîtrisée ;
+- **Web compacte** : prompt court à coller au début d'une conversation.
 
-## Runtime historique et environnement de développement
+Consulter le [README de l'approche par prompt](prompt/README.md) pour choisir et installer la bonne version.
 
-Le prototype Pi/Node.js, Lemonade, SQLite et NixOS est conservé dans pi-runtime/ et les fichiers NixOS. Il sert à préserver les fonctions existantes pendant leur extraction et leur portage progressif. Voir [pi-runtime/README.md](pi-runtime/README.md).
+### 2. Prototype historique — application Pi, Lemonade, QEMU et nono
 
-## Déploiement
+Cette approche historique ajoute un runtime applicatif à la méthode ; elle est conservée comme environnement de transition pendant la réalisation du client navigateur : [**Pi**](https://github.com/earendil-works/pi), via son [SDK Node.js](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/sdk.md), dialogue avec les modèles servis par [**Lemonade Server**](https://github.com/lemonade-sdk/lemonade), tandis qu'un backend conserve l'état d'exploration, les propositions et les documents dans [SQLite](https://www.sqlite.org/docs.html).
 
-Le workflow GitHub Actions publie browser/ sur GitHub Pages. La source Pages du dépôt doit être réglée sur **GitHub Actions** (Settings → Pages). Aucun serveur ICARE ni infrastructure partagée payante n'est nécessaire pour la version autonome.
+L'application s'exécute dans une VM Linux [**QEMU**](https://www.qemu.org/docs/master/system/) / [**NixOS**](https://nixos.org/manual/nixos/stable/). Le processus ICARE y est sandboxé par [**nono**](https://github.com/nolabs-ai/nono). Lemonade reste sur la machine hôte pour garder l'accès au NPU. Le réseau de la VM est fermé par défaut ; les échanges autorisés passent par le proxy filtré de l'hôte. L'interface est ouverte automatiquement dans le navigateur lorsque l'environnement graphique le permet.
+
+#### Installation et lancement sous Linux x86_64
+
+1. Démarrer **Lemonade Server sur la machine hôte** et vérifier que son API est disponible sur `http://127.0.0.1:13305/v1`.
+2. Exécuter cette unique commande dans un terminal :
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/RIC-Typologies-des-IA/Assistant-ICARE/main/tools/icare | bash
+```
+
+Le script [tools/icare](tools/icare) est le lanceur du dépôt. Il installe Nix si nécessaire, puis exécute le flake Nix qui construit et démarre la VM. L'installation de Nix peut demander une autorisation système. Au premier lancement, le téléchargement et la construction de la VM peuvent prendre quelques minutes.
+
+Si aucun navigateur graphique n'est disponible, l'interface locale de secours est `http://127.0.0.1:8765`. Cette adresse est liée au loopback de l'hôte ; elle n'est pas à configurer dans Lemonade et n'est pas exposée sur le réseau local.
+
+Les journaux du service sont également exportés sur la machine hôte dans `~/.local/share/icare-vm/logs/icare.log` (ou dans le répertoire `$XDG_DATA_HOME/icare-vm/logs/` si cette variable est définie). En cas de problème de démarrage, ce fichier permet de consulter l'erreur sans se connecter à la console de la VM.
+
+#### Choix du modèle
+
+Aucun identifiant de modèle n'est imposé dans le dépôt. Pi interroge le catalogue Lemonade, repère les modèles de conversation téléchargés et les rend disponibles dans l'interface. Les modèles non téléchargés restent visibles mais ne sont pas sélectionnables. L'utilisateur peut actualiser le catalogue et changer de modèle sans redémarrer le service. Les modèles annoncés comme compatibles avec l'appel d'outils sont à privilégier pour utiliser toutes les fonctions ICARE.
+
+#### État et limites de l'approche agentique
+
+- Les observations proposées par Pi restent des candidates jusqu'à leur validation humaine.
+- Les statuts « suffisamment explorée » et « non applicable » exigent une justification.
+- Les données ICARE et la base SQLite sont conservées sur le disque virtuel de la VM.
+- Le runtime propose un bot Discord textuel (mentions, fils dédiés, sessions ICARE) et une Discord Activity qui réutilise la même interface web. Leur configuration et leurs limites de sécurité sont décrites dans [docs/discord-integration.md](docs/discord-integration.md).
+- Les projets peuvent aussi être partagés par un lien web HTTPS avec authentification Discord, demandes d’adhésion et gouvernance `owner/member`. La configuration OAuth, les règles d’accès, la révocation et la réplication sont décrites dans [docs/project-access-protocol.md](docs/project-access-protocol.md).
+- La restauration automatique d'une conversation Pi après redémarrage et le test d'inférence réel sur la machine cible restent à valider.
+- Cette version est expérimentale ; la CI vérifie les tests Node.js et la construction de la VM, pas l'intégration réelle avec le NPU de chaque machine.
+
+Les détails techniques, la réplication CRDT et l’intégration Discord sont décrits dans [pi-runtime/README.md](pi-runtime/README.md), [docs/crdt-operation-journal.md](docs/crdt-operation-journal.md), [docs/discord-integration.md](docs/discord-integration.md), [docs/project-access-control.md](docs/project-access-control.md) et [nixos/icare-vm.nix](nixos/icare-vm.nix). Les [références et documentations externes](REFERENCES.md) recensent les sources primaires des composants et des cadres conceptuels cités.
+
+## Références
+
+Consulter la [bibliographie technique et conceptuelle](REFERENCES.md), qui distingue les logiciels réellement employés des inspirations théoriques de l'ontologie complémentaire.
+
+## Faire évoluer ICARE
+
+Les deux approches doivent rester cohérentes avec le référentiel commun. Une évolution méthodologique se discute d'abord au niveau du référentiel, puis se répercute sur les prompts et sur le comportement de l'agent. Les propositions d'adaptation peuvent être discutées dans les [issues du dépôt](https://github.com/RIC-Typologies-des-IA/Assistant-ICARE/issues).
+
+**ICARE aide à voir plus largement, relier plus finement, questionner plus rigoureusement et apprendre de ce qui advient, sans retirer à l'utilisateur la maîtrise de son intention ni de ses décisions.**
