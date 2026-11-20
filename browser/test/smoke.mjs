@@ -15,7 +15,7 @@ try{
   browser=await chromium.launch({headless:true});
   const context=await browser.newContext();
   const page=await context.newPage();
-  await page.route("https://mock-provider.example/**",route=>route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({choices:[{message:{content:"Réponse locale de test."}}]})}));
+  await page.route("https://mock-provider.example/**",route=>{assert.equal(route.request().headers()["authorization"],"Bearer test-secret","la clé doit être disponible en mémoire de session");return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({choices:[{message:{content:"Réponse locale de test."}}]})});});
   await page.goto(url);
   await page.locator("#project-title").waitFor();
   assert.equal(await page.locator(".dimension").count(),5,"les cinq dimensions doivent être alimentées par l'ontologie");
