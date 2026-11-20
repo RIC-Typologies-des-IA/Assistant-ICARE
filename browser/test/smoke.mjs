@@ -76,7 +76,36 @@ try{
   await page.locator('#project-form button[value="save"]').click();
   await page.locator("#project-dialog").waitFor({state:"hidden"});
   await page.waitForFunction(()=>document.querySelector("#project-title").textContent==="Projet navigateur");
-  console.log("Browser smoke test passed: ontology, provider, conversation persistence and project creation.");
+
+  const darkContext=await browser.newContext({colorScheme:"dark"});
+  const darkPage=await darkContext.newPage();
+  await darkPage.goto(url);
+  await darkPage.waitForFunction(()=>document.querySelector("#project-select").options.length===1);
+  assert.equal(await darkPage.locator("html").getAttribute("data-theme"),"dark","le thème sombre du navigateur doit être détecté automatiquement");
+  await darkPage.locator("#theme-toggle").click();
+  assert.equal(await darkPage.locator("html").getAttribute("data-theme"),"light","le bouton doit permettre de choisir le thème clair");
+  await darkPage.reload();
+  assert.equal(await darkPage.locator("html").getAttribute("data-theme"),"light","le choix manuel doit être conservé après rechargement");
+  await darkContext.close();
+
+  const autoContext=await browser.newContext({colorScheme:"light"});
+  const autoPage=await autoContext.newPage();
+  await autoPage.goto(url);
+  await autoPage.waitForFunction(()=>document.querySelector("#project-select").options.length===1);
+  assert.equal(await autoPage.locator("html").getAttribute("data-theme"),"light","le thème clair du navigateur doit être détecté");
+  await autoContext.emulateMedia({colorScheme:"dark"});
+  await autoPage.waitForFunction(()=>document.documentElement.dataset.theme==="dark");
+  await autoContext.close();
+
+  const fallbackContext=await browser.newContext();
+  await fallbackContext.addInitScript(()=>Object.defineProperty(window,"matchMedia",{value:undefined,configurable:true}));
+  const fallbackPage=await fallbackContext.newPage();
+  await fallbackPage.goto(url);
+  await fallbackPage.waitForFunction(()=>document.querySelector("#project-select").options.length===1);
+  assert.equal(await fallbackPage.locator("html").getAttribute("data-theme"),"light","en l'absence de détection système, le thème doit être clair");
+  await fallbackContext.close();
+
+  console.log("Browser smoke test passed: ontology, provider, persistence, project creation and color themes.");
 }finally{
   if(browser)await browser.close();
   await new Promise(resolveClose=>server.close(resolveClose));
