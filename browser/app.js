@@ -1,6 +1,7 @@
 import { openDatabase, getAll, put, get } from "./storage.js";
 import { chatCompletion, listModels, transcribeAudio, audioBlobToWav } from "./inference.js";
 const $=id=>document.getElementById(id), db=await openDatabase();
+$("app-version").textContent=`v${window.ICARE_VERSION} · alpha`;
 const state={projectId:null,projects:[],turns:[],settings:{},transcriptionSettings:{},workspace:null,busy:false};
 const uid=()=>crypto.randomUUID(), now=()=>new Date().toISOString();
 let ontology=null;
