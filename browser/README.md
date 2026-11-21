@@ -4,7 +4,7 @@ Première tranche autonome en cours de réalisation, destinée à être publiée
 
 Fonctions : projets locaux, conversations persistées dans IndexedDB, export/import JSON, configuration d'une API compatible OpenAI Chat Completions, PWA et cache statique.
 
-Limites : le fournisseur doit autoriser CORS depuis GitHub Pages ; les données restent dans ce navigateur/profil et ne sont pas synchronisées ; les propositions structurées, relations et CRDT seront réintégrés progressivement. La clé API est stockée localement uniquement si l'utilisateur le demande et n'est jamais incluse dans les exports. Le stockage navigateur n'est pas un coffre-fort contre un appareil compromis.
+Limites : le fournisseur doit autoriser CORS depuis GitHub Pages ; les données restent dans ce navigateur/profil et ne sont pas synchronisées ; les propositions structurées, relations et CRDT seront réintégrés progressivement. Les clés API restent dans sessionStorage pour la session de l'onglet et ne sont jamais enregistrées dans IndexedDB ni incluses dans les exports. Les anciennes clés persistées sont effacées lors du chargement des paramètres. Le stockage navigateur n'est pas un coffre-fort contre un appareil compromis.
 
 Le workflow de déploiement publie le contenu de browser/ sur GitHub Pages. Dans Settings → Pages, sélectionner GitHub Actions comme source de publication. URL cible : https://ric-typologies-des-ia.github.io/Assistant-ICARE/
 
@@ -42,3 +42,10 @@ Outils disponibles : `list_available_models`, `get_ontology`, `get_exploration_s
 Les opérations agentiques sont couvertes par des tests de comportement : consultation de l'ontologie et de l'état, ajout et relecture d'une proposition issue du dialogue, validation des relations et des statuts, isolation du projet et annulation en cas d'échec de persistance. Les observations et relations sont créées au statut candidat. Les changements de statuts `sufficient` et `not_applicable` exigent une justification. Les documents de référence sont isolés par projet. Le fournisseur de modèle doit prendre en charge les appels d'outils ; un modèle qui ne les prend pas en charge ne peut pas assurer la parité agentique.
 
 Cette livraison restaure un premier socle d'écriture agentique, mais ne prétend pas encore à la parité complète : la réplication CRDT, la migration SQLite et l'intégralité des métadonnées/projections du runtime historique restent des étapes distinctes.
+
+
+## Sécurité entreprise
+
+La posture de sécurité local-first, les invariants machine-readable, le modèle TLA+ et le registre des flux réseau sont décrits dans [security/README.md](security/README.md), [security-policy.json](security-policy.json) et [security/NETWORK_FLOWS.md](security/NETWORK_FLOWS.md). Les tests de contrat sont exécutés avec `npm test`.
+
+Les clés d'inférence sont limitées à la session de l'onglet et ne sont pas persistées dans IndexedDB. Les endpoints d'inférence distants doivent utiliser HTTPS ; HTTP reste autorisé uniquement pour les services de boucle locale (localhost, 127.0.0.1, ::1). Cette validation protège le transport, mais ne remplace pas une allowlist d'origines définie au niveau du déploiement ou du réseau.
