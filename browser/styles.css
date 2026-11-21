@@ -223,12 +223,11 @@ html[data-theme="dark"] .project-heading h1 { color: #e8eef7 !important; }
   align-items:start;
   gap:16px;
 }
-.project-heading{grid-area:heading;grid-column:auto;grid-row:auto;min-width:0}
-.chat-panel{grid-area:chat;grid-column:auto;grid-row:auto;min-width:0;min-height:72vh}
-.insights{grid-area:insights;grid-column:auto;grid-row:auto;min-width:0;display:flex;flex-direction:column;gap:14px}
+.project-heading{grid-area:heading;min-width:0}
+.chat-panel{grid-area:chat;min-width:0;min-height:72vh}
+.insights{grid-area:insights;min-width:0;display:flex;flex-direction:column;gap:14px}
 @media(max-width:1050px){
   .workspace{grid-template-columns:minmax(0,1fr);grid-template-areas:"heading" "chat" "insights";grid-template-rows:auto auto auto}
-  .project-heading,.chat-panel,.insights{grid-column:auto;grid-row:auto}
   .insights{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
   .insight-panel:last-child{grid-column:1/-1}
 }
