@@ -343,17 +343,18 @@ html[data-theme="dark"] .menu-toggle{background:#34465e !important;color:#e6eef9
 
 
 /* Rail projets au bord de la fenêtre : aucune marge gauche, chat juste à côté. */
+:root{--project-rail-width:40px}
 .layout{
   width:100% !important;
   max-width:none !important;
   margin:12px 0 24px !important;
   padding:0 16px 0 0 !important;
-  grid-template-columns:40px minmax(0,1fr) !important;
+  grid-template-columns:var(--project-rail-width) minmax(0,1fr) !important;
   gap:8px !important;
 }
 .sidebar{
-  width:40px !important;
-  min-width:40px !important;
+  width:var(--project-rail-width) !important;
+  min-width:var(--project-rail-width) !important;
   padding:6px 4px !important;
 }
 .sidebar .menu-toggle{
@@ -380,7 +381,7 @@ body.project-menu-open .sidebar{
   body.project-menu-open .layout{
     grid-template-columns:220px minmax(0,1fr) !important;
   }
-  .sidebar{width:40px !important;min-width:40px !important}
+   .sidebar{width:var(--project-rail-width) !important;min-width:var(--project-rail-width) !important}
   body.project-menu-open .sidebar{width:220px !important;min-width:220px !important}
 }
 @media(max-width:700px){
@@ -388,10 +389,11 @@ body.project-menu-open .sidebar{
     width:100% !important;
     margin:8px 0 16px !important;
     padding:0 8px 0 0 !important;
-    grid-template-columns:38px minmax(0,1fr) !important;
+    grid-template-columns:var(--project-rail-width) minmax(0,1fr) !important;
     gap:6px !important;
   }
-  .sidebar{width:38px !important;min-width:38px !important;padding:6px 3px !important}
+   :root{--project-rail-width:38px}
+  .sidebar{width:var(--project-rail-width) !important;min-width:var(--project-rail-width) !important;padding:6px 3px !important}
   body.project-menu-open .layout{
     grid-template-columns:minmax(150px,42vw) minmax(0,1fr) !important;
   }
