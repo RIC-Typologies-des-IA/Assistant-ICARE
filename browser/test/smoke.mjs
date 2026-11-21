@@ -63,9 +63,12 @@ try{
   assert.equal(await page.locator(".message.user").count(),0,"le premier instantané doit rejouer le dialogue avant le premier échange");
   await page.locator("#timeline-slider").evaluate(slider=>{slider.value=slider.max;slider.dispatchEvent(new Event("input",{bubbles:true}));});
   assert.equal(await page.locator(".message.user p").first().textContent(),"Bonjour ICARE","le dernier instantané doit réafficher l’échange complet");
-  await page.reload();
-  await page.waitForFunction(()=>[...document.querySelectorAll(".message.user p")].some(p=>p.textContent==="Bonjour ICARE"));
-  await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Réponse locale de test."));
+  // Ouvrir un nouveau document dans le même contexte vérifie la restauration IndexedDB
+  // sans dépendre du chemin page.reload(), instable dans le navigateur headless CI.
+  const restoredPage=await context.newPage();
+  await restoredPage.goto(url,{waitUntil:"domcontentloaded"});
+  await restoredPage.waitForFunction(()=>[...document.querySelectorAll(".message.user p")].some(p=>p.textContent==="Bonjour ICARE"));
+  await restoredPage.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Réponse locale de test."));
   await page.locator("#proposal-text").fill("Le système doit conserver son identité visuelle.");
   await page.locator("#proposal-form").evaluate(form=>form.requestSubmit());
   await page.waitForFunction(()=>document.querySelectorAll("#proposal-list .proposal-item").length===1);
