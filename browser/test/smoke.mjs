@@ -27,7 +27,13 @@ try{
   const desktopGeometry=await page.evaluate(()=>{const chat=document.querySelector(".chat-panel").getBoundingClientRect(),insights=document.querySelector(".insights").getBoundingClientRect();return {chat:{left:Math.round(chat.left),right:Math.round(chat.right),top:Math.round(chat.top)},insights:{left:Math.round(insights.left),right:Math.round(insights.right),top:Math.round(insights.top)}};});
   assert.ok(desktopGeometry.chat.left<desktopGeometry.insights.left,"le dialogue doit être à gauche des panneaux d’exploration : "+JSON.stringify(desktopGeometry));
   assert.ok(Math.abs(desktopGeometry.chat.top-desktopGeometry.insights.top)<8,"le dialogue et l’exploration doivent commencer sur la même ligne : "+JSON.stringify(desktopGeometry));
-  assert.equal(await page.locator(".sidebar").evaluate(el=>getComputedStyle(el).transform!=="none"),true,"le volet projets doit être replié au démarrage");
+  assert.equal(await page.locator(".sidebar").evaluate(el=>Math.round(el.getBoundingClientRect().width)),44,"le volet projets doit rester visible sous forme de rail réduit");
+  assert.equal(await page.locator("#project-menu-toggle").evaluate(el=>el.closest(".sidebar")!==null),true,"le hamburger doit être placé dans le rail tout à gauche");
+  const railGeometry=await page.evaluate(()=>{const rail=document.querySelector(".sidebar").getBoundingClientRect(),chat=document.querySelector(".chat-panel").getBoundingClientRect();return {railRight:Math.round(rail.right),chatLeft:Math.round(chat.left),railTop:Math.round(rail.top),chatTop:Math.round(chat.top)}});
+  assert.ok(railGeometry.railRight<railGeometry.chatLeft,"le rail doit être à gauche du dialogue avec un espace : "+JSON.stringify(railGeometry));
+  assert.ok(railGeometry.chatTop>railGeometry.railTop,"le rail doit commencer sous la bannière avec une marge");
+  assert.equal(await page.locator("#project-export-button svg path").count(),1,"l’export doit utiliser une flèche pleine et un réceptacle SVG");
+  assert.equal(await page.locator("#project-import-button svg path").count(),1,"l’import doit utiliser une flèche pleine et un réceptacle SVG");
   await page.setViewportSize({width:900,height:900});
   assert.ok(await page.locator(".insights").evaluate(el=>el.getBoundingClientRect().top>document.querySelector(".chat-panel").getBoundingClientRect().top),"sur tablette, les panneaux doivent passer sous le dialogue");
   await page.setViewportSize({width:1440,height:1000});
@@ -103,8 +109,9 @@ try{
   assert.equal(await page.locator("#project-select option").count(),2,"la création doit ajouter un deuxième projet");
   await page.locator("#project-menu-toggle").click();
   assert.equal(await page.locator("body").evaluate(el=>el.classList.contains("project-menu-open")),true,"le bouton hamburger doit ouvrir le volet projets");
-  await page.locator("#project-menu-backdrop").click();
-  assert.equal(await page.locator("body").evaluate(el=>el.classList.contains("project-menu-open")),false,"le voile doit refermer le volet projets");
+  assert.equal(await page.locator(".sidebar").evaluate(el=>Math.round(el.getBoundingClientRect().width)),250,"le rail doit s’élargir sans se superposer au dialogue");
+  await page.locator("#project-menu-toggle").click();
+  assert.equal(await page.locator("body").evaluate(el=>el.classList.contains("project-menu-open")),false,"le hamburger doit replier le volet en conservant le rail");
   await page.locator("#project-menu-toggle").click();
   await page.locator("#new-project").click();
   await page.locator("#project-name").fill("Projet à annuler");
