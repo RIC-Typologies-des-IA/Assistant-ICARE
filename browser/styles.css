@@ -337,7 +337,7 @@ body.project-menu-open .sidebar .sidebar-note{display:block !important}
 .project-action svg{display:block;width:22px;height:22px;fill:currentColor;stroke:none}
 html[data-theme="dark"] .sidebar{background:#1b293b !important;border-color:#3a4b63 !important}
 html[data-theme="dark"] .menu-toggle{background:#34465e !important;color:#e6eef9 !important}
-@media(max-width:1050px){.layout{grid-template-columns:40px minmax(0,1fr) !important;gap:12px !important;padding:0 12px !important}body.project-menu-open .layout{grid-template-columns:220px minmax(0,1fr) !important}.sidebar{width:40px !important;min-width:40px}body.project-menu-open .sidebar{width:220px !important;min-width:220px}}
+@media(max-width:1050px){.layout{grid-template-columns:var(--project-rail-width) minmax(0,1fr) !important;gap:12px !important;padding:0 12px !important}body.project-menu-open .layout{grid-template-columns:220px minmax(0,1fr) !important}.sidebar{width:40px !important;min-width:40px}body.project-menu-open .sidebar{width:220px !important;min-width:220px}}
 @media(max-width:700px){.layout{grid-template-columns:38px minmax(0,1fr) !important;gap:9px !important;padding:0 8px !important}body.project-menu-open .layout{grid-template-columns:minmax(150px,42vw) minmax(0,1fr) !important}.sidebar{width:38px !important;min-width:38px;padding:6px 3px !important}body.project-menu-open .sidebar{width:min(42vw,220px) !important;min-width:min(42vw,220px);padding:10px !important}}
 @media(prefers-reduced-motion:reduce){.sidebar{transition:none !important}}
 
