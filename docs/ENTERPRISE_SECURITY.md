@@ -48,6 +48,7 @@ A browser-only client cannot safely hold a shared provider API secret. Where cre
 - Keep project data local by default; do not silently synchronize or upload it.
 - Use IndexedDB for structured local persistence, with schema versioning and safe migrations.
 - Never store passwords, provider API keys, refresh tokens or other long-lived credentials in IndexedDB, localStorage, Cache Storage or the application bundle.
+- In the browser client, provider keys are held in sessionStorage for the current tab session only; they are not persisted in IndexedDB. sessionStorage remains readable by same-origin JavaScript and is not an XSS defense. Enterprise deployments should prefer short-lived credentials issued by a gateway.
 - Treat browser storage as accessible to scripts executing in the same origin.
 - Offer optional project encryption for deployments handling confidential data. Use authenticated encryption and a standard Web Crypto API primitive; never invent a cryptographic algorithm.
 - Derive or obtain encryption keys using an explicit user/enterprise-controlled key lifecycle. Do not hard-code keys or store the decryption key beside ciphertext.
