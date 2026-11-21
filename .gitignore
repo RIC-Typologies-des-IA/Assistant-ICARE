@@ -1,6 +1,0 @@
-# Runtime dependencies and local state
-**/node_modules/
-**/data/
-**/*.sqlite
-**/*.sqlite-shm
-**/*.sqlite-wal
