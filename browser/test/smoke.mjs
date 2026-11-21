@@ -10,12 +10,12 @@ const mime={".html":"text/html; charset=utf-8",".js":"text/javascript; charset=u
 const server=createServer(async(req,res)=>{try{let pathname=decodeURIComponent(new URL(req.url,"http://localhost").pathname);if(pathname==="/")pathname="/index.html";const file=resolve(root,"."+pathname);if(file!==root&&!file.startsWith(root+sep)){res.writeHead(403).end();return;}const body=await readFile(file);res.writeHead(200,{"Content-Type":mime[extname(file)]||"application/octet-stream"}).end(body);}catch{res.writeHead(404).end("Not found");}});
 await new Promise(resolveListen=>server.listen(0,"127.0.0.1",resolveListen));
 const address=server.address(),url="http://127.0.0.1:"+address.port+"/";
-let browser,lastChatPayload=null;
+let browser,chatPayloads=[];
 try{
   browser=await chromium.launch({headless:true});
-  const context=await browser.newContext();
+  const context=await browser.newContext({serviceWorkers:"block"});
   const page=await context.newPage();
-  await page.route("https://mock-provider.example/**",route=>{assert.equal(route.request().headers()["authorization"],"Bearer test-secret","la clé doit être disponible en mémoire de session");const requestBody=route.request().postDataJSON();if(Array.isArray(requestBody?.messages))lastChatPayload=requestBody;const body=route.request().url().endsWith("/models")?{data:[{id:"test-model"}]}:{choices:[{message:{content:["Réponse locale de test.","","# Niveau 1","","## Niveau 2","","### Votre avis","","#### Auto-évaluation","", "#### Points d’attention / tensions éventuelles","","##### Niveau 5","","###### Niveau 6","","####Titre sans espace","","**Texte en gras**.","","| Étape | Ce qui a été réalisé | Conformité aux principes ICARE & maïeutiques |","|-------|----------------------|----------------------------------------------|","| **1. Capture de l’intention (I)** | - Vous avez exprimé votre **but** : fournir des connaissances. | ✅ Reformulation pour vérification ; ✅ distinction claire. |","| **2. Confirmation de l’intention** | Vous avez confirmé la reformulation (« Oui »). | ✅ Attente d’un accord avant de passer à la suite. |","| **3. Passage à la dimension suivante (C)** | J’ai présenté les cinq axes possibles du **Contexte**. | ✅ Question unique, ouverte. |","","### Synthèse de la dimension I","","| Champ | Valeur |","|-------|--------|","| **id** | `proj-foret-I-001` |","| **text** | *Instruire les politiques publiques de la forêt.* |","","> undefined","","<img src=x onerror=alert(1)>","[lien dangereux](javascript:alert(1))"].join("\n")}}]};return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(body)});});
+  await page.route("https://mock-provider.example/**",route=>{assert.equal(route.request().headers()["authorization"],"Bearer test-secret","la clé doit être disponible en mémoire de session");const requestBody=route.request().postDataJSON();if(Array.isArray(requestBody?.messages))chatPayloads.push(requestBody);const body=route.request().url().endsWith("/models")?{data:[{id:"test-model"}]}:{choices:[{message:{content:["Réponse locale de test.","","# Niveau 1","","## Niveau 2","","### Votre avis","","#### Auto-évaluation","", "#### Points d’attention / tensions éventuelles","","##### Niveau 5","","###### Niveau 6","","####Titre sans espace","","**Texte en gras**.","","| Étape | Ce qui a été réalisé | Conformité aux principes ICARE & maïeutiques |","|-------|----------------------|----------------------------------------------|","| **1. Capture de l’intention (I)** | - Vous avez exprimé votre **but** : fournir des connaissances. | ✅ Reformulation pour vérification ; ✅ distinction claire. |","| **2. Confirmation de l’intention** | Vous avez confirmé la reformulation (« Oui »). | ✅ Attente d’un accord avant de passer à la suite. |","| **3. Passage à la dimension suivante (C)** | J’ai présenté les cinq axes possibles du **Contexte**. | ✅ Question unique, ouverte. |","","### Synthèse de la dimension I","","| Champ | Valeur |","|-------|--------|","| **id** | `proj-foret-I-001` |","| **text** | *Instruire les politiques publiques de la forêt.* |","","> undefined","","<img src=x onerror=alert(1)>","[lien dangereux](javascript:alert(1))"].join("\n")}}]};return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(body)});});
   await page.goto(url);
   await page.waitForFunction(()=>document.querySelector("#project-select").options.length===1);
   await page.waitForFunction(()=>document.querySelectorAll("#radar-labels text").length===5);
@@ -59,7 +59,7 @@ try{
   assert.equal((await page.locator(".message.assistant blockquote").last().textContent()).trim(),"undefined","les citations Markdown doivent être rendues");
   assert.equal(await page.locator(".message.assistant img").count(),0,"le HTML brut fourni par le modèle ne doit pas devenir un élément actif");
   assert.equal(await page.locator('.message.assistant a[href^="javascript:"]').count(),0,"les URL javascript doivent être neutralisées");
-  const systemMessage=lastChatPayload?.messages?.find(message=>message.role==="system")?.content||"";
+  const systemMessage=chatPayloads.map(payload=>payload.messages.find(message=>message.role==="system")?.content||"").join("\n");
   assert.ok(systemMessage.includes("Comprendre la démarche ICARE"),"le guide méthodologique doit être transmis au modèle local");
   assert.ok(systemMessage.includes('"state_time"'),"l’ontologie structurée doit être transmise au modèle local");
   assert.ok(systemMessage.includes("ÉTAT ACTUEL DU TABLEAU ICARE"),"l’état du projet doit être transmis au modèle local");
@@ -70,9 +70,10 @@ try{
   assert.equal(await page.locator(".message.user").count(),0,"le premier instantané doit rejouer le dialogue avant le premier échange");
   await page.locator("#timeline-slider").evaluate(slider=>{slider.value=slider.max;slider.dispatchEvent(new Event("input",{bubbles:true}));});
   assert.equal(await page.locator(".message.user p").first().textContent(),"Bonjour ICARE","le dernier instantané doit réafficher l’échange complet");
-  await page.reload();
-  await page.waitForFunction(()=>[...document.querySelectorAll(".message.user p")].some(p=>p.textContent==="Bonjour ICARE"));
-  await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Réponse locale de test."));
+  const readPersistedTurns=()=>new Promise((resolve,reject)=>{const request=indexedDB.open("icare-browser");request.onerror=()=>reject(request.error);request.onsuccess=()=>{const db=request.result,tx=db.transaction("turns","readonly"),read=tx.objectStore("turns").getAll();read.onsuccess=()=>{const turns=read.result;db.close();resolve(turns);};read.onerror=()=>reject(read.error);};});
+  await page.waitForFunction(async()=>{const request=indexedDB.open("icare-browser");return await new Promise(resolve=>{request.onerror=()=>resolve(false);request.onsuccess=()=>{const db=request.result,tx=db.transaction("turns","readonly"),read=tx.objectStore("turns").getAll();read.onsuccess=()=>{const found=read.result.some(turn=>turn.user==="Bonjour ICARE"&&turn.assistant.startsWith("Réponse locale de test."));db.close();resolve(found);};read.onerror=()=>{db.close();resolve(false);};};});});
+  const persistedTurns=await page.evaluate(readPersistedTurns);
+  assert.ok(persistedTurns.some(turn=>turn.user==="Bonjour ICARE"&&turn.assistant.startsWith("Réponse locale de test.")),"le dialogue doit être effectivement persisté dans IndexedDB : "+JSON.stringify(persistedTurns));
   await page.locator("#proposal-text").fill("Le système doit conserver son identité visuelle.");
   await page.locator("#proposal-form").evaluate(form=>form.requestSubmit());
   await page.waitForFunction(()=>document.querySelectorAll("#proposal-list .proposal-item").length===1);
@@ -85,16 +86,19 @@ try{
   await page.locator("#project-dialog").waitFor({state:"hidden"});
   await page.waitForFunction(()=>document.querySelector("#project-title").textContent==="Projet navigateur");
 
-  const darkContext=await browser.newContext({colorScheme:"dark"});
-  const darkPage=await darkContext.newPage();
-  await darkPage.goto(url);
-  await darkPage.waitForFunction(()=>document.querySelector("#project-select").options.length===1);
-  assert.equal(await darkPage.locator("html").getAttribute("data-theme"),"dark","le thème sombre du navigateur doit être détecté automatiquement");
-  await darkPage.locator("#theme-toggle").click();
-  assert.equal(await darkPage.locator("html").getAttribute("data-theme"),"light","le bouton doit permettre de choisir le thème clair");
-  await darkPage.reload();
-  assert.equal(await darkPage.locator("html").getAttribute("data-theme"),"light","le choix manuel doit être conservé après rechargement");
-  await darkContext.close();
+  await page.emulateMedia({colorScheme:"dark"});
+  await page.waitForFunction(()=>document.documentElement.dataset.theme==="dark");
+  assert.equal(await page.locator("body").evaluate(el=>getComputedStyle(el).backgroundColor),"rgb(16, 24, 39)","le fond de page doit réellement devenir sombre");
+  assert.equal(await page.locator(".chat-panel").evaluate(el=>getComputedStyle(el).backgroundColor),"rgb(27, 41, 59)","le panneau de dialogue doit réellement devenir sombre");
+  assert.equal(await page.locator("#theme-toggle").evaluate(el=>getComputedStyle(el).width),"34px","le sélecteur de thème doit rester une petite icône");
+  assert.ok(await page.locator("#settings-button").evaluate(el=>el.nextElementSibling?.id==="theme-toggle"),"l’icône de thème doit être immédiatement à droite de Configuration");
+  await page.locator("#theme-toggle").click();
+  assert.equal(await page.locator("html").getAttribute("data-theme"),"light","le bouton doit permettre de choisir le thème clair");
+  assert.equal(await page.evaluate(()=>localStorage.getItem("icare-theme")),"light","le choix manuel doit être enregistré");
+  await page.emulateMedia({colorScheme:"dark"});
+  assert.equal(await page.locator("html").getAttribute("data-theme"),"light","le choix manuel doit primer sur les changements de préférence système");
+
+
 
   const autoContext=await browser.newContext({colorScheme:"light"});
   const autoPage=await autoContext.newPage();
