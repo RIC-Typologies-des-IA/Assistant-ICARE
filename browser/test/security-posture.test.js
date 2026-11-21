@@ -35,7 +35,9 @@ test("credentials cannot be smuggled in endpoint URLs", () => {
 test("frontend never persists provider credentials or loads the logo from a third-party origin", async () => {
   const [app, html] = await Promise.all([read("../app.js"), read("../index.html")]);
   assert.match(app, /sessionStorage\.setItem\("icare-api-key"/);
-  assert.match(app, /apiKey:"",rememberKey:false/);\n  assert.match(app, /id:"inference",apiKey:"",rememberKey:false/);\n  assert.match(app, /persistedTextKey/);
+  assert.match(app, /apiKey:"",rememberKey:false/);
+  assert.match(app, /id:"inference",apiKey:"",rememberKey:false/);
+  assert.match(app, /persistedTextKey/);
   assert.doesNotMatch(app, /apiKey:remember\?key:""/);
   assert.doesNotMatch(html, /raw\.githubusercontent\.com/);
   assert.doesNotMatch(html, /id="remember-key"|id="remember-transcription-key"/);
