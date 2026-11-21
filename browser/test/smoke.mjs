@@ -15,6 +15,7 @@ try{
   browser=await chromium.launch({headless:true});
   const context=await browser.newContext({serviceWorkers:"block"});
   const page=await context.newPage();
+  page.on("dialog",dialog=>dialog.accept());
   await page.route("https://mock-provider.example/**",route=>{assert.equal(route.request().headers()["authorization"],"Bearer test-secret","la clé doit être disponible en mémoire de session");const requestBody=route.request().postDataJSON();if(Array.isArray(requestBody?.messages))chatPayloads.push(requestBody);const body=route.request().url().endsWith("/models")?{data:[{id:"test-model"}]}:{choices:[{message:{content:["Réponse locale de test.","","# Niveau 1","","## Niveau 2","","### Votre avis","","#### Auto-évaluation","", "#### Points d’attention / tensions éventuelles","","##### Niveau 5","","###### Niveau 6","","####Titre sans espace","","**Texte en gras**.","","| Étape | Ce qui a été réalisé | Conformité aux principes ICARE & maïeutiques |","|-------|----------------------|----------------------------------------------|","| **1. Capture de l’intention (I)** | - Vous avez exprimé votre **but** : fournir des connaissances. | ✅ Reformulation pour vérification ; ✅ distinction claire. |","| **2. Confirmation de l’intention** | Vous avez confirmé la reformulation (« Oui »). | ✅ Attente d’un accord avant de passer à la suite. |","| **3. Passage à la dimension suivante (C)** | J’ai présenté les cinq axes possibles du **Contexte**. | ✅ Question unique, ouverte. |","","### Synthèse de la dimension I","","| Champ | Valeur |","|-------|--------|","| **id** | `proj-foret-I-001` |","| **text** | *Instruire les politiques publiques de la forêt.* |","","> undefined","","<img src=x onerror=alert(1)>","[lien dangereux](javascript:alert(1))"].join("\n")}}]};return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(body)});});
   await page.goto(url);
   await page.waitForFunction(()=>document.querySelector("#project-select").options.length===1);
@@ -79,12 +80,38 @@ try{
   await page.waitForFunction(()=>document.querySelectorAll("#proposal-list .proposal-item").length===1);
   await page.locator("#proposal-list .accept").click();
   await page.waitForFunction(()=>document.querySelector("#proposal-list").textContent.includes("Validée"));
+  await page.locator("#project-menu-toggle").click();
   await page.locator("#new-project").click();
   await page.locator("#project-name").fill("Projet navigateur");
   await page.locator("#project-intention").fill("Vérifier la persistance locale");
-  await page.locator('#project-form button[value="save"]').click();
+  await page.locator("#save-project").click();
   await page.locator("#project-dialog").waitFor({state:"hidden"});
   await page.waitForFunction(()=>document.querySelector("#project-title").textContent==="Projet navigateur");
+  assert.equal(await page.locator("#project-select option").count(),2,"la création doit ajouter un deuxième projet");
+  await page.locator("#project-menu-toggle").click();
+  assert.equal(await page.locator("body").evaluate(el=>el.classList.contains("project-menu-open")),true,"le bouton hamburger doit ouvrir le volet projets");
+  await page.locator("#project-menu-backdrop").click();
+  assert.equal(await page.locator("body").evaluate(el=>el.classList.contains("project-menu-open")),false,"le voile doit refermer le volet projets");
+  await page.locator("#project-menu-toggle").click();
+  await page.locator("#new-project").click();
+  await page.locator("#project-name").fill("Projet à annuler");
+  await page.locator("#cancel-project").click();
+  assert.equal(await page.locator("#project-title").textContent(),"Projet navigateur","Annuler ne doit ni enregistrer ni changer de projet");
+  assert.equal(await page.locator("#project-select option").count(),2,"Annuler ne doit pas créer de projet");
+  const downloadPromise=page.waitForEvent("download");
+  await page.locator("#project-export-button").click();
+  await page.locator("#export-author").fill("Martin");
+  await page.locator("#confirm-export").click();
+  const backupDownload=await downloadPromise,backupPath=await backupDownload.path();
+  const backup=JSON.parse(await readFile(backupPath,"utf8"));
+  assert.equal(backup.format,"icare-project-export","l'export doit être limité au format de sauvegarde d'un projet");
+  assert.equal(backup.project.name,"Projet navigateur","l'export doit contenir le projet actif");
+  assert.equal(backup.project.provenance.author,"Martin","le pseudo doit être conservé comme provenance");
+  assert.equal(backup.turns.length,0,"les échanges d'un autre projet ne doivent pas être exportés");
+  await page.locator("#project-import-file").setInputFiles(backupPath);
+  await page.waitForFunction(()=>document.querySelector("#project-select").options.length===3);
+  assert.equal(await page.locator("#project-title").textContent(),"Projet navigateur","l'import doit ouvrir le projet nouvellement importé");
+
 
   await page.emulateMedia({colorScheme:"dark"});
   await page.waitForFunction(()=>document.documentElement.dataset.theme==="dark");
@@ -117,7 +144,7 @@ try{
   assert.equal(await fallbackPage.locator("html").getAttribute("data-theme"),"light","en l'absence de détection système, le thème doit être clair");
   await fallbackContext.close();
 
-  console.log("Browser smoke test passed: ontology, provider, persistence, project creation and color themes.");
+  console.log("Browser smoke test passed: ontology, provider, persistence, project creation/cancellation, project drawer, subjective project export/import and color themes.");
 }finally{
   if(browser)await browser.close();
   await new Promise(resolveClose=>server.close(resolveClose));
