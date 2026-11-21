@@ -140,7 +140,9 @@ try{
     const expected=parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--project-rail-width"));
     return Math.abs(rail.getBoundingClientRect().width-expected)<1;
   });
-  assert.equal(await page.locator(".sidebar").evaluate(el=>Math.round(el.getBoundingClientRect().width)),38,"sur mobile, le rail doit utiliser la largeur CSS compacte de 38 px");
+  const mobileRailWidth=await page.locator(".sidebar").evaluate(el=>({actual:el.getBoundingClientRect().width,expected:parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--project-rail-width"))}));
+  assert.equal(mobileRailWidth.expected,38,"sur mobile, la variable CSS doit définir un rail compact de 38 px");
+  assert.ok(Math.abs(mobileRailWidth.actual-mobileRailWidth.expected)<=1,"la largeur extérieure du rail mobile doit suivre sa référence CSS : "+JSON.stringify(mobileRailWidth));
   assert.equal(await page.locator(".layout").evaluate(el=>Math.round(el.getBoundingClientRect().left)),0,"sur mobile aussi, la grille doit rester plaquée au bord gauche");
   await page.setViewportSize({width:1440,height:1000});
   await page.locator("#project-menu-toggle").click();
