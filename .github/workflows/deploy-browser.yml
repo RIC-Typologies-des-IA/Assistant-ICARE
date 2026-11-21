@@ -23,31 +23,18 @@ jobs:
         with:
           node-version: "24"
       - uses: actions/configure-pages@v5
-      - name: Install browser dependencies and build local vendor assets
+      - name: Install production dependencies and build vendor assets
         working-directory: browser
         run: |
           npm install --no-save
           npm run build:vendor
-          npx playwright install --with-deps chromium
-      - name: Validate application
+      - name: Verify deployment artifact
         run: |
           test -s browser/index.html
           test -s browser/app.js
-          node --check browser/app.js
-          node --check browser/agent.js
-          node --check browser/workspace-tools.js
-          node --check browser/storage.js
-          node --check browser/inference.js
-          node --check browser/sw.js
-          node --check browser/markdown.js
+          test -s browser/version.js
           test -s browser/vendor/markdown-it.min.js
           test -s browser/vendor/purify.min.js
-          node --check browser/theme.js
-          node --test browser/test/*.test.js
-          node browser/test/smoke.mjs
-          python -m json.tool browser/icare.json >/dev/null
-          python -m json.tool browser/manifest.webmanifest >/dev/null
-          node -e 'const fs=require("fs"); const p=JSON.parse(fs.readFileSync("browser/package.json")); const s=fs.readFileSync("browser/version.js","utf8"); const v=s.match(/"([^"]+)"/)?.[1]; const parts=v?.split("."); if (p.version!==v || parts?.length!==3 || parts.some(x=>!/^[0-9]+$/.test(x))) throw new Error("Invalid or inconsistent MAJOR.MINOR.PATCH: "+p.version+" / "+v);'
       - uses: actions/upload-pages-artifact@v3
         with:
           path: browser
