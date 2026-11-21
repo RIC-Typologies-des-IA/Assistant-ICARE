@@ -1,5 +1,22 @@
 importScripts("./version.js");
-const CACHE=`icare-browser-${self.ICARE_VERSION}`;const FILES=["./","./index.html","./styles.css","./app.js","./markdown.js","./agent.js","./workspace-tools.js","./theme.js","./storage.js","./inference.js","./icon.svg","./manifest.webmanifest","./version.js","./system-prompt.md","./guide-icare.md","./icare.json","./vendor/markdown-it.min.js","./vendor/purify.min.js"];
-self.addEventListener("install",e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(FILES)).then(()=>self.skipWaiting())));
-self.addEventListener("activate",e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
-self.addEventListener("fetch",e=>{const u=new URL(e.request.url);if(u.origin!==location.origin||e.request.method!=="GET")return;e.respondWith(caches.match(e.request).then(hit=>hit||fetch(e.request).then(r=>{if(r.ok&&u.pathname.startsWith(new URL(self.registration.scope).pathname))caches.open(CACHE).then(c=>c.put(e.request,r.clone()));return r;})));});
+const CACHE=`icare-browser-${self.ICARE_VERSION}`;
+const FILES=["./","./index.html","./styles.css","./app.js","./markdown.js","./agent.js","./workspace-tools.js","./theme.js","./storage.js","./inference.js","./icon.svg","./manifest.webmanifest","./version.js","./system-prompt.md","./guide-icare.md","./icare.json","./vendor/markdown-it.min.js","./vendor/purify.min.js"];
+const APP_SHELL=new Set(["/","/index.html","/styles.css","/app.js","/version.js"]);
+self.addEventListener("install",event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(FILES)).then(()=>self.skipWaiting())));
+self.addEventListener("activate",event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith("icare-browser-")&&key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
+self.addEventListener("fetch",event=>{
+  const request=event.request,url=new URL(request.url);
+  if(url.origin!==location.origin||request.method!=="GET")return;
+  if(!url.pathname.startsWith(new URL(self.registration.scope).pathname))return;
+  if(request.mode==="navigate"||APP_SHELL.has(url.pathname)){
+    event.respondWith(fetch(request).then(response=>{
+      if(response.ok)caches.open(CACHE).then(cache=>cache.put(request,response.clone()));
+      return response;
+    }).catch(()=>caches.match(request).then(cached=>cached||caches.match("./index.html"))));
+    return;
+  }
+  event.respondWith(caches.match(request).then(cached=>cached||fetch(request).then(response=>{
+    if(response.ok)caches.open(CACHE).then(cache=>cache.put(request,response.clone()));
+    return response;
+  })));
+});
