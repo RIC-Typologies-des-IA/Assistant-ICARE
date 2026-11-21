@@ -353,6 +353,7 @@ html[data-theme="dark"] .menu-toggle{background:#34465e !important;color:#e6eef9
   gap:8px !important;
 }
 .sidebar{
+  box-sizing:border-box !important;
   width:var(--project-rail-width) !important;
   min-width:var(--project-rail-width) !important;
   padding:6px 4px !important;
