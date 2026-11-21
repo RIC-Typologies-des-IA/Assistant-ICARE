@@ -253,3 +253,77 @@ html[data-theme="dark"] .project-heading h1 { color: #e8eef7 !important; }
 .top-actions{flex:0 0 auto}
 @media(max-width:850px){.brand{column-gap:9px}.brand-home>.ric-logo{max-width:65px;max-height:44px}.brand .brand-tagline,.brand .brand-affiliation{font-size:12px}}
 @media(max-width:560px){.topbar{align-items:center;gap:8px;padding:8px 10px}.brand{column-gap:7px}.brand-home>.ric-logo{max-width:48px;max-height:40px}.brand-title strong{font-size:17px}.brand .app-version{font-size:10px}.brand .brand-tagline,.brand .brand-affiliation{font-size:11px}.top-actions{gap:5px}.top-actions .button{padding:8px 9px;font-size:11px}}
+
+
+/* Volet projets intégré dans une vraie colonne persistante : replié = rail, jamais masqué. */
+.layout{
+  display:grid !important;
+  grid-template-columns:44px minmax(0,1fr) !important;
+  align-items:start;
+  gap:16px !important;
+  margin:16px auto 24px !important;
+  padding:0 22px !important;
+  max-width:1600px;
+}
+.sidebar{
+  position:relative !important;
+  inset:auto !important;
+  z-index:1 !important;
+  width:44px !important;
+  min-width:44px;
+  height:auto !important;
+  min-height:calc(100vh - 114px) !important;
+  padding:8px 5px !important;
+  margin:0;
+  overflow:hidden !important;
+  border:1px solid #e1e6ed !important;
+  border-radius:12px !important;
+  box-shadow:0 2px 12px #172b4d0a !important;
+  transform:none !important;
+  transition:width .2s ease, padding .2s ease !important;
+  background:#fff;
+}
+.sidebar .menu-toggle{margin:0 auto 10px;display:grid;place-items:center}
+.sidebar .section-heading,.sidebar select,.sidebar-note,.sidebar-bottom{display:none !important}
+body.project-menu-open .layout{grid-template-columns:250px minmax(0,1fr) !important}
+body.project-menu-open .sidebar{
+  width:250px !important;
+  min-width:250px;
+  padding:14px !important;
+  overflow:auto !important;
+}
+body.project-menu-open .sidebar .section-heading{display:flex !important}
+body.project-menu-open .sidebar select{display:block !important;min-height:180px}
+body.project-menu-open .sidebar .sidebar-note{display:block !important}
+.project-menu-backdrop{display:none !important}
+.menu-toggle{
+  flex:0 0 32px !important;
+  width:32px !important;
+  height:32px !important;
+  border:0 !important;
+  border-radius:8px !important;
+  background:#edf1f7 !important;
+  color:#263b58 !important;
+  cursor:pointer;
+  padding:6px;
+}
+.menu-toggle svg{display:block;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+.project-action{display:grid;place-items:center;font-size:inherit;width:38px;height:38px;padding:8px}
+.project-action svg{display:block;width:22px;height:22px;fill:currentColor;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.project-action svg path:first-child{fill:none}
+.project-action svg path:last-child{fill:none}
+html[data-theme="dark"] .sidebar{background:#1b293b !important;border-color:#3a4b63 !important}
+html[data-theme="dark"] .menu-toggle{background:#34465e !important;color:#e6eef9 !important}
+@media(max-width:1050px){
+  .layout{grid-template-columns:40px minmax(0,1fr) !important;gap:12px !important;padding:0 12px !important}
+  body.project-menu-open .layout{grid-template-columns:220px minmax(0,1fr) !important}
+  .sidebar{width:40px !important;min-width:40px}
+  body.project-menu-open .sidebar{width:220px !important;min-width:220px}
+}
+@media(max-width:700px){
+  .layout{grid-template-columns:38px minmax(0,1fr) !important;gap:9px !important;padding:0 8px !important}
+  body.project-menu-open .layout{grid-template-columns:minmax(150px,42vw) minmax(0,1fr) !important}
+  .sidebar{width:38px !important;min-width:38px;padding:6px 3px !important}
+  body.project-menu-open .sidebar{width:min(42vw,220px) !important;min-width:min(42vw,220px);padding:10px !important}
+}
+@media(prefers-reduced-motion:reduce){.sidebar{transition:none !important}}
