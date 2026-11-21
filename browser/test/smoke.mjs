@@ -92,8 +92,9 @@ try{
   assert.ok(await darkPage.locator("#settings-button").evaluate((el,theme)=>el.nextElementSibling?.id===theme,"theme-toggle"),"l’icône de thème doit être immédiatement à droite de Configuration");
   await darkPage.locator("#theme-toggle").click();
   assert.equal(await darkPage.locator("html").getAttribute("data-theme"),"light","le bouton doit permettre de choisir le thème clair");
-  await darkPage.reload();
-  assert.equal(await darkPage.locator("html").getAttribute("data-theme"),"light","le choix manuel doit être conservé après rechargement");
+  const darkRestoredPage=await darkContext.newPage();
+  await darkRestoredPage.goto(url,{waitUntil:"domcontentloaded"});
+  assert.equal(await darkRestoredPage.locator("html").getAttribute("data-theme"),"light","le choix manuel doit être conservé après ouverture d’un nouveau document");
   await darkContext.close();
 
   const autoContext=await browser.newContext({colorScheme:"light"});
