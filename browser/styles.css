@@ -207,3 +207,5 @@ html[data-theme="dark"] .project-heading h1 { color: #e8eef7 !important; }
   .top-actions { gap: 6px; }
   .theme-toggle { flex-basis: 32px; width: 32px; height: 32px; }
 }
+
+/* Les contrastes du thème sombre sont également couverts par le smoke test navigateur. */
