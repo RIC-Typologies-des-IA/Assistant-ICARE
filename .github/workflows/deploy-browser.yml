@@ -4,18 +4,17 @@ on:
     branches: [main]
     paths: ["browser/**", ".github/workflows/deploy-browser.yml"]
   workflow_dispatch:
+
 permissions:
   contents: read
-  pages: write
-  id-token: write
+
 concurrency:
   group: pages
   cancel-in-progress: true
+
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  build:
+    name: Build Pages artifact
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -35,9 +34,23 @@ jobs:
           test -s browser/version.js
           test -s browser/vendor/markdown-it.min.js
           test -s browser/vendor/purify.min.js
-      - uses: actions/upload-pages-artifact@v3
+      - name: Upload the single Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
+          name: github-pages
           path: browser
-      - name: Deploy to GitHub Pages
+
+  deploy:
+    name: Deploy Pages artifact
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - name: Deploy the artifact produced by the build job
         id: deployment
         uses: actions/deploy-pages@v4
