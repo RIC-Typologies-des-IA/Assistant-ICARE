@@ -4,7 +4,7 @@ import { chatCompletion, chatCompletionMessage, listModels, transcribeAudio, aud
 import { runAgentTurn } from "./agent.js";
 import { createIcareToolExecutor } from "./workspace-tools.js";
 const $=id=>document.getElementById(id), db=await openDatabase();
-$("app-version").textContent=`v${window.ICARE_VERSION} · alpha`;
+$("app-version").textContent=`— V${window.ICARE_VERSION} Alpha`;
 const state={projectId:null,projects:[],turns:[],settings:{},transcriptionSettings:{},workspace:null,busy:false};
 const uid=()=>crypto.randomUUID(), now=()=>new Date().toISOString();
 let ontology=null;
