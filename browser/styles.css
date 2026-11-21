@@ -212,3 +212,28 @@ html[data-theme="dark"] .project-heading h1 { color: #e8eef7 !important; }
 
 /* Volet projets escamotable et sauvegardes au niveau du projet. */
 .layout{display:block;max-width:1440px}.workspace{min-width:0}.project-heading{align-items:center}.project-title-line{display:flex;align-items:center;gap:12px;min-width:0;flex:1}.project-title-line>div:nth-child(2){min-width:0}.project-actions{display:flex;align-items:center;gap:7px;margin-left:auto}.project-action{font-size:23px;font-weight:700;width:38px;height:38px}.menu-toggle{display:grid;place-items:center;flex:0 0 40px;width:40px;height:40px;border:1px solid #d7e0eb;border-radius:10px;background:#fff;color:#263b58;font-size:21px;cursor:pointer}.sidebar{position:fixed;z-index:30;left:0;top:82px;bottom:0;width:min(290px,86vw);min-height:0;height:calc(100vh - 82px);padding:18px;border-radius:0 14px 14px 0;border-left:0;box-shadow:8px 0 30px #172b4d22;transform:translateX(-105%);transition:transform .22s ease;overflow:auto}body.project-menu-open .sidebar{transform:translateX(0)}.project-menu-backdrop{display:none;position:fixed;z-index:25;inset:82px 0 0;border:0;border-radius:0;background:#10182766}body.project-menu-open .project-menu-backdrop{display:block}html[data-theme="dark"] .menu-toggle{background:#1b293b;color:#e8eef7;border-color:#465a74}@media(max-width:700px){.project-heading{align-items:flex-start;gap:10px}.project-title-line{gap:8px}.project-title-line h1{font-size:20px}.project-action{width:34px;height:34px}.menu-toggle{width:36px;height:36px;flex-basis:36px}}@media(prefers-reduced-motion:reduce){.sidebar{transition:none}}
+
+/* Disposition explicite : le dialogue et les panneaux ICARE occupent deux zones nettes. */
+.workspace{
+  display:grid;
+  grid-template-columns:minmax(0,1.65fr) minmax(300px,.9fr);
+  grid-template-areas:"heading heading" "chat insights";
+  grid-template-rows:auto minmax(0,1fr);
+  align-content:start;
+  align-items:start;
+  gap:16px;
+}
+.project-heading{grid-area:heading;min-width:0}
+.chat-panel{grid-area:chat;min-width:0;min-height:72vh}
+.insights{grid-area:insights;min-width:0;display:flex;flex-direction:column;gap:14px}
+@media(max-width:1050px){
+  .workspace{grid-template-columns:minmax(0,1fr);grid-template-areas:"heading" "chat" "insights";grid-template-rows:auto auto auto}
+  .insights{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .insight-panel:last-child{grid-column:1/-1}
+}
+@media(max-width:700px){
+  .workspace{display:flex;flex-direction:column;gap:12px}
+  .project-heading,.chat-panel,.insights{width:100%}
+  .insights{display:flex}
+  .chat-panel{min-height:60vh}
+}
