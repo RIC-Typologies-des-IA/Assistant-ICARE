@@ -22,8 +22,8 @@ Le modèle distingue :
 
 1. **NoPersistentCredentials** : aucun secret fournisseur dans le stockage persistant.
 2. **InferenceRequiresConsent** : les flux métier vers l'inférence ne sont déclenchés qu'après une action explicite.
-3. **NoProjectEgress** : les données de projet ne sont pas envoyées comme flux de synchronisation/stockage.
-4. **TypeOK** : les états restent dans leurs domaines.
+3. **OnlyApprovedInferencePayloadsEgress** : seuls les contenus explicitement approuvés pour une requête d’inférence peuvent sortir du navigateur.
+4. **InferenceDestinationApproved** : chaque requête d’inférence vise une origine autorisée.\n5. **TypeOK** : les états restent dans leurs domaines.
 
 Le modèle est volontairement abstrait : il formalise les propriétés visées, mais ne prouve pas à lui seul le code JavaScript, le navigateur, le fournisseur ou l'infrastructure. Les tests runtime, captures réseau et contrôles de déploiement restent indispensables.
 
