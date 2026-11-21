@@ -49,7 +49,7 @@ RequestInference(origin, payload) ==
   /\ origin \in ApprovedInferenceOrigins
   /\ payload \in approvedPayloads
   /\ userRequestedInference = TRUE
-  /\ outbound' = outbound \cup {<<origin, payload, "inference">>}
+  /\ outbound' = outbound \cup {<<origin, payload, "inference", "consented">>}
   /\ userRequestedInference' = FALSE
   /\ UNCHANGED <<projectStore, sessionSecrets, persistentSecrets,
                  approvedPayloads, serviceWorkerEnabled>>
@@ -74,13 +74,13 @@ TypeOK ==
   /\ sessionSecrets \subseteq SecretValues
   /\ persistentSecrets = {}
   /\ approvedPayloads \subseteq PayloadValues
-  /\ outbound \subseteq (Origins \X PayloadValues \X {"inference"})
+  /\ outbound \subseteq (Origins \X PayloadValues \X {"inference"} \X {"consented"})
   /\ userRequestedInference \in BOOLEAN
   /\ serviceWorkerEnabled \in BOOLEAN
 
 NoPersistentCredentials == persistentSecrets = {}
 InferenceRequiresConsent ==
-  \A item \in outbound : item[3] = "inference"
+  \A item \in outbound : item[4] = "consented"
 OnlyApprovedPayloadsEgress ==
   \A item \in outbound : item[2] \in approvedPayloads
 InferenceDestinationApproved ==
