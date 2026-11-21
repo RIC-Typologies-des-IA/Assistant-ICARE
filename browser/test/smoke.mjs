@@ -34,6 +34,8 @@ try{
   assert.ok(railGeometry.chatTop>railGeometry.railTop,"le rail doit commencer sous la bannière avec une marge");
   assert.equal(await page.locator("#project-export-button svg path").count(),1,"l’export doit utiliser une flèche pleine et un réceptacle SVG");
   assert.equal(await page.locator("#project-import-button svg path").count(),1,"l’import doit utiliser une flèche pleine et un réceptacle SVG");
+  assert.ok((await page.locator("#project-export-button svg path").getAttribute("d")).includes("M11 2"),"l’export doit avoir une flèche orientée vers le bas");
+  assert.ok((await page.locator("#project-import-button svg path").getAttribute("d")).includes("M11 16V6.83"),"l’import doit avoir une flèche orientée vers le haut");
   await page.setViewportSize({width:900,height:900});
   assert.ok(await page.locator(".insights").evaluate(el=>el.getBoundingClientRect().top>document.querySelector(".chat-panel").getBoundingClientRect().top),"sur tablette, les panneaux doivent passer sous le dialogue");
   await page.setViewportSize({width:1440,height:1000});
