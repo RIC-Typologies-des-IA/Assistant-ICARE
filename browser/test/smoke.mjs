@@ -79,6 +79,7 @@ try{
   await page.waitForFunction(()=>document.querySelectorAll("#proposal-list .proposal-item").length===1);
   await page.locator("#proposal-list .accept").click();
   await page.waitForFunction(()=>document.querySelector("#proposal-list").textContent.includes("Validée"));
+  await page.locator("#project-menu-toggle").click();
   await page.locator("#new-project").click();
   await page.locator("#project-name").fill("Projet navigateur");
   await page.locator("#project-intention").fill("Vérifier la persistance locale");
