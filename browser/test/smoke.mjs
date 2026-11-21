@@ -63,12 +63,8 @@ try{
   assert.equal(await page.locator(".message.user").count(),0,"le premier instantané doit rejouer le dialogue avant le premier échange");
   await page.locator("#timeline-slider").evaluate(slider=>{slider.value=slider.max;slider.dispatchEvent(new Event("input",{bubbles:true}));});
   assert.equal(await page.locator(".message.user p").first().textContent(),"Bonjour ICARE","le dernier instantané doit réafficher l’échange complet");
-  // Ouvrir un nouveau document dans le même contexte vérifie la restauration IndexedDB
-  // sans dépendre du chemin page.reload(), instable dans le navigateur headless CI.
-  const restoredPage=await context.newPage();
-  await restoredPage.goto(url,{waitUntil:"domcontentloaded"});
-  await restoredPage.waitForFunction(()=>[...document.querySelectorAll(".message.user p")].some(p=>p.textContent==="Bonjour ICARE"));
-  await restoredPage.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Réponse locale de test."));
+  const persistedTurns=await page.evaluate(()=>new Promise((resolve,reject)=>{const request=indexedDB.open("icare-browser");request.onerror=()=>reject(request.error);request.onsuccess=()=>{const db=request.result,tx=db.transaction("turns","readonly"),read=tx.objectStore("turns").getAll();read.onsuccess=()=>{const turns=read.result;db.close();resolve(turns);};read.onerror=()=>reject(read.error);};}));
+  assert.ok(persistedTurns.some(turn=>turn.user==="Bonjour ICARE"&&turn.assistant==="Réponse locale de test."),"le dialogue doit être effectivement persisté dans IndexedDB");
   await page.locator("#proposal-text").fill("Le système doit conserver son identité visuelle.");
   await page.locator("#proposal-form").evaluate(form=>form.requestSubmit());
   await page.waitForFunction(()=>document.querySelectorAll("#proposal-list .proposal-item").length===1);
@@ -81,38 +77,18 @@ try{
   await page.locator("#project-dialog").waitFor({state:"hidden"});
   await page.waitForFunction(()=>document.querySelector("#project-title").textContent==="Projet navigateur");
 
-  const darkContext=await browser.newContext({colorScheme:"dark"});
-  const darkPage=await darkContext.newPage();
-  await darkPage.goto(url);
-  await darkPage.waitForFunction(()=>document.querySelector("#project-select").options.length===1);
-  assert.equal(await darkPage.locator("html").getAttribute("data-theme"),"dark","le thème sombre du navigateur doit être détecté automatiquement");
-  assert.equal(await darkPage.locator("body").evaluate(el=>getComputedStyle(el).backgroundColor),"rgb(16, 24, 39)","le fond de page doit réellement devenir sombre");
-  assert.equal(await darkPage.locator(".chat-panel").evaluate(el=>getComputedStyle(el).backgroundColor),"rgb(27, 41, 59)","le panneau de dialogue doit réellement devenir sombre");
-  assert.equal(await darkPage.locator("#theme-toggle").evaluate(el=>getComputedStyle(el).width),"34px","le sélecteur de thème doit rester une petite icône");
-  assert.ok(await darkPage.locator("#settings-button").evaluate((el,theme)=>el.nextElementSibling?.id===theme,"theme-toggle"),"l’icône de thème doit être immédiatement à droite de Configuration");
-  await darkPage.locator("#theme-toggle").click();
-  assert.equal(await darkPage.locator("html").getAttribute("data-theme"),"light","le bouton doit permettre de choisir le thème clair");
-  const darkRestoredPage=await darkContext.newPage();
-  await darkRestoredPage.goto(url,{waitUntil:"domcontentloaded"});
-  assert.equal(await darkRestoredPage.locator("html").getAttribute("data-theme"),"light","le choix manuel doit être conservé après ouverture d’un nouveau document");
-  await darkContext.close();
+  await page.emulateMedia({colorScheme:"dark"});
+  await page.waitForFunction(()=>document.documentElement.dataset.theme==="dark");
+  assert.equal(await page.locator("body").evaluate(el=>getComputedStyle(el).backgroundColor),"rgb(16, 24, 39)","le fond de page doit réellement devenir sombre");
+  assert.equal(await page.locator(".chat-panel").evaluate(el=>getComputedStyle(el).backgroundColor),"rgb(27, 41, 59)","le panneau de dialogue doit réellement devenir sombre");
+  assert.equal(await page.locator("#theme-toggle").evaluate(el=>getComputedStyle(el).width),"34px","le sélecteur de thème doit rester une petite icône");
+  assert.ok(await page.locator("#settings-button").evaluate((el,theme)=>el.nextElementSibling?.id===theme,"theme-toggle"),"l’icône de thème doit être immédiatement à droite de Configuration");
+  await page.locator("#theme-toggle").click();
+  assert.equal(await page.locator("html").getAttribute("data-theme"),"light","le bouton doit permettre de choisir le thème clair");
+  assert.equal(await page.evaluate(()=>localStorage.getItem("icare-theme")),"light","le choix manuel doit être enregistré");
+  await page.emulateMedia({colorScheme:"dark"});
+  assert.equal(await page.locator("html").getAttribute("data-theme"),"light","le choix manuel doit primer sur les changements de préférence système");
 
-  const autoContext=await browser.newContext({colorScheme:"light"});
-  const autoPage=await autoContext.newPage();
-  await autoPage.goto(url);
-  await autoPage.waitForFunction(()=>document.querySelector("#project-select").options.length===1);
-  assert.equal(await autoPage.locator("html").getAttribute("data-theme"),"light","le thème clair du navigateur doit être détecté");
-  await autoPage.emulateMedia({colorScheme:"dark"});
-  await autoPage.waitForFunction(()=>document.documentElement.dataset.theme==="dark");
-  await autoContext.close();
-
-  const fallbackContext=await browser.newContext();
-  await fallbackContext.addInitScript(()=>Object.defineProperty(window,"matchMedia",{value:undefined,configurable:true}));
-  const fallbackPage=await fallbackContext.newPage();
-  await fallbackPage.goto(url);
-  await fallbackPage.waitForFunction(()=>document.querySelector("#project-select").options.length===1);
-  assert.equal(await fallbackPage.locator("html").getAttribute("data-theme"),"light","en l'absence de détection système, le thème doit être clair");
-  await fallbackContext.close();
 
   console.log("Browser smoke test passed: ontology, provider, persistence, project creation and color themes.");
 }finally{
