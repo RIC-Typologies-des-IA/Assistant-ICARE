@@ -1,26 +1,37 @@
 name: Browser client checks
 on:
   pull_request:
-    paths: ["browser/**", ".github/workflows/browser-ci.yml"]
+    paths:
+      - "browser/**"
+      - ".github/workflows/browser-ci.yml"
+      - ".github/workflows/deploy-browser.yml"
   push:
     branches-ignore: [main]
-    paths: ["browser/**", ".github/workflows/browser-ci.yml"]
+    paths:
+      - "browser/**"
+      - ".github/workflows/browser-ci.yml"
+      - ".github/workflows/deploy-browser.yml"
 jobs:
   browser:
+    name: Browser validation (required before merge)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
+          cache: npm
+          cache-dependency-path: browser/package-lock.json
       - name: Install browser test runtime
         working-directory: browser
         run: |
           npm install --no-save playwright
           npm run build:vendor
           npx playwright install --with-deps chromium
-      - name: Validate browser modules
+      - name: Validate application modules
         run: |
+          test -s browser/index.html
+          test -s browser/app.js
           node --check browser/app.js
           node --check browser/agent.js
           node --check browser/workspace-tools.js
@@ -29,8 +40,17 @@ jobs:
           node --check browser/sw.js
           node --check browser/markdown.js
           node --check browser/theme.js
-          node --test browser/test/*.test.js
-          node browser/test/smoke.mjs
+          test -s browser/vendor/markdown-it.min.js
+          test -s browser/vendor/purify.min.js
+      - name: Validate version consistency
+        run: |
+          node -e 'const fs=require("fs"); const p=JSON.parse(fs.readFileSync("browser/package.json")); const s=fs.readFileSync("browser/version.js","utf8"); const v=s.match(/"([^"]+)"/)?.[1]; const parts=v?.split("."); if (!v || p.version!==v || parts?.length!==3 || parts.some(x=>!/^[0-9]+$/.test(x))) throw new Error("Invalid or inconsistent MAJOR.MINOR.PATCH: "+p.version+" / "+v);'
+      - name: Validate JSON and required prompts
+        run: |
           python -m json.tool browser/icare.json >/dev/null
           python -m json.tool browser/manifest.webmanifest >/dev/null
           test -s browser/system-prompt.md
+      - name: Run automated tests
+        run: |
+          node --test browser/test/*.test.js
+          node browser/test/smoke.mjs
