@@ -27,7 +27,7 @@ try{
   const desktopGeometry=await page.evaluate(()=>{const chat=document.querySelector(".chat-panel").getBoundingClientRect(),insights=document.querySelector(".insights").getBoundingClientRect();return {chat:{left:Math.round(chat.left),right:Math.round(chat.right),top:Math.round(chat.top)},insights:{left:Math.round(insights.left),right:Math.round(insights.right),top:Math.round(insights.top)}};});
   assert.ok(desktopGeometry.chat.left<desktopGeometry.insights.left,"le dialogue doit être à gauche des panneaux d’exploration : "+JSON.stringify(desktopGeometry));
   assert.ok(Math.abs(desktopGeometry.chat.top-desktopGeometry.insights.top)<8,"le dialogue et l’exploration doivent commencer sur la même ligne : "+JSON.stringify(desktopGeometry));
-  assert.equal(await page.locator(".sidebar").evaluate(el=>Math.round(el.getBoundingClientRect().width)),44,"le volet projets doit rester visible sous forme de rail réduit");
+  assert.equal(await page.locator(".sidebar").evaluate(el=>Math.round(el.getBoundingClientRect().width)),await page.locator("html").evaluate(el=>parseFloat(getComputedStyle(el).getPropertyValue("--project-rail-width"))),"la largeur réelle du rail doit suivre la largeur de référence CSS");
   assert.equal(await page.locator("#project-menu-toggle").evaluate(el=>el.closest(".sidebar")!==null),true,"le hamburger doit être placé dans le rail tout à gauche");
   const railGeometry=await page.evaluate(()=>{const rail=document.querySelector(".sidebar").getBoundingClientRect(),chat=document.querySelector(".chat-panel").getBoundingClientRect();return {railRight:Math.round(rail.right),chatLeft:Math.round(chat.left),railTop:Math.round(rail.top),chatTop:Math.round(chat.top)}});
   assert.ok(railGeometry.railRight<railGeometry.chatLeft,"le rail doit être à gauche du dialogue avec un espace : "+JSON.stringify(railGeometry));
@@ -123,6 +123,28 @@ try{
   assert.equal(await page.locator(".sidebar").evaluate(el=>Math.round(el.getBoundingClientRect().width)),250,"le rail doit s’élargir sans se superposer au dialogue");
   await page.locator("#project-menu-toggle").click();
   assert.equal(await page.locator("body").evaluate(el=>el.classList.contains("project-menu-open")),false,"le hamburger doit replier le volet en conservant le rail");
+  await page.waitForFunction(()=>{
+    const rail=document.querySelector(".sidebar");
+    const expected=parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--project-rail-width"));
+    return !document.body.classList.contains("project-menu-open") && Math.abs(rail.getBoundingClientRect().width-expected)<1;
+  });
+  const railBox=await page.locator(".sidebar").boundingBox();
+  const layoutBox=await page.locator(".layout").boundingBox();
+  const workspaceBox=await page.locator(".workspace").boundingBox();
+  assert.equal(Math.round(layoutBox.x),0,"la grille principale doit commencer au bord gauche de la fenêtre");
+  assert.equal(Math.round(railBox.x),0,"le rail Projets doit être collé au bord gauche de la fenêtre");
+  assert.ok(Math.abs(workspaceBox.x-(railBox.x+railBox.width+8))<=1,"le dialogue doit commencer juste après le rail avec un espace de 8 px : "+JSON.stringify({railBox,workspaceBox}));
+  await page.setViewportSize({width:390,height:844});
+  await page.waitForFunction(()=>{
+    const rail=document.querySelector(".sidebar");
+    const expected=parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--project-rail-width"));
+    return Math.abs(rail.getBoundingClientRect().width-expected)<1;
+  });
+  const mobileRailWidth=await page.locator(".sidebar").evaluate(el=>({actual:el.getBoundingClientRect().width,expected:parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--project-rail-width"))}));
+  assert.equal(mobileRailWidth.expected,38,"sur mobile, la variable CSS doit définir un rail compact de 38 px");
+  assert.ok(Math.abs(mobileRailWidth.actual-mobileRailWidth.expected)<=1,"la largeur extérieure du rail mobile doit suivre sa référence CSS : "+JSON.stringify(mobileRailWidth));
+  assert.equal(await page.locator(".layout").evaluate(el=>Math.round(el.getBoundingClientRect().left)),0,"sur mobile aussi, la grille doit rester plaquée au bord gauche");
+  await page.setViewportSize({width:1440,height:1000});
   await page.locator("#project-menu-toggle").click();
   await page.locator("#new-project").click();
   await page.locator("#project-name").fill("Projet à annuler");
