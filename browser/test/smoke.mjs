@@ -18,7 +18,20 @@ try{
   page.on("dialog",dialog=>dialog.accept());
   await page.route("https://mock-provider.example/**",route=>{assert.equal(route.request().headers()["authorization"],"Bearer test-secret","la clé doit être disponible en mémoire de session");const requestBody=route.request().postDataJSON();if(Array.isArray(requestBody?.messages))chatPayloads.push(requestBody);const body=route.request().url().endsWith("/models")?{data:[{id:"test-model"}]}:{choices:[{message:{content:["Réponse locale de test.","","# Niveau 1","","## Niveau 2","","### Votre avis","","#### Auto-évaluation","", "#### Points d’attention / tensions éventuelles","","##### Niveau 5","","###### Niveau 6","","####Titre sans espace","","**Texte en gras**.","","| Étape | Ce qui a été réalisé | Conformité aux principes ICARE & maïeutiques |","|-------|----------------------|----------------------------------------------|","| **1. Capture de l’intention (I)** | - Vous avez exprimé votre **but** : fournir des connaissances. | ✅ Reformulation pour vérification ; ✅ distinction claire. |","| **2. Confirmation de l’intention** | Vous avez confirmé la reformulation (« Oui »). | ✅ Attente d’un accord avant de passer à la suite. |","| **3. Passage à la dimension suivante (C)** | J’ai présenté les cinq axes possibles du **Contexte**. | ✅ Question unique, ouverte. |","","### Synthèse de la dimension I","","| Champ | Valeur |","|-------|--------|","| **id** | `proj-foret-I-001` |","| **text** | *Instruire les politiques publiques de la forêt.* |","","> undefined","","<img src=x onerror=alert(1)>","[lien dangereux](javascript:alert(1))"].join("\n")}}]};return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(body)});});
   await page.goto(url);
+
   await page.waitForFunction(()=>document.querySelector("#project-select").options.length===1);
+  await page.waitForFunction(()=>getComputedStyle(document.querySelector(".workspace")).display==="grid");
+  assert.ok((await page.locator(".project-heading").evaluate(el=>getComputedStyle(el).gridArea)).includes("heading"),"l’en-tête projet doit occuper sa propre zone de grille");
+  assert.ok((await page.locator(".chat-panel").evaluate(el=>getComputedStyle(el).gridArea)).includes("chat"),"le dialogue doit occuper la zone principale");
+  assert.ok((await page.locator(".insights").evaluate(el=>getComputedStyle(el).gridArea)).includes("insights"),"les panneaux d’exploration doivent rester dans leur colonne dédiée");
+  const desktopGeometry=await page.evaluate(()=>{const chat=document.querySelector(".chat-panel").getBoundingClientRect(),insights=document.querySelector(".insights").getBoundingClientRect();return {chat:{left:Math.round(chat.left),right:Math.round(chat.right),top:Math.round(chat.top)},insights:{left:Math.round(insights.left),right:Math.round(insights.right),top:Math.round(insights.top)}};});
+  assert.ok(desktopGeometry.chat.left<desktopGeometry.insights.left,"le dialogue doit être à gauche des panneaux d’exploration : "+JSON.stringify(desktopGeometry));
+  assert.ok(Math.abs(desktopGeometry.chat.top-desktopGeometry.insights.top)<8,"le dialogue et l’exploration doivent commencer sur la même ligne : "+JSON.stringify(desktopGeometry));
+  assert.equal(await page.locator(".sidebar").evaluate(el=>getComputedStyle(el).transform!=="none"),true,"le volet projets doit être replié au démarrage");
+  await page.setViewportSize({width:900,height:900});
+  assert.ok(await page.locator(".insights").evaluate(el=>el.getBoundingClientRect().top>document.querySelector(".chat-panel").getBoundingClientRect().top),"sur tablette, les panneaux doivent passer sous le dialogue");
+  await page.setViewportSize({width:1440,height:1000});
+
   await page.waitForFunction(()=>document.querySelectorAll("#radar-labels text").length===5);
   assert.equal(await page.locator("#radar").count(),1,"le radar ICARE doit être présent");
   assert.deepEqual(await page.locator("#radar-labels text").allTextContents(),["Intention","Contexte","Action","Régulation","Évolution"],"le radar doit afficher les noms complets des cinq dimensions");
