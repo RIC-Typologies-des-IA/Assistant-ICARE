@@ -1,4 +1,5 @@
 importScripts("./version.js");
+// The cache key follows ICARE_VERSION so each release invalidates stale browser assets.
 const CACHE=`icare-browser-${self.ICARE_VERSION}`;const FILES=["./","./index.html","./styles.css","./app.js","./markdown.js","./agent.js","./workspace-tools.js","./theme.js","./storage.js","./inference.js","./icon.svg","./manifest.webmanifest","./version.js","./system-prompt.md","./guide-icare.md","./icare.json","./vendor/markdown-it.min.js","./vendor/purify.min.js"];
 self.addEventListener("install",e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(FILES)).then(()=>self.skipWaiting())));
 self.addEventListener("activate",e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
