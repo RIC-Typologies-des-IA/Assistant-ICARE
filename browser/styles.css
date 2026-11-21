@@ -239,17 +239,17 @@ html[data-theme="dark"] .project-heading h1 { color: #e8eef7 !important; }
 }
 
 
-/* Bannière : identité sur une ligne, sous-titre et affiliation empilés sous le titre. */
-.topbar{align-items:center;gap:24px}
-.brand{display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-rows:auto auto;column-gap:12px;row-gap:2px;align-items:center;min-width:0;flex:1 1 auto}
+/* Bannière : ICARE domine, sa version reste discrète et les deux lignes descriptives sont lisibles. */
+.topbar{height:auto;min-height:76px;padding-top:9px;padding-bottom:9px;align-items:center;gap:24px}
+.brand{display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-rows:auto auto auto;column-gap:12px;row-gap:2px;align-items:center;min-width:0;flex:1 1 auto}
 .brand-home{display:contents}
-.brand-home>.ric-logo{grid-column:1;grid-row:1 / span 2;align-self:center}
+.brand-home>.ric-logo{grid-column:1;grid-row:1 / span 3;align-self:center}
 .brand-copy{grid-column:2;grid-row:1 / span 2;display:grid;gap:3px;min-width:0}
-.brand-title{display:flex;align-items:baseline;gap:9px;min-width:0}
+.brand-title{display:flex;align-items:baseline;flex-wrap:nowrap;gap:7px;min-width:0;white-space:nowrap}
 .brand-title strong{font-size:19px;letter-spacing:.08em;white-space:nowrap}
-.brand .app-version{display:inline!important;font-size:19px;letter-spacing:0;color:#c8d4e5;white-space:nowrap}
-.brand .brand-tagline{display:block!important;font-size:11px;color:#c8d4e5;line-height:1.3}
-.brand .brand-affiliation{grid-column:2;grid-row:3;display:block!important;max-width:none;text-align:left;white-space:normal;font-size:10px;line-height:1.35;margin:0}
+.brand .app-version{display:inline!important;font-size:10px;line-height:1;letter-spacing:.04em;color:#a9c7f0;white-space:nowrap}
+.brand .brand-tagline{display:block!important;font-size:13px;color:#c8d4e5;line-height:1.3}
+.brand .brand-affiliation{grid-column:2;grid-row:3;display:block!important;max-width:none;text-align:left;white-space:normal;font-size:13px;line-height:1.3;margin:0}
 .top-actions{flex:0 0 auto}
-@media(max-width:850px){.brand{column-gap:9px}.brand-home>.ric-logo{max-width:65px;max-height:44px}.brand .brand-tagline{display:block!important}.brand .brand-affiliation{display:block!important;grid-column:2;grid-row:3;max-width:none;font-size:9px}.brand .app-version{font-size:17px}}
-@media(max-width:560px){.topbar{align-items:center;gap:8px;padding-left:10px;padding-right:10px}.brand{column-gap:7px}.brand-home>.ric-logo{max-width:48px;max-height:40px}.brand-title strong{font-size:17px}.brand .app-version{font-size:15px}.brand .brand-tagline{font-size:10px}.brand .brand-affiliation{font-size:9px;max-width:none}.top-actions{gap:5px}.top-actions .button{padding:8px 9px;font-size:11px}}
+@media(max-width:850px){.brand{column-gap:9px}.brand-home>.ric-logo{max-width:65px;max-height:44px}.brand .brand-tagline,.brand .brand-affiliation{font-size:12px}}
+@media(max-width:560px){.topbar{align-items:center;gap:8px;padding:8px 10px}.brand{column-gap:7px}.brand-home>.ric-logo{max-width:48px;max-height:40px}.brand-title strong{font-size:17px}.brand .app-version{font-size:10px}.brand .brand-tagline,.brand .brand-affiliation{font-size:11px}.top-actions{gap:5px}.top-actions .button{padding:8px 9px;font-size:11px}}
