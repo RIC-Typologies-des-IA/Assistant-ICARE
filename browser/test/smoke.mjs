@@ -135,6 +135,11 @@ try{
   assert.equal(Math.round(railBox.x),0,"le rail Projets doit être collé au bord gauche de la fenêtre");
   assert.ok(Math.abs(workspaceBox.x-(railBox.x+railBox.width+8))<=1,"le dialogue doit commencer juste après le rail avec un espace de 8 px : "+JSON.stringify({railBox,workspaceBox}));
   await page.setViewportSize({width:390,height:844});
+  await page.waitForFunction(()=>{
+    const rail=document.querySelector(".sidebar");
+    const expected=parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--project-rail-width"));
+    return Math.abs(rail.getBoundingClientRect().width-expected)<1;
+  });
   assert.equal(await page.locator(".sidebar").evaluate(el=>Math.round(el.getBoundingClientRect().width)),38,"sur mobile, le rail doit utiliser la largeur CSS compacte de 38 px");
   assert.equal(await page.locator(".layout").evaluate(el=>Math.round(el.getBoundingClientRect().left)),0,"sur mobile aussi, la grille doit rester plaquée au bord gauche");
   await page.setViewportSize({width:1440,height:1000});
