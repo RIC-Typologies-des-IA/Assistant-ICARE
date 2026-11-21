@@ -123,6 +123,11 @@ try{
   assert.equal(await page.locator(".sidebar").evaluate(el=>Math.round(el.getBoundingClientRect().width)),250,"le rail doit s’élargir sans se superposer au dialogue");
   await page.locator("#project-menu-toggle").click();
   assert.equal(await page.locator("body").evaluate(el=>el.classList.contains("project-menu-open")),false,"le hamburger doit replier le volet en conservant le rail");
+  await page.waitForFunction(()=>{
+    const rail=document.querySelector(".sidebar");
+    const expected=parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--project-rail-width"));
+    return !document.body.classList.contains("project-menu-open") && Math.abs(rail.getBoundingClientRect().width-expected)<1;
+  });
   const railBox=await page.locator(".sidebar").boundingBox();
   const layoutBox=await page.locator(".layout").boundingBox();
   const workspaceBox=await page.locator(".workspace").boundingBox();
