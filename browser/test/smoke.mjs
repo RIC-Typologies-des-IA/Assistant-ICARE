@@ -92,6 +92,7 @@ try{
   assert.equal(await page.locator("body").evaluate(el=>el.classList.contains("project-menu-open")),true,"le bouton hamburger doit ouvrir le volet projets");
   await page.locator("#project-menu-backdrop").click();
   assert.equal(await page.locator("body").evaluate(el=>el.classList.contains("project-menu-open")),false,"le voile doit refermer le volet projets");
+  await page.locator("#project-menu-toggle").click();
   await page.locator("#new-project").click();
   await page.locator("#project-name").fill("Projet à annuler");
   await page.locator("#cancel-project").click();
