@@ -37,6 +37,15 @@ try{
   assert.deepEqual(await page.locator("#radar-labels text").allTextContents(),["Intention","Contexte","Action","Régulation","Évolution"],"le radar doit afficher les noms complets des cinq dimensions");
   assert.equal(await page.locator("#dimensions").count(),0,"la rangée de dimensions au-dessus du dialogue ne doit plus être affichée");
   assert.equal(await page.locator(".brand-affiliation a").count(),1,"le lien institutionnel doit rester dans la ligne d’affiliation");
+  assert.equal(await page.locator(".brand-affiliation").evaluate(el=>el.parentElement.classList.contains("brand-copy")),true,"l’affiliation doit partager le même conteneur que le titre et le sous-titre");
+  const headerLayout=await page.locator(".brand").evaluate(el=>({display:getComputedStyle(el).display,copyDisplay:getComputedStyle(el.querySelector(".brand-copy")).display,affiliationLeft:Math.round(el.querySelector(".brand-affiliation").getBoundingClientRect().left),copyLeft:Math.round(el.querySelector(".brand-copy").getBoundingClientRect().left)}));
+  assert.equal(headerLayout.display,"flex","la bannière doit utiliser une structure flex stable, sans grille à colonnes implicites");
+  assert.equal(headerLayout.copyDisplay,"flex","les trois lignes de texte doivent former une seule pile verticale");
+  assert.ok(Math.abs(headerLayout.affiliationLeft-headerLayout.copyLeft)<=2,"la ligne d’affiliation doit rester alignée sous ICARE, sans être repoussée à droite");
+  await page.goto(url+"?utm_source=chatgpt.com");
+  assert.equal(new URL(page.url()).searchParams.has("utm_source"),false,"les paramètres de suivi ajoutés aux liens doivent être neutralisés sans recharger l’application");
+  await page.waitForFunction(()=>document.querySelector(".brand-affiliation a"));
+
   assert.equal(await page.locator("#dimension-statuses .dimension-status-row").count(),5,"les cinq statuts doivent être éditables");
   assert.equal(await page.locator("#project-title").textContent(),"Mon premier projet");
   await page.locator("#settings-button").click();
