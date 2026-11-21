@@ -340,3 +340,63 @@ html[data-theme="dark"] .menu-toggle{background:#34465e !important;color:#e6eef9
 @media(max-width:1050px){.layout{grid-template-columns:40px minmax(0,1fr) !important;gap:12px !important;padding:0 12px !important}body.project-menu-open .layout{grid-template-columns:220px minmax(0,1fr) !important}.sidebar{width:40px !important;min-width:40px}body.project-menu-open .sidebar{width:220px !important;min-width:220px}}
 @media(max-width:700px){.layout{grid-template-columns:38px minmax(0,1fr) !important;gap:9px !important;padding:0 8px !important}body.project-menu-open .layout{grid-template-columns:minmax(150px,42vw) minmax(0,1fr) !important}.sidebar{width:38px !important;min-width:38px;padding:6px 3px !important}body.project-menu-open .sidebar{width:min(42vw,220px) !important;min-width:min(42vw,220px);padding:10px !important}}
 @media(prefers-reduced-motion:reduce){.sidebar{transition:none !important}}
+
+
+/* Rail projets au bord de la fenêtre : aucune marge gauche, chat juste à côté. */
+.layout{
+  width:100% !important;
+  max-width:none !important;
+  margin:12px 0 24px !important;
+  padding:0 16px 0 0 !important;
+  grid-template-columns:40px minmax(0,1fr) !important;
+  gap:8px !important;
+}
+.sidebar{
+  width:40px !important;
+  min-width:40px !important;
+  padding:6px 4px !important;
+}
+.sidebar .menu-toggle{
+  width:30px !important;
+  min-width:30px !important;
+  height:30px !important;
+  padding:5px !important;
+}
+body.project-menu-open .layout{
+  grid-template-columns:240px minmax(0,1fr) !important;
+}
+body.project-menu-open .sidebar{
+  width:240px !important;
+  min-width:240px !important;
+}
+@media(max-width:1050px){
+  .layout{
+    width:100% !important;
+    margin:10px 0 20px !important;
+    padding:0 10px 0 0 !important;
+    grid-template-columns:40px minmax(0,1fr) !important;
+    gap:8px !important;
+  }
+  body.project-menu-open .layout{
+    grid-template-columns:220px minmax(0,1fr) !important;
+  }
+  .sidebar{width:40px !important;min-width:40px !important}
+  body.project-menu-open .sidebar{width:220px !important;min-width:220px !important}
+}
+@media(max-width:700px){
+  .layout{
+    width:100% !important;
+    margin:8px 0 16px !important;
+    padding:0 8px 0 0 !important;
+    grid-template-columns:38px minmax(0,1fr) !important;
+    gap:6px !important;
+  }
+  .sidebar{width:38px !important;min-width:38px !important;padding:6px 3px !important}
+  body.project-menu-open .layout{
+    grid-template-columns:minmax(150px,42vw) minmax(0,1fr) !important;
+  }
+  body.project-menu-open .sidebar{
+    width:min(42vw,220px) !important;
+    min-width:min(42vw,220px) !important;
+  }
+}
