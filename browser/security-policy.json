@@ -1,0 +1,46 @@
+{
+  "modelVersion": "1.0.0",
+  "application": "ICARE Browser",
+  "securityProfile": "local-first",
+  "dataClasses": {
+    "project": "local-confidential",
+    "conversation": "local-confidential",
+    "inferenceContext": "externally-disclosed-on-explicit-inference",
+    "credentials": "ephemeral-session-secret"
+  },
+  "invariants": {
+    "projectDataHasNoRemotePersistence": true,
+    "remoteBusinessDataEgressRequiresUserInitiatedInference": true,
+    "credentialsPersistedOutsideSession": false,
+    "remoteInferenceRequiresHttps": true,
+    "plainHttpAllowedOnlyForLoopback": true,
+    "thirdPartyRuntimeAssetsAllowedByDefault": false,
+    "filesystemAccessRequiresUserAction": true,
+    "serviceWorkerRequiredForCoreWorkflows": false
+  },
+  "allowedNetworkPurposes": [
+    "application-origin-static-assets",
+    "application-origin-service-worker-update",
+    "user-initiated-text-inference",
+    "user-initiated-audio-transcription"
+  ],
+  "deploymentControls": {
+    "allowedInferenceOrigins": "deployment-managed",
+    "contentSecurityPolicy": "hosting-layer-required",
+    "tls": "https-required-except-loopback",
+    "telemetry": "disabled-by-default",
+    "providerRetention": "contractual-and-provider-specific"
+  },
+  "assurance": {
+    "status": "partially-implemented",
+    "notAComplianceCertification": true,
+    "evidenceRequired": [
+      "browser-network-capture",
+      "automated-egress-tests",
+      "dependency-sbom",
+      "managed-browser-compatibility-results",
+      "hosting-header-review",
+      "inference-provider-data-processing-review"
+    ]
+  }
+}
