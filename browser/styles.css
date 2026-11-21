@@ -309,9 +309,7 @@ body.project-menu-open .sidebar .sidebar-note{display:block !important}
 }
 .menu-toggle svg{display:block;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
 .project-action{display:grid;place-items:center;font-size:inherit;width:38px;height:38px;padding:8px}
-.project-action svg{display:block;width:22px;height:22px;fill:currentColor;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.project-action svg path:first-child{fill:none}
-.project-action svg path:last-child{fill:none}
+.project-action svg{display:block;width:22px;height:22px;fill:currentColor;stroke:none}
 html[data-theme="dark"] .sidebar{background:#1b293b !important;border-color:#3a4b63 !important}
 html[data-theme="dark"] .menu-toggle{background:#34465e !important;color:#e6eef9 !important}
 @media(max-width:1050px){
