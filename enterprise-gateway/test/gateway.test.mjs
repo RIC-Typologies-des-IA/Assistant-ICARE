@@ -56,7 +56,7 @@ test("gateway maps a public alias to the admin provider model and never forwards
   globalThis.fetch = async (url, options) => { captured = { url: String(url), options, payload: JSON.parse(options.body) }; return new Response(JSON.stringify({ choices: [{ message: { content: "ok" } }] }), { status: 200, headers: { "Content-Type": "application/json" } }); };
   try {
     const url = "http://127.0.0.1:" + server.address().port;
-    const response = await fetch(url + "/v1/chat/completions", {
+    const response = await originalFetch(url + "/v1/chat/completions", {
       method: "POST",
       headers: { Origin: "https://icare.example.org", "X-ICARE-Authenticated-User": "alice", "X-ICARE-Authenticated-Groups": "research", "Content-Type": "application/json" },
       body: JSON.stringify({ model: "small-chat", apiKey: "attacker-controlled-value", messages: [{ role: "user", content: "hello" }] })
