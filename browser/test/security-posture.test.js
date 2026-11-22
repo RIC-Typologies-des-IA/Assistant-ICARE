@@ -98,7 +98,7 @@ test("brand logo, browser favicon and PWA icon use bundled same-origin assets", 
     read("../index.html"),
     read("../manifest.webmanifest"),
     read("../sw.js"),
-    read("../ric-logo.png")
+    readFile(new URL("../ric-logo.png", import.meta.url))
   ]);
   const manifest = JSON.parse(manifestText);
   assert.match(html, /class="ric-logo" src="\.\/ric-logo\.png"/);
