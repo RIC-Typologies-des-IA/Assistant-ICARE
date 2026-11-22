@@ -214,7 +214,6 @@ async function renderMermaid(fragment) {
   try {
     const engine = await loadMermaid();
     for (const source of sources) {
-    try {
       const code = source.textContent || "";
       const id = "icare-mermaid-" + crypto.randomUUID();
       const safeSource = code.replace(/^\s*%%\{init:[\s\S]*?\}%%\s*$/gm, "");
