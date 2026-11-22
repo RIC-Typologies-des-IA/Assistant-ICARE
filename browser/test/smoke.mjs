@@ -243,13 +243,20 @@ try{
   assert.equal(await page.locator("#enterprise-gateway-url").inputValue(),"https://gateway.example.org","le mode entreprise doit être conservé après rechargement");
   assert.equal(await page.locator("#runtime-mode-switch").isVisible(),true,"le sélecteur de mode doit apparaître quand les deux modes sont configurés");
   assert.equal(await page.locator("#runtime-mode-enterprise").getAttribute("aria-pressed"),"true","le mode entreprise actif doit être visible dans la barre supérieure");
+  // Le sélecteur de la barre supérieure est volontairement testé hors du dialogue modal :
+  // celui-ci intercepte correctement les interactions situées derrière lui.
+  await page.locator("#close-settings-dialog").click();
+  await page.locator("#settings-dialog").waitFor({state:"hidden"});
   await page.locator("#runtime-mode-standalone").click();
   assert.equal(await page.locator("#runtime-mode-standalone").getAttribute("aria-pressed"),"true","le basculement vers le mode autonome doit être immédiat");
   await page.locator("#runtime-mode-enterprise").click();
-  assert.equal(await page.locator("#runtime-mode-enterprise").getAttribute("aria-pressed"),"true","le retour au mode entreprise doit être immédiat");
-  assert.equal(await page.locator("#settings-panel-enterprise").isVisible(),true,"le mode entreprise doit être restauré après rechargement");
+  await page.reload();
+  await page.waitForFunction(()=>document.querySelector("#enterprise-gateway-url").value==="https://gateway.example.org");
+  assert.equal(await page.locator("#runtime-mode-enterprise").getAttribute("aria-pressed"),"true","le mode entreprise sélectionné doit persister après rechargement");
+  await page.locator("#settings-button").click();
+  assert.equal(await page.locator("#settings-panel-enterprise").isVisible(),true,"le panneau de configuration entreprise doit suivre le mode actif restauré");
   assert.ok((await page.locator("#model-label").textContent()).includes("enterprise-chat"),"le modèle entreprise attribué par le gateway doit être affiché");
-  await page.locator("#settings-dialog").evaluate(dialog=>dialog.close());
+  await page.locator("#close-settings-dialog").click();
 
   const autoContext=await browser.newContext({colorScheme:"light"});
   const autoPage=await autoContext.newPage();
