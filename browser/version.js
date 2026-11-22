@@ -1,1 +1,1 @@
-self.ICARE_VERSION = "0.10.3";
+self.ICARE_VERSION = "0.10.4";
