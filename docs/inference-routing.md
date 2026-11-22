@@ -11,9 +11,9 @@ Chaque opération choisit son propre transport : `local` (connexion directe à u
 
 | Transcription | Traitement du texte | Conséquence |
 | --- | --- | --- |
-| Local | Local | L’audio et le texte sont traités par des moteurs configurés sur l’appareil ou sur le réseau local. |
-| Local | Gateway | La voix est transcrite localement ; seul le texte transcrit est ensuite envoyé à la Gateway de raisonnement. |
-| Gateway | Local | L’audio est transmis à la Gateway de transcription ; le texte transcrit est traité par le moteur local. |
+| Local / direct | Local / direct | Chaque flux est envoyé à son endpoint direct ; celui-ci peut être local ou distant. |
+| Local / direct | Gateway | L’audio est envoyé à l’endpoint direct de transcription (local s’il est sur l’appareil) ; seul le texte transcrit est ensuite envoyé à la Gateway de raisonnement. |
+| Gateway | Local / direct | L’audio est transmis à la Gateway de transcription ; le texte transcrit est envoyé à l’endpoint direct de traitement du texte. |
 | Gateway | Gateway | Les deux opérations utilisent une Gateway commune ou deux Gateways indépendantes. |
 
 ## Configuration
