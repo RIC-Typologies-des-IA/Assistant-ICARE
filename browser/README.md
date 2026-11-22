@@ -56,7 +56,7 @@ Les clés API du mode autonome sont chiffrées et conservées dans le coffre Ind
 
 ### Runtime WASI / WIT dans le navigateur
 
-Le runtime des composants est livré avec la PWA. Les composants sont compilés et transpilés pendant les workflows GitHub Actions avec Jco, puis les modules JavaScript/Wasm core produits sont publiés avec le client. Le navigateur n'a pas besoin d'installation locale ni de runtime natif additionnel.
+Le runtime des composants est livré avec la PWA. Les composants sont compilés avec le backend QuickJS puis transpilés pendant les workflows GitHub Actions avec Jco ; les modules JavaScript/Wasm core produits sont publiés avec le client. Les artefacts observés dans la CI pèsent environ 268 Kio et 238 Kio pour les deux composants actuels. Le navigateur n'a pas besoin d'installation locale ni de runtime natif additionnel.
 
 Le premier composant de démonstration respecte le contrat `lifecycle` et peut être invoqué par l'agent. Il ne demande aucune capacité. Le runtime refuse les capacités non accordées, les identifiants absents du registre, les chemins d'entrée hors du répertoire des composants, les payloads de plus de 256 Kio et les réponses dont la corrélation est incohérente.
 
