@@ -403,3 +403,6 @@ body.project-menu-open .sidebar{
     min-width:min(42vw,220px) !important;
   }
 }
+
+/* Configuration : deux modes exclusifs, chacun avec son propre parcours d'enregistrement. */
+.settings-tabs{display:flex;gap:6px;padding:4px;background:#edf1f7;border-radius:11px;margin:14px 0 16px}.settings-tab{flex:1;border:0;border-radius:8px;padding:10px 12px;background:transparent;color:#53647b;font:inherit;font-size:13px;font-weight:650;cursor:pointer}.settings-tab[aria-selected="true"]{background:#fff;color:#214d85;box-shadow:0 1px 4px #172b4d20}.settings-mode-panel[hidden]{display:none!important}.settings-mode-panel{display:grid;gap:12px}.settings-mode-panel>.model-config{margin:0}.settings-mode-panel>.model-config>.dialog-actions{justify-content:flex-start}.settings-mode-panel .model-config h3{margin:0}.settings-mode-panel .button{min-width:180px}
