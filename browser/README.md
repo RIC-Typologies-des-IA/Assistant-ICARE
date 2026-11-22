@@ -62,4 +62,4 @@ Le premier composant de démonstration respecte le contrat `lifecycle` et peut �
 
 Cette première tranche n'exécute pas encore les mondes WIT qui importent le contexte, le stockage, l'inférence ou la messagerie. Ces interfaces nécessitent leurs liaisons hôte dédiées et des politiques de permissions avant d'être activées. Les composants historiques restent dans l'hôte JavaScript jusqu'à leur migration.
 
-Le composant `ontology-validator` exécute désormais dans le guest WASM la validation déterministe des observations avant leur enregistrement. Le vocabulaire ICARE lui est fourni en entrée ; il n'accède pas directement au projet, à IndexedDB ni au modèle d'inférence. La validation côté hôte reste maintenue en défense en profondeur.
+Le composant `ontology-validator` exécute dans le guest WASM la validation déterministe des observations, relations et statuts avant enregistrement. Le composant `context-summary` reçoit la capacité `context-read` via un import WIT lié par l'hôte ; il ne reçoit qu'un instantané JSON du projet, sans accès direct à IndexedDB, au réseau ou à l'inférence. Les validations côté hôte restent en défense en profondeur.
