@@ -93,7 +93,7 @@ try {
   assert.ok(result.alignedCells >= 2, "l’alignement des colonnes doit survivre à la sanitisation sans style inline");
   assert.equal(result.footnotes, 1, "les notes de bas de page doivent être rendues");
   assert.ok(result.highlighted > 0, "les blocs de code doivent être colorisés");
-  assert.equal(result.mermaid, 1, "le bloc Mermaid doit être transformé en SVG");
+  assert.equal(result.mermaid, 3, "les blocs Mermaid de test, y compris les exemples forestier et ICARE, doivent être transformés en SVG");
   assert.equal(result.unsafeSvg, 0, "le SVG généré par Mermaid ne doit contenir ni foreignObject, script, iframe ni gestionnaire d’événement");
   assert.equal(result.remoteImages, 0, "les images distantes doivent être bloquées pour éviter le pistage par requête réseau");
   assert.equal(result.rawHtml, "HTML documentaire autorisé", "un sous-ensemble HTML documentaire doit rester disponible");
