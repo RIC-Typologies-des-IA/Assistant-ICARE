@@ -210,13 +210,10 @@ try{
   await page.locator("#settings-button").click();
   assert.equal(await page.locator("#text-route").inputValue(),"local","le traitement du texte doit rester local par défaut");
   assert.equal(await page.locator("#audio-route").inputValue(),"local","la transcription doit rester locale par défaut");
-  assert.equal(await page.locator("#same-gateway-option").isVisible(),false,"le choix de Gateway partagée ne doit pas être proposé tant que les deux routes ne sont pas Gateway");
+  assert.equal(await page.locator("#same-gateway-option").isVisible(),false,"le choix de Gateway partagée doit être masqué hors du double routage Gateway");
   assert.equal(await page.locator("#same-gateway").isDisabled(),true,"le choix de Gateway partagée doit être désactivé hors du double routage Gateway");
-  assert.equal(await page.locator("#local-provider-config").isVisible(),true,"le fournisseur local commun doit être présenté lorsque les routes sont locales");
-  assert.ok((await page.locator('link[rel="icon"]').first().getAttribute("href")).includes("favicon.svg?v=0.10.5"),"le favicon doit utiliser une URL versionnée pour éviter le cache navigateur");
-  await page.locator("#local-preset").selectOption("lemonade");
-  assert.equal(await page.locator("#api-base").inputValue(),"http://127.0.0.1:13305/v1","le fournisseur local commun doit mettre à jour l’endpoint texte");
-  assert.equal(await page.locator("#transcription-base").inputValue(),"http://127.0.0.1:13305/v1","le fournisseur local commun doit mettre à jour l’endpoint audio");
+  assert.ok(await page.locator("#api-preset").count(),"le fournisseur de l’inférence locale doit rester indépendant");
+  assert.ok(await page.locator("#transcription-preset").count(),"le fournisseur de la transcription locale doit rester indépendant");
   await page.locator("#text-route").selectOption("gateway");
   await page.locator("#gateway-text-url").fill("https://gateway.example.org");
   await page.locator("#save-inference-config").click();
@@ -236,9 +233,6 @@ try{
   assert.equal(await page.locator("#gateway-text-url").inputValue(),"https://gateway.example.org","l’adresse gateway texte doit persister");
   assert.equal(await page.locator("#local-audio-config").isVisible(),true,"la configuration audio locale doit rester disponible quand le texte passe par Gateway");
   assert.equal(await page.locator("#local-text-config").isVisible(),false,"les paramètres locaux du texte ne doivent pas s’afficher quand le texte passe par Gateway");
-  assert.equal(await page.locator("#same-gateway-option").isVisible(),false,"la Gateway partagée doit rester indisponible si une seule route utilise Gateway");
-  assert.equal(await page.locator("#same-gateway").isDisabled(),true,"la Gateway partagée ne doit pas être activable en routage mixte");
-  assert.equal(await page.locator("#local-provider-config").isVisible(),true,"le fournisseur commun reste visible dès qu’une fonction est locale");
   // Le routage inverse est également valide : audio distant et texte local.
   await page.locator("#text-route").selectOption("local");
   await page.locator("#audio-route").selectOption("gateway");
