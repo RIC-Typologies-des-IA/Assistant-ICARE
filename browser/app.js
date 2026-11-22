@@ -3,7 +3,7 @@ import { renderMarkdown } from "./markdown.js";
 import { chatCompletion, chatCompletionMessage, listModels, transcribeAudio, audioBlobToWav } from "./inference.js";
 import { runAgentTurn } from "./agent.js";
 import { createIcareToolExecutor } from "./workspace-tools.js";
-import { loadCredentialVault, saveCredentialVault, migrateLegacyCredentials } from "./credentials.js";
+import { saveCredentialVault, migrateLegacyCredentials } from "./credentials.js";
 const $=id=>document.getElementById(id), db=await openDatabase();
 $("app-version").textContent=`— V${window.ICARE_VERSION} Alpha`;
 const state={projectId:null,projects:[],turns:[],settings:{},transcriptionSettings:{},workspace:null,busy:false};
