@@ -56,6 +56,24 @@ try {
           practical: ["considered", "proposed", "decided", "committed", "in_progress", "completed", "abandoned", "unspecified"]
         }
       }),
+      relation: await component.invoke("validate-relation", {
+        relation: { from_id: "p1", to_id: "p2", relation: "revises" },
+        existingProposalIds: ["p1", "p2"],
+        allowedRelations: ["complements", "revises"]
+      }),
+      invalidRelation: await component.invoke("validate-relation", {
+        relation: { from_id: "p1", to_id: "p1", relation: "revises" },
+        existingProposalIds: ["p1", "p2"],
+        allowedRelations: ["complements", "revises"]
+      }),
+      status: await component.invoke("validate-exploration-status", {
+        status: { dimension: "C", status: "sufficient", justification: "Éléments suffisants." },
+        vocabularies: { dimensions: ["I", "C", "A", "R", "E"], explorationStatuses: ["unexplored", "insufficient", "sufficient", "not_applicable"] }
+      }),
+      invalidStatus: await component.invoke("validate-exploration-status", {
+        status: { dimension: "C", status: "sufficient", justification: "" },
+        vocabularies: { dimensions: ["I", "C", "A", "R", "E"], explorationStatuses: ["unexplored", "insufficient", "sufficient", "not_applicable"] }
+      }),
       invalid: await component.invoke("validate-observation", {
         observation: { text: "Observation", dimensions: ["I"], primary_dimension: "E", epistemic: "reported", confidence: 1.4, source: "conversation" },
         vocabularies: {
@@ -72,10 +90,14 @@ try {
   assert.equal(validator.valid.valid, true);
   assert.equal(validator.valid.normalized.primary_dimension, "I");
   assert.equal(validator.invalid.valid, false);
+  assert.equal(validator.relation.valid, true);
+  assert.equal(validator.invalidRelation.valid, false);
+  assert.equal(validator.status.valid, true);
+  assert.equal(validator.invalidStatus.valid, false);
   assert.ok(validator.invalid.errors.some(error => error.includes("dimension principale")));
   assert.ok(validator.invalid.errors.some(error => error.includes("confiance")));
   assert.deepEqual(errors, []);
-  console.log("WASI browser smoke test passed: lifecycle, ontology validation, and policy-free guest invocation.");
+  console.log("WASI browser smoke test passed: lifecycle, observation/relation/status validation, and policy-free guest invocation.");
 } finally {
   if (browser) await browser.close();
   await new Promise(resolveClose => server.close(resolveClose));
