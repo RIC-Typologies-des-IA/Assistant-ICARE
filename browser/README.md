@@ -8,6 +8,10 @@ Limites : le fournisseur doit autoriser CORS depuis GitHub Pages ; les données 
 
 Le workflow de déploiement publie le contenu de browser/ sur GitHub Pages. Dans Settings → Pages, sélectionner GitHub Actions comme source de publication. URL cible : https://ric-typologies-des-ia.github.io/Assistant-ICARE/
 
+### Mise à jour automatique du client
+
+Le client vérifie la version du Service Worker à chaque ouverture de l’URL, puis au retour sur un onglet précédemment masqué. Lorsqu’une nouvelle publication est détectée, le Service Worker télécharge les ressources de la nouvelle version, s’active sans attendre la fermeture des anciens onglets, puis le client recharge automatiquement l’onglet une seule fois. Les projets, conversations et paramètres conservés dans IndexedDB/localStorage ne sont pas effacés par cette mise à jour. La mise à jour nécessite une connexion réseau lors de la vérification ; en mode hors ligne, la dernière version mise en cache reste utilisable et la nouvelle version sera récupérée au prochain retour en ligne/ouverture.
+
 
 ## Versionnement
 
