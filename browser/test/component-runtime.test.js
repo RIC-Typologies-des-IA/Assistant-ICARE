@@ -8,7 +8,7 @@ const manifest = {
   displayName: "Test",
   requiredCapabilities: []
 };
-const registry = { schemaVersion: 1, components: [{ id: "sample", componentId: "icare:test/component", entrypoint: "./components/sample/sample.js", world: "component-base" }] };
+const registry = { schemaVersion: 1, components: [{ id: "sample", componentId: "icare:test/component", entrypoint: "./components/sample/sample.js", world: "component-base", requiredCapabilities: [] }] };
 
 function runtime({ described = manifest, grants = [], invoke } = {}) {
   return createComponentRuntime({
@@ -63,12 +63,75 @@ test("rejects responses with a mismatched correlation identifier", async () => {
   await assert.rejects(component.invoke("inspect", {}, "expected"), /corrélation incohérente/);
 });
 
+test("injects project context only through a granted WIT host import", async () => {
+  const context = JSON.stringify({ projectId: "project-1", dimensionCount: 5 });
+  let suppliedContext;
+  const host = createComponentRuntime({
+    baseUrl: new URL("https://icare.invalid/"),
+    fetchImpl: async () => ({ ok: true, json: async () => ({
+      schemaVersion: 1,
+      components: [{
+        id: "context-summary",
+        componentId: "icare:context/summary",
+        entrypoint: "./components/context-summary/context-summary.js",
+        world: "component-with-context",
+        requiredCapabilities: ["context-read"]
+      }]
+    }) }),
+    importModule: async () => ({
+      instantiate: async (_getCoreModule, imports) => {
+        suppliedContext = imports["icare:component/context-api"].getProjectContext();
+        return {
+          lifecycle: {
+            describe: () => ({
+              componentId: "icare:context/summary",
+              version: "0.1.0",
+              displayName: "Context",
+              requiredCapabilities: ["context-read"]
+            }),
+            invoke: async request => ({
+              correlationId: request.correlationId,
+              payloadJson: JSON.stringify({ context: JSON.parse(suppliedContext) })
+            })
+          }
+        };
+      }
+    }),
+    grants: { "context-summary": ["context-read"] },
+    contextProvider: () => context
+  });
+  const component = await host.load("context-summary");
+  assert.deepEqual(await component.invoke("read-project-context", {}, "context-1"), {
+    context: { projectId: "project-1", dimensionCount: 5 }
+  });
+});
+
+test("does not instantiate a context component without an explicit host grant", async () => {
+  let instantiated = false;
+  const host = createComponentRuntime({
+    baseUrl: new URL("https://icare.invalid/"),
+    fetchImpl: async () => ({ ok: true, json: async () => ({
+      schemaVersion: 1,
+      components: [{
+        id: "context-summary",
+        componentId: "icare:context/summary",
+        entrypoint: "./components/context-summary/context-summary.js",
+        world: "component-with-context",
+        requiredCapabilities: ["context-read"]
+      }]
+    }) }),
+    importModule: async () => ({ instantiate: async () => { instantiated = true; return {}; } })
+  });
+  await assert.rejects(host.load("context-summary"), /Capacités ICARE refusées : context-read/);
+  assert.equal(instantiated, false);
+});
+
 test("rejects registry paths that escape the component namespace", async () => {
   const host = createComponentRuntime({
     baseUrl: new URL("https://icare.invalid/"),
     fetchImpl: async () => ({ ok: true, json: async () => ({
       schemaVersion: 1,
-      components: [{ id: "sample", entrypoint: "../app.js", world: "component-base" }]
+      components: [{ id: "sample", entrypoint: "../app.js", world: "component-base", requiredCapabilities: [] }]
     }) })
   });
   await assert.rejects(host.load("sample"), /Point d'entrée hors du répertoire/);
