@@ -276,6 +276,16 @@ try{
   assert.equal(await page.locator("#api-model").inputValue(),"enterprise-chat-v2","le modèle texte renvoyé par le gateway doit être persisté");
   assert.equal(await page.locator("#transcription-model").inputValue(),"enterprise-audio-v2","le modèle audio renvoyé par le gateway doit être persisté");
   assert.equal(await page.locator("#api-key").evaluate(el=>el.parentElement.hidden),true,"les clés fournisseur doivent rester masquées après rechargement");
+  // Un autre gateway ne doit pas hériter des modèles du précédent.
+  gatewayConfigPayload={service:"icare-enterprise-gateway",defaults:{chatModel:"tenant-chat",transcriptionModel:"tenant-audio"}};
+  await page.locator("#enterprise-gateway-url").fill("https://gateway.example.org/tenant");
+  await page.locator('#settings-form button[value="save"]').click();
+  await page.locator("#settings-dialog").waitFor({state:"hidden"});
+  await page.reload();
+  await page.waitForFunction(()=>document.querySelector("#enterprise-gateway-url").value==="https://gateway.example.org/tenant");
+  await page.locator("#settings-button").click();
+  assert.equal(await page.locator("#api-model").inputValue(),"tenant-chat","un nouveau gateway doit fournir son propre modèle texte, sans reprendre l’ancien");
+  assert.equal(await page.locator("#transcription-model").inputValue(),"tenant-audio","un nouveau gateway doit fournir son propre modèle audio, sans reprendre l’ancien");
   await page.locator("#enterprise-gateway-url").fill("");
   assert.equal(await page.locator("#api-base").evaluate(el=>el.required),true,"le mode autonome doit réactiver la validation de l’endpoint texte");
   assert.equal(await page.locator("#api-model").evaluate(el=>el.required),true,"le mode autonome doit réactiver la validation du modèle texte");
