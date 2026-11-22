@@ -7,9 +7,24 @@ import { saveCredentialVault, migrateLegacyCredentials } from "./credentials.js"
 import { registerAppServiceWorker } from "./pwa.js";
 import { createComponentRuntime } from "./component-runtime.js";
 const $=id=>document.getElementById(id), db=await openDatabase();
-const componentRuntime=createComponentRuntime();
 $("app-version").textContent=`— V${window.ICARE_VERSION} Alpha`;
 const state={projectId:null,projects:[],turns:[],settings:{},transcriptionSettings:{},gatewayUrl:"",workspace:null,busy:false};
+const componentRuntime=createComponentRuntime({
+ grants: { "context-summary": ["context-read"] },
+ contextProvider: () => {
+  const project=state.projects.find(item=>item.id===state.projectId);
+  const workspace=state.workspace;
+  return JSON.stringify({
+   project: project ? { id: project.id, name: project.name, intention: project.intention || "" } : null,
+   exploration: workspace ? {
+    dimensions: { ...workspace.dimensions },
+    justifications: { ...(workspace.dimensionJustifications || {}) }
+   } : null,
+   propositionCount: workspace?.proposals?.length || 0,
+   relationCount: workspace?.relations?.length || 0
+  });
+ }
+});
 const uid=()=>crypto.randomUUID(), now=()=>new Date().toISOString();
 let ontology=null;
 async function loadOntology(){try{const response=await fetch("./icare.json");if(!response.ok)throw Error("Ontologie indisponible");ontology=await response.json();}catch{ontology={dimensions:{I:"Intention / finalité",C:"Contexte / situation",A:"Action / opération",R:"Régulation / organisation",E:"Évolution / temporalité"}};}}
