@@ -69,7 +69,8 @@ Le composant `ontology-validator` porte la validation déterministe des observat
 |---|---|---|
 | Agent et orchestration (`browser/agent.js`) | `component-agent` | context-read, model-inference, tool-execution, component-messaging |
 | Validation des observations, relations et statuts (`ontology-validator`) | `component-base` (migré) | aucune capacité ; vocabulaire et IDs passés en entrée |
-| Lecture du contexte (`context-summary`) | `component-with-context` (première liaison hôte) | context-read ; instantané JSON fourni par l'hôte |\n| Outils de l'espace de travail (`browser/workspace-tools.js`) | monde métier dédié | context-read, context-write, project-storage-read, project-storage-write |
+| Lecture du contexte (`context-summary`) | `component-with-context` (première liaison hôte) | context-read ; instantané JSON fourni par l'hôte |
+| Outils de l'espace de travail (`browser/workspace-tools.js`) | monde métier dédié | context-read, context-write, project-storage-read, project-storage-write |
 | Adaptateurs d'inférence (`browser/inference.js`) | interface hôte, pas de fournisseur dans le guest | model-inference, audio-transcription |
 | Stockage local (`browser/storage.js`) | interface hôte de stockage | project-storage-read, project-storage-write |
 
