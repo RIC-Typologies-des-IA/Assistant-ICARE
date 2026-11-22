@@ -245,7 +245,7 @@ async function renderMermaid(sources) {
       if (code.length > 40000 || code.split("\n").length > 1500)
         throw new Error("Diagramme trop volumineux (limite : 40 000 caractères et 1 500 lignes).");
       const id = "icare-mermaid-" + crypto.randomUUID();
-      const safeSource = code.replace(/%%\\{init:[\\s\\S]*?\\}%%/gi, "");
+      const safeSource = code.replace(/%%\{init:[\s\S]*?\}%%/gi, "");
       const result = await engine.render(id, safeSource);
       const svgDocument = new DOMParser().parseFromString(result.svg, "image/svg+xml");
       if (svgDocument.querySelector("parsererror")) throw new Error("SVG Mermaid invalide");
