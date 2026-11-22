@@ -2,13 +2,6 @@
   "schemaVersion": 1,
   "components": [
     {
-      "id": "hello",
-      "componentId": "icare:example/hello",
-      "entrypoint": "./components/hello/hello.js",
-      "world": "component-base",
-      "requiredCapabilities": []
-    },
-    {
       "id": "ontology-validator",
       "componentId": "icare:ontology/validator",
       "entrypoint": "./components/ontology-validator/ontology-validator.js",
