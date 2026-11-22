@@ -65,6 +65,9 @@ async function loadSettings(){
   state.gateways={text:legacyGateway.url||"",audio:legacyGateway.url||""};
   state.gatewayModels={text:legacyModels.chatModel||"",audio:legacyModels.transcriptionModel||""};
   state.sameGateway=true;
+  await put(db,"settings",{id:"inference-routing",...state.routing});
+  await put(db,"settings",{id:"inference-gateways",...state.gateways,sameGateway:true});
+  await put(db,"settings",{id:"inference-gateway-models",...state.gatewayModels});
  }
  const credentials=await migrateLegacyCredentials(db,{
   text:state.settings.apiKey||sessionStorage.getItem("icare-api-key")||"",
@@ -87,11 +90,10 @@ async function loadSettings(){
  renderRoutingConfig();modelLabel();
 }
 function modelLabel(){
- const text=state.routing.text==="gateway"?"Gateway · "+(state.gatewayModels.text||"modèle non attribué"):(state.settings.model||"non configuré")+" (local)";
+ const text=state.routing.text==="gateway"?"Gateway · "+(state.gatewayModels.text||"modèle non attribué"):(state.settings.model||"non configuré")+" (direct)";
  const audio=state.routing.audio==="gateway"?"Gateway · "+(state.gatewayModels.audio||"modèle non attribué"):(state.transcriptionSettings.model||"non configuré")+" (local)";
  $("model-label").textContent="Texte : "+text+" · Transcription : "+audio;
 }
-function gatewayUrlFor(kind){return state.sameGateway&&state.routing.text==="gateway"&&state.routing.audio==="gateway"?state.gateways.text:state.gateways[kind];}
 function resolveInferenceTarget(kind){
  const route=kind==="audio"?"audio":"text",settings=route==="audio"?state.transcriptionSettings:state.settings;
  return resolveInferenceRoute({kind:route,routing:state.routing,localSettings:settings,gateways:state.gateways,gatewayModels:state.gatewayModels,sameGateway:state.sameGateway});
