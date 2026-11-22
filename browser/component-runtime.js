@@ -113,12 +113,14 @@ export function createComponentRuntime({
       if (entry.world === "component-with-storage") {
         const storageBinding = {
           read(key) {
+            if (!requested.requiredCapabilities.includes("project-storage-read")) throw new Error("Capacité project-storage-read non accordée.");
             if (!activeStorage) throw new Error("Transaction de stockage inactive.");
             if (typeof key !== "string" || !/^[a-zA-Z0-9._:-]{1,128}$/.test(key)) throw new Error("Clé de stockage ICARE invalide.");
             const value = activeStorage[key];
             return typeof value === "string" ? value : null;
           },
           write(key, value) {
+            if (!requested.requiredCapabilities.includes("project-storage-write")) throw new Error("Capacité project-storage-write non accordée.");
             if (!activeStorage) throw new Error("Transaction de stockage inactive.");
             if (typeof key !== "string" || !/^[a-zA-Z0-9._:-]{1,128}$/.test(key)) throw new Error("Clé de stockage ICARE invalide.");
             if (typeof value !== "string" || new TextEncoder().encode(value).byteLength > 65536) throw new Error("Valeur de stockage ICARE invalide ou trop volumineuse.");
@@ -175,7 +177,7 @@ export function createComponentRuntime({
         }
         assertJsonPayload(result.payloadJson);
         const parsed = JSON.parse(result.payloadJson);
-        if (entry.world === "component-with-storage") await storageCommit(id, { ...activeStorage });
+        if (entry.world === "component-with-storage" && requested.requiredCapabilities.includes("project-storage-write")) await storageCommit(id, { ...activeStorage });
         return parsed;
       } finally { activeStorage = null; }
     };
