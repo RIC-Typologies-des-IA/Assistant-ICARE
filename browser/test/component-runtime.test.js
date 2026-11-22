@@ -238,3 +238,28 @@ test("serializes storage-backed invocations to prevent transaction cross-talk", 
   ]);
   assert.deepEqual(persisted, { first: "1", second: "2" });
 });
+
+test("a read-only storage grant cannot call the host write import", async () => {
+  let imports;
+  const host = createComponentRuntime({
+    baseUrl: new URL("https://icare.invalid/"),
+    fetchImpl: async () => ({ ok: true, json: async () => ({
+      schemaVersion: 1,
+      components: [{ id: "storage-reader", componentId: "icare:storage/reader", entrypoint: "./components/storage-reader/storage-reader.js", world: "component-with-storage", requiredCapabilities: ["project-storage-read"] }]
+    }) }),
+    importModule: async () => ({
+      instantiate: async (_getCoreModule, hostImports) => {
+        imports = hostImports["icare:component/project-storage-api"];
+        return { lifecycle: {
+          describe: () => ({ componentId: "icare:storage/reader", version: "0.1.0", displayName: "Reader", requiredCapabilities: ["project-storage-read"] }),
+          invoke: async request => ({ correlationId: request.correlationId, payloadJson: JSON.stringify({ value: imports.read("existing") }) })
+        }};
+      }
+    }),
+    grants: { "storage-reader": ["project-storage-read"] },
+    storageProvider: () => ({ existing: "safe" })
+  });
+  const component = await host.load("storage-reader");
+  assert.throws(() => imports.write("existing", "tampered"), /Capacité project-storage-write non accordée/);
+  assert.deepEqual(await component.invoke("read", {}), { value: "safe" });
+});
