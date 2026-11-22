@@ -6,17 +6,19 @@
     "project": "local-confidential",
     "conversation": "local-confidential",
     "inferenceContext": "externally-disclosed-on-explicit-inference",
-    "credentials": "ephemeral-session-secret"
+    "credentials": "locally-encrypted-persistent-secret"
   },
   "invariants": {
     "projectDataHasNoRemotePersistence": true,
     "remoteBusinessDataEgressRequiresUserInitiatedInference": true,
-    "credentialsPersistedOutsideSession": false,
+    "credentialsPersistedOutsideSession": true,
     "remoteInferenceRequiresHttps": true,
     "plainHttpAllowedOnlyForLoopback": true,
     "thirdPartyRuntimeAssetsAllowedByDefault": false,
     "filesystemAccessRequiresUserAction": true,
-    "serviceWorkerRequiredForCoreWorkflows": false
+    "serviceWorkerRequiredForCoreWorkflows": false,
+    "credentialsEncryptedAtRest": true,
+    "encryptionKeyNonExtractable": true
   },
   "allowedNetworkPurposes": [
     "application-origin-static-assets",
