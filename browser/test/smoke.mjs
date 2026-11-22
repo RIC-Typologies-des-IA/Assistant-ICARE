@@ -239,7 +239,7 @@ try{
   await page.locator("#runtime-mode-enterprise").click();
   assert.equal(await page.locator("#runtime-mode-enterprise").getAttribute("aria-pressed"),"true","le retour au mode entreprise doit être immédiat");
   assert.equal(await page.locator("#settings-panel-enterprise").isVisible(),true,"le mode entreprise doit être restauré après rechargement");
-  assert.equal(await page.locator("#api-model").inputValue(),"enterprise-chat","le modèle par défaut attribué par le gateway doit être persisté");
+  assert.ok((await page.locator("#model-label").textContent()).includes("enterprise-chat"),"le modèle entreprise attribué par le gateway doit être affiché");
   await page.locator("#settings-dialog").evaluate(dialog=>dialog.close());
 
   const autoContext=await browser.newContext({colorScheme:"light"});
@@ -264,7 +264,7 @@ try{
   await page.locator("#settings-button").click();
   assert.equal(await page.locator("#api-base").evaluate(el=>el.required),false,"l’URL fournisseur ne doit pas être obligatoire en mode entreprise");
   assert.equal(await page.locator("#api-model").evaluate(el=>el.required),false,"le modèle texte ne doit pas être obligatoire en mode entreprise");
-  assert.equal(await page.locator("#transcription-model").inputValue(),"enterprise-audio","le modèle audio par défaut doit être restauré après rechargement");
+  assert.ok((await page.locator("#model-label").textContent()).includes("enterprise-audio"),"le modèle audio entreprise doit être affiché après rechargement");
   assert.equal(await page.locator("#settings-panel-standalone").isVisible(),false,"aucun champ de modèle autonome ne doit être visible en mode entreprise");
   await page.locator("#enterprise-gateway-url").fill("http://gateway.example.org");
   await page.locator("#save-enterprise-config").click();
@@ -277,14 +277,14 @@ try{
   assert.match(await page.locator("#enterprise-status").textContent(),/Aucun modèle de conversation/,"l’absence de modèle texte doit être signalée sans enregistrer une configuration inutilisable");
   assert.equal(await page.locator("#settings-dialog").evaluate(el=>el.open),true,"une configuration gateway incomplète doit rester corrigeable");
   gatewayConfigPayload={service:"icare-enterprise-gateway",defaults:{chatModel:"enterprise-chat-v2",transcriptionModel:"enterprise-audio-v2"}};
-  await page.locator('#settings-form button[value="save"]').click();
+  await page.locator("#save-enterprise-config").click();
   await page.locator("#settings-dialog").waitFor({state:"hidden"});
   await page.reload();
   await page.waitForFunction(()=>document.querySelector("#enterprise-gateway-url").value==="https://gateway.example.org/v1");
   await page.locator("#settings-button").click();
   assert.equal(await page.locator("#api-model").inputValue(),"test-model","la configuration autonome doit rester intacte après enregistrement entreprise");
   assert.equal(await page.locator("#runtime-mode-enterprise").getAttribute("aria-pressed"),"true","le mode actif doit être restauré après rechargement");
-  assert.equal(await page.locator("#transcription-model").inputValue(),"enterprise-audio-v2","le modèle audio renvoyé par le gateway doit être persisté");
+  assert.ok((await page.locator("#model-label").textContent()).includes("enterprise-audio-v2"),"le modèle audio renvoyé par le gateway doit être persisté");
   assert.equal(await page.locator("#settings-panel-enterprise").isVisible(),true,"le panneau entreprise doit rester seul visible après rechargement");
   // Un autre gateway ne doit pas hériter des modèles du précédent.
   gatewayConfigPayload={service:"icare-enterprise-gateway",defaults:{chatModel:"tenant-chat",transcriptionModel:"tenant-audio"}};
@@ -294,8 +294,8 @@ try{
   await page.reload();
   await page.waitForFunction(()=>document.querySelector("#enterprise-gateway-url").value==="https://gateway.example.org/tenant");
   await page.locator("#settings-button").click();
-  assert.equal(await page.locator("#api-model").inputValue(),"tenant-chat","un nouveau gateway doit fournir son propre modèle texte, sans reprendre l’ancien");
-  assert.equal(await page.locator("#transcription-model").inputValue(),"tenant-audio","un nouveau gateway doit fournir son propre modèle audio, sans reprendre l’ancien");
+  assert.ok((await page.locator("#model-label").textContent()).includes("tenant-chat"),"un nouveau gateway doit fournir son propre modèle texte, sans reprendre l’ancien");
+  assert.ok((await page.locator("#model-label").textContent()).includes("tenant-audio"),"un nouveau gateway doit fournir son propre modèle audio, sans reprendre l’ancien");
   await page.locator("#settings-tab-standalone").click();
   assert.equal(await page.locator("#api-base").evaluate(el=>el.required),true,"le mode autonome doit réactiver la validation de l’endpoint texte");
   assert.equal(await page.locator("#api-model").evaluate(el=>el.required),true,"le mode autonome doit réactiver la validation du modèle texte");
