@@ -16,16 +16,20 @@ try{
   const context=await browser.newContext({serviceWorkers:"block"});
   const page=await context.newPage();
   page.on("dialog",dialog=>dialog.accept());
+  await page.addInitScript(()=>{const original=window.fetch;window.__icareFetchCalls=[];window.fetch=(input,init={})=>{window.__icareFetchCalls.push({url:String(input),credentials:init.credentials||"same-origin",authorization:new Headers(init.headers||{}).get("Authorization"),body:typeof init.body==="string"?init.body:""});return original(input,init);};});
   await page.route("https://mock-provider.example/**",route=>{assert.equal(route.request().headers()["authorization"],"Bearer test-secret","la clé doit être disponible en mémoire de session");const requestBody=route.request().postDataJSON();if(Array.isArray(requestBody?.messages))chatPayloads.push(requestBody);const body=route.request().url().endsWith("/models")?{data:[{id:"test-model"}]}:{choices:[{message:{content:["Réponse locale de test.","","# Niveau 1","","## Niveau 2","","### Votre avis","","#### Auto-évaluation","", "#### Points d’attention / tensions éventuelles","","##### Niveau 5","","###### Niveau 6","","####Titre sans espace","","**Texte en gras**.","","| Étape | Ce qui a été réalisé | Conformité aux principes ICARE & maïeutiques |","|-------|----------------------|----------------------------------------------|","| **1. Capture de l’intention (I)** | - Vous avez exprimé votre **but** : fournir des connaissances. | ✅ Reformulation pour vérification ; ✅ distinction claire. |","| **2. Confirmation de l’intention** | Vous avez confirmé la reformulation (« Oui »). | ✅ Attente d’un accord avant de passer à la suite. |","| **3. Passage à la dimension suivante (C)** | J’ai présenté les cinq axes possibles du **Contexte**. | ✅ Question unique, ouverte. |","","### Synthèse de la dimension I","","| Champ | Valeur |","|-------|--------|","| **id** | `proj-foret-I-001` |","| **text** | *Instruire les politiques publiques de la forêt.* |","","> undefined","","<img src=x onerror=alert(1)>","[lien dangereux](javascript:alert(1))"].join("\n")}}]};return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(body)});});
   let gatewayRequests=[];
+  let gatewayConfigPayload={service:"icare-enterprise-gateway",defaults:{chatModel:"enterprise-chat",transcriptionModel:"enterprise-audio"}};
+  let gatewayConfigStatus=200;
   await page.route("https://gateway.example.org/**",async route=>{
     const request=route.request(),url=new URL(request.url());
     const headers=request.headers();
     assert.equal(headers.authorization,undefined,"aucune clé fournisseur ne doit être envoyée au gateway");
     const payload=request.postDataJSON?.();
-    gatewayRequests.push({url:request.url(),payload});
+    gatewayRequests.push({url:request.url(),payload,authorization:headers.authorization});
+    if(url.pathname.endsWith("/icare/config")&&gatewayConfigStatus!==200)return route.fulfill({status:gatewayConfigStatus,contentType:"application/json",body:JSON.stringify({error:"Configuration indisponible"})});
     const body=url.pathname.endsWith("/icare/config")
-      ?{service:"icare-enterprise-gateway",defaults:{chatModel:"enterprise-chat",transcriptionModel:"enterprise-audio"}}
+      ?gatewayConfigPayload
       :url.pathname.endsWith("/models")
         ?{data:[{id:"enterprise-chat"},{id:"enterprise-audio"}]}
         :{choices:[{message:{content:"Réponse entreprise de test."}}]};
@@ -71,13 +75,18 @@ try{
   assert.equal(await page.locator("#dimension-statuses .dimension-status-row").count(),5,"les cinq statuts doivent être éditables");
   assert.equal(await page.locator("#project-title").textContent(),"Mon premier projet");
   await page.locator("#settings-button").click();
+  assert.equal(await page.locator("#settings-tab-standalone").getAttribute("aria-selected"),"true","le mode autonome doit être sélectionné par défaut");
+  await page.locator("#close-settings-dialog").click();
+  assert.equal(await page.locator("#settings-dialog").evaluate(dialog=>dialog.open),false,"la boîte de dialogue doit toujours pouvoir être fermée sans modèle renseigné");
+  await page.locator("#settings-button").click();
+  await page.locator("#settings-tab-enterprise").click();
+  assert.equal(await page.locator("#settings-panel-enterprise").isVisible(),true,"l’onglet entreprise doit afficher uniquement son formulaire");
+  assert.equal(await page.locator("#settings-panel-standalone").isVisible(),false,"le formulaire autonome doit être masqué en mode entreprise");
   await page.locator("#enterprise-gateway-url").fill("https://gateway.example.org");
-  assert.equal(await page.locator("#api-key").evaluate(el=>el.parentElement.hidden),true,"le mode entreprise doit masquer les clés fournisseurs");
-  assert.equal(await page.locator("#api-base").evaluate(el=>el.parentElement.hidden),true,"le mode entreprise doit masquer les endpoints fournisseurs directs");
-  assert.equal(await page.locator("#api-model").evaluate(el=>el.parentElement.hidden),true,"le mode entreprise doit laisser le gateway choisir les modèles");
-  assert.equal(await page.locator("#api-model").evaluate(el=>el.required),false,"le modèle est attribué automatiquement par le gateway");
-  await page.locator("#enterprise-gateway-url").fill("");
-  assert.equal(await page.locator("#api-key").evaluate(el=>el.parentElement.hidden),false,"le mode autonome doit réafficher la configuration directe");
+  assert.equal(await page.locator("#api-model").evaluate(el=>el.required),false,"les modèles ne sont pas requis en mode entreprise");
+  await page.locator("#settings-tab-standalone").click();
+  assert.equal(await page.locator("#settings-panel-standalone").isVisible(),true,"le mode autonome doit rester accessible par son onglet");
+  assert.equal(await page.locator("#api-key").evaluate(el=>el.parentElement.hidden),false,"le mode autonome doit afficher sa configuration directe");
   await page.locator("#api-base").fill("https://mock-provider.example/v1");
   await page.locator("#api-model").fill("test-model");
   await page.locator("#api-key").fill("test-secret");
@@ -85,11 +94,20 @@ try{
   await page.waitForFunction(()=>document.querySelectorAll("#available-models option").length===1);
   await page.locator("#test-provider").click();
   await page.waitForFunction(()=>document.querySelector("#provider-status").textContent.includes("Réponse locale de test"));
-  await page.locator('#settings-form button[value="save"]').click();
+  // Le test de connexion ne sauvegarde volontairement rien : enregistrer réellement
+  // le profil autonome avant de vérifier la coexistence et le basculement des modes.
+  await page.locator('#settings-form button[type="submit"][value="save"]').click();
   await page.locator("#settings-dialog").waitFor({state:"hidden"});
+  assert.equal(await page.locator("#runtime-mode-switch").isVisible(),false,"le sélecteur ne doit pas apparaître tant qu’un seul mode est configuré");
+  await page.locator("#settings-button").click();
+  await page.locator("#settings-tab-enterprise").click();
+  await page.locator("#save-enterprise-config").click();
+  await page.locator("#settings-dialog").waitFor({state:"hidden"});
+  await page.locator("#runtime-mode-standalone").click();
   await page.locator("#message-input").fill("Bonjour ICARE");
   await page.locator("#composer").evaluate(form=>form.requestSubmit());
   await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Réponse locale de test."));
+  await page.locator("#runtime-mode-enterprise").click();
   for (const [level,title] of [[1,"Niveau 1"],[2,"Niveau 2"],[3,"Votre avis"],[4,"Auto-évaluation"],[5,"Niveau 5"],[6,"Niveau 6"]]) {
     assert.equal(await page.locator(".message.assistant h"+level).first().textContent(),title,"le titre Markdown de niveau "+level+" doit être rendu sans dièses visibles");
   }
@@ -204,10 +222,9 @@ try{
   // Vérifie le parcours réel du client entreprise : découverte des valeurs par défaut,
   // appels sans secret fournisseur, persistance puis restauration après rechargement.
   await page.locator("#settings-button").click();
-  await page.locator("#api-model").fill("");
-  await page.locator("#transcription-model").fill("");
+  await page.locator("#settings-tab-enterprise").click();
   await page.locator("#enterprise-gateway-url").fill("https://gateway.example.org");
-  await page.locator('#settings-form button[value="save"]').click();
+  await page.locator("#save-enterprise-config").click();
   await page.locator("#settings-dialog").waitFor({state:"hidden"});
   assert.ok(gatewayRequests.some(request=>request.url.endsWith("/v1/icare/config")),"le client doit demander les modèles par défaut au gateway");
   await page.locator("#message-input").fill("Bonjour entreprise");
@@ -215,13 +232,23 @@ try{
   await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Réponse entreprise de test."));
   const enterprisePayload=gatewayRequests.find(request=>request.url.endsWith("/v1/chat/completions"))?.payload;
   assert.ok(enterprisePayload?.messages?.some(message=>message.role==="user"&&message.content==="Bonjour entreprise"),"le dialogue doit réellement être routé vers le gateway");
+  const enterpriseChatRequest=gatewayRequests.find(request=>request.url.endsWith("/v1/chat/completions"));
+  assert.equal(enterpriseChatRequest?.authorization,undefined,"aucune clé API fournisseur ne doit être envoyée au gateway");
+  const browserGatewayFetch=await page.evaluate(()=>window.__icareFetchCalls.find(call=>call.url.startsWith("https://gateway.example.org/")&&call.url.endsWith("/v1/chat/completions")&&JSON.parse(call.body||"{}").messages?.some(message=>message.role==="user"&&message.content==="Bonjour entreprise")));
+  assert.equal(browserGatewayFetch?.credentials,"include","les appels entreprise doivent transmettre les cookies de session SSO");
   await page.reload();
   await page.waitForFunction(()=>document.querySelector("#project-select").options.length>=1);
   await page.waitForFunction(()=>document.querySelector("#enterprise-gateway-url").value==="https://gateway.example.org");
   await page.locator("#settings-button").click();
   assert.equal(await page.locator("#enterprise-gateway-url").inputValue(),"https://gateway.example.org","le mode entreprise doit être conservé après rechargement");
-  assert.equal(await page.locator("#api-key").evaluate(el=>el.parentElement.hidden),true,"les clés directes doivent rester masquées après rechargement");
-  assert.equal(await page.locator("#api-model").inputValue(),"enterprise-chat","le modèle par défaut attribué par le gateway doit être persisté");
+  assert.equal(await page.locator("#runtime-mode-switch").isVisible(),true,"le sélecteur de mode doit apparaître quand les deux modes sont configurés");
+  assert.equal(await page.locator("#runtime-mode-enterprise").getAttribute("aria-pressed"),"true","le mode entreprise actif doit être visible dans la barre supérieure");
+  await page.locator("#runtime-mode-standalone").click();
+  assert.equal(await page.locator("#runtime-mode-standalone").getAttribute("aria-pressed"),"true","le basculement vers le mode autonome doit être immédiat");
+  await page.locator("#runtime-mode-enterprise").click();
+  assert.equal(await page.locator("#runtime-mode-enterprise").getAttribute("aria-pressed"),"true","le retour au mode entreprise doit être immédiat");
+  assert.equal(await page.locator("#settings-panel-enterprise").isVisible(),true,"le mode entreprise doit être restauré après rechargement");
+  assert.ok((await page.locator("#model-label").textContent()).includes("enterprise-chat"),"le modèle entreprise attribué par le gateway doit être affiché");
   await page.locator("#settings-dialog").evaluate(dialog=>dialog.close());
 
   const autoContext=await browser.newContext({colorScheme:"light"});
@@ -241,7 +268,52 @@ try{
   assert.equal(await fallbackPage.locator("html").getAttribute("data-theme"),"light","en l'absence de détection système, le thème doit être clair");
   await fallbackContext.close();
 
-  console.log("Browser smoke test passed: standalone and enterprise gateway, persistence, automatic model defaults, project creation/cancellation, project drawer, export/import and color themes.");
+  // La configuration entreprise doit valider le protocole, résoudre les deux modèles
+  // et ne jamais rendre les champs fournisseur obligatoires ou actifs.
+  await page.locator("#settings-button").click();
+  assert.equal(await page.locator("#api-base").evaluate(el=>el.required),false,"l’URL fournisseur ne doit pas être obligatoire en mode entreprise");
+  assert.equal(await page.locator("#api-model").evaluate(el=>el.required),false,"le modèle texte ne doit pas être obligatoire en mode entreprise");
+  assert.ok((await page.locator("#model-label").textContent()).includes("enterprise-audio"),"le modèle audio entreprise doit être affiché après rechargement");
+  assert.equal(await page.locator("#settings-panel-standalone").isVisible(),false,"aucun champ de modèle autonome ne doit être visible en mode entreprise");
+  await page.locator("#enterprise-gateway-url").fill("http://gateway.example.org");
+  await page.locator("#save-enterprise-config").click();
+  assert.match(await page.locator("#enterprise-status").textContent(),/HTTPS valide/,"un gateway HTTP distant doit être refusé explicitement");
+  assert.equal(await page.locator("#settings-dialog").evaluate(el=>el.open),true,"une URL de gateway invalide ne doit pas fermer la configuration");
+  await page.locator("#enterprise-gateway-url").fill("https://incomplete.example.org/v1");
+  gatewayConfigPayload={service:"icare-enterprise-gateway",defaults:{transcriptionModel:"enterprise-audio"}};
+  gatewayConfigPayload={service:"icare-enterprise-gateway",defaults:{}};
+  await page.locator("#save-enterprise-config").click();
+  assert.match(await page.locator("#enterprise-status").textContent(),/Aucun modèle de conversation/,"l’absence de modèle texte doit être signalée sans enregistrer une configuration inutilisable");
+  assert.equal(await page.locator("#settings-dialog").evaluate(el=>el.open),true,"une configuration gateway incomplète doit rester corrigeable");
+  gatewayConfigPayload={service:"icare-enterprise-gateway",defaults:{chatModel:"enterprise-chat-v2",transcriptionModel:"enterprise-audio-v2"}};
+  await page.locator("#enterprise-gateway-url").fill("https://gateway-v2.example.org/v1");
+  await page.locator("#save-enterprise-config").click();
+  await page.locator("#settings-dialog").waitFor({state:"hidden"});
+  await page.reload();
+  await page.waitForFunction(()=>document.querySelector("#enterprise-gateway-url").value==="https://gateway-v2.example.org/v1");
+  await page.locator("#settings-button").click();
+  assert.equal(await page.locator("#api-model").inputValue(),"test-model","la configuration autonome doit rester intacte après enregistrement entreprise");
+  assert.equal(await page.locator("#runtime-mode-enterprise").getAttribute("aria-pressed"),"true","le mode actif doit être restauré après rechargement");
+  assert.ok((await page.locator("#model-label").textContent()).includes("enterprise-audio-v2"),"le modèle audio renvoyé par le gateway doit être persisté");
+  assert.equal(await page.locator("#settings-panel-enterprise").isVisible(),true,"le panneau entreprise doit rester seul visible après rechargement");
+  // Un autre gateway ne doit pas hériter des modèles du précédent.
+  gatewayConfigPayload={service:"icare-enterprise-gateway",defaults:{chatModel:"tenant-chat",transcriptionModel:"tenant-audio"}};
+  await page.locator("#enterprise-gateway-url").fill("https://gateway.example.org/tenant");
+  await page.locator('#settings-form button[value="save"]').click();
+  await page.locator("#settings-dialog").waitFor({state:"hidden"});
+  await page.reload();
+  await page.waitForFunction(()=>document.querySelector("#enterprise-gateway-url").value==="https://gateway.example.org/tenant");
+  await page.locator("#settings-button").click();
+  assert.ok((await page.locator("#model-label").textContent()).includes("tenant-chat"),"un nouveau gateway doit fournir son propre modèle texte, sans reprendre l’ancien");
+  assert.ok((await page.locator("#model-label").textContent()).includes("tenant-audio"),"un nouveau gateway doit fournir son propre modèle audio, sans reprendre l’ancien");
+  await page.locator("#settings-tab-standalone").click();
+  assert.equal(await page.locator("#api-base").evaluate(el=>el.required),true,"le mode autonome doit réactiver la validation de l’endpoint texte");
+  assert.equal(await page.locator("#api-model").evaluate(el=>el.required),true,"le mode autonome doit réactiver la validation du modèle texte");
+  assert.equal(await page.locator("#settings-panel-standalone").isVisible(),true,"le mode autonome doit réafficher son formulaire complet");
+  await page.locator("#settings-dialog").evaluate(dialog=>dialog.close());
+
+  console.log("Browser smoke test passed: standalone and enterprise configuration, gateway validation, dual model defaults, SSO routing, persistence, projects, import/export, timeline, Markdown, themes and layout.");
+
 }finally{
   if(browser)await browser.close();
   await new Promise(resolveClose=>server.close(resolveClose));
