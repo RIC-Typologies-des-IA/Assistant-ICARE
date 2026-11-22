@@ -45,9 +45,9 @@ test("rejects unknown capabilities instead of silently granting them", () => {
   );
 });
 
-test("component-base cannot claim capabilities because its WIT world has no imports", async () => {
+test("a component cannot expand its capabilities beyond the registry declaration", async () => {
   const host = await runtime({ described: { ...manifest, requiredCapabilities: ["model-inference"] }, grants: ["model-inference"] });
-  await assert.rejects(host.load("sample"), /component-base ne déclare aucun import de capacité/);
+  await assert.rejects(host.load("sample"), /capacités du manifeste diffèrent du registre ICARE/);
 });
 
 test("rejects malformed manifests and oversized payloads", async () => {
@@ -124,6 +124,23 @@ test("does not instantiate a context component without an explicit host grant", 
   });
   await assert.rejects(host.load("context-summary"), /Capacités ICARE refusées : context-read/);
   assert.equal(instantiated, false);
+});
+
+test("registry cannot grant a capability absent from the component WIT world", async () => {
+  const host = createComponentRuntime({
+    baseUrl: new URL("https://icare.invalid/"),
+    fetchImpl: async () => ({ ok: true, json: async () => ({
+      schemaVersion: 1,
+      components: [{
+        id: "sample",
+        componentId: "icare:test/component",
+        entrypoint: "./components/sample/sample.js",
+        world: "component-base",
+        requiredCapabilities: ["context-read"]
+      }]
+    }) })
+  });
+  await assert.rejects(host.load("sample"), /registre demande une capacité absente du monde WIT/);
 });
 
 test("rejects registry paths that escape the component namespace", async () => {
