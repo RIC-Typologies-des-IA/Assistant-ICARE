@@ -97,9 +97,11 @@ try{
   await page.locator("#settings-tab-enterprise").click();
   await page.locator("#save-enterprise-config").click();
   await page.locator("#settings-dialog").waitFor({state:"hidden"});
+  await page.locator("#runtime-mode-standalone").click();
   await page.locator("#message-input").fill("Bonjour ICARE");
   await page.locator("#composer").evaluate(form=>form.requestSubmit());
   await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Réponse locale de test."));
+  await page.locator("#runtime-mode-enterprise").click();
   for (const [level,title] of [[1,"Niveau 1"],[2,"Niveau 2"],[3,"Votre avis"],[4,"Auto-évaluation"],[5,"Niveau 5"],[6,"Niveau 6"]]) {
     assert.equal(await page.locator(".message.assistant h"+level).first().textContent(),title,"le titre Markdown de niveau "+level+" doit être rendu sans dièses visibles");
   }
