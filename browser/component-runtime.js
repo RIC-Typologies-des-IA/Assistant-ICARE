@@ -11,7 +11,8 @@ const KNOWN_CAPABILITIES = new Set([
 const MAX_PAYLOAD_BYTES = 256 * 1024;
 const WORLD_CAPABILITIES = Object.freeze({
   "component-base": new Set(),
-  "component-with-context": new Set(["context-read"])
+  "component-with-context": new Set(["context-read"]),
+  "component-with-storage": new Set(["project-storage-read", "project-storage-write"])
 });
 const ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
 
@@ -56,7 +57,9 @@ export function createComponentRuntime({
   fetchImpl = fetch,
   importModule = specifier => import(specifier),
   grants = {},
-  contextProvider = () => null
+  contextProvider = () => null,
+  storageProvider = () => ({}),
+  storageCommit = async () => {}
 } = {}) {
   const instances = new Map();
   let registryPromise;
@@ -104,8 +107,27 @@ export function createComponentRuntime({
     }, grants[id] || []);
     const module = await importModule(moduleUrl.href);
     let componentExports = module;
+    let activeStorage = null;
     if (typeof module.instantiate === "function") {
       const imports = {};
+      if (entry.world === "component-with-storage") {
+        const storageBinding = {
+          read(key) {
+            if (!activeStorage) throw new Error("Transaction de stockage inactive.");
+            if (typeof key !== "string" || !/^[a-zA-Z0-9._:-]{1,128}$/.test(key)) throw new Error("Clé de stockage ICARE invalide.");
+            const value = activeStorage[key];
+            return typeof value === "string" ? value : null;
+          },
+          write(key, value) {
+            if (!activeStorage) throw new Error("Transaction de stockage inactive.");
+            if (typeof key !== "string" || !/^[a-zA-Z0-9._:-]{1,128}$/.test(key)) throw new Error("Clé de stockage ICARE invalide.");
+            if (typeof value !== "string" || new TextEncoder().encode(value).byteLength > 65536) throw new Error("Valeur de stockage ICARE invalide ou trop volumineuse.");
+            activeStorage[key] = value;
+          }
+        };
+        imports["icare:component/project-storage-api@0.1.0"] = storageBinding;
+        imports["icare:component/project-storage-api"] = storageBinding;
+      }
       if (entry.world === "component-with-context") {
         const contextBinding = {
           getProjectContext() {
@@ -136,18 +158,33 @@ export function createComponentRuntime({
     if (JSON.stringify([...manifest.requiredCapabilities].sort()) !== JSON.stringify([...requested.requiredCapabilities].sort())) {
       throw new Error("Les capacités du manifeste diffèrent du registre ICARE.");
     }
-    const instance = Object.freeze({
-      manifest,
-      async invoke(operation, payload = {}, correlationId = crypto.randomUUID()) {
-        if (typeof operation !== "string" || !operation.trim()) throw new Error("Opération de composant obligatoire.");
-        const payloadJson = JSON.stringify(payload);
-        assertJsonPayload(payloadJson);
+    let invocationQueue = Promise.resolve();
+    const invokeOnce = async (operation, payload = {}, correlationId = crypto.randomUUID()) => {
+      if (typeof operation !== "string" || !operation.trim()) throw new Error("Opération de composant obligatoire.");
+      const payloadJson = JSON.stringify(payload);
+      assertJsonPayload(payloadJson);
+      if (entry.world === "component-with-storage") {
+        const snapshot = storageProvider(id);
+        if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) throw new Error("Instantané de stockage projet invalide.");
+        activeStorage = { ...snapshot };
+      }
+      try {
         const result = await lifecycle.invoke({ correlationId, operation, payloadJson });
         if (!result || result.correlationId !== correlationId || typeof result.payloadJson !== "string") {
           throw new Error("Réponse du composant invalide ou corrélation incohérente.");
         }
         assertJsonPayload(result.payloadJson);
-        return JSON.parse(result.payloadJson);
+        const parsed = JSON.parse(result.payloadJson);
+        if (entry.world === "component-with-storage") await storageCommit(id, { ...activeStorage });
+        return parsed;
+      } finally { activeStorage = null; }
+    };
+    const instance = Object.freeze({
+      manifest,
+      invoke(operation, payload = {}, correlationId = crypto.randomUUID()) {
+        const pending = invocationQueue.then(() => invokeOnce(operation, payload, correlationId));
+        invocationQueue = pending.then(() => undefined, () => undefined);
+        return pending;
       }
     });
     instances.set(id, instance);
