@@ -265,9 +265,10 @@ try{
   await page.locator("#gateway-audio-url").fill("https://gateway.example.org/audio");
   await page.locator("#save-inference-config").click();
   await page.locator("#settings-dialog").waitFor({state:"hidden"});
+  const callsBeforeDedicated=await page.evaluate(()=>window.__icareFetchCalls.length);
   await page.locator("#message-input").fill("Texte via gateway dédiée");
   await page.locator("#composer").evaluate(form=>form.requestSubmit());
-  await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Réponse entreprise de test."));
+  await page.waitForFunction(before=>window.__icareFetchCalls.slice(before).some(call=>call.url.startsWith("https://gateway.example.org/text/")&&call.url.endsWith("/v1/chat/completions")&&JSON.parse(call.body||"{}").messages?.some(message=>message.content==="Texte via gateway dédiée")),callsBeforeDedicated);
   const dedicatedTextCall=await page.evaluate(()=>window.__icareFetchCalls.find(call=>call.url.startsWith("https://gateway.example.org/text/")&&call.url.endsWith("/v1/chat/completions")&&JSON.parse(call.body||"{}").messages?.some(message=>message.content==="Texte via gateway dédiée")));
   assert.ok(dedicatedTextCall,"le traitement du texte doit utiliser son adresse Gateway dédiée");
   assert.equal(dedicatedTextCall.credentials,"include");
