@@ -62,14 +62,14 @@ Les navigateurs savent exécuter WebAssembly core, mais pas instancier nativemen
 - Les payloads JSON sont bornés à 256 Kio et les identifiants de corrélation sont contrôlés à l'aller et au retour.
 - Le runtime ne fournit aucun accès réseau, système de fichiers, secret ou stockage ambiant.
 
-Le composant `hello` sert de test de bout en bout du contrat `lifecycle`. Un second composant, `ontology-validator`, porte désormais la validation déterministe des observations, relations et statuts d'exploration ICARE. L'agent l'appelle avant toute écriture ; la validation JavaScript de l'hôte reste en défense en profondeur. Les deux sont invocables via les outils `list_wasi_components` et `invoke_wasi_component`, et ne reçoivent aucune capacité.
+Le composant `hello` sert de test de bout en bout du contrat `lifecycle`. Le composant `ontology-validator` porte la validation déterministe des observations, relations et statuts d'exploration ICARE. Un composant `context-summary` démontre le binding réel d'une capacité hôte `context-read`. L'agent l'appelle avant toute écriture ; la validation JavaScript de l'hôte reste en défense en profondeur. Les deux sont invocables via les outils `list_wasi_components` et `invoke_wasi_component`, Le validateur ne reçoit aucune capacité ; `context-summary` reçoit uniquement `context-read`.
 
 ### Migration progressive des composants historiques
 
 | Composant actuel | Cible WIT envisagée | Capacités candidates |
 |---|---|---|
 | Agent et orchestration (`browser/agent.js`) | `component-agent` | context-read, model-inference, tool-execution, component-messaging |
-| Validation des observations (`ontology-validator`) | `component-base` (migré) | aucune capacité ; vocabulaire passé en entrée |\n| Outils de l'espace de travail (`browser/workspace-tools.js`) | monde métier dédié | context-read, context-write, project-storage-read, project-storage-write |
+| Validation des observations, relations et statuts (`ontology-validator`) | `component-base` (migré) | aucune capacité ; vocabulaire et IDs passés en entrée |\n| Lecture du contexte (`context-summary`) | `component-with-context` (première liaison hôte) | context-read ; instantané JSON fourni par l'hôte |\n| Outils de l'espace de travail (`browser/workspace-tools.js`) | monde métier dédié | context-read, context-write, project-storage-read, project-storage-write |
 | Adaptateurs d'inférence (`browser/inference.js`) | interface hôte, pas de fournisseur dans le guest | model-inference, audio-transcription |
 | Stockage local (`browser/storage.js`) | interface hôte de stockage | project-storage-read, project-storage-write |
 
