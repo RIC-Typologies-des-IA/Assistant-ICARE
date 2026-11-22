@@ -191,7 +191,9 @@ async function loadMermaid() {
         securityLevel: "strict",
         htmlLabels: false,
         flowchart: { htmlLabels: false },
-        theme: "default"
+        theme: "default",
+        maxTextSize: 40000,
+        maxEdges: 500
       });
       return engine;
     });
@@ -206,6 +208,9 @@ async function renderMermaid(fragment) {
     const engine = await loadMermaid();
     for (const source of sources) {
       const code = source.textContent || "";
+      if (code.length > 40000 || code.split("\n").length > 1500) {
+        throw new Error("Diagramme trop volumineux (limite : 40 000 caractères et 1 500 lignes).");
+      }
       const id = "icare-mermaid-" + crypto.randomUUID();
       const safeSource = code.replace(/^\s*%%\{init:[\s\S]*?\}%%\s*$/gm, "");
       const result = await engine.render(id, safeSource);
