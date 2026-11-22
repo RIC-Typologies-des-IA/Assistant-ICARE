@@ -94,6 +94,7 @@ try{
   await page.waitForFunction(()=>document.querySelectorAll("#available-models option").length===1);
   await page.locator("#test-provider").click();
   await page.waitForFunction(()=>document.querySelector("#provider-status").textContent.includes("Réponse locale de test"));
+  await page.locator("#settings-tab-enterprise").click();
   await page.locator("#save-enterprise-config").click();
   await page.locator("#settings-dialog").waitFor({state:"hidden"});
   await page.locator("#message-input").fill("Bonjour ICARE");
