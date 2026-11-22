@@ -131,6 +131,15 @@ export function createIcareToolExecutor({
     }
 
     if (name === "propose_relation") {
+      if (componentRuntime) {
+        const validator = await componentRuntime.load("ontology-validator");
+        const validation = await validator.invoke("validate-relation", {
+          relation: args,
+          existingProposalIds: workspace.proposals.map(item => item.id),
+          allowedRelations: ontology.relations
+        });
+        if (!validation.valid) throw new Error(validation.errors.join(" "));
+      }
       const ids = new Set(workspace.proposals.map(item => item.id));
       if (!ids.has(args.from_id) || !ids.has(args.to_id)) throw new Error("Les deux propositions doivent exister dans ce projet.");
       if (args.from_id === args.to_id) throw new Error("Une relation doit relier deux propositions distinctes.");
@@ -153,6 +162,14 @@ export function createIcareToolExecutor({
     }
 
     if (name === "update_exploration_status") {
+      if (componentRuntime) {
+        const validator = await componentRuntime.load("ontology-validator");
+        const validation = await validator.invoke("validate-exploration-status", {
+          status: args,
+          vocabularies: { dimensions: DIMENSIONS, explorationStatuses: EXPLORATION_STATUSES }
+        });
+        if (!validation.valid) throw new Error(validation.errors.join(" "));
+      }
       if (!DIMENSIONS.includes(args.dimension) || !EXPLORATION_STATUSES.includes(args.status)) throw new Error("Dimension ou statut invalide.");
       if (["sufficient", "not_applicable"].includes(args.status) && !nonEmpty(args.justification)) {
         throw new Error("Une justification est obligatoire pour ce statut.");
