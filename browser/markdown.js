@@ -110,8 +110,8 @@ window.DOMPurify.addHook("uponSanitizeAttribute", (node, data) => {
       const property = part.slice(0, colon).trim().toLowerCase();
       const value = part.slice(colon + 1).trim();
       if (!SAFE_SVG_STYLE_PROPERTIES.has(property) || !value || value.length > 160) return null;
-      if (/(?:url\\s*\\(\\s*(?!#)|expression\\s*\\(|javascript:|@import|[<>\\\\])/i.test(value)) return null;
-      if (!/^[A-Za-z0-9#(),.%\\s"'_+\\-]+$/.test(value)) return null;
+      if (/(?:url\s*\(\s*(?!#)|expression\s*\(|javascript:|@import|[<>\\])/i.test(value)) return null;
+      if (!/^[A-Za-z0-9#(),.%\s"'_+-]+$/.test(value)) return null;;
       return property + ":" + value;
     }).filter(Boolean);
     data.attrValue = declarations.join(";");
