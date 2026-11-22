@@ -16,15 +16,16 @@ self.addEventListener("fetch",event=>{
   const request=event.request,url=new URL(request.url);
   if(url.origin!==location.origin||request.method!=="GET")return;
   if(!url.pathname.startsWith(new URL(self.registration.scope).pathname))return;
-  if(request.mode==="navigate"||APP_SHELL.has(url.pathname)){
+  const relativePath="/"+url.pathname.slice(new URL(self.registration.scope).pathname.length);
+  if(request.mode==="navigate"||APP_SHELL.has(relativePath)){
     event.respondWith(fetch(new Request(request,{cache:"no-cache"})).then(response=>{
-      if(response.ok)event.waitUntil(caches.open(CACHE).then(cache=>cache.put(request,response.clone())));
-      return response;
+      if(!response.ok)return response;
+      return caches.open(CACHE).then(cache=>cache.put(request,response.clone())).then(()=>response);
     }).catch(()=>caches.match(request).then(cached=>cached||caches.match(new URL("./index.html",self.registration.scope).href))));
     return;
   }
   event.respondWith(caches.match(request).then(cached=>cached||fetch(request).then(response=>{
-    if(response.ok)event.waitUntil(caches.open(CACHE).then(cache=>cache.put(request,response.clone())));
-    return response;
+    if(!response.ok)return response;
+    return caches.open(CACHE).then(cache=>cache.put(request,response.clone())).then(()=>response);
   })));
 });
