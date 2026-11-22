@@ -6,6 +6,12 @@
       "componentId": "icare:example/hello",
       "entrypoint": "./components/hello/hello.js",
       "world": "component-base"
+    },
+    {
+      "id": "ontology-validator",
+      "componentId": "icare:ontology/validator",
+      "entrypoint": "./components/ontology-validator/ontology-validator.js",
+      "world": "component-base"
     }
   ]
 }
