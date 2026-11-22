@@ -2,18 +2,6 @@ function cleanBase(baseUrl){let base=String(baseUrl||"").trim().replace(/\/+$/,"
 export function chatCompletionsEndpoint(baseUrl){const base=cleanBase(baseUrl);return base.endsWith("/v1")?base+"/chat/completions":base+"/v1/chat/completions";}
 function friendlyNetworkError(error){if(error?.name==="AbortError")return "Délai dépassé pendant l’appel au fournisseur.";if(error instanceof TypeError)return "Le navigateur ne parvient pas à joindre l’API. Vérifiez l’adresse, que le serveur est démarré et qu’il autorise CORS depuis https://ric-typologies-des-ia.github.io. Pour un moteur local, configurez explicitement les origines autorisées.";return error?.message||String(error);}
 async function request(url,options,fetchImpl){try{return await fetchImpl(url,options);}catch(error){throw new Error(friendlyNetworkError(error));}}
-export function resolveTranscriptionConfig({activeMode="standalone",standalone={},enterprise={},testOnly=false}={}) {
-  if (!testOnly && activeMode === "enterprise") {
-    return {
-      gatewayUrl: enterprise.gatewayUrl || "",
-      baseUrl: "",
-      model: enterprise.transcriptionModel || "",
-      apiKey: ""
-    };
-  }
-  return { ...standalone, gatewayUrl: "" };
-}
-
 export function resolveInferenceRoute({kind="text",routing={},localSettings={},gateways={},gatewayModels={},sameGateway=false}={}) {
  const route=kind==="audio"?"audio":"text";
  if(routing[route]==="gateway"){
