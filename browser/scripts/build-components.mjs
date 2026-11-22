@@ -24,9 +24,11 @@ for (const component of components) {
   run([
     "componentize",
     component.source,
+    "--backend", "quickjs",
+    "--backend-qjs-disable-async",
+    "--backend-qjs-stub-wasi",
     "--wit", "../component-model/wit/icare-component.wit",
     "--world-name", component.world || "component-base",
-    "--disable", "all",
     "-o", "components/" + component.id + "/" + component.id + ".wasm"
   ]);
   run(["transpile", "components/" + component.id + "/" + component.id + ".wasm", ...(component.instantiation ? ["--instantiation", "async"] : []), "-o", "components/" + component.id]);
