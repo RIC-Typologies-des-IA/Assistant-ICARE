@@ -74,10 +74,8 @@ export async function loadCredentialVault(db) {
 }
 
 export async function saveCredentialVault(db, { text = "", audio = "" }) {
-  const [encryptedText, encryptedAudio] = await Promise.all([
-    encryptSecret(db, text),
-    encryptSecret(db, audio)
-  ]);
+  const encryptedText = await encryptSecret(db, text);
+  const encryptedAudio = await encryptSecret(db, audio);
   await put(db, "settings", {
     id: VAULT_ID,
     version: 1,
