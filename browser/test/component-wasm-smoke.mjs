@@ -34,6 +34,16 @@ try {
     const component = await createComponentRuntime().load("ontology-validator");
     return {
       manifest: component.manifest,
+      storage: await (async () => {
+        const runtime = createComponentRuntime({
+          grants: { "storage-probe": ["project-storage-read", "project-storage-write"] },
+          storageProvider: () => window.__icareStorage || {},
+          storageCommit: async (_id, next) => { window.__icareStorage = next; }
+        });
+        const storage = await runtime.load("storage-probe");
+        await storage.invoke("write", { key: "smoke", value: "persisted" });
+        return await storage.invoke("read", { key: "smoke" });
+      })(),
       valid: await component.invoke("validate-observation", {
         observation: { text: "Observation", dimensions: ["I", "R"], primary_dimension: "I", epistemic: "reported", confidence: 0.8, source: "conversation" },
         vocabularies: {
@@ -75,6 +85,7 @@ try {
     };
   }));
   assert.equal(validator.manifest.componentId, "icare:ontology/validator");
+  assert.deepEqual(validator.storage, { value: "persisted" });
   assert.equal(validator.valid.valid, true);
   assert.equal(validator.valid.normalized.primary_dimension, "I");
   assert.equal(validator.invalid.valid, false);
@@ -85,7 +96,7 @@ try {
   assert.ok(validator.invalid.errors.some(error => error.includes("dimension principale")));
   assert.ok(validator.invalid.errors.some(error => error.includes("confiance")));
   assert.deepEqual(errors, []);
-  console.log("WASI browser smoke test passed: lifecycle, ontology validation, and explicit context-read host import.");
+  console.log("WASI browser smoke test passed: lifecycle, ontology validation, context-read, and transactional project storage.");
 } finally {
   if (browser) await browser.close();
   await new Promise(resolveClose => server.close(resolveClose));
