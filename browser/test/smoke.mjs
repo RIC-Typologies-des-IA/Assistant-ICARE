@@ -18,14 +18,17 @@ try{
   page.on("dialog",dialog=>dialog.accept());
   await page.route("https://mock-provider.example/**",route=>{assert.equal(route.request().headers()["authorization"],"Bearer test-secret","la clé doit être disponible en mémoire de session");const requestBody=route.request().postDataJSON();if(Array.isArray(requestBody?.messages))chatPayloads.push(requestBody);const body=route.request().url().endsWith("/models")?{data:[{id:"test-model"}]}:{choices:[{message:{content:["Réponse locale de test.","","# Niveau 1","","## Niveau 2","","### Votre avis","","#### Auto-évaluation","", "#### Points d’attention / tensions éventuelles","","##### Niveau 5","","###### Niveau 6","","####Titre sans espace","","**Texte en gras**.","","| Étape | Ce qui a été réalisé | Conformité aux principes ICARE & maïeutiques |","|-------|----------------------|----------------------------------------------|","| **1. Capture de l’intention (I)** | - Vous avez exprimé votre **but** : fournir des connaissances. | ✅ Reformulation pour vérification ; ✅ distinction claire. |","| **2. Confirmation de l’intention** | Vous avez confirmé la reformulation (« Oui »). | ✅ Attente d’un accord avant de passer à la suite. |","| **3. Passage à la dimension suivante (C)** | J’ai présenté les cinq axes possibles du **Contexte**. | ✅ Question unique, ouverte. |","","### Synthèse de la dimension I","","| Champ | Valeur |","|-------|--------|","| **id** | `proj-foret-I-001` |","| **text** | *Instruire les politiques publiques de la forêt.* |","","> undefined","","<img src=x onerror=alert(1)>","[lien dangereux](javascript:alert(1))"].join("\n")}}]};return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(body)});});
   let gatewayRequests=[];
+  let gatewayConfigPayload={service:"icare-enterprise-gateway",defaults:{chatModel:"enterprise-chat",transcriptionModel:"enterprise-audio"}};
+  let gatewayConfigStatus=200;
   await page.route("https://gateway.example.org/**",async route=>{
     const request=route.request(),url=new URL(request.url());
     const headers=request.headers();
     assert.equal(headers.authorization,undefined,"aucune clé fournisseur ne doit être envoyée au gateway");
     const payload=request.postDataJSON?.();
-    gatewayRequests.push({url:request.url(),payload});
+    gatewayRequests.push({url:request.url(),payload,credentials:request.credentials(),authorization:headers.authorization});
+    if(url.pathname.endsWith("/icare/config")&&gatewayConfigStatus!==200)return route.fulfill({status:gatewayConfigStatus,contentType:"application/json",body:JSON.stringify({error:"Configuration indisponible"})});
     const body=url.pathname.endsWith("/icare/config")
-      ?{service:"icare-enterprise-gateway",defaults:{chatModel:"enterprise-chat",transcriptionModel:"enterprise-audio"}}
+      ?gatewayConfigPayload
       :url.pathname.endsWith("/models")
         ?{data:[{id:"enterprise-chat"},{id:"enterprise-audio"}]}
         :{choices:[{message:{content:"Réponse entreprise de test."}}]};
@@ -215,6 +218,9 @@ try{
   await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Réponse entreprise de test."));
   const enterprisePayload=gatewayRequests.find(request=>request.url.endsWith("/v1/chat/completions"))?.payload;
   assert.ok(enterprisePayload?.messages?.some(message=>message.role==="user"&&message.content==="Bonjour entreprise"),"le dialogue doit réellement être routé vers le gateway");
+  const enterpriseChatRequest=gatewayRequests.find(request=>request.url.endsWith("/v1/chat/completions"));
+  assert.equal(enterpriseChatRequest?.credentials,"include","les appels entreprise doivent transmettre les cookies de session SSO");
+  assert.equal(enterpriseChatRequest?.authorization,undefined,"aucune clé API fournisseur ne doit être envoyée au gateway");
   await page.reload();
   await page.waitForFunction(()=>document.querySelector("#project-select").options.length>=1);
   await page.waitForFunction(()=>document.querySelector("#enterprise-gateway-url").value==="https://gateway.example.org");
@@ -241,7 +247,41 @@ try{
   assert.equal(await fallbackPage.locator("html").getAttribute("data-theme"),"light","en l'absence de détection système, le thème doit être clair");
   await fallbackContext.close();
 
-  console.log("Browser smoke test passed: standalone and enterprise gateway, persistence, automatic model defaults, project creation/cancellation, project drawer, export/import and color themes.");
+  // La configuration entreprise doit valider le protocole, résoudre les deux modèles
+  // et ne jamais rendre les champs fournisseur obligatoires ou actifs.
+  await page.locator("#settings-button").click();
+  assert.equal(await page.locator("#api-base").evaluate(el=>el.required),false,"l’URL fournisseur ne doit pas être obligatoire en mode entreprise");
+  assert.equal(await page.locator("#api-model").evaluate(el=>el.required),false,"le modèle texte ne doit pas être obligatoire en mode entreprise");
+  assert.equal(await page.locator("#transcription-model").inputValue(),"enterprise-audio","le modèle audio par défaut doit être restauré après rechargement");
+  assert.equal(await page.locator("#transcription-base").evaluate(el=>el.parentElement.hidden),true,"l’endpoint audio direct doit être masqué en mode entreprise");
+  await page.locator("#enterprise-gateway-url").fill("http://gateway.example.org");
+  await page.locator('#settings-form button[value="save"]').click();
+  assert.match(await page.locator("#provider-status").textContent(),/HTTPS valide/,"un gateway HTTP distant doit être refusé explicitement");
+  assert.equal(await page.locator("#settings-dialog").evaluate(el=>el.open),true,"une URL de gateway invalide ne doit pas fermer la configuration");
+  await page.locator("#enterprise-gateway-url").fill("https://gateway.example.org/v1");
+  gatewayConfigPayload={service:"icare-enterprise-gateway",defaults:{transcriptionModel:"enterprise-audio"}};
+  await page.locator("#api-model").fill("");
+  await page.locator("#transcription-model").fill("");
+  await page.locator('#settings-form button[value="save"]').click();
+  assert.match(await page.locator("#provider-status").textContent(),/Aucun modèle de conversation/,"l’absence de modèle texte doit être signalée sans enregistrer une configuration inutilisable");
+  assert.equal(await page.locator("#settings-dialog").evaluate(el=>el.open),true,"une configuration gateway incomplète doit rester corrigeable");
+  gatewayConfigPayload={service:"icare-enterprise-gateway",defaults:{chatModel:"enterprise-chat-v2",transcriptionModel:"enterprise-audio-v2"}};
+  await page.locator('#settings-form button[value="save"]').click();
+  await page.locator("#settings-dialog").waitFor({state:"hidden"});
+  await page.reload();
+  await page.waitForFunction(()=>document.querySelector("#enterprise-gateway-url").value==="https://gateway.example.org/v1");
+  await page.locator("#settings-button").click();
+  assert.equal(await page.locator("#api-model").inputValue(),"enterprise-chat-v2","le modèle texte renvoyé par le gateway doit être persisté");
+  assert.equal(await page.locator("#transcription-model").inputValue(),"enterprise-audio-v2","le modèle audio renvoyé par le gateway doit être persisté");
+  assert.equal(await page.locator("#api-key").evaluate(el=>el.parentElement.hidden),true,"les clés fournisseur doivent rester masquées après rechargement");
+  await page.locator("#enterprise-gateway-url").fill("");
+  assert.equal(await page.locator("#api-base").evaluate(el=>el.required),true,"le mode autonome doit réactiver la validation de l’endpoint texte");
+  assert.equal(await page.locator("#api-model").evaluate(el=>el.required),true,"le mode autonome doit réactiver la validation du modèle texte");
+  assert.equal(await page.locator("#api-base").evaluate(el=>el.parentElement.hidden),false,"le mode autonome doit réafficher l’endpoint texte");
+  await page.locator("#settings-dialog").evaluate(dialog=>dialog.close());
+
+  console.log("Browser smoke test passed: standalone and enterprise configuration, gateway validation, dual model defaults, SSO routing, persistence, projects, import/export, timeline, Markdown, themes and layout.");
+
 }finally{
   if(browser)await browser.close();
   await new Promise(resolveClose=>server.close(resolveClose));
