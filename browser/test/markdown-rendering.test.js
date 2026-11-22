@@ -229,6 +229,7 @@ try {
       mermaidNodeClasses: host.querySelectorAll(".mermaid-diagram svg .node").length,
       pieSlices: host.querySelectorAll(".mermaid-diagram .pieCircle, .mermaid-diagram .slice").length,
       pieColors: [...host.querySelectorAll(".mermaid-diagram .pieCircle")].map(node => getComputedStyle(node).fill).filter(Boolean),
+      mindmapNodeColors: [...host.querySelectorAll(".mermaid-diagram .mindmap-node rect, .mermaid-diagram .mindmap-node circle, .mermaid-diagram .mindmap-node ellipse")].map(node => getComputedStyle(node).fill).filter(Boolean),
       unsafeSvg: host.querySelectorAll(".mermaid-diagram script,.mermaid-diagram foreignObject,.mermaid-diagram iframe").length +
         [...host.querySelectorAll(".mermaid-diagram *")].filter(el => [...el.attributes].some(attr => /^on/i.test(attr.name))).length,
       remoteImages: host.querySelectorAll("img").length,
@@ -251,6 +252,7 @@ try {
   assert.ok(result.mermaidNodeClasses > 0, "les classes SVG Mermaid doivent être conservées pour appliquer le thème accessible");
   assert.ok(result.pieSlices >= 3, "le diagramme circulaire doit conserver ses secteurs colorés");
   assert.ok(new Set(result.pieColors).size >= 3 && result.pieColors.every(fill => !/^#?000(?:000)?$/i.test(fill)), "les secteurs du diagramme circulaire doivent conserver des couleurs distinctes");
+  assert.ok(new Set(result.mindmapNodeColors).size >= 2, "les nœuds de la carte mentale doivent conserver la palette Mermaid multicolore");
   assert.equal(result.unsafeSvg, 0, "le SVG généré par Mermaid ne doit contenir ni foreignObject, script, iframe ni gestionnaire d’événement");
   assert.equal(result.remoteImages, 0, "les images distantes doivent être bloquées pour éviter le pistage par requête réseau");
   assert.equal(result.rawHtml, "HTML documentaire autorisé", "un sous-ensemble HTML documentaire doit rester disponible");
