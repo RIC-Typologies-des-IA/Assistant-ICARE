@@ -10,6 +10,7 @@ on:
     branches-ignore: [main]
     paths:
       - "browser/**"
+      - "component-model/**"
       - ".github/workflows/browser-ci.yml"
       - ".github/workflows/deploy-browser.yml"
 jobs:
