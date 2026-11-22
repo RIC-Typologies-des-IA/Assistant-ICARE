@@ -92,3 +92,20 @@ test("frontend uses the encrypted vault and never stores API keys in plaintext s
   assert.ok(wit.includes("interface inference-api"));
   assert.doesNotMatch(wit, /api-key|authorization/i, "le contrat WIT ne doit jamais exposer de secret fournisseur");
 });
+
+test("brand logo, browser favicon and PWA icon use bundled same-origin assets", async () => {
+  const [html, manifestText, sw, logo] = await Promise.all([
+    read("../index.html"),
+    read("../manifest.webmanifest"),
+    read("../sw.js"),
+    read("../ric-logo.png")
+  ]);
+  const manifest = JSON.parse(manifestText);
+  assert.match(html, /class="ric-logo" src="\.\/ric-logo\.png"/);
+  assert.match(html, /rel="icon" type="image\/svg\+xml" href="\.\/icon\.svg"/);
+  assert.match(html, /rel="apple-touch-icon" href="\.\/ric-logo\.png"/);
+  assert.equal(manifest.icons[0].src, "./icon.svg");
+  assert.equal(manifest.icons[0].type, "image/svg+xml");
+  assert.ok(sw.includes('"./ric-logo.png"'), "le Service Worker doit précacher le logo de la bannière");
+  assert.ok(logo.byteLength > 1000, "le logo RIC doit être embarqué dans le build navigateur");
+});
