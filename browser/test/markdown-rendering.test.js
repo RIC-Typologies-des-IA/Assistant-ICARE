@@ -99,6 +99,17 @@ try {
   assert.equal(result.rawHtml, "HTML documentaire autorisé", "un sous-ensemble HTML documentaire doit rester disponible");
   assert.equal(result.safeLink, true, "les liens HTTPS doivent rester accessibles sans opener");
   console.log("Markdown rendering/security tests passed.");
+
+  await page.goto("http://127.0.0.1:" + server.address().port + "/mermaid-demo.html");
+  await page.waitForFunction(() =>
+    document.querySelectorAll("#mermaid-demo .mermaid-diagram svg").length === 3,
+    { timeout: 15000 }
+  );
+  assert.equal(await page.locator("#mermaid-demo .mermaid-error").count(), 0,
+    "les trois diagrammes de démonstration doivent être rendus sans erreur");
+  assert.equal(await page.locator("#mermaid-demo .mermaid-diagram svg").count(), 3,
+    "la page de démonstration doit afficher un flowchart, une séquence et une machine à états");
+  console.log("Mermaid demo page tests passed.");
 } finally {
   if (browser) await browser.close();
   await new Promise(resolveClose => server.close(resolveClose));
