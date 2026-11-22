@@ -228,7 +228,7 @@ try {
       mermaidErrors: host.querySelectorAll(".mermaid-error").length,
       mermaidNodeClasses: host.querySelectorAll(".mermaid-diagram svg .node").length,
       pieSlices: host.querySelectorAll(".mermaid-diagram .pieCircle, .mermaid-diagram .slice").length,
-      pieColors: [...host.querySelectorAll(".mermaid-diagram .pieCircle")].map(node => node.getAttribute("fill")).filter(Boolean),
+      pieColors: [...host.querySelectorAll(".mermaid-diagram .pieCircle")].map(node => getComputedStyle(node).fill).filter(Boolean),
       unsafeSvg: host.querySelectorAll(".mermaid-diagram script,.mermaid-diagram foreignObject,.mermaid-diagram iframe").length +
         [...host.querySelectorAll(".mermaid-diagram *")].filter(el => [...el.attributes].some(attr => /^on/i.test(attr.name))).length,
       remoteImages: host.querySelectorAll("img").length,
