@@ -40,7 +40,6 @@ jobs:
           node --check browser/credentials.js
           node --check browser/pwa.js
           node --check browser/component-runtime.js
-          node --check component-model/examples/hello/hello.js
           node --check component-model/examples/ontology-validator/ontology-validator.js
           node --check component-model/examples/context-summary/context-summary.js
           node --check browser/scripts/build-components.mjs
