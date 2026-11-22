@@ -16,6 +16,7 @@ try{
   const context=await browser.newContext({serviceWorkers:"block"});
   const page=await context.newPage();
   page.on("dialog",dialog=>dialog.accept());
+  await page.addInitScript(()=>{const original=window.fetch;window.__icareFetchCalls=[];window.fetch=(input,init={})=>{window.__icareFetchCalls.push({url:String(input),credentials:init.credentials||"same-origin",authorization:new Headers(init.headers||{}).get("Authorization")});return original(input,init);};});
   await page.route("https://mock-provider.example/**",route=>{assert.equal(route.request().headers()["authorization"],"Bearer test-secret","la clé doit être disponible en mémoire de session");const requestBody=route.request().postDataJSON();if(Array.isArray(requestBody?.messages))chatPayloads.push(requestBody);const body=route.request().url().endsWith("/models")?{data:[{id:"test-model"}]}:{choices:[{message:{content:["Réponse locale de test.","","# Niveau 1","","## Niveau 2","","### Votre avis","","#### Auto-évaluation","", "#### Points d’attention / tensions éventuelles","","##### Niveau 5","","###### Niveau 6","","####Titre sans espace","","**Texte en gras**.","","| Étape | Ce qui a été réalisé | Conformité aux principes ICARE & maïeutiques |","|-------|----------------------|----------------------------------------------|","| **1. Capture de l’intention (I)** | - Vous avez exprimé votre **but** : fournir des connaissances. | ✅ Reformulation pour vérification ; ✅ distinction claire. |","| **2. Confirmation de l’intention** | Vous avez confirmé la reformulation (« Oui »). | ✅ Attente d’un accord avant de passer à la suite. |","| **3. Passage à la dimension suivante (C)** | J’ai présenté les cinq axes possibles du **Contexte**. | ✅ Question unique, ouverte. |","","### Synthèse de la dimension I","","| Champ | Valeur |","|-------|--------|","| **id** | `proj-foret-I-001` |","| **text** | *Instruire les politiques publiques de la forêt.* |","","> undefined","","<img src=x onerror=alert(1)>","[lien dangereux](javascript:alert(1))"].join("\n")}}]};return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(body)});});
   let gatewayRequests=[];
   let gatewayConfigPayload={service:"icare-enterprise-gateway",defaults:{chatModel:"enterprise-chat",transcriptionModel:"enterprise-audio"}};
@@ -25,7 +26,7 @@ try{
     const headers=request.headers();
     assert.equal(headers.authorization,undefined,"aucune clé fournisseur ne doit être envoyée au gateway");
     const payload=request.postDataJSON?.();
-    gatewayRequests.push({url:request.url(),payload,credentials:request.credentials(),authorization:headers.authorization});
+    gatewayRequests.push({url:request.url(),payload,authorization:headers.authorization});
     if(url.pathname.endsWith("/icare/config")&&gatewayConfigStatus!==200)return route.fulfill({status:gatewayConfigStatus,contentType:"application/json",body:JSON.stringify({error:"Configuration indisponible"})});
     const body=url.pathname.endsWith("/icare/config")
       ?gatewayConfigPayload
@@ -219,8 +220,9 @@ try{
   const enterprisePayload=gatewayRequests.find(request=>request.url.endsWith("/v1/chat/completions"))?.payload;
   assert.ok(enterprisePayload?.messages?.some(message=>message.role==="user"&&message.content==="Bonjour entreprise"),"le dialogue doit réellement être routé vers le gateway");
   const enterpriseChatRequest=gatewayRequests.find(request=>request.url.endsWith("/v1/chat/completions"));
-  assert.equal(enterpriseChatRequest?.credentials,"include","les appels entreprise doivent transmettre les cookies de session SSO");
   assert.equal(enterpriseChatRequest?.authorization,undefined,"aucune clé API fournisseur ne doit être envoyée au gateway");
+  const browserGatewayFetch=await page.evaluate(()=>window.__icareFetchCalls.find(call=>call.url.endsWith("/v1/chat/completions")));
+  assert.equal(browserGatewayFetch?.credentials,"include","les appels entreprise doivent transmettre les cookies de session SSO");
   await page.reload();
   await page.waitForFunction(()=>document.querySelector("#project-select").options.length>=1);
   await page.waitForFunction(()=>document.querySelector("#enterprise-gateway-url").value==="https://gateway.example.org");
