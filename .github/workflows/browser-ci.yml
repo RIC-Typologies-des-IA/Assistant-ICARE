@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - "browser/**"
+      - "component-model/**"
       - ".github/workflows/browser-ci.yml"
       - ".github/workflows/deploy-browser.yml"
   push:
@@ -38,6 +39,7 @@ jobs:
           node --check browser/credentials.js
           node --check browser/pwa.js
           node --check browser/component-runtime.js
+          node --check component-model/examples/hello/hello.js
           node --check browser/scripts/build-components.mjs
           node --check browser/inference.js
           node --check enterprise-gateway/server.mjs
