@@ -8,6 +8,7 @@ export function createIcareToolExecutor({
   snapshot = () => {},
   render = () => {},
   listModels = async () => [],
+  componentRuntime = null,
   uid = () => globalThis.crypto.randomUUID(),
   now = () => new Date().toISOString()
 }) {
@@ -33,6 +34,20 @@ export function createIcareToolExecutor({
     const stamp = now();
 
     if (name === "list_available_models") return { ok: true, models: await listModels() };
+    if (name === "list_wasi_components") {
+      if (!componentRuntime) throw new Error("Runtime WASI indisponible.");
+      const entries = await componentRuntime.list();
+      const components = await Promise.all(entries.map(async entry => (await componentRuntime.load(entry.id)).manifest));
+      return { ok: true, components };
+    }
+    if (name === "invoke_wasi_component") {
+      if (!componentRuntime) throw new Error("Runtime WASI indisponible.");
+      if (typeof args.component_id !== "string" || typeof args.operation !== "string" || !args.payload || typeof args.payload !== "object" || Array.isArray(args.payload)) {
+        throw new Error("Identifiant, opération et payload objet sont obligatoires pour invoquer un composant WASI.");
+      }
+      const component = await componentRuntime.load(args.component_id);
+      return { ok: true, componentId: component.manifest.componentId, result: await component.invoke(args.operation, args.payload) };
+    }
     if (name === "get_ontology") return { ok: true, ontology };
     if (name === "get_exploration_state") {
       return {
