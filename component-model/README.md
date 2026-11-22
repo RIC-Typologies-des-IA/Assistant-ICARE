@@ -44,12 +44,12 @@ La branche `feat/wasi-component-runtime` ajoute un premier chemin d'exécution v
 
 ### Chaîne de construction
 
-- `@bytecodealliance/jco` est épinglé à la version `1.40.0` dans les workflows.
+- `@bytecodealliance/jco` est épinglé à la version `1.40.0` dans les workflows et les dépendances de développement.\n- Le backend QuickJS est sélectionné explicitement avec son runtime synchrone et les stubs WASI, car les deux composants actuels n'ont besoin d'aucun accès WASI implicite.
 - `browser/scripts/build-components.mjs` produit le composant `.wasm`, puis le transpile en modules ES et module(s) Wasm core compatibles avec les navigateurs.
 - Les artefacts sont générés pendant CI et le build GitHub Pages ; ils ne sont pas suivis dans Git.
 - Le Service Worker précache le runtime, le registre, le module transpillé et son module Wasm core.
 
-Les navigateurs savent exécuter WebAssembly core, mais pas instancier nativement le format Component Model. Jco transpile donc le composant vers des modules JavaScript et Wasm core exécutables dans le navigateur. Cette étape est explicitement une adaptation de compatibilité, pas une exécution native du binaire composant par le navigateur.
+Les navigateurs savent exécuter WebAssembly core, mais pas instancier nativement le format Component Model. Jco transpile donc le composant vers des modules JavaScript et Wasm core exécutables dans le navigateur. Cette étape est explicitement une adaptation de compatibilité, pas une exécution native du binaire composant par le navigateur. Le choix QuickJS limite les modules core générés à environ 268 Kio pour `ontology-validator` et 238 Kio pour `context-summary` dans le build CI vérifié, au lieu d'embarquer un moteur JavaScript de plusieurs mégaoctets dans chaque composant.
 
 ### Hôte ICARE et politique de capacités
 
@@ -79,7 +79,7 @@ Ce tableau distingue explicitement la première logique métier migrée des cibl
 ### Tests
 
 - Tests unitaires du registre, du manifeste, des capacités inconnues/non accordées, des limites de payload et de la corrélation.
-- Build CI du vrai binaire composant depuis le WIT.
-- Smoke test Playwright dans Chromium : chargement des deux composants transpilés, appel de `lifecycle`, vérification du résultat et validation d'observations, relations et statuts valides/invalides dans le guest WASM.
+- Build CI du vrai binaire composant depuis le WIT avec le backend QuickJS.\n- `jco componentize` est encore documenté comme expérimental par la Bytecode Alliance : la version est épinglée et les tests de conformité navigateur sont donc obligatoires à chaque mise à jour.
+- Smoke test Playwright dans Chromium : chargement des deux composants transpilés, appel de `lifecycle`, vérification du résultat et validation d'observations, relations et statuts valides/invalides dans le guest WASM.
 - Test du chemin métier : une validation refusée par le composant WASI empêche toute écriture du registre.
 - Build GitHub Pages vérifie la présence de tous les artefacts WASI avant publication.
