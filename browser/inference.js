@@ -2,6 +2,18 @@ function cleanBase(baseUrl){let base=String(baseUrl||"").trim().replace(/\/+$/,"
 export function chatCompletionsEndpoint(baseUrl){const base=cleanBase(baseUrl);return base.endsWith("/v1")?base+"/chat/completions":base+"/v1/chat/completions";}
 function friendlyNetworkError(error){if(error?.name==="AbortError")return "Délai dépassé pendant l’appel au fournisseur.";if(error instanceof TypeError)return "Le navigateur ne parvient pas à joindre l’API. Vérifiez l’adresse, que le serveur est démarré et qu’il autorise CORS depuis https://ric-typologies-des-ia.github.io. Pour un moteur local, configurez explicitement les origines autorisées.";return error?.message||String(error);}
 async function request(url,options,fetchImpl){try{return await fetchImpl(url,options);}catch(error){throw new Error(friendlyNetworkError(error));}}
+export function resolveTranscriptionConfig({activeMode="standalone",standalone={},enterprise={},testOnly=false}={}) {
+  if (!testOnly && activeMode === "enterprise") {
+    return {
+      gatewayUrl: enterprise.gatewayUrl || "",
+      baseUrl: "",
+      model: enterprise.transcriptionModel || "",
+      apiKey: ""
+    };
+  }
+  return { ...standalone, gatewayUrl: "" };
+}
+
 export async function chatCompletion({baseUrl,model,apiKey="",messages,credentials="omit",fetchImpl=fetch}){if(!String(model||"").trim())throw new Error("Renseignez l’identifiant exact du modèle.");const headers={"Content-Type":"application/json"};if(apiKey)headers.Authorization="Bearer "+apiKey;const response=await request(chatCompletionsEndpoint(baseUrl),{method:"POST",headers,body:JSON.stringify({model,messages,temperature:.4,stream:false}),credentials},fetchImpl);if(!response.ok){let detail="";try{const data=await response.json();detail=data.error?.message||data.message||"";}catch{}throw new Error("Erreur fournisseur "+response.status+(detail?" : "+detail:"")+". Vérifiez la clé, le modèle et les droits d’accès.");}const data=await response.json(),content=data.choices?.[0]?.message?.content;if(typeof content!=="string"||!content.trim())throw new Error("Réponse du fournisseur vide ou non reconnue (format Chat Completions attendu).");return content.trim();}
 export async function listModels({baseUrl,apiKey="",label="",credentials="omit",fetchImpl=fetch}){let base=cleanBase(baseUrl);const url=base.endsWith("/v1")?base+"/models":base+"/v1/models";const headers={};if(apiKey)headers.Authorization="Bearer "+apiKey;const response=await request(url,{headers,credentials},fetchImpl);if(!response.ok){let detail="";try{detail=(await response.json()).error?.message||"";}catch{}throw new Error("Catalogue indisponible ("+response.status+"). "+detail+" Vous pouvez saisir l’identifiant du modèle manuellement.");}const data=await response.json();return (data.data||data.models||[]).filter(item=>!label||(Array.isArray(item.labels)&&item.labels.includes(label))).map(item=>typeof item==="string"?item:item.id).filter(Boolean).sort();}
 
