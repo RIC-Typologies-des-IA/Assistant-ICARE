@@ -5,7 +5,9 @@ import { runAgentTurn } from "./agent.js";
 import { createIcareToolExecutor } from "./workspace-tools.js";
 import { saveCredentialVault, migrateLegacyCredentials } from "./credentials.js";
 import { registerAppServiceWorker } from "./pwa.js";
+import { createComponentRuntime } from "./component-runtime.js";
 const $=id=>document.getElementById(id), db=await openDatabase();
+const componentRuntime=createComponentRuntime();
 $("app-version").textContent=`— V${window.ICARE_VERSION} Alpha`;
 const state={projectId:null,projects:[],turns:[],settings:{},transcriptionSettings:{},gatewayUrl:"",workspace:null,busy:false};
 const uid=()=>crypto.randomUUID(), now=()=>new Date().toISOString();
@@ -56,6 +58,7 @@ async function executeIcareTool(name,args){
   snapshot:captureSnapshot,
   render:renderWorkspace,
   listModels:()=>listModels(resolveInferenceTarget("text")),
+  componentRuntime,
   uid,
   now
  });
