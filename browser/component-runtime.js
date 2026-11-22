@@ -15,6 +15,8 @@ const WORLD_CAPABILITIES = Object.freeze({
   "component-with-storage": new Set(["project-storage-read", "project-storage-write"])
 });
 const ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
+const STORAGE_KEY_PATTERN = /^(?!__proto__$|prototype$|constructor$)[a-zA-Z0-9._:-]{1,128}$/;
+const MAX_STORAGE_BYTES = 256 * 1024;
 
 function assertManifest(manifest) {
   if (!manifest || typeof manifest !== "object") throw new Error("Manifeste WASI absent ou invalide.");
@@ -115,7 +117,7 @@ export function createComponentRuntime({
           read(key) {
             if (!requested.requiredCapabilities.includes("project-storage-read")) throw new Error("Capacité project-storage-read non accordée.");
             if (!activeStorage) throw new Error("Transaction de stockage inactive.");
-            if (typeof key !== "string" || !/^[a-zA-Z0-9._:-]{1,128}$/.test(key)) throw new Error("Clé de stockage ICARE invalide.");
+            if (typeof key !== "string" || !STORAGE_KEY_PATTERN.test(key)) throw new Error("Clé de stockage ICARE invalide.");
             const value = activeStorage[key];
             return typeof value === "string" ? value : null;
           },
@@ -124,6 +126,9 @@ export function createComponentRuntime({
             if (!activeStorage) throw new Error("Transaction de stockage inactive.");
             if (typeof key !== "string" || !/^[a-zA-Z0-9._:-]{1,128}$/.test(key)) throw new Error("Clé de stockage ICARE invalide.");
             if (typeof value !== "string" || new TextEncoder().encode(value).byteLength > 65536) throw new Error("Valeur de stockage ICARE invalide ou trop volumineuse.");
+            const previousBytes = Object.hasOwn(activeStorage, key) ? new TextEncoder().encode(activeStorage[key]).byteLength : 0;
+            const nextBytes = Object.entries(activeStorage).reduce((total, [storedKey, storedValue]) => total + new TextEncoder().encode(storedKey).byteLength + new TextEncoder().encode(storedValue).byteLength, 0) - previousBytes + new TextEncoder().encode(key).byteLength + new TextEncoder().encode(value).byteLength;
+            if (nextBytes > MAX_STORAGE_BYTES) throw new Error("Espace de stockage du composant supérieur à 256 Kio.");
             activeStorage[key] = value;
           }
         };
@@ -168,7 +173,13 @@ export function createComponentRuntime({
       if (entry.world === "component-with-storage") {
         const snapshot = storageProvider(id);
         if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) throw new Error("Instantané de stockage projet invalide.");
-        activeStorage = { ...snapshot };
+        activeStorage = Object.create(null);
+        for (const [key, value] of Object.entries(snapshot)) {
+          if (!STORAGE_KEY_PATTERN.test(key) || typeof value !== "string") throw new Error("Instantané de stockage projet invalide.");
+          activeStorage[key] = value;
+        }
+        const snapshotBytes = Object.entries(activeStorage).reduce((total, [key, value]) => total + new TextEncoder().encode(key).byteLength + new TextEncoder().encode(value).byteLength, 0);
+        if (snapshotBytes > MAX_STORAGE_BYTES) throw new Error("Instantané de stockage projet supérieur à 256 Kio.");
       }
       try {
         const result = await lifecycle.invoke({ correlationId, operation, payloadJson });
