@@ -83,7 +83,7 @@ async function loadSettings(){
  $("transcription-base").value=state.transcriptionSettings.baseUrl||"";$("transcription-model").value=state.transcriptionSettings.model||"";$("transcription-key").value=state.transcriptionSettings.apiKey||"";$("transcription-preset").value=detectPreset(state.transcriptionSettings.baseUrl);$("transcription-preset").dispatchEvent(new Event("change"));
  $("text-route").value=state.routing.text;$("audio-route").value=state.routing.audio;
  $("gateway-text-url").value=state.gateways.text;$("gateway-audio-url").value=state.gateways.audio;$("gateway-shared-url").value=state.gateways.text||state.gateways.audio;
- $("same-gateway").checked=state.sameGateway;
+ $("same-gateway").checked=state.sameGateway;$("same-gateway-option").dataset.both=String(state.routing.text==="gateway"&&state.routing.audio==="gateway");
  renderRoutingConfig();modelLabel();
 }
 function modelLabel(){
@@ -97,7 +97,9 @@ function resolveInferenceTarget(kind){
  return resolveInferenceRoute({kind:route,routing:state.routing,localSettings:settings,gateways:state.gateways,gatewayModels:state.gatewayModels,sameGateway:state.sameGateway});
 }
 function renderRoutingConfig(){
- const textGateway= $("text-route").value==="gateway",audioGateway=$("audio-route").value==="gateway",both=textGateway&&audioGateway;
+ const textGateway= $("text-route").value==="gateway",audioGateway=$("audio-route").value==="gateway",both=textGateway&&audioGateway,wasBoth=$("same-gateway-option").dataset.both==="true";
+ if(both&&!wasBoth){$("same-gateway").checked=true;$("gateway-shared-url").value=$("gateway-text-url").value||$("gateway-audio-url").value||$("gateway-shared-url").value;}
+ $("same-gateway-option").dataset.both=String(both);
  $("local-text-config").hidden=textGateway;$("local-audio-config").hidden=audioGateway;
  $("gateway-text-config").hidden=!textGateway;$("gateway-audio-config").hidden=!audioGateway;
  $("same-gateway-option").hidden=!both;
