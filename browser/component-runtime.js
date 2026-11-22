@@ -107,7 +107,7 @@ export function createComponentRuntime({
     if (typeof module.instantiate === "function") {
       const imports = {};
       if (entry.world === "component-with-context") {
-        imports["icare:component/context-api"] = {
+        const contextBinding = {
           getProjectContext() {
             const value = contextProvider();
             if (value === null || value === undefined) return null;
@@ -116,6 +116,8 @@ export function createComponentRuntime({
             return value;
           }
         };
+        imports["icare:component/context-api@0.1.0"] = contextBinding;
+        imports["icare:component/context-api"] = contextBinding;
       }
       const getCoreModule = async path => {
         const response = await fetchImpl(new URL(path, moduleUrl), { cache: "force-cache" });
