@@ -41,6 +41,7 @@ jobs:
           node --check browser/pwa.js
           node --check browser/component-runtime.js
           node --check component-model/examples/hello/hello.js
+          node --check component-model/examples/ontology-validator/ontology-validator.js
           node --check browser/scripts/build-components.mjs
           node --check browser/inference.js
           node --check enterprise-gateway/server.mjs
