@@ -5,7 +5,7 @@ ICARE configure séparément les deux opérations qui ne transportent pas les m�
 - **Transcription audio** : transforme l’enregistrement vocal en texte.
 - **Traitement du texte** : envoie les messages et le contexte conversationnel au modèle de raisonnement.
 
-Chaque opération choisit son propre transport : `local` ou `gateway`.
+Chaque opération choisit son propre transport : `local` (connexion directe à un fournisseur ou à un moteur local) ou `gateway` (passage par la Gateway de l’organisation). « Local / direct » ne garantit pas à lui seul que le serveur est sur l’appareil : un endpoint OpenAI distant reçoit également les données qui lui sont envoyées.
 
 ## Combinaisons possibles
 
