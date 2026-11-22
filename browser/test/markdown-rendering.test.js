@@ -237,7 +237,7 @@ try {
   assert.ok(result.alignedCells >= 2, "l’alignement des colonnes doit survivre à la sanitisation sans style inline");
   assert.equal(result.footnotes, 1, "les notes de bas de page doivent être rendues");
   assert.ok(result.highlighted > 0, "les blocs de code doivent être colorisés");
-  assert.equal(result.mermaid, 15, "toutes les familles Mermaid prises en charge doivent produire un SVG, même lorsqu’un diagramme voisin est invalide");
+  assert.equal(result.mermaid, 16, "toutes les familles Mermaid prises en charge doivent produire un SVG, même lorsqu’un diagramme voisin est invalide");
   assert.equal(result.mermaidErrors, 1, "un diagramme invalide doit afficher sa propre erreur sans bloquer les diagrammes suivants");
   assert.ok(result.pieSlices >= 3, "le diagramme circulaire doit conserver ses secteurs colorés");
   assert.equal(result.unsafeSvg, 0, "le SVG généré par Mermaid ne doit contenir ni foreignObject, script, iframe ni gestionnaire d’événement");
