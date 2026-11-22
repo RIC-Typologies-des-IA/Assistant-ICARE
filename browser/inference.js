@@ -9,6 +9,7 @@ export function resolveInferenceRoute({kind="text",routing={},localSettings={},g
   if(!raw)throw new Error("Renseignez l’adresse du gateway pour "+(route==="audio"?"la transcription":"le traitement du texte")+".");
   let parsed;try{parsed=new URL(raw);}catch{throw new Error("Adresse de gateway invalide.");}
   if(parsed.protocol!=="https:")throw new Error("Le gateway doit utiliser HTTPS.");
+  if(parsed.username||parsed.password)throw new Error("Les identifiants ne doivent pas être intégrés à l’URL du gateway.");
   while(parsed.pathname.length>1&&parsed.pathname.endsWith("/"))parsed.pathname=parsed.pathname.slice(0,-1);
   return {baseUrl:parsed.origin+parsed.pathname,model:gatewayModels[route]||"",apiKey:"",credentials:"include",route:"gateway"};
  }
