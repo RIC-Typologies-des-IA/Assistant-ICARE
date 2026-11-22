@@ -4,8 +4,7 @@
 for (const [name, predicate] of [
   ["markdown-it", value => typeof value === "function"],
   ["DOMPurify", value => typeof value?.sanitize === "function"],
-  ["Highlight.js", value => typeof value?.highlight === "function"],
-  ["Mermaid", value => typeof value?.render === "function"]
+  ["Highlight.js", value => typeof value?.highlight === "function"]
 ]) {
   const value = name === "markdown-it" ? window.markdownit
     : name === "DOMPurify" ? window.DOMPurify
@@ -26,14 +25,6 @@ const markdown = window.markdownit({
     }
     return "";
   }
-});
-
-window.mermaid.initialize({
-  startOnLoad: false,
-  securityLevel: "strict",
-  htmlLabels: false,
-  flowchart: { htmlLabels: false },
-  theme: "default"
 });
 
 // Responsive tables are wrapped at parse time, before sanitization.
@@ -192,13 +183,42 @@ function renderMarkdown(source) {
   return fragment;
 }
 
+let mermaidLoadPromise;
+async function loadMermaid() {
+  if (window.mermaid?.render) return window.mermaid;
+  if (!mermaidLoadPromise) {
+    mermaidLoadPromise = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = new URL("./vendor/mermaid.min.js", import.meta.url).href;
+      script.onload = () => resolve(window.mermaid);
+      script.onerror = () => reject(new Error("Impossible de charger le moteur Mermaid local."));
+      document.head.append(script);
+    }).then(engine => {
+      if (!engine?.render) throw new Error("Le moteur Mermaid n’est pas disponible.");
+      engine.initialize({
+        startOnLoad: false,
+        securityLevel: "strict",
+        htmlLabels: false,
+        flowchart: { htmlLabels: false },
+        theme: "default"
+      });
+      return engine;
+    });
+  }
+  return mermaidLoadPromise;
+}
+
 async function renderMermaid(fragment) {
   const sources = [...fragment.querySelectorAll("pre.mermaid-source")];
-  for (const source of sources) {
+  if (!sources.length) return;
+  try {
+    const engine = await loadMermaid();
+    for (const source of sources) {
     try {
       const code = source.textContent || "";
       const id = "icare-mermaid-" + crypto.randomUUID();
-      const result = await window.mermaid.render(id, code);
+      const safeSource = code.replace(/^\s*%%\{init:[\s\S]*?\}%%\s*$/gm, "");
+      const result = await engine.render(id, safeSource);
       const svgDocument = new DOMParser().parseFromString(result.svg, "image/svg+xml");
       if (svgDocument.querySelector("parsererror")) throw new Error("SVG Mermaid invalide");
       const svg = svgDocument.documentElement;
@@ -208,7 +228,9 @@ async function renderMermaid(fragment) {
       wrapper.className = "mermaid-diagram";
       wrapper.append(safe);
       source.replaceWith(wrapper);
-    } catch (error) {
+    }
+  } catch (error) {
+    for (const source of sources) {
       const fallback = document.createElement("pre");
       fallback.className = "mermaid-error";
       fallback.textContent = "Diagramme Mermaid non rendu : " + (error?.message || "syntaxe invalide");
