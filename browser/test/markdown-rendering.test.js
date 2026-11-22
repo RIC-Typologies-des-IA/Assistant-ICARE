@@ -50,6 +50,7 @@ try {
       "```mermaid",
       "flowchart TD",
       "  A[Départ] --> B[Arrivée]",
+      "  B --> C[\"<img src=x onerror=alert(1)>\"]",
       "```",
       "",
       "<p class=\"note\"><strong>HTML documentaire autorisé</strong></p>",
@@ -74,6 +75,8 @@ try {
       footnotes: host.querySelectorAll(".footnotes li").length,
       highlighted: host.querySelectorAll("pre code .hljs-keyword, pre code .hljs-number").length,
       mermaid: host.querySelectorAll(".mermaid-diagram svg").length,
+      unsafeSvg: host.querySelectorAll(".mermaid-diagram script,.mermaid-diagram foreignObject,.mermaid-diagram iframe").length +
+        [...host.querySelectorAll(".mermaid-diagram *")].filter(el => [...el.attributes].some(attr => /^on/i.test(attr.name))).length,
       remoteImages: host.querySelectorAll("img").length,
       rawHtml: host.querySelector("p.note strong")?.textContent || "",
       safeLink: [...host.querySelectorAll("a")].some(a => a.href === "https://example.org/" && a.rel.includes("noopener"))
@@ -89,6 +92,7 @@ try {
   assert.equal(result.footnotes, 1, "les notes de bas de page doivent être rendues");
   assert.ok(result.highlighted > 0, "les blocs de code doivent être colorisés");
   assert.equal(result.mermaid, 1, "le bloc Mermaid doit être transformé en SVG");
+  assert.equal(result.unsafeSvg, 0, "le SVG généré par Mermaid ne doit contenir ni foreignObject, script, iframe ni gestionnaire d’événement");
   assert.equal(result.remoteImages, 0, "les images distantes doivent être bloquées pour éviter le pistage par requête réseau");
   assert.equal(result.rawHtml, "HTML documentaire autorisé", "un sous-ensemble HTML documentaire doit rester disponible");
   assert.equal(result.safeLink, true, "les liens HTTPS doivent rester accessibles sans opener");
