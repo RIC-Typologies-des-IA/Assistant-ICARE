@@ -424,14 +424,11 @@ body.project-menu-open .sidebar{
 .message-content .hljs{color:#24364b}
 .message-content .hljs-keyword,.message-content .hljs-selector-tag{font-weight:700}
 
-.message-content .mermaid-diagram svg .node rect,
-.message-content .mermaid-diagram svg .node polygon,
-.message-content .mermaid-diagram svg .node circle{fill:#eef3fa;stroke:#536b8a;stroke-width:1.4px}
-.message-content .mermaid-diagram svg .cluster rect{fill:#f6f8fb;stroke:#9aaac0}
+/* Mermaid owns node and cluster fills so diagram-specific color scales remain visible. */
 .message-content .mermaid-diagram svg .edgePath path{stroke:#536b8a;stroke-width:1.5px;fill:none}
 .message-content .mermaid-diagram svg .marker path{fill:#536b8a;stroke:#536b8a}
 .message-content .mermaid-diagram svg .nodeLabel,
-.message-content .mermaid-diagram svg .edgeLabel{fill:#202b3a;font-family:Inter,ui-sans-serif,system-ui,sans-serif}
+.message-content .mermaid-diagram svg .edgeLabel{font-family:Inter,ui-sans-serif,system-ui,sans-serif}
 
 .message-content th.align-left,.message-content td.align-left{text-align:left}
 .message-content th.align-center,.message-content td.align-center{text-align:center}
