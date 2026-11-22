@@ -171,7 +171,7 @@ async function saveInferenceConfiguration(){
   const models={text:"",audio:""},configs=new Map();
   for(const kind of ["text","audio"])if(routing[kind]==="gateway"){
    const url=gateways[kind];let config=configs.get(url);
-   if(!config){const base=url.replace(/\\/+$/,""),configUrl=base.endsWith("/v1")?base+"/icare/config":base+"/v1/icare/config",response=await fetch(configUrl,{credentials:"include"});if(!response.ok)throw Error("Gateway inaccessible ("+response.status+"). Vérifiez la connexion et les droits.");config=await response.json();configs.set(url,config);}
+   if(!config){const base=url.replace(/\/+$/,""),configUrl=base.endsWith("/v1")?base+"/icare/config":base+"/v1/icare/config",response=await fetch(configUrl,{credentials:"include"});if(!response.ok)throw Error("Gateway inaccessible ("+response.status+"). Vérifiez la connexion et les droits.");config=await response.json();configs.set(url,config);}
    models[kind]=kind==="text"?(config.defaults?.chatModel||""):(config.defaults?.transcriptionModel||"");
    if(!models[kind])throw Error(kind==="text"?"Aucun modèle de conversation n’est attribué par le gateway.":"Aucun modèle de transcription n’est attribué par le gateway.");
   }
