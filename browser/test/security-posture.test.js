@@ -78,7 +78,7 @@ test("legacy plaintext API keys are migrated into the encrypted vault", async ()
 
 test("frontend uses the encrypted vault and never stores API keys in plaintext settings", async () => {
   const [app, html] = await Promise.all([read("../app.js"), read("../index.html")]);
-  assert.match(app, /saveCredentialVault\\(db/);
+  assert.ok(app.includes("saveCredentialVault(db"));
   assert.match(app, /enterprise-gateway/);
   assert.match(app, /apiKey:"",credentials:"include"/);
   assert.match(html, /enterprise-gateway-url/);
