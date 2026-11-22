@@ -43,7 +43,7 @@ try {
   assert.match(result.output.message, /Bonjour ICARE depuis un composant WebAssembly/);
   const validator = await (await page.evaluate(async () => {
     const { createComponentRuntime } = await import("./component-runtime.js");
-    const component = await createComponentRuntime().then(runtime => runtime.load("ontology-validator"));
+    const component = await createComponentRuntime().load("ontology-validator");
     return {
       manifest: component.manifest,
       valid: await component.invoke("validate-observation", {
