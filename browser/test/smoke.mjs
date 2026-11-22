@@ -248,8 +248,10 @@ try{
   await page.locator("#close-settings-dialog").click();
   await page.locator("#settings-dialog").waitFor({state:"hidden"});
   await page.locator("#runtime-mode-standalone").click();
+  await page.waitForFunction(()=>document.querySelector("#runtime-mode-standalone").getAttribute("aria-pressed")==="true");
   assert.equal(await page.locator("#runtime-mode-standalone").getAttribute("aria-pressed"),"true","le basculement vers le mode autonome doit être immédiat");
   await page.locator("#runtime-mode-enterprise").click();
+  await page.waitForFunction(()=>document.querySelector("#runtime-mode-enterprise").getAttribute("aria-pressed")==="true");
   await page.reload();
   await page.waitForFunction(()=>document.querySelector("#enterprise-gateway-url").value==="https://gateway.example.org");
   assert.equal(await page.locator("#runtime-mode-enterprise").getAttribute("aria-pressed"),"true","le mode entreprise sélectionné doit persister après rechargement");
