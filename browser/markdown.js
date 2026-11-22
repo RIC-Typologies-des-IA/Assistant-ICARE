@@ -47,11 +47,7 @@ markdown.renderer.rules.fence = (tokens, index, options, env, self) => {
   const token = tokens[index];
   const language = (token.info || "").trim().split(/\s+/)[0].toLowerCase();
   if (language === "mermaid") {
-    return '<pre class="mermaid-source"><code>' + self.renderInline(
-      [{ type: "text", content: token.content, children: null, attrs: null, attrIndex: null,
-        block: false, hidden: false, level: 0, markup: "", meta: null, nesting: 0,
-        tag: "", map: null, info: "", content: token.content, params: "", type: "text" }]
-    ) + '</code></pre>';
+    return '<pre class="mermaid-source"><code>' + markdown.utils.escapeHtml(token.content) + '</code></pre>';
   }
   return defaultFence(tokens, index, options, env, self);
 };
@@ -72,10 +68,11 @@ markdown.core.ruler.after("inline", "icare-task-lists", state => {
     item.attrJoin("class", "task-list-item");
     const list = tokens.slice(0, i).reverse().find(token => token.type === "bullet_list_open" || token.type === "ordered_list_open");
     if (list) list.attrJoin("class", "contains-task-list");
-    const checkbox = new window.markdownit().utils.escapeHtml(match[1].toLowerCase());
-    inline.children.unshift(Object.assign(new window.markdownit().Token("html_inline", "", 0), {
-      content: '<input type="checkbox" disabled' + (checkbox === "x" ? " checked" : "") + ' aria-label="Tâche ' + (checkbox === "x" ? "terminée" : "à faire") + '"> '
-    }));
+    const checked = match[1].toLowerCase() === "x";
+    const checkbox = new state.Token("html_inline", "", 0);
+    checkbox.content = '<input type="checkbox" disabled' + (checked ? " checked" : "") +
+      ' aria-label="Tâche ' + (checked ? "terminée" : "à faire") + '"> ';
+    inline.children.unshift(checkbox);
   }
 });
 
@@ -87,7 +84,7 @@ const ALLOWED_TAGS = [
 ];
 const ALLOWED_ATTR = [
   "alt","aria-label","checked","class","colspan","disabled","height","href","loading",
-  "referrerpolicy","rel","rowspan","scope","src","start","target","title","type","width"
+  "referrerpolicy","rel","rowspan","scope","src","start","target","title","type","width","id"
 ];
 const SAFE_HREF = /^(?:(?:https?|mailto|tel):|#|\/?[^/]|\/\/)/i;
 
@@ -133,7 +130,8 @@ const SANITIZE_OPTIONS = {
   ALLOW_DATA_ATTR: false,
   ALLOW_ARIA_ATTR: true,
   FORBID_TAGS: ["script","style","iframe","object","embed","form","svg","math","template"],
-  FORBID_ATTR: ["style","srcdoc","name","id","is","formaction","action","contenteditable"],
+  FORBID_ATTR: ["style","srcdoc","name","is","formaction","action","contenteditable"],
+  SANITIZE_NAMED_PROPS: true,
   RETURN_DOM_FRAGMENT: true
 };
 const SVG_SANITIZE_OPTIONS = {
@@ -168,7 +166,7 @@ function footnoteSource(source) {
     if (!definitions.has(key)) return whole;
     const number = (counts.get(key) || 0) + 1;
     counts.set(key, number);
-    return '<sup class="footnote-ref"><a href="#fn-' + key + '" title="Note ' + key + '">' + key + '</a></sup>';
+    return '<sup class="footnote-ref"><a href="#user-content-fn-' + key + '" title="Note ' + key + '">' + key + '</a></sup>';
   });
   return { body: rendered, definitions };
 }
