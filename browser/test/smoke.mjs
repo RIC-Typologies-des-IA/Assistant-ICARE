@@ -304,9 +304,9 @@ try{
   assert.match(await page.locator("#enterprise-status").textContent(),/HTTPS valide/,"un gateway HTTP distant doit être refusé explicitement");
   assert.equal(await page.locator("#settings-dialog").evaluate(el=>el.open),true,"une URL de gateway invalide ne doit pas fermer la configuration");
   await page.locator("#enterprise-gateway-url").fill("https://incomplete.example.org/v1");
-  gatewayConfigPayload={service:"icare-enterprise-gateway",defaults:{transcriptionModel:"enterprise-audio"}};
   gatewayConfigPayload={service:"icare-enterprise-gateway",defaults:{}};
   await page.locator("#save-enterprise-config").click();
+  await page.waitForFunction(()=>document.querySelector("#enterprise-status").textContent.includes("Aucun modèle de conversation"));
   assert.match(await page.locator("#enterprise-status").textContent(),/Aucun modèle de conversation/,"l’absence de modèle texte doit être signalée sans enregistrer une configuration inutilisable");
   assert.equal(await page.locator("#settings-dialog").evaluate(el=>el.open),true,"une configuration gateway incomplète doit rester corrigeable");
   gatewayConfigPayload={service:"icare-enterprise-gateway",defaults:{chatModel:"enterprise-chat-v2",transcriptionModel:"enterprise-audio-v2"}};
