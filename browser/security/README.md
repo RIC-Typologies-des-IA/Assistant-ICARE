@@ -24,7 +24,7 @@ Le modèle distingue :
 
 1. **NoPlaintextPersistentCredentials** : aucun secret fournisseur n'est conservé en clair dans le stockage persistant.
 2. **EncryptedVaultRequiresKey** : tout coffre de clés chiffrées suppose la présence de la CryptoKey non exportable.
-2. **InferenceRequiresConsent** : les flux métier vers l'inférence ne sont déclenchés qu'après une action explicite.
+3. **InferenceRequiresConsent** : les flux métier vers l'inférence ne sont déclenchés qu'après une action explicite.
 3. **OnlyApprovedInferencePayloadsEgress** : seuls les contenus explicitement approuvés pour une requête d’inférence peuvent sortir du navigateur.
 4. **InferenceDestinationApproved** : chaque requête d’inférence vise une origine autorisée.
 5. **TypeOK** : les états restent dans leurs domaines.
