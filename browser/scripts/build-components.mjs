@@ -5,7 +5,6 @@ import { spawnSync } from "node:child_process";
 
 const browserRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const components = [
-  { id: "hello", source: "../component-model/examples/hello/hello.js" },
   { id: "ontology-validator", source: "../component-model/examples/ontology-validator/ontology-validator.js", world: "component-base" },
   { id: "context-summary", source: "../component-model/examples/context-summary/context-summary.js", world: "component-with-context", instantiation: true }
 ];
