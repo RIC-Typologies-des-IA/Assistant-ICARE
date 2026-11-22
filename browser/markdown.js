@@ -96,13 +96,14 @@ window.DOMPurify.addHook("uponSanitizeAttribute", (node, data) => {
     if (!SAFE_HREF.test(data.attrValue) || /^\s*javascript:/i.test(data.attrValue)) data.keepAttr = false;
   }
   if (name === "class") {
+    const isSvg = node.namespaceURI === "http://www.w3.org/2000/svg";
     const classes = data.attrValue.split(/\s+/).filter(value =>
+      (isSvg && /^[A-Za-z_][A-Za-z0-9_-]{0,79}$/.test(value)) ||
       /^(?:language-[a-z0-9_+-]+|hljs(?:-[a-z0-9_+-]+)?|markdown-table-wrap|task-list-item|contains-task-list|mermaid-source|footnotes|footnote-ref|footnote-backref|align-left|align-center|align-right)$/.test(value)
     );
     data.attrValue = classes.join(" ");
     if (!data.attrValue) data.keepAttr = false;
-  }
-});
+  }});
 
 window.DOMPurify.addHook("afterSanitizeAttributes", node => {
   if (node.nodeName === "A" && node.hasAttribute("href")) {
