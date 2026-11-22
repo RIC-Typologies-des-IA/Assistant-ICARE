@@ -153,3 +153,88 @@ test("rejects registry paths that escape the component namespace", async () => {
   });
   await assert.rejects(host.load("sample"), /Point d'entrée hors du répertoire/);
 });
+
+
+test("commits scoped storage writes only after a successful component invocation", async () => {
+  let persisted = { note: "before" };
+  let imports;
+  const host = createComponentRuntime({
+    baseUrl: new URL("https://icare.invalid/"),
+    fetchImpl: async () => ({ ok: true, json: async () => ({
+      schemaVersion: 1,
+      components: [{
+        id: "storage-probe",
+        componentId: "icare:storage/probe",
+        entrypoint: "./components/storage-probe/storage-probe.js",
+        world: "component-with-storage",
+        requiredCapabilities: ["project-storage-read", "project-storage-write"]
+      }]
+    }) }),
+    importModule: async () => ({
+      instantiate: async (_getCoreModule, hostImports) => {
+        imports = hostImports["icare:component/project-storage-api"];
+        return { lifecycle: {
+          describe: () => ({
+            componentId: "icare:storage/probe",
+            version: "0.1.0",
+            displayName: "Storage",
+            requiredCapabilities: ["project-storage-read", "project-storage-write"]
+          }),
+          invoke: async request => {
+            const payload = JSON.parse(request.payloadJson);
+            if (request.operation === "write") imports.write(payload.key, payload.value);
+            if (request.operation === "write-then-fail") {
+              imports.write(payload.key, payload.value);
+              throw new Error("guest trap");
+            }
+            return { correlationId: request.correlationId, payloadJson: JSON.stringify({ value: imports.read(payload.key) }) };
+          }
+        }};
+      }
+    }),
+    grants: { "storage-probe": ["project-storage-read", "project-storage-write"] },
+    storageProvider: () => persisted,
+    storageCommit: async (_id, next) => { persisted = next; }
+  });
+  const component = await host.load("storage-probe");
+  await component.invoke("write", { key: "memo", value: "saved" });
+  assert.equal(persisted.memo, "saved");
+  await assert.rejects(component.invoke("write-then-fail", { key: "memo", value: "corrupted" }), /guest trap/);
+  assert.equal(persisted.memo, "saved");
+  assert.equal((await component.invoke("read", { key: "memo" })).value, "saved");
+});
+
+test("serializes storage-backed invocations to prevent transaction cross-talk", async () => {
+  let persisted = {};
+  let active = null;
+  const host = createComponentRuntime({
+    baseUrl: new URL("https://icare.invalid/"),
+    fetchImpl: async () => ({ ok: true, json: async () => ({
+      schemaVersion: 1,
+      components: [{ id: "storage-probe", componentId: "icare:storage/probe", entrypoint: "./components/storage-probe/storage-probe.js", world: "component-with-storage", requiredCapabilities: ["project-storage-read", "project-storage-write"] }]
+    }) }),
+    importModule: async () => ({
+      instantiate: async (_getCoreModule, hostImports) => {
+        active = hostImports["icare:component/project-storage-api"];
+        return { lifecycle: {
+          describe: () => ({ componentId: "icare:storage/probe", version: "0.1.0", displayName: "Storage", requiredCapabilities: ["project-storage-read", "project-storage-write"] }),
+          invoke: async request => {
+            const p = JSON.parse(request.payloadJson);
+            active.write(p.key, p.value);
+            await new Promise(resolve => setTimeout(resolve, 5));
+            return { correlationId: request.correlationId, payloadJson: JSON.stringify({ ok: true }) };
+          }
+        }};
+      }
+    }),
+    grants: { "storage-probe": ["project-storage-read", "project-storage-write"] },
+    storageProvider: () => persisted,
+    storageCommit: async (_id, next) => { persisted = next; }
+  });
+  const component = await host.load("storage-probe");
+  await Promise.all([
+    component.invoke("write", { key: "first", value: "1" }),
+    component.invoke("write", { key: "second", value: "2" })
+  ]);
+  assert.deepEqual(persisted, { first: "1", second: "2" });
+});
