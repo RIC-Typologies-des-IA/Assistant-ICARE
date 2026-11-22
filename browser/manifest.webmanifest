@@ -10,7 +10,7 @@
   "theme_color": "#172b4d",
   "icons": [
     {
-      "src": "https://raw.githubusercontent.com/RIC-Typologies-des-IA/Assistant-ICARE/main/pi-runtime/public/assets/ric-logo.png",
+      "src": "./ric-logo.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
