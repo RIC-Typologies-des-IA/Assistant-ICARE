@@ -46,7 +46,7 @@ try{
   buildId="build-b";
   await page.evaluate(()=>window.registration.update());
   await page.waitForTimeout(1000);
-  assert.equal(await page.locator("#version").textContent(),"0.9.0","une mise à jour ne doit pas interrompre un brouillon en cours");
+  assert.equal(await page.locator("#version").textContent(),"0.9.0/build-a","une mise à jour ne doit pas interrompre un brouillon en cours");
   assert.equal(await page.locator("body").getAttribute("data-reload-count"),"1","le client ne doit pas recharger tant que l'utilisateur n'est pas prêt");
   await page.evaluate(()=>{window.safeToReload=true;document.dispatchEvent(new Event("input",{bubbles:true}));});
   await page.waitForFunction(()=>document.querySelector("#version")?.textContent==="0.9.0/build-b",{timeout:15000});
