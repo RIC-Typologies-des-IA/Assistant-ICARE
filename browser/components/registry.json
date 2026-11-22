@@ -3,6 +3,7 @@
   "components": [
     {
       "id": "hello",
+      "componentId": "icare:example/hello",
       "entrypoint": "./components/hello/hello.js",
       "world": "component-base"
     }
