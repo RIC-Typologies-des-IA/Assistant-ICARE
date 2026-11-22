@@ -82,9 +82,9 @@ test("frontend uses the encrypted vault and never stores API keys in plaintext s
   assert.match(app, /enterprise-gateway/);
   assert.match(app, /apiKey:"",credentials:"include"/);
   assert.match(html, /enterprise-gateway-url/);
-  assert.match(app, /migrateLegacyCredentials\\(db/);
-  assert.match(app, /sessionStorage\\.removeItem\\("icare-api-key"/);
-  assert.doesNotMatch(app, /sessionStorage\\.setItem\\("icare-api-key"/);
-  assert.doesNotMatch(html, /raw\\.githubusercontent\\.com/);
-  assert.match(html, /AES-GCM/);
+  assert.ok(app.includes("migrateLegacyCredentials(db"));
+  assert.ok(app.includes('sessionStorage.removeItem("icare-api-key"'));
+  assert.ok(!app.includes('sessionStorage.setItem("icare-api-key"'));
+  assert.ok(!html.includes("raw.githubusercontent.com"));
+  assert.ok(html.includes("AES-GCM"));
 });
