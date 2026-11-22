@@ -146,7 +146,12 @@ function modelFor(config, id, capability, groups) {
 }
 
 async function upstreamFetch(model, suffix, options, config) {
-  const base = model.upstreamBaseUrl.replace(/\/+$/, "temperature", "top_p", "n", "stop", "max_tokens", "max_completion_tokens", "frequency_penalty", "presence_penalty", "tools", "tool_choice", "response_format", "seed", "user", "parallel_tool_calls"];
+  const base = model.upstreamBaseUrl.replace(/\/+$/, "");
+  return fetch(base + suffix, { ...options, signal: AbortSignal.timeout(config.limits?.timeoutMs || 90_000) });
+}
+
+function sanitizeChatPayload(payload, upstreamModel) {
+  const allowed = ["messages", "temperature", "top_p", "n", "stop", "max_tokens", "max_completion_tokens", "frequency_penalty", "presence_penalty", "tools", "tool_choice", "response_format", "seed", "user", "parallel_tool_calls"];
   const clean = {};
   for (const key of allowed) if (payload[key] !== undefined) clean[key] = payload[key];
   clean.model = upstreamModel;
