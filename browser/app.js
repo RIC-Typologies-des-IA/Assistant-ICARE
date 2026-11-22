@@ -56,7 +56,7 @@ async function loadSettings(){
  const gatewayModels=await get(db,"settings","inference-gateway-models");
  if(routing){
   state.routing={text:routing.text==="gateway"?"gateway":"local",audio:routing.audio==="gateway"?"gateway":"local"};
-  state.gateways={text:gateways?.text||legacyGateway.url||"",audio:gateways?.audio||legacyGateway.url||""};
+  state.gateways=gateways?{text:gateways.text||"",audio:gateways.audio||""}:{text:legacyGateway.url||"",audio:legacyGateway.url||""};
   state.gatewayModels={text:gatewayModels?.text||legacyModels.chatModel||"",audio:gatewayModels?.audio||legacyModels.transcriptionModel||""};
   state.sameGateway=gateways?.sameGateway??(state.gateways.text===state.gateways.audio);
  }else{
@@ -164,7 +164,7 @@ async function saveInferenceConfiguration(){
  const audioSettings={id:"inference-transcription",baseUrl:$("transcription-base").value.trim(),model:$("transcription-model").value.trim(),apiKey:$("transcription-key").value.trim()};
  if(routing.text==="local"&&(!textSettings.baseUrl||!textSettings.model)){status.textContent="Configurez l’adresse et le modèle du moteur local de traitement du texte.";return;}
  if(routing.audio==="local"&&(!audioSettings.baseUrl||!audioSettings.model)){status.textContent="Configurez l’adresse et le modèle du moteur local de transcription.";return;}
- for(const kind of ["text","audio"])if(routing[kind]==="gateway"){try{const parsed=new URL(gateways[kind]);if(parsed.protocol!=="https:")throw Error();}catch{status.textContent="Renseignez une URL HTTPS valide pour le gateway "+(kind==="text"?"de traitement du texte":"de transcription")+".";
+ for(const kind of ["text","audio"])if(routing[kind]==="gateway"){try{const parsed=new URL(gateways[kind]);if(parsed.protocol!=="https:"||parsed.username||parsed.password)throw Error();}catch{status.textContent="Renseignez une URL HTTPS valide pour le gateway "+(kind==="text"?"de traitement du texte":"de transcription")+".";
  return;}}
  button.disabled=true;status.textContent="Vérification des gateways et enregistrement des profils…";
  try{
