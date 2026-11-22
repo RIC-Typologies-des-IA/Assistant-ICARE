@@ -258,7 +258,7 @@ try{
   assert.equal(await page.locator("#audio-route").inputValue(),"gateway");
   assert.equal(await page.locator("#same-gateway").isChecked(),true);
   assert.equal(await page.locator("#gateway-shared-url").inputValue(),"https://gateway.example.org/shared");
-  assert.equal(await page.locator("#model-label").textContent().includes("Gateway"),true);
+  assert.equal((await page.locator("#model-label").textContent()).includes("Gateway"),true);
   // Puis deux adresses distinctes, sans réutiliser par erreur le même endpoint.
   await page.locator("#same-gateway").uncheck();
   await page.locator("#gateway-text-url").fill("https://gateway.example.org/text");
