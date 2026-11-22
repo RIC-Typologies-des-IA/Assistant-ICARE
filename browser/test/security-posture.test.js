@@ -77,7 +77,7 @@ test("legacy plaintext API keys are migrated into the encrypted vault", async ()
 });
 
 test("frontend uses the encrypted vault and never stores API keys in plaintext settings", async () => {
-  const [app, html] = await Promise.all([read("../app.js"), read("../index.html")]);
+  const [app, html, wit] = await Promise.all([read("../app.js"), read("../index.html"), read("../../component-model/wit/icare-component.wit")]);
   assert.ok(app.includes("saveCredentialVault(db"));
   assert.match(app, /enterprise-gateway/);
   assert.match(app, /apiKey:"",credentials:"include"/);
@@ -87,4 +87,8 @@ test("frontend uses the encrypted vault and never stores API keys in plaintext s
   assert.ok(!app.includes('sessionStorage.setItem("icare-api-key"'));
   assert.ok(!html.includes("raw.githubusercontent.com"));
   assert.ok(html.includes("AES-GCM"));
+  assert.ok(wit.includes("world component-base"));
+  assert.ok(wit.includes("export lifecycle"));
+  assert.ok(wit.includes("interface inference-api"));
+  assert.doesNotMatch(wit, /api-key|authorization/i, "le contrat WIT ne doit jamais exposer de secret fournisseur");
 });
