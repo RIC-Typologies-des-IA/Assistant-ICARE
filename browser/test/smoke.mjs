@@ -75,18 +75,11 @@ try{
   assert.equal(await page.locator("#dimension-statuses .dimension-status-row").count(),5,"les cinq statuts doivent être éditables");
   assert.equal(await page.locator("#project-title").textContent(),"Mon premier projet");
   await page.locator("#settings-button").click();
-  assert.equal(await page.locator("#settings-tab-standalone").getAttribute("aria-selected"),"true","le mode autonome doit être sélectionné par défaut");
+  assert.equal(await page.locator("#text-route").inputValue(),"local","le traitement du texte doit être local par défaut");
+  assert.equal(await page.locator("#audio-route").inputValue(),"local","la transcription doit être locale par défaut");
   await page.locator("#close-settings-dialog").click();
   assert.equal(await page.locator("#settings-dialog").evaluate(dialog=>dialog.open),false,"la boîte de dialogue doit toujours pouvoir être fermée sans modèle renseigné");
   await page.locator("#settings-button").click();
-  await page.locator("#settings-tab-enterprise").click();
-  assert.equal(await page.locator("#settings-panel-enterprise").isVisible(),true,"l’onglet entreprise doit afficher uniquement son formulaire");
-  assert.equal(await page.locator("#settings-panel-standalone").isVisible(),false,"le formulaire autonome doit être masqué en mode entreprise");
-  await page.locator("#enterprise-gateway-url").fill("https://gateway.example.org");
-  assert.equal(await page.locator("#api-model").evaluate(el=>el.required),false,"les modèles ne sont pas requis en mode entreprise");
-  await page.locator("#settings-tab-standalone").click();
-  assert.equal(await page.locator("#settings-panel-standalone").isVisible(),true,"le mode autonome doit rester accessible par son onglet");
-  assert.equal(await page.locator("#api-key").evaluate(el=>el.parentElement.hidden),false,"le mode autonome doit afficher sa configuration directe");
   await page.locator("#api-base").fill("https://mock-provider.example/v1");
   await page.locator("#api-model").fill("test-model");
   await page.locator("#api-key").fill("test-secret");
@@ -97,20 +90,11 @@ try{
   await page.waitForFunction(()=>document.querySelectorAll("#available-models option").length===1);
   await page.locator("#test-provider").click();
   await page.waitForFunction(()=>document.querySelector("#provider-status").textContent.includes("Réponse locale de test"));
-  // Le test de connexion ne sauvegarde volontairement rien : enregistrer réellement
-  // le profil autonome avant de vérifier la coexistence et le basculement des modes.
-  await page.locator('#settings-form button[type="submit"][value="save"]').click();
+  await page.locator("#save-inference-config").click();
   await page.locator("#settings-dialog").waitFor({state:"hidden"});
-  assert.equal(await page.locator("#runtime-mode-switch").isVisible(),false,"le sélecteur ne doit pas apparaître tant qu’un seul mode est configuré");
-  await page.locator("#settings-button").click();
-  await page.locator("#settings-tab-enterprise").click();
-  await page.locator("#save-enterprise-config").click();
-  await page.locator("#settings-dialog").waitFor({state:"hidden"});
-  await page.locator("#runtime-mode-standalone").click();
   await page.locator("#message-input").fill("Bonjour ICARE");
   await page.locator("#composer").evaluate(form=>form.requestSubmit());
   await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Réponse locale de test."));
-  await page.locator("#runtime-mode-enterprise").click();
   for (const [level,title] of [[1,"Niveau 1"],[2,"Niveau 2"],[3,"Votre avis"],[4,"Auto-évaluation"],[5,"Niveau 5"],[6,"Niveau 6"]]) {
     assert.equal(await page.locator(".message.assistant h"+level).first().textContent(),title,"le titre Markdown de niveau "+level+" doit être rendu sans dièses visibles");
   }
