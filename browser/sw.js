@@ -1,6 +1,6 @@
 importScripts("./version.js");
 const CACHE=`icare-browser-${self.ICARE_VERSION}`;
-const FILES=["./","./index.html","./styles.css","./app.js","./markdown.js","./agent.js","./workspace-tools.js","./theme.js","./storage.js","./inference.js","./icon.svg","./manifest.webmanifest","./version.js","./system-prompt.md","./guide-icare.md","./icare.json","./vendor/markdown-it.min.js","./vendor/purify.min.js"];
+const FILES=["./","./index.html","./styles.css","./app.js","./markdown.js","./agent.js","./workspace-tools.js","./theme.js","./storage.js","./credentials.js","./inference.js","./icon.svg","./manifest.webmanifest","./version.js","./system-prompt.md","./guide-icare.md","./icare.json","./vendor/markdown-it.min.js","./vendor/purify.min.js"];
 const APP_SHELL=new Set(["/","/index.html","/styles.css","/app.js","/version.js"]);
 self.addEventListener("install",event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(FILES)).then(()=>self.skipWaiting())));
 self.addEventListener("activate",event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith("icare-browser-")&&key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
