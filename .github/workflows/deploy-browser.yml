@@ -25,8 +25,9 @@ jobs:
       - name: Install production dependencies and build vendor assets
         working-directory: browser
         run: |
-          npm install --no-save
+          npm install --no-save @bytecodealliance/jco@1.0.3
           npm run build:vendor
+          npm run build:components
       - name: Stamp immutable deployment identity
         run: |
           printf '\nself.ICARE_BUILD_ID = "%s";\n' "$GITHUB_SHA" >> browser/version.js
@@ -39,6 +40,10 @@ jobs:
           grep -q "ICARE_BUILD_ID" browser/version.js
           test -s browser/vendor/markdown-it.min.js
           test -s browser/vendor/purify.min.js
+          test -s browser/component-runtime.js
+          test -s browser/components/registry.json
+          test -s browser/components/hello/hello.js
+          test -s browser/components/hello/hello.core.wasm
       - name: Upload the single Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
