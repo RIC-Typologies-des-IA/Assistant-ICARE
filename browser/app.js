@@ -14,8 +14,10 @@ const componentRuntime=createComponentRuntime({
  storageProvider: () => state.workspace?.componentStorage || {},
  storageCommit: async (_componentId, values) => {
   if (!state.workspace) throw new Error("Aucun projet actif pour le stockage du composant.");
+  const previous = state.workspace.componentStorage || {};
   state.workspace.componentStorage = values;
-  await saveWorkspace();
+  try { await saveWorkspace(); }
+  catch (error) { state.workspace.componentStorage = previous; throw error; }
  },
  contextProvider: () => {
   const project=state.projects.find(item=>item.id===state.projectId);
