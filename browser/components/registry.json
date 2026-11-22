@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "components": [
+    {
+      "id": "hello",
+      "entrypoint": "./components/hello/hello.js",
+      "world": "component-base"
+    }
+  ]
+}
