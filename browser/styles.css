@@ -466,3 +466,33 @@ html[data-theme="dark"] .message-content .mermaid-diagram svg text,html[data-the
 html[data-theme="dark"] .message-content .mermaid-diagram svg .node rect,html[data-theme="dark"] .message-content .mermaid-diagram svg .node polygon,html[data-theme="dark"] .message-content .mermaid-diagram svg .node circle,html[data-theme="dark"] .message-content .mermaid-diagram svg .node ellipse,html[data-theme="dark"] .message-content .mermaid-diagram svg .actor{fill:#2c4059!important;stroke:#91afd2!important}
 html[data-theme="dark"] .message-content .mermaid-diagram svg .edgePath path,html[data-theme="dark"] .message-content .mermaid-diagram svg .flowchart-link,html[data-theme="dark"] .message-content .mermaid-diagram svg .messageLine0,html[data-theme="dark"] .message-content .mermaid-diagram svg .messageLine1{stroke:#a9c5e8!important}
 html[data-theme="dark"] .message-content .mermaid-diagram svg marker path{fill:#a9c5e8!important;stroke:#a9c5e8!important}
+
+.message-content .mermaid-diagram svg .classGroup rect,
+.message-content .mermaid-diagram svg .statediagram-state rect,
+.message-content .mermaid-diagram svg .er .entityBox,
+.message-content .mermaid-diagram svg .requirementBox{fill:#eaf1fa!important;stroke:#607b9f!important;stroke-width:1.5px}
+.message-content .mermaid-diagram svg .classGroup text,
+.message-content .mermaid-diagram svg .statediagram-state text,
+.message-content .mermaid-diagram svg .er text,
+.message-content .mermaid-diagram svg .requirementLabel{fill:#20344f!important}
+.message-content .mermaid-diagram svg .classGroup line,
+.message-content .mermaid-diagram svg .statediagram-state .divider,
+.message-content .mermaid-diagram svg .er .relationshipLine,
+.message-content .mermaid-diagram svg .relationshipLine{stroke:#607b9f!important}
+.message-content .mermaid-diagram svg .task rect,
+.message-content .mermaid-diagram svg rect.task{fill:#dce8f6!important;stroke:#607b9f!important}
+.message-content .mermaid-diagram svg .task.active rect{fill:#8fb2dc!important}
+.message-content .mermaid-diagram svg .task.done rect{fill:#d9eee2!important}
+.message-content .mermaid-diagram svg .task.crit rect{fill:#f3dfe0!important}
+.message-content .mermaid-diagram svg .messageText{fill:#26384f!important}
+.message-content .mermaid-diagram svg .messageLine0,
+.message-content .mermaid-diagram svg .messageLine1{stroke:#536b8a!important;stroke-width:1.7px}
+.message-content .mermaid-diagram svg .pieCircle{stroke:#fff!important;stroke-width:2px}
+html[data-theme="dark"] .message-content .mermaid-diagram svg .classGroup rect,
+html[data-theme="dark"] .message-content .mermaid-diagram svg .statediagram-state rect,
+html[data-theme="dark"] .message-content .mermaid-diagram svg .er .entityBox,
+html[data-theme="dark"] .message-content .mermaid-diagram svg .requirementBox{fill:#2c4059!important;stroke:#91afd2!important}
+html[data-theme="dark"] .message-content .mermaid-diagram svg .classGroup text,
+html[data-theme="dark"] .message-content .mermaid-diagram svg .statediagram-state text,
+html[data-theme="dark"] .message-content .mermaid-diagram svg .er text,
+html[data-theme="dark"] .message-content .mermaid-diagram svg .requirementLabel{fill:#e8eef7!important}
