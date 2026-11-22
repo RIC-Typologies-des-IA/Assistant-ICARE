@@ -69,13 +69,12 @@ markdown.core.ruler.after("inline", "icare-task-lists", state => {
 
 const ALLOWED_TAGS = [
   "a","abbr","b","blockquote","br","caption","code","dd","del","details","div","dl","dt",
-  "em","figcaption","figure","h1","h2","h3","h4","h5","h6","hr","i","img","input",
+  "em","figcaption","figure","h1","h2","h3","h4","h5","h6","hr","i","input",
   "kbd","li","ol","p","pre","s","samp","section","small","span","strong","sub","summary",
   "sup","table","tbody","td","tfoot","th","thead","tr","u","ul","var"
 ];
 const ALLOWED_ATTR = [
-  "alt","aria-label","checked","class","colspan","disabled","height","href","loading",
-  "referrerpolicy","rel","rowspan","scope","src","start","target","title","type","width","id"
+  "aria-label","checked","class","colspan","disabled","href","rel","rowspan","scope","start","target","title","type","id"
 ];
 const SAFE_HREF = /^(?:(?:https?|mailto|tel):|#|\/?[^/]|\/\/)/i;
 
@@ -83,10 +82,6 @@ window.DOMPurify.addHook("uponSanitizeAttribute", (node, data) => {
   const name = data.attrName.toLowerCase();
   if (name === "href") {
     if (!SAFE_HREF.test(data.attrValue) || /^\s*javascript:/i.test(data.attrValue)) data.keepAttr = false;
-  }
-  if (name === "src") {
-    // Remote images are allowed only over HTTPS and never receive the page referrer.
-    if (node.nodeName !== "IMG" || !/^https:\/\//i.test(data.attrValue)) data.keepAttr = false;
   }
   if (name === "class") {
     const classes = data.attrValue.split(/\s+/).filter(value =>
@@ -101,10 +96,6 @@ window.DOMPurify.addHook("afterSanitizeAttributes", node => {
   if (node.nodeName === "A" && node.hasAttribute("href")) {
     node.setAttribute("target", "_blank");
     node.setAttribute("rel", "noopener noreferrer");
-  }
-  if (node.nodeName === "IMG") {
-    node.setAttribute("loading", "lazy");
-    node.setAttribute("referrerpolicy", "no-referrer");
   }
   if (node.nodeName === "INPUT") {
     if (node.getAttribute("type") !== "checkbox") node.remove();
