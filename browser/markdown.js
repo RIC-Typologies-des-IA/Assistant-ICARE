@@ -90,8 +90,33 @@ const ALLOWED_ATTR = [
 ];
 const SAFE_HREF = /^(?:(?:https?|mailto|tel):|#|\/?[^/]|\/\/)/i;
 
+const SAFE_SVG_STYLE_PROPERTIES = new Set([
+  "fill","fill-opacity","stroke","stroke-width","stroke-opacity","stroke-dasharray",
+  "stroke-linecap","stroke-linejoin","opacity","font-size","font-family","font-weight",
+  "text-anchor","dominant-baseline","marker-end","marker-start","shape-rendering",
+  "letter-spacing","color","transform"
+]);
+
 window.DOMPurify.addHook("uponSanitizeAttribute", (node, data) => {
   const name = data.attrName.toLowerCase();
+  if (name === "style") {
+    if (node.namespaceURI !== "http://www.w3.org/2000/svg") {
+      data.keepAttr = false;
+      return;
+    }
+    const declarations = data.attrValue.split(";").map(part => {
+      const colon = part.indexOf(":");
+      if (colon < 1) return null;
+      const property = part.slice(0, colon).trim().toLowerCase();
+      const value = part.slice(colon + 1).trim();
+      if (!SAFE_SVG_STYLE_PROPERTIES.has(property) || !value || value.length > 160) return null;
+      if (/(?:url\\s*\\(\\s*(?!#)|expression\\s*\\(|javascript:|@import|[<>\\\\])/i.test(value)) return null;
+      if (!/^[A-Za-z0-9#(),.%\\s"'_+\\-]+$/.test(value)) return null;
+      return property + ":" + value;
+    }).filter(Boolean);
+    data.attrValue = declarations.join(";");
+    if (!data.attrValue) data.keepAttr = false;
+  }
   if (name === "href") {
     if (!SAFE_HREF.test(data.attrValue) || /^\s*javascript:/i.test(data.attrValue)) data.keepAttr = false;
   }
@@ -133,7 +158,7 @@ const SANITIZE_OPTIONS = {
 const SVG_SANITIZE_OPTIONS = {
   USE_PROFILES: { svg: true, svgFilters: false },
   FORBID_TAGS: ["foreignObject","script","style","iframe","image","use"],
-  FORBID_ATTR: ["style","onload","onclick","onerror","href","xlink:href"],
+  FORBID_ATTR: ["onload","onclick","onerror","href","xlink:href"],
   ALLOW_DATA_ATTR: false,
   RETURN_DOM_FRAGMENT: true
 };
