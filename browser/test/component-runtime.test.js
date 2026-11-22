@@ -28,7 +28,7 @@ function runtime({ described = manifest, grants = [], invoke } = {}) {
 }
 
 test("loads a registered lifecycle component and correlates invocations", async () => {
-  const component = await runtime().then(host => host.load("sample"));
+  const component = await runtime().load("sample");
   assert.equal(component.manifest.componentId, manifest.componentId);
   assert.deepEqual(await component.invoke("inspect", { value: 42 }, "correlation-1"), { accepted: true });
 });
