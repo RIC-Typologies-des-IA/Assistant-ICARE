@@ -1,12 +1,12 @@
 {
   "modelVersion": "1.0.0",
   "application": "ICARE Browser",
-  "securityProfile": "local-first",
+  "securityProfile": "local-first-with-enterprise-gateway",
   "dataClasses": {
     "project": "local-confidential",
     "conversation": "local-confidential",
     "inferenceContext": "externally-disclosed-on-explicit-inference",
-    "credentials": "locally-encrypted-persistent-secret"
+    "credentials": "browser-encrypted-or-enterprise-managed"
   },
   "invariants": {
     "projectDataHasNoRemotePersistence": true,
@@ -18,13 +18,18 @@
     "serviceWorkerRequiredForCoreWorkflows": false,
     "credentialsEncryptedAtRest": true,
     "encryptionKeyNonExtractable": true,
-    "credentialsStoredOnlyEncrypted": true
+    "credentialsStoredOnlyEncrypted": true,
+    "enterpriseGatewayRequiresHttps": true,
+    "enterpriseGatewayNeverReceivesProviderSecretsFromBrowser": true,
+    "enterpriseGatewayRequiresTrustedIdentity": true,
+    "enterpriseGatewayProviderTargetsAreAdminAllowlisted": true
   },
   "allowedNetworkPurposes": [
     "application-origin-static-assets",
     "application-origin-service-worker-update",
     "user-initiated-text-inference",
-    "user-initiated-audio-transcription"
+    "user-initiated-audio-transcription",
+    "user-initiated-enterprise-gateway-inference"
   ],
   "deploymentControls": {
     "allowedInferenceOrigins": "deployment-managed",
@@ -42,7 +47,9 @@
       "dependency-sbom",
       "managed-browser-compatibility-results",
       "hosting-header-review",
-      "inference-provider-data-processing-review"
+      "inference-provider-data-processing-review",
+      "enterprise-gateway-auth-proxy-review",
+      "enterprise-gateway-model-allowlist-tests"
     ]
   }
 }
