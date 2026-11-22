@@ -170,7 +170,8 @@ function renderMarkdown(source) {
     html += '<section class="footnotes"><hr><ol>' + entries + '</ol></section>';
   }
   const fragment = sanitize(html);
-  queueMicrotask(() => renderMermaid(fragment));
+  const mermaidSources = [...fragment.querySelectorAll("pre.mermaid-source")];
+  if (mermaidSources.length) queueMicrotask(() => renderMermaid(mermaidSources));
   return fragment;
 }
 
@@ -201,8 +202,7 @@ async function loadMermaid() {
   return mermaidLoadPromise;
 }
 
-async function renderMermaid(fragment) {
-  const sources = [...fragment.querySelectorAll("pre.mermaid-source")];
+async function renderMermaid(sources) {
   if (!sources.length) return;
   try {
     const engine = await loadMermaid();
