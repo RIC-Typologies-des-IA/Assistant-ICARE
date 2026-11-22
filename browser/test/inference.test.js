@@ -49,3 +49,5 @@ test("refuse les gateways HTTP et exige une adresse pour chaque route distante",
  assert.throws(()=>resolveInferenceRoute({kind:"text",routing:{text:"gateway"},gateways:{text:"http://gateway.example.org"}}),/HTTPS/);
  assert.throws(()=>resolveInferenceRoute({kind:"audio",routing:{audio:"gateway"},gateways:{}}),/adresse du gateway/);
 });
+
+test("refuse les identifiants intégrés à l’URL d’une Gateway",()=>assert.throws(()=>resolveInferenceRoute({kind:"text",routing:{text:"gateway"},gateways:{text:"https://user:secret@gateway.example.org"}}),/identifiants/));
