@@ -8,6 +8,7 @@ Le gateway expose une façade compatible OpenAI :
 - `GET /v1/models`
 - `POST /v1/chat/completions`
 - `POST /v1/audio/transcriptions`
+- `GET /v1/icare/config` (modèles par défaut visibles pour l'identité authentifiée)
 
 Les identifiants de modèles visibles par le navigateur sont des alias administrés. Chaque alias est associé côté serveur à un fournisseur, un modèle amont, une URL HTTPS fixe et une variable d'environnement contenant la clé API. Le client ne peut jamais choisir une URL amont ni transmettre une clé fournisseur.
 
@@ -27,12 +28,16 @@ Exemple de principe Nginx (à adapter à l'IdP et à son module d'authentificati
 
 ```nginx
 location / {
-  if ($request_method = OPTIONS) { return 204; }
+  error_page 418 = @icare_cors_preflight;
+  if ($request_method = OPTIONS) { return 418; }
   auth_request /oauth2/auth;
   auth_request_set $icare_user $upstream_http_x_auth_request_user;
   proxy_set_header X-ICARE-Authenticated-User $icare_user;
   proxy_set_header X-ICARE-Authenticated-Groups $upstream_http_x_auth_request_groups;
   proxy_set_header X-Forwarded-For $remote_addr;
+  proxy_pass http://127.0.0.1:8787;
+}
+location @icare_cors_preflight {
   proxy_pass http://127.0.0.1:8787;
 }
 ```
@@ -47,7 +52,7 @@ Les limites par défaut incluent quotas par identité, tailles maximales de requ
 
 ## Configuration côté utilisateur
 
-Dans Configuration > Moteurs d'inférence, saisir l'URL HTTPS du gateway. Les catalogues de modèles texte et transcription sont fournis par le gateway. Les champs de clés et les endpoints directs sont ignorés dans ce mode. Le navigateur n'obtient jamais les clés fournisseurs.
+Dans Configuration > Moteurs d'inférence, saisir l'URL HTTPS du gateway. Les catalogues de modèles texte et transcription sont fournis par le gateway. Les champs de clés et les endpoints directs sont ignorés dans ce mode. Le navigateur n'obtient jamais les clés fournisseurs. Le endpoint de configuration fournit automatiquement les alias de modèles par défaut autorisés pour l'utilisateur ; en mode entreprise, aucun choix de fournisseur ni de modèle n'est nécessaire côté utilisateur.
 
 L'authentification est déléguée à l'IdP d'entreprise placé devant le gateway. Le navigateur envoie les cookies de session avec les requêtes cross-origin. Pour les navigateurs qui bloquent les cookies tiers, déployer l'application et le gateway sous le même site d'entreprise (domaine personnalisé GitHub Pages, par exemple `icare.example.org` et `gateway.icare.example.org`) ou ajouter un flux OIDC Authorization Code + PKCE avec échange de jeton côté gateway. Ne pas désactiver l'authentification pour contourner ce problème.
 
