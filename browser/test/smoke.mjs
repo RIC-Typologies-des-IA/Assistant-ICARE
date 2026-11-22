@@ -94,6 +94,12 @@ try{
   await page.waitForFunction(()=>document.querySelectorAll("#available-models option").length===1);
   await page.locator("#test-provider").click();
   await page.waitForFunction(()=>document.querySelector("#provider-status").textContent.includes("Réponse locale de test"));
+  // Le test de connexion ne sauvegarde volontairement rien : enregistrer réellement
+  // le profil autonome avant de vérifier la coexistence et le basculement des modes.
+  await page.locator('#settings-form button[type="submit"][value="save"]').click();
+  await page.locator("#settings-dialog").waitFor({state:"hidden"});
+  assert.equal(await page.locator("#runtime-mode-switch").isVisible(),false,"le sélecteur ne doit pas apparaître tant qu’un seul mode est configuré");
+  await page.locator("#settings-button").click();
   await page.locator("#settings-tab-enterprise").click();
   await page.locator("#save-enterprise-config").click();
   await page.locator("#settings-dialog").waitFor({state:"hidden"});
