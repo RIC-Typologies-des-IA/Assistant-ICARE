@@ -46,6 +46,8 @@ jobs:
           test -s browser/components/ontology-validator/ontology-validator.core.wasm
           test -s browser/components/context-summary/context-summary.js
           test -s browser/components/context-summary/context-summary.core.wasm
+          test -s browser/components/storage-probe/storage-probe.js
+          test -s browser/components/storage-probe/storage-probe.core.wasm
       - name: Upload the single Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
