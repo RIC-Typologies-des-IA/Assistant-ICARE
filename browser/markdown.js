@@ -218,7 +218,11 @@ async function loadMermaid() {
           pieTitleTextColor:"#20344f",pieSectionTextColor:"#fff",pieLegendTextColor:"#34465e",pieStrokeColor:"#fff",
           cScale0:"#4778b8",cScale1:"#e39b45",cScale2:"#4c9a83",cScale3:"#9b79bd",cScale4:"#d46d70",cScale5:"#6b9eae",
           cScale6:"#b6a04b",cScale7:"#6e83c1",cScale8:"#a77b62",cScale9:"#6eaa78",cScale10:"#c47eaa",cScale11:"#8c98a8",
-          taskBkgColor:"#dce8f6", taskBorderColor:"#607b9f", activeTaskBkgColor:"#8fb2dc", activeTaskBorderColor:"#4778b8",\n          doneTaskBkgColor:"#d9eee2", doneTaskBorderColor:"#4c9a83", critTaskBkgColor:"#f3dfe0", critTaskBorderColor:"#d46d70",\n          taskTextColor:"#26384f", taskTextLightColor:"#26384f", taskTextOutsideColor:"#26384f", taskTextClickableColor:"#4778b8",\n          sectionBkgColor:"#edf2f8", altSectionBkgColor:"#f8fafc", sectionBkgColor2:"#f1f5fb", gridColor:"#d5deea", todayLineColor:"#d46d70",\n          git0:"#eaf1fa",git1:"#e5f3ed",git2:"#fff1df",git3:"#f3eafa",git4:"#e6f3f5",git5:"#fae9eb",git6:"#f4f0df",git7:"#edf0f5"
+          taskBkgColor:"#dce8f6", taskBorderColor:"#607b9f", activeTaskBkgColor:"#8fb2dc", activeTaskBorderColor:"#4778b8",
+          doneTaskBkgColor:"#d9eee2", doneTaskBorderColor:"#4c9a83", critTaskBkgColor:"#f3dfe0", critTaskBorderColor:"#d46d70",
+          taskTextColor:"#26384f", taskTextLightColor:"#26384f", taskTextOutsideColor:"#26384f", taskTextClickableColor:"#4778b8",
+          sectionBkgColor:"#edf2f8", altSectionBkgColor:"#f8fafc", sectionBkgColor2:"#f1f5fb", gridColor:"#d5deea", todayLineColor:"#d46d70",
+          git0:"#eaf1fa",git1:"#e5f3ed",git2:"#fff1df",git3:"#f3eafa",git4:"#e6f3f5",git5:"#fae9eb",git6:"#f4f0df",git7:"#edf0f5"
         },
         radar: { axisColor:"#8192aa", graticuleColor:"#aab7c8", curveOpacity:0.24, curveStrokeWidth:2.5, legendFontSize:"13px" },
         gantt: { barHeight:24, barGap:8, topPadding:48, leftPadding:80 },
