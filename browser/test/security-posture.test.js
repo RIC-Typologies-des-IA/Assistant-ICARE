@@ -12,7 +12,7 @@ test("security contract is explicit and machine-readable", async () => {
   const policy = JSON.parse(await read("../security-policy.json"));
   assert.equal(policy.modelVersion, "1.0.0");
   assert.equal(policy.invariants.projectDataHasNoRemotePersistence, true);
-  assert.equal(policy.invariants.credentialsPersistedOutsideSession, true);
+  assert.equal(policy.invariants.credentialsStoredOnlyEncrypted, true);
   assert.equal(policy.invariants.credentialsEncryptedAtRest, true);
   assert.equal(policy.invariants.encryptionKeyNonExtractable, true);
   assert.equal(policy.invariants.remoteInferenceRequiresHttps, true);
