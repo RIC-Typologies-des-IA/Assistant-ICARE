@@ -72,6 +72,7 @@ try {
       taskBoxes: host.querySelectorAll('input[type="checkbox"][disabled]').length,
       checkedBoxes: host.querySelectorAll('input[type="checkbox"]:checked').length,
       table: host.querySelectorAll(".markdown-table-wrap table").length,
+      alignedCells: host.querySelectorAll("th.align-left,td.align-left,th.align-right,td.align-right").length,
       footnotes: host.querySelectorAll(".footnotes li").length,
       highlighted: host.querySelectorAll("pre code .hljs-keyword, pre code .hljs-number").length,
       mermaid: host.querySelectorAll(".mermaid-diagram svg").length,
@@ -89,6 +90,7 @@ try {
   assert.equal(result.taskBoxes, 2, "les cases de task-list doivent être rendues désactivées");
   assert.equal(result.checkedBoxes, 1, "l’état coché doit être préservé");
   assert.equal(result.table, 1, "les tableaux doivent être enveloppés pour le défilement");
+  assert.ok(result.alignedCells >= 2, "l’alignement des colonnes doit survivre à la sanitisation sans style inline");
   assert.equal(result.footnotes, 1, "les notes de bas de page doivent être rendues");
   assert.ok(result.highlighted > 0, "les blocs de code doivent être colorisés");
   assert.equal(result.mermaid, 1, "le bloc Mermaid doit être transformé en SVG");
