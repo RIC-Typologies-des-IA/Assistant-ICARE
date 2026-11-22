@@ -246,6 +246,11 @@ try{
   assert.equal(await page.locator("#enterprise-gateway-url").inputValue(),"https://gateway.example.org","le mode entreprise doit être conservé après rechargement");
   assert.equal(await page.locator("#runtime-mode-switch").isVisible(),true,"le sélecteur de mode doit apparaître quand les deux modes sont configurés");
   assert.equal(await page.locator("#runtime-mode-enterprise").getAttribute("aria-pressed"),"true","le mode entreprise actif doit être visible dans la barre supérieure");
+  gatewayConfigPayload={service:"icare-enterprise-gateway",defaults:{chatModel:"enterprise-chat-v2",transcriptionModel:"enterprise-audio-v2"}};
+  await page.locator("#save-enterprise-config").click();
+  await page.locator("#settings-dialog").waitFor({state:"hidden"});
+  assert.ok((await page.locator("#model-label").textContent()).includes("enterprise-chat-v2"),"les modèles attribués récemment par le gateway doivent remplacer les anciennes valeurs persistées");
+  await page.locator("#settings-button").click();
   // Le sélecteur de la barre supérieure est volontairement testé hors du dialogue modal :
   // celui-ci intercepte correctement les interactions situées derrière lui.
   await page.locator("#close-settings-dialog").click();
