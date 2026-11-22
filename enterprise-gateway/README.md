@@ -27,19 +27,21 @@ Exemple de principe Nginx (à adapter à l'IdP et à son module d'authentificati
 
 ```nginx
 location / {
+  if ($request_method = OPTIONS) { return 204; }
   auth_request /oauth2/auth;
   auth_request_set $icare_user $upstream_http_x_auth_request_user;
   proxy_set_header X-ICARE-Authenticated-User $icare_user;
+  proxy_set_header X-ICARE-Authenticated-Groups $upstream_http_x_auth_request_groups;
   proxy_set_header X-Forwarded-For $remote_addr;
   proxy_pass http://127.0.0.1:8787;
 }
 ```
 
-Le proxy doit authentifier réellement la session (OIDC/SAML via un composant éprouvé), écraser le header d'identité reçu du client et empêcher tout accès réseau direct au port du gateway. Le gateway écoute sur loopback par défaut précisément pour cette raison. Si le service est exposé directement, un client pourrait falsifier le header d'identité : ce mode de déploiement serait non sécurisé.
+Le proxy doit authentifier réellement la session (OIDC/SAML via un composant éprouvé), écraser les headers d'identité et de groupes reçus du client, injecter les valeurs issues de l'IdP et empêcher tout accès réseau direct au port du gateway. Les requêtes OPTIONS de pré-vol CORS doivent être traitées sans authentification, mais aucune opération métier ne doit l'être. Le gateway écoute sur loopback par défaut précisément pour cette raison. Si le service est exposé directement, un client pourrait falsifier le header d'identité : ce mode de déploiement serait non sécurisé.
 
 ## Configuration côté administrateur
 
-`config.example.json` est volontairement sans secret. Les clés sont injectées par variables d'environnement ou par le gestionnaire de secrets de la plateforme. Les modèles non déclarés ou sans capacité adéquate sont refusés. Les URL amont doivent être HTTPS et sont définies uniquement par l'administrateur.
+`config.example.json` est volontairement sans secret. Les clés sont injectées par variables d'environnement ou par le gestionnaire de secrets de la plateforme. Les modèles non déclarés ou sans capacité adéquate sont refusés. Les URL amont doivent être HTTPS et sont définies uniquement par l'administrateur. Un modèle peut aussi déclarer `allowedGroups` dans la configuration ; seuls les groupes transmis par l'IdP via le header de confiance peuvent alors le voir et l'utiliser.
 
 Les limites par défaut incluent quotas par identité, tailles maximales de requête, délai amont et absence de journalisation des prompts. Les requêtes de streaming sont refusées dans cette première version. Le gateway ne fournit pas de stockage de conversation : les projets restent dans le navigateur.
 
