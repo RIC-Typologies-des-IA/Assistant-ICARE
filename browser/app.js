@@ -10,7 +10,13 @@ const $=id=>document.getElementById(id), db=await openDatabase();
 $("app-version").textContent=`— V${window.ICARE_VERSION} Alpha`;
 const state={projectId:null,projects:[],turns:[],settings:{},transcriptionSettings:{},gatewayUrl:"",workspace:null,busy:false};
 const componentRuntime=createComponentRuntime({
- grants: { "context-summary": ["context-read"] },
+ grants: { "context-summary": ["context-read"], "storage-probe": ["project-storage-read", "project-storage-write"] },
+ storageProvider: () => state.workspace?.componentStorage || {},
+ storageCommit: async (_componentId, values) => {
+  if (!state.workspace) throw new Error("Aucun projet actif pour le stockage du composant.");
+  state.workspace.componentStorage = values;
+  await saveWorkspace();
+ },
  contextProvider: () => {
   const project=state.projects.find(item=>item.id===state.projectId);
   const workspace=state.workspace;
