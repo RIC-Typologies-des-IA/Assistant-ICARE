@@ -60,6 +60,8 @@ try{
   await page.locator("#enterprise-gateway-url").fill("https://gateway.example.org");
   assert.equal(await page.locator("#api-key").evaluate(el=>el.parentElement.hidden),true,"le mode entreprise doit masquer les clés fournisseurs");
   assert.equal(await page.locator("#api-base").evaluate(el=>el.parentElement.hidden),true,"le mode entreprise doit masquer les endpoints fournisseurs directs");
+  assert.equal(await page.locator("#api-model").evaluate(el=>el.parentElement.hidden),true,"le mode entreprise doit laisser le gateway choisir les modèles");
+  assert.equal(await page.locator("#api-model").evaluate(el=>el.required),false,"le modèle est attribué automatiquement par le gateway");
   await page.locator("#enterprise-gateway-url").fill("");
   assert.equal(await page.locator("#api-key").evaluate(el=>el.parentElement.hidden),false,"le mode autonome doit réafficher la configuration directe");
   await page.locator("#api-base").fill("https://mock-provider.example/v1");
