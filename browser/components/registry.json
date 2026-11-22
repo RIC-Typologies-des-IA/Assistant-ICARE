@@ -9,6 +9,13 @@
       "requiredCapabilities": []
     },
     {
+      "id": "storage-probe",
+      "componentId": "icare:storage/probe",
+      "entrypoint": "./components/storage-probe/storage-probe.js",
+      "world": "component-with-storage",
+      "requiredCapabilities": ["project-storage-read", "project-storage-write"]
+    },
+    {
       "id": "context-summary",
       "componentId": "icare:context/summary",
       "entrypoint": "./components/context-summary/context-summary.js",
