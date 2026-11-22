@@ -79,7 +79,7 @@ try {
       unsafeSvg: host.querySelectorAll(".mermaid-diagram script,.mermaid-diagram foreignObject,.mermaid-diagram iframe").length +
         [...host.querySelectorAll(".mermaid-diagram *")].filter(el => [...el.attributes].some(attr => /^on/i.test(attr.name))).length,
       remoteImages: host.querySelectorAll("img").length,
-      rawHtml: host.querySelector("p strong")?.textContent || "",
+      rawHtml: [...host.querySelectorAll("p")].find(p => p.textContent.includes("HTML documentaire autorisé"))?.querySelector("strong")?.textContent || "",
       safeLink: [...host.querySelectorAll("a")].some(a => a.href === "https://example.org/" && a.rel.includes("noopener"))
     };
   });
