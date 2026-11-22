@@ -242,7 +242,7 @@ async function renderMermaid(sources) {
   for (const source of sources) {
     try {
       const code = source.textContent || "";
-      if (code.length > 40000 || code.split("\\n").length > 1500)
+      if (code.length > 40000 || code.split("\n").length > 1500)
         throw new Error("Diagramme trop volumineux (limite : 40 000 caractères et 1 500 lignes).");
       const id = "icare-mermaid-" + crypto.randomUUID();
       const safeSource = code.replace(/%%\\{init:[\\s\\S]*?\\}%%/gi, "");
