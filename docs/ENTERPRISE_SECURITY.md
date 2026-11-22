@@ -47,11 +47,12 @@ A browser-only client cannot safely hold a shared provider API secret. Where cre
 
 - Keep project data local by default; do not silently synchronize or upload it.
 - Use IndexedDB for structured local persistence, with schema versioning and safe migrations.
-- Never store passwords, provider API keys, refresh tokens or other long-lived credentials in IndexedDB, localStorage, Cache Storage or the application bundle.
-- In the browser client, provider keys are held in sessionStorage for the current tab session only; they are not persisted in IndexedDB. sessionStorage remains readable by same-origin JavaScript and is not an XSS defense. Enterprise deployments should prefer short-lived credentials issued by a gateway.
+- Never store passwords, provider API keys, refresh tokens or other long-lived credentials in plaintext in IndexedDB, localStorage, Cache Storage or the application bundle.
+- The browser client persists provider API keys only as AES-256-GCM ciphertext in IndexedDB. A non-exportable Web Crypto `CryptoKey` is stored as a browser-managed cryptographic object in IndexedDB; the key itself is never exported to JavaScript or stored as raw bytes. The application decrypts keys automatically for use after reopening the browser, so users do not need to re-enter them each session.
+- This Web Crypto pattern is defense in depth for data at rest, not a guarantee equivalent to an OS keychain or hardware-backed vault. Same-origin JavaScript can ask Web Crypto to use the key, so XSS or compromised application code can still use/decrypt credentials. A static web app has no universal API for directly using Windows Credential Manager, macOS Keychain or Linux Secret Service. Enterprise deployments should still prefer short-lived credentials issued by a gateway.
 - Treat browser storage as accessible to scripts executing in the same origin.
 - Offer optional project encryption for deployments handling confidential data. Use authenticated encryption and a standard Web Crypto API primitive; never invent a cryptographic algorithm.
-- Derive or obtain encryption keys using an explicit user/enterprise-controlled key lifecycle. Do not hard-code keys or store the decryption key beside ciphertext.
+- Derive or obtain project-encryption keys using an explicit user/enterprise-controlled key lifecycle. Do not hard-code keys or store project decryption keys beside ciphertext. For provider credentials, use the non-exportable Web Crypto key pattern described above and document its same-origin threat boundary.
 - Document recovery implications: losing the key may make an encrypted project unrecoverable.
 - Ensure export/import preserves integrity and handles malformed or oversized files safely.
 - Provide a clear local-data deletion/export path and explain browser-profile/OS backup implications.
@@ -158,7 +159,7 @@ These profiles are deployment options, not claims of certification or regulatory
    - Add browser tests that assert the allowed request set.
 4. **Local data protection**
    - Review IndexedDB schema, migrations, deletion and export.
-   - Remove any credentials from persistent browser storage.
+   - Ensure provider credentials are stored only as authenticated ciphertext, never plaintext; prefer gateway-issued short-lived credentials for managed deployments.
    - Specify and implement optional project encryption with a reviewed key lifecycle.
 5. **Enterprise compatibility**
    - Test managed Edge, Chrome and Firefox profiles.
@@ -175,7 +176,7 @@ These profiles are deployment options, not claims of certification or regulatory
 - [ ] Automated browser tests verify that no unapproved destination is contacted during core workflows.
 - [ ] No project content is sent remotely except content explicitly included in a user-triggered inference request.
 - [ ] No analytics or third-party tracking runs by default.
-- [ ] No long-lived API key or authentication secret is embedded in frontend code or persisted in browser storage.
+- [ ] No long-lived API key or authentication secret is embedded in frontend code or persisted in plaintext; any browser-persisted provider key is encrypted with a non-exportable Web Crypto key and its XSS limitation is documented.
 - [ ] Project creation, editing, reopening, import and export work without a project-storage backend.
 - [ ] Import/export works without the File System Access API.
 - [ ] Core local workflows degrade safely when service workers are unavailable.
