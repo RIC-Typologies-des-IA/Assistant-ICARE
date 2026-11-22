@@ -204,7 +204,7 @@ try {
       "<a href=\"https://example.org\">Lien sûr</a>"
     ].join("\n");
     host.append(renderMarkdown(source));
-    await new Promise(resolve => setTimeout(resolve, 1200));
+    await new Promise(resolve => {\n      const started = Date.now();\n      const poll = () => {\n        if (!host.querySelector(".mermaid-source") || Date.now() - started > 10000) resolve();\n        else setTimeout(poll, 50);\n      };\n      poll();\n    });
     return {
       html: host.innerHTML,
       xss: window.__xss === true,
