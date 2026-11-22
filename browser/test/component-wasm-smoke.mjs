@@ -67,7 +67,7 @@ try {
         }
       })
     };
-  })).then(value => value);
+  }));
   assert.equal(validator.manifest.componentId, "icare:ontology/validator");
   assert.equal(validator.valid.valid, true);
   assert.equal(validator.valid.normalized.primary_dimension, "I");
