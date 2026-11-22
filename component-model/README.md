@@ -62,7 +62,7 @@ Les navigateurs savent exécuter WebAssembly core, mais pas instancier nativemen
 - Les payloads JSON sont bornés à 256 Kio et les identifiants de corrélation sont contrôlés à l'aller et au retour.
 - Le runtime ne fournit aucun accès réseau, système de fichiers, secret ou stockage ambiant.
 
-Le composant `hello` sert de test de bout en bout du contrat `lifecycle`. Un second composant, `ontology-validator`, porte désormais la validation déterministe des observations ICARE. L'agent l'appelle avant toute écriture de proposition ; la validation JavaScript de l'hôte reste en défense en profondeur. Les deux sont invocables via les outils `list_wasi_components` et `invoke_wasi_component`, et ne reçoivent aucune capacité.
+Le composant `hello` sert de test de bout en bout du contrat `lifecycle`. Un second composant, `ontology-validator`, porte désormais la validation déterministe des observations, relations et statuts d'exploration ICARE. L'agent l'appelle avant toute écriture ; la validation JavaScript de l'hôte reste en défense en profondeur. Les deux sont invocables via les outils `list_wasi_components` et `invoke_wasi_component`, et ne reçoivent aucune capacité.
 
 ### Migration progressive des composants historiques
 
@@ -79,5 +79,5 @@ Ce tableau distingue explicitement la première logique métier migrée des cibl
 
 - Tests unitaires du registre, du manifeste, des capacités inconnues/non accordées, des limites de payload et de la corrélation.
 - Build CI du vrai binaire composant depuis le WIT.
-- Smoke test Playwright dans Chromium : chargement des deux composants transpilés, appel de `lifecycle`, vérification du résultat et validation d'observations valides/invalides dans le guest WASM.\n- Test du chemin métier : une validation refusée par le composant WASI empêche toute écriture du registre.
+- Smoke test Playwright dans Chromium : chargement des deux composants transpilés, appel de `lifecycle`, vérification du résultat et validation d'observations, relations et statuts valides/invalides dans le guest WASM.\n- Test du chemin métier : une validation refusée par le composant WASI empêche toute écriture du registre.
 - Build GitHub Pages vérifie la présence de tous les artefacts WASI avant publication.
