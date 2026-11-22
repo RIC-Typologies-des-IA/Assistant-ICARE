@@ -5,9 +5,9 @@ import { createGatewayServer, validateConfig } from "../server.mjs";
 const config = {
   listen: { host: "127.0.0.1", port: 8787 },
   cors: { allowedOrigins: ["https://icare.example.org"] },
-  auth: { identityHeader: "x-icare-authenticated-user" },
+  auth: { identityHeader: "x-icare-authenticated-user", groupsHeader: "x-icare-authenticated-groups" },
   limits: { requestsPerMinute: 10, maxJsonBytes: 4096, maxAudioBytes: 4096, timeoutMs: 1000 },
-  models: [{ id: "small-chat", provider: "test", upstreamBaseUrl: "https://provider.example/v1", upstreamModel: "real-small", apiKeyEnv: "ICARE_TEST_KEY", capabilities: ["chat"] }]
+  models: [{ id: "small-chat", provider: "test", upstreamBaseUrl: "https://provider.example/v1", upstreamModel: "real-small", apiKeyEnv: "ICARE_TEST_KEY", capabilities: ["chat"], allowedGroups: ["research"] }]
 };
 
 test("gateway configuration rejects unsafe origins and upstream URLs", () => {
@@ -30,7 +30,9 @@ test("gateway exposes only configured models to an authenticated user", async t 
   await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
   t.after(() => new Promise(resolve => server.close(resolve)));
   const url = "http://127.0.0.1:" + server.address().port;
-  const response = await fetch(url + "/v1/models", { headers: { Origin: "https://icare.example.org", "X-ICARE-Authenticated-User": "alice" } });
+  const denied = await fetch(url + "/v1/models", { headers: { Origin: "https://icare.example.org", "X-ICARE-Authenticated-User": "alice", "X-ICARE-Authenticated-Groups": "staff" } });
+  assert.equal((await denied.json()).data.length, 0, "un membre hors du groupe autorisé ne doit pas voir le modèle");
+  const response = await fetch(url + "/v1/models", { headers: { Origin: "https://icare.example.org", "X-ICARE-Authenticated-User": "alice", "X-ICARE-Authenticated-Groups": "research" } });
   assert.equal(response.status, 200);
   assert.deepEqual((await response.json()).data.map(model => model.id), ["small-chat"]);
 });
@@ -42,6 +44,32 @@ test("gateway refuses origins not on the exact allowlist", async t => {
   const url = "http://127.0.0.1:" + server.address().port;
   const response = await fetch(url + "/v1/models", { headers: { Origin: "https://evil.example" } });
   assert.equal(response.status, 403);
+});
+
+test("gateway maps a public alias to the admin provider model and never forwards client credentials", async t => {
+  const server = createGatewayServer(config);
+  await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  const originalFetch = globalThis.fetch;
+  process.env.ICARE_TEST_KEY = "server-side-secret";
+  let captured;
+  globalThis.fetch = async (url, options) => { captured = { url: String(url), options, payload: JSON.parse(options.body) }; return new Response(JSON.stringify({ choices: [{ message: { content: "ok" } }] }), { status: 200, headers: { "Content-Type": "application/json" } }); };
+  try {
+    const url = "http://127.0.0.1:" + server.address().port;
+    const response = await fetch(url + "/v1/chat/completions", {
+      method: "POST",
+      headers: { Origin: "https://icare.example.org", "X-ICARE-Authenticated-User": "alice", "X-ICARE-Authenticated-Groups": "research", "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "small-chat", apiKey: "attacker-controlled-value", messages: [{ role: "user", content: "hello" }] })
+    });
+    assert.equal(response.status, 200);
+    assert.equal(captured.url, "https://provider.example/v1/chat/completions");
+    assert.equal(captured.options.headers.Authorization, "Bearer server-side-secret");
+    assert.equal(captured.payload.model, "real-small");
+    assert.equal("apiKey" in captured.payload, false);
+  } finally {
+    globalThis.fetch = originalFetch;
+    delete process.env.ICARE_TEST_KEY;
+  }
 });
 
 test("gateway rejects unconfigured models before any provider call", async t => {
