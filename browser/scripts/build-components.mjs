@@ -4,13 +4,12 @@ import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 
 const browserRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
-const repositoryRoot = resolve(browserRoot, "..");
 const output = resolve(browserRoot, "components/hello");
 await mkdir(output, { recursive: true });
 
 function run(args) {
   const result = spawnSync("npx", ["--no-install", "jco", ...args], {
-    cwd: repositoryRoot,
+    cwd: browserRoot,
     stdio: "inherit",
     env: process.env
   });
@@ -20,13 +19,13 @@ function run(args) {
 
 run([
   "componentize",
-  "component-model/examples/hello/hello.js",
-  "--wit", "component-model/wit/icare-component.wit",
+  "../component-model/examples/hello/hello.js",
+  "--wit", "../component-model/wit/icare-component.wit",
   "--world-name", "component-base",
   "--disable", "all",
-  "-o", "browser/components/hello/hello.wasm"
+  "-o", "components/hello/hello.wasm"
 ]);
-run(["transpile", "browser/components/hello/hello.wasm", "-o", "browser/components/hello"]);
+run(["transpile", "components/hello/hello.wasm", "-o", "components/hello"]);
 
 for (const file of ["hello.js", "hello.core.wasm"]) {
   await access(resolve(output, file));
