@@ -17,6 +17,20 @@ try{
   const page=await context.newPage();
   page.on("dialog",dialog=>dialog.accept());
   await page.route("https://mock-provider.example/**",route=>{assert.equal(route.request().headers()["authorization"],"Bearer test-secret","la clé doit être disponible en mémoire de session");const requestBody=route.request().postDataJSON();if(Array.isArray(requestBody?.messages))chatPayloads.push(requestBody);const body=route.request().url().endsWith("/models")?{data:[{id:"test-model"}]}:{choices:[{message:{content:["Réponse locale de test.","","# Niveau 1","","## Niveau 2","","### Votre avis","","#### Auto-évaluation","", "#### Points d’attention / tensions éventuelles","","##### Niveau 5","","###### Niveau 6","","####Titre sans espace","","**Texte en gras**.","","| Étape | Ce qui a été réalisé | Conformité aux principes ICARE & maïeutiques |","|-------|----------------------|----------------------------------------------|","| **1. Capture de l’intention (I)** | - Vous avez exprimé votre **but** : fournir des connaissances. | ✅ Reformulation pour vérification ; ✅ distinction claire. |","| **2. Confirmation de l’intention** | Vous avez confirmé la reformulation (« Oui »). | ✅ Attente d’un accord avant de passer à la suite. |","| **3. Passage à la dimension suivante (C)** | J’ai présenté les cinq axes possibles du **Contexte**. | ✅ Question unique, ouverte. |","","### Synthèse de la dimension I","","| Champ | Valeur |","|-------|--------|","| **id** | `proj-foret-I-001` |","| **text** | *Instruire les politiques publiques de la forêt.* |","","> undefined","","<img src=x onerror=alert(1)>","[lien dangereux](javascript:alert(1))"].join("\n")}}]};return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(body)});});
+  let gatewayRequests=[];
+  await page.route("https://gateway.example.org/**",async route=>{
+    const request=route.request(),url=new URL(request.url());
+    const headers=request.headers();
+    assert.equal(headers.authorization,undefined,"aucune clé fournisseur ne doit être envoyée au gateway");
+    const payload=request.postDataJSON?.();
+    gatewayRequests.push({url:request.url(),payload});
+    const body=url.pathname.endsWith("/icare/config")
+      ?{service:"icare-enterprise-gateway",defaults:{chatModel:"enterprise-chat",transcriptionModel:"enterprise-audio"}}
+      :url.pathname.endsWith("/models")
+        ?{data:[{id:"enterprise-chat"},{id:"enterprise-audio"}]}
+        :{choices:[{message:{content:"Réponse entreprise de test."}}]};
+    return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(body)});
+  });
   await page.goto(url);
 
   await page.waitForFunction(()=>document.querySelector("#project-select").options.length===1);
@@ -57,6 +71,13 @@ try{
   assert.equal(await page.locator("#dimension-statuses .dimension-status-row").count(),5,"les cinq statuts doivent être éditables");
   assert.equal(await page.locator("#project-title").textContent(),"Mon premier projet");
   await page.locator("#settings-button").click();
+  await page.locator("#enterprise-gateway-url").fill("https://gateway.example.org");
+  assert.equal(await page.locator("#api-key").evaluate(el=>el.parentElement.hidden),true,"le mode entreprise doit masquer les clés fournisseurs");
+  assert.equal(await page.locator("#api-base").evaluate(el=>el.parentElement.hidden),true,"le mode entreprise doit masquer les endpoints fournisseurs directs");
+  assert.equal(await page.locator("#api-model").evaluate(el=>el.parentElement.hidden),true,"le mode entreprise doit laisser le gateway choisir les modèles");
+  assert.equal(await page.locator("#api-model").evaluate(el=>el.required),false,"le modèle est attribué automatiquement par le gateway");
+  await page.locator("#enterprise-gateway-url").fill("");
+  assert.equal(await page.locator("#api-key").evaluate(el=>el.parentElement.hidden),false,"le mode autonome doit réafficher la configuration directe");
   await page.locator("#api-base").fill("https://mock-provider.example/v1");
   await page.locator("#api-model").fill("test-model");
   await page.locator("#api-key").fill("test-secret");
@@ -180,6 +201,29 @@ try{
 
 
 
+  // Vérifie le parcours réel du client entreprise : découverte des valeurs par défaut,
+  // appels sans secret fournisseur, persistance puis restauration après rechargement.
+  await page.locator("#settings-button").click();
+  await page.locator("#api-model").fill("");
+  await page.locator("#transcription-model").fill("");
+  await page.locator("#enterprise-gateway-url").fill("https://gateway.example.org");
+  await page.locator('#settings-form button[value="save"]').click();
+  await page.locator("#settings-dialog").waitFor({state:"hidden"});
+  assert.ok(gatewayRequests.some(request=>request.url.endsWith("/v1/icare/config")),"le client doit demander les modèles par défaut au gateway");
+  await page.locator("#message-input").fill("Bonjour entreprise");
+  await page.locator("#composer").evaluate(form=>form.requestSubmit());
+  await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Réponse entreprise de test."));
+  const enterprisePayload=gatewayRequests.find(request=>request.url.endsWith("/v1/chat/completions"))?.payload;
+  assert.ok(enterprisePayload?.messages?.some(message=>message.role==="user"&&message.content==="Bonjour entreprise"),"le dialogue doit réellement être routé vers le gateway");
+  await page.reload();
+  await page.waitForFunction(()=>document.querySelector("#project-select").options.length>=1);
+  await page.waitForFunction(()=>document.querySelector("#enterprise-gateway-url").value==="https://gateway.example.org");
+  await page.locator("#settings-button").click();
+  assert.equal(await page.locator("#enterprise-gateway-url").inputValue(),"https://gateway.example.org","le mode entreprise doit être conservé après rechargement");
+  assert.equal(await page.locator("#api-key").evaluate(el=>el.parentElement.hidden),true,"les clés directes doivent rester masquées après rechargement");
+  assert.equal(await page.locator("#api-model").inputValue(),"enterprise-chat","le modèle par défaut attribué par le gateway doit être persisté");
+  await page.locator("#settings-dialog").evaluate(dialog=>dialog.close());
+
   const autoContext=await browser.newContext({colorScheme:"light"});
   const autoPage=await autoContext.newPage();
   await autoPage.goto(url);
@@ -197,7 +241,7 @@ try{
   assert.equal(await fallbackPage.locator("html").getAttribute("data-theme"),"light","en l'absence de détection système, le thème doit être clair");
   await fallbackContext.close();
 
-  console.log("Browser smoke test passed: ontology, provider, persistence, project creation/cancellation, project drawer, subjective project export/import and color themes.");
+  console.log("Browser smoke test passed: standalone and enterprise gateway, persistence, automatic model defaults, project creation/cancellation, project drawer, export/import and color themes.");
 }finally{
   if(browser)await browser.close();
   await new Promise(resolveClose=>server.close(resolveClose));

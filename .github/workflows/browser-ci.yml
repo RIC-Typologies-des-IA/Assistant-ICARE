@@ -34,7 +34,10 @@ jobs:
           node --check browser/agent.js
           node --check browser/workspace-tools.js
           node --check browser/storage.js
+          node --check browser/credentials.js
+          node --check browser/pwa.js
           node --check browser/inference.js
+          node --check enterprise-gateway/server.mjs
           node --check browser/sw.js
           node --check browser/markdown.js
           node --check browser/theme.js
@@ -52,3 +55,5 @@ jobs:
         run: |
           node --test browser/test/*.test.js
           node browser/test/smoke.mjs
+          node browser/test/pwa-update.mjs
+          node --test enterprise-gateway/test/*.test.mjs

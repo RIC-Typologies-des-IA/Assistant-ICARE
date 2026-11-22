@@ -1,0 +1,78 @@
+package icare:component@0.1.0;
+
+interface types {
+  enum capability {
+    context-read,
+    context-write,
+    project-storage-read,
+    project-storage-write,
+    component-messaging,
+    model-inference,
+    audio-transcription,
+    tool-execution
+  }
+
+  record component-manifest {
+    component-id: string,
+    version: string,
+    display-name: string,
+    required-capabilities: list<capability>
+  }
+
+  record component-invocation {
+    correlation-id: string,
+    operation: string,
+    payload-json: string
+  }
+
+  record component-outcome {
+    correlation-id: string,
+    payload-json: string
+  }
+}
+
+interface lifecycle {
+  use types.{component-manifest, component-invocation, component-outcome};
+
+  describe: func() -> component-manifest;
+  invoke: func(request: component-invocation) -> result<component-outcome, string>;
+}
+
+interface context-api {
+  get-project-context: func() -> option<string>;
+}
+
+interface inference-api {
+  complete: func(model-alias: string, request-json: string) -> result<string, string>;
+  transcribe: func(model-alias: string, audio-bytes: list<u8>, media-type: string) -> result<string, string>;
+}
+
+interface storage-api {
+  read: func(key: string) -> option<string>;
+  write: func(key: string, value: string) -> result<_, string>;
+}
+
+interface messaging-api {
+  send: func(target-component: string, message-json: string) -> result<_, string>;
+}
+
+world component-base {
+  export lifecycle;
+}
+
+world component-with-context {
+  include component-base;
+  import context-api;
+}
+
+world component-with-inference {
+  include component-base;
+  import inference-api;
+}
+
+world component-agent {
+  include component-base;
+  import context-api;
+  import inference-api;
+  import messaging-api;
+}

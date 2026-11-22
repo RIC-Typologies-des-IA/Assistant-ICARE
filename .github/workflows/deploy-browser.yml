@@ -27,11 +27,16 @@ jobs:
         run: |
           npm install --no-save
           npm run build:vendor
+      - name: Stamp immutable deployment identity
+        run: |
+          printf '\nself.ICARE_BUILD_ID = "%s";\n' "$GITHUB_SHA" >> browser/version.js
+          node --check browser/version.js
       - name: Verify deployment artifact
         run: |
           test -s browser/index.html
           test -s browser/app.js
           test -s browser/version.js
+          grep -q "ICARE_BUILD_ID" browser/version.js
           test -s browser/vendor/markdown-it.min.js
           test -s browser/vendor/purify.min.js
       - name: Upload the single Pages artifact
