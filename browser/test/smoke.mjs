@@ -232,6 +232,12 @@ try{
   await page.waitForFunction(()=>document.querySelector("#enterprise-gateway-url").value==="https://gateway.example.org");
   await page.locator("#settings-button").click();
   assert.equal(await page.locator("#enterprise-gateway-url").inputValue(),"https://gateway.example.org","le mode entreprise doit être conservé après rechargement");
+  assert.equal(await page.locator("#runtime-mode-switch").isVisible(),true,"le sélecteur de mode doit apparaître quand les deux modes sont configurés");
+  assert.equal(await page.locator("#runtime-mode-enterprise").getAttribute("aria-pressed"),"true","le mode entreprise actif doit être visible dans la barre supérieure");
+  await page.locator("#runtime-mode-standalone").click();
+  assert.equal(await page.locator("#runtime-mode-standalone").getAttribute("aria-pressed"),"true","le basculement vers le mode autonome doit être immédiat");
+  await page.locator("#runtime-mode-enterprise").click();
+  assert.equal(await page.locator("#runtime-mode-enterprise").getAttribute("aria-pressed"),"true","le retour au mode entreprise doit être immédiat");
   assert.equal(await page.locator("#settings-panel-enterprise").isVisible(),true,"le mode entreprise doit être restauré après rechargement");
   assert.equal(await page.locator("#api-model").inputValue(),"enterprise-chat","le modèle par défaut attribué par le gateway doit être persisté");
   await page.locator("#settings-dialog").evaluate(dialog=>dialog.close());
@@ -276,7 +282,8 @@ try{
   await page.reload();
   await page.waitForFunction(()=>document.querySelector("#enterprise-gateway-url").value==="https://gateway.example.org/v1");
   await page.locator("#settings-button").click();
-  assert.equal(await page.locator("#api-model").inputValue(),"enterprise-chat-v2","le modèle texte renvoyé par le gateway doit être persisté");
+  assert.equal(await page.locator("#api-model").inputValue(),"test-model","la configuration autonome doit rester intacte après enregistrement entreprise");
+  assert.equal(await page.locator("#runtime-mode-enterprise").getAttribute("aria-pressed"),"true","le mode actif doit être restauré après rechargement");
   assert.equal(await page.locator("#transcription-model").inputValue(),"enterprise-audio-v2","le modèle audio renvoyé par le gateway doit être persisté");
   assert.equal(await page.locator("#settings-panel-enterprise").isVisible(),true,"le panneau entreprise doit rester seul visible après rechargement");
   // Un autre gateway ne doit pas hériter des modèles du précédent.
