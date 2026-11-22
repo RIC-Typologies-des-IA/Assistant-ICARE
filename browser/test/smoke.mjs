@@ -233,7 +233,6 @@ try{
   await page.locator("#text-route").selectOption("local");
   await page.locator("#audio-route").selectOption("gateway");
   await page.locator("#gateway-audio-url").fill("https://gateway.example.org/audio");
-  await page.locator("#same-gateway").uncheck();
   await page.locator("#save-inference-config").click();
   await page.locator("#settings-dialog").waitFor({state:"hidden"});
   await page.locator("#settings-button").click();
