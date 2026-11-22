@@ -90,6 +90,9 @@ try{
   await page.locator("#api-base").fill("https://mock-provider.example/v1");
   await page.locator("#api-model").fill("test-model");
   await page.locator("#api-key").fill("test-secret");
+  await page.locator("#transcription-base").fill("https://mock-provider.example/v1");
+  await page.locator("#transcription-model").fill("test-audio-model");
+  await page.locator("#transcription-key").fill("test-secret");
   await page.locator("#load-models").click();
   await page.waitForFunction(()=>document.querySelectorAll("#available-models option").length===1);
   await page.locator("#test-provider").click();
@@ -258,6 +261,13 @@ try{
   await page.locator("#settings-button").click();
   assert.equal(await page.locator("#settings-panel-enterprise").isVisible(),true,"le panneau de configuration entreprise doit suivre le mode actif restauré");
   assert.ok((await page.locator("#model-label").textContent()).includes("enterprise-chat"),"le modèle entreprise attribué par le gateway doit être affiché");
+  await page.locator("#settings-tab-standalone").click();
+  const standaloneAudioCatalogCalls=await page.evaluate(()=>window.__icareFetchCalls.filter(call=>call.url==="https://mock-provider.example/v1/models").length);
+  await page.locator("#load-transcription-models").click();
+  await page.waitForFunction(before=>window.__icareFetchCalls.filter(call=>call.url==="https://mock-provider.example/v1/models").length>before,standaloneAudioCatalogCalls);
+  const standaloneAudioCatalogCall=await page.evaluate(()=>window.__icareFetchCalls.filter(call=>call.url==="https://mock-provider.example/v1/models").at(-1));
+  assert.equal(standaloneAudioCatalogCall.credentials,"omit","la recherche du modèle audio autonome ne doit pas transmettre les cookies SSO");
+  assert.equal(standaloneAudioCatalogCall.authorization,"Bearer test-secret","la recherche du modèle audio autonome doit utiliser sa propre clé fournisseur");
   await page.locator("#close-settings-dialog").click();
 
   const autoContext=await browser.newContext({colorScheme:"light"});
