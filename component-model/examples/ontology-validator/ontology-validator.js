@@ -12,6 +12,34 @@ export const lifecycle = {
 
   invoke(request) {
     const payload = JSON.parse(request.payloadJson || "{}");
+    if (request.operation === "validate-relation") {
+      const relation = payload.relation || {};
+      const ids = new Set(Array.isArray(payload.existingProposalIds) ? payload.existingProposalIds : []);
+      const errors = [];
+      if (!ids.has(relation.from_id) || !ids.has(relation.to_id)) errors.push("Les deux propositions doivent exister dans ce projet.");
+      if (relation.from_id === relation.to_id) errors.push("Une relation doit relier deux propositions distinctes.");
+      if (!Array.isArray(payload.allowedRelations) || !payload.allowedRelations.includes(relation.relation)) {
+        errors.push("Valeur invalide pour relations : " + String(relation.relation));
+      }
+      return { correlationId: request.correlationId, payloadJson: JSON.stringify({ valid: errors.length === 0, errors }) };
+    }
+
+    if (request.operation === "validate-exploration-status") {
+      const status = payload.status || {};
+      const vocabularies = payload.vocabularies || {};
+      const errors = [];
+      if (!Array.isArray(vocabularies.dimensions) || !vocabularies.dimensions.includes(status.dimension)) {
+        errors.push("Dimension ou statut invalide.");
+      }
+      if (!Array.isArray(vocabularies.explorationStatuses) || !vocabularies.explorationStatuses.includes(status.status)) {
+        errors.push("Dimension ou statut invalide.");
+      }
+      if (["sufficient", "not_applicable"].includes(status.status) && !(typeof status.justification === "string" && status.justification.trim())) {
+        errors.push("Une justification est obligatoire pour ce statut.");
+      }
+      return { correlationId: request.correlationId, payloadJson: JSON.stringify({ valid: errors.length === 0, errors }) };
+    }
+
     if (request.operation !== "validate-observation") {
       return {
         correlationId: request.correlationId,
