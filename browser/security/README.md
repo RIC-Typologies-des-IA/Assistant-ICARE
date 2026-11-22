@@ -7,6 +7,10 @@ Ce dossier décrit le contrat de sécurité de l'application navigateur. Il sép
 - `../security-policy.json` : contrat machine-readable consommé par les tests.
 - `ICARE_SECURITY.tla` : modèle TLA+ abstrait des frontières de données et de l'inférence.
 - `../test/security-posture.test.js` : vérifications exécutables du contrat et de quelques propriétés runtime.
+- `ICARE_ENTERPRISE_GATEWAY.tla` / `.cfg` : modèle formel des contrôles du gateway distant.
+- `../../enterprise-gateway/` : implémentation de référence du service d'entreprise.
+- `../../docs/adr/0001-enterprise-gateway-and-component-capabilities.md` : décision d'architecture.
+- `../../component-model/wit/icare-component.wit` : contrat commun WASI/WIT des composants exécutables.
 
 ## Variables et frontières
 
@@ -19,6 +23,8 @@ Le modèle distingue :
 - `outbound` : requêtes quittant le navigateur ;
 - `userRequestedInference` : consentement explicite à l'inférence ;
 - `serviceWorkerEnabled` : capacité PWA optionnelle, non nécessaire à la sûreté des données.
+
+Le second modèle, `ICARE_ENTERPRISE_GATEWAY.tla`, formalise l'authentification d'entreprise, les alias de modèles autorisés, la destination du gateway et la séparation entre secrets fournisseur serveur et navigateur.
 
 ## Invariants de sûreté
 
