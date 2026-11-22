@@ -14,7 +14,7 @@ Le browser charge ses dépendances de rendu depuis des fichiers locaux versionn�
 
 ## Frontière de sécurité
 
-Le HTML brut n'est jamais considéré comme fiable. DOMPurify applique une allowlist positive avant toute insertion DOM. Sont notamment exclus : scripts, styles fournis par le contenu, iframe, object, embed, formulaires, SVG/MathML fournis par le contenu, custom elements, attributs d'événements, styles inline, noms/id arbitraires et URL de script.
+Le HTML brut n'est jamais considéré comme fiable. DOMPurify applique une allowlist positive avant toute insertion DOM. Sont notamment exclus : scripts, styles fournis par le contenu, iframe, object, embed, formulaires, SVG/MathML fournis par le contenu, custom elements, attributs d'événements, styles inline, noms arbitraires et identifiants DOM non préfixés et URL de script.
 
 Les images distantes sont bloquées par défaut pour éviter qu'un document provoque des requêtes de pistage vers un serveur tiers. Les liens restent utilisables, sont ouverts dans un nouvel onglet et reçoivent `noopener noreferrer`.
 
