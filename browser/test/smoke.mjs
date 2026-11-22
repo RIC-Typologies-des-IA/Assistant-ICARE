@@ -57,6 +57,11 @@ try{
   assert.equal(await page.locator("#dimension-statuses .dimension-status-row").count(),5,"les cinq statuts doivent être éditables");
   assert.equal(await page.locator("#project-title").textContent(),"Mon premier projet");
   await page.locator("#settings-button").click();
+  await page.locator("#enterprise-gateway-url").fill("https://gateway.example.org");
+  assert.equal(await page.locator("#api-key").evaluate(el=>el.parentElement.hidden),true,"le mode entreprise doit masquer les clés fournisseurs");
+  assert.equal(await page.locator("#api-base").evaluate(el=>el.parentElement.hidden),true,"le mode entreprise doit masquer les endpoints fournisseurs directs");
+  await page.locator("#enterprise-gateway-url").fill("");
+  assert.equal(await page.locator("#api-key").evaluate(el=>el.parentElement.hidden),false,"le mode autonome doit réafficher la configuration directe");
   await page.locator("#api-base").fill("https://mock-provider.example/v1");
   await page.locator("#api-model").fill("test-model");
   await page.locator("#api-key").fill("test-secret");
