@@ -53,3 +53,11 @@ Cette livraison restaure un premier socle d'écriture agentique, mais ne préten
 La posture de sécurité local-first, les invariants machine-readable, le modèle TLA+ et le registre des flux réseau sont décrits dans [security/README.md](security/README.md), [security-policy.json](security-policy.json) et [security/NETWORK_FLOWS.md](security/NETWORK_FLOWS.md). Les tests de contrat sont exécutés avec `npm test`.
 
 Les clés API du mode autonome sont chiffrées et conservées dans le coffre IndexedDB décrit ci-dessus. Le mode entreprise permet de renseigner uniquement l'URL HTTPS d'un gateway distant : après authentification par l'organisation, l'application récupère automatiquement les modèles par défaut autorisés pour l'utilisateur. Les clés fournisseurs restent sur le serveur. Le gateway de référence est documenté dans [enterprise-gateway/README.md](../enterprise-gateway/README.md). Le contrat WIT commun des composants exécutables est décrit dans [component-model/README.md](../component-model/README.md), et la décision d'architecture dans [ADR 0001](../docs/adr/0001-enterprise-gateway-and-component-capabilities.md). Les endpoints directs du mode autonome exigent HTTPS, sauf boucle locale. Le gateway exige une identité fournie par un reverse proxy d'authentification de confiance et n'est pas un proxy ouvert.
+
+### Runtime WASI / WIT dans le navigateur
+
+Le runtime des composants est livré avec la PWA. Les composants sont compilés et transpilés pendant les workflows GitHub Actions avec Jco, puis les modules JavaScript/Wasm core produits sont publiés avec le client. Le navigateur n'a pas besoin d'installation locale ni de runtime natif additionnel.
+
+Le premier composant de démonstration respecte le contrat `lifecycle` et peut être invoqué par l'agent. Il ne demande aucune capacité. Le runtime refuse les capacités non accordées, les identifiants absents du registre, les chemins d'entrée hors du répertoire des composants, les payloads de plus de 256 Kio et les réponses dont la corrélation est incohérente.
+
+Cette première tranche n'exécute pas encore les mondes WIT qui importent le contexte, le stockage, l'inférence ou la messagerie. Ces interfaces nécessitent leurs liaisons hôte dédiées et des politiques de permissions avant d'être activées. Les composants historiques restent dans l'hôte JavaScript jusqu'à leur migration.
