@@ -41,8 +41,41 @@ try {
   assert.equal(result.manifest.componentId, "icare:example/hello");
   assert.deepEqual(result.manifest.requiredCapabilities, []);
   assert.match(result.output.message, /Bonjour ICARE depuis un composant WebAssembly/);
+  const validator = await (await page.evaluate(async () => {
+    const { createComponentRuntime } = await import("./component-runtime.js");
+    const component = await createComponentRuntime().then(runtime => runtime.load("ontology-validator"));
+    return {
+      manifest: component.manifest,
+      valid: await component.invoke("validate-observation", {
+        observation: { text: "Observation", dimensions: ["I", "R"], primary_dimension: "I", epistemic: "reported", confidence: 0.8, source: "conversation" },
+        vocabularies: {
+          temporal: ["past", "present", "future", "unknown"],
+          evaluation: ["desired", "undesired", "feared", "preferred", "unfavorable", "neutral", "unknown"],
+          modality: ["possible", "impossible", "necessary", "permitted", "forbidden", "unknown"],
+          epistemic: ["observed", "asserted", "reported", "inferred", "hypothesis", "predicted", "unknown"],
+          practical: ["considered", "proposed", "decided", "committed", "in_progress", "completed", "abandoned", "unspecified"]
+        }
+      }),
+      invalid: await component.invoke("validate-observation", {
+        observation: { text: "Observation", dimensions: ["I"], primary_dimension: "E", epistemic: "reported", confidence: 1.4, source: "conversation" },
+        vocabularies: {
+          temporal: ["past", "present", "future", "unknown"],
+          evaluation: ["desired", "undesired", "feared", "preferred", "unfavorable", "neutral", "unknown"],
+          modality: ["possible", "impossible", "necessary", "permitted", "forbidden", "unknown"],
+          epistemic: ["observed", "asserted", "reported", "inferred", "hypothesis", "predicted", "unknown"],
+          practical: ["considered", "proposed", "decided", "committed", "in_progress", "completed", "abandoned", "unspecified"]
+        }
+      })
+    };
+  })).then(value => value);
+  assert.equal(validator.manifest.componentId, "icare:ontology/validator");
+  assert.equal(validator.valid.valid, true);
+  assert.equal(validator.valid.normalized.primary_dimension, "I");
+  assert.equal(validator.invalid.valid, false);
+  assert.ok(validator.invalid.errors.some(error => error.includes("dimension principale")));
+  assert.ok(validator.invalid.errors.some(error => error.includes("confiance")));
   assert.deepEqual(errors, []);
-  console.log("WASI browser smoke test passed: component loaded, lifecycle invoked, and output returned.");
+  console.log("WASI browser smoke test passed: lifecycle, ontology validation, and policy-free guest invocation.");
 } finally {
   if (browser) await browser.close();
   await new Promise(resolveClose => server.close(resolveClose));
