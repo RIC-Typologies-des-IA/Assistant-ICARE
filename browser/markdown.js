@@ -103,7 +103,8 @@ window.DOMPurify.addHook("uponSanitizeAttribute", (node, data) => {
     );
     data.attrValue = classes.join(" ");
     if (!data.attrValue) data.keepAttr = false;
-  }});
+  }
+});
 
 window.DOMPurify.addHook("afterSanitizeAttributes", node => {
   if (node.nodeName === "A" && node.hasAttribute("href")) {
