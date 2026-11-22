@@ -24,6 +24,7 @@ async function loadSettings(){
  state.transcriptionSettings=await get(db,"settings","inference-transcription")||{id:"inference-transcription",baseUrl:"http://127.0.0.1:13305/v1",model:""};
  if(!state.transcriptionSettings.baseUrl)state.transcriptionSettings.baseUrl="http://127.0.0.1:13305/v1";
  if(state.transcriptionSettings.baseUrl.includes(":13305")&&state.transcriptionSettings.model==="whisper-1")state.transcriptionSettings.model="";
+ if(state.gatewayUrl&&!state.enterpriseModels.chatModel&&state.settings.model){state.enterpriseModels={chatModel:state.settings.model,transcriptionModel:state.transcriptionSettings.model||""};await put(db,"settings",{id:"enterprise-inference-models",...state.enterpriseModels});}
  const credentials=await migrateLegacyCredentials(db,{
   text:state.settings.apiKey||sessionStorage.getItem("icare-api-key")||"",
   audio:state.transcriptionSettings.apiKey||sessionStorage.getItem("icare-transcription-api-key")||"",
