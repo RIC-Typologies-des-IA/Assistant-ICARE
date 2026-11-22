@@ -37,3 +37,47 @@ WASI n'est pas, à lui seul, le système de permissions ICARE : les imports doiv
 5. Ajouter des tests de conformité du manifeste, des imports et des refus de capacités.
 
 La présente PR livre le contrat WIT initial et le gateway d'entreprise. Le runtime WebAssembly complet et la migration des composants sont des étapes ultérieures explicitement non revendiquées comme terminées.
+
+## État d'implémentation — première tranche runtime navigateur
+
+La branche `feat/wasi-component-runtime` ajoute un premier chemin d'exécution vérifiable, sans prétendre que la migration générale est achevée.
+
+### Chaîne de construction
+
+- `@bytecodealliance/jco` est épinglé à la version `1.0.3` dans les workflows.
+- `component-model/examples/hello/hello.js` implémente le monde WIT `component-base`.
+- `browser/scripts/build-components.mjs` produit le composant `.wasm`, puis le transpile en modules ES et module(s) Wasm core compatibles avec les navigateurs.
+- Les artefacts sont générés pendant CI et le build GitHub Pages ; ils ne sont pas suivis dans Git.
+- Le Service Worker précache le runtime, le registre, le module transpillé et son module Wasm core.
+
+Les navigateurs savent exécuter WebAssembly core, mais pas instancier nativement le format Component Model. Jco transpile donc le composant vers des modules JavaScript et Wasm core exécutables dans le navigateur. Cette étape est explicitement une adaptation de compatibilité, pas une exécution native du binaire composant par le navigateur.
+
+### Hôte ICARE et politique de capacités
+
+- `browser/component-runtime.js` ne charge que les identifiants du registre versionné.
+- Le chemin d'entrée est dérivé de l'identifiant et doit correspondre strictement à `./components/<id>/<id>.js`.
+- Le manifeste retourné par `lifecycle.describe()` doit correspondre à l'identité épinglée dans le registre.
+- Les capacités inconnues sont rejetées ; les capacités requises doivent être accordées par l'hôte.
+- Le premier monde `component-base` n'importe aucune capacité : il est donc interdit à un composant de déclarer des capacités dans ce monde, même si une configuration de grants le demanderait. Un monde WIT doté d'importations hôte explicites et de leurs liaisons contrôlées est requis avant d'accorder contexte, stockage, inférence ou messagerie.
+- Les payloads JSON sont bornés à 256 Kio et les identifiants de corrélation sont contrôlés à l'aller et au retour.
+- Le runtime ne fournit aucun accès réseau, système de fichiers, secret ou stockage ambiant.
+
+Le premier composant `hello` sert de test de bout en bout du contrat `lifecycle`. Il est invocable par l'agent ICARE via les outils `list_wasi_components` et `invoke_wasi_component`. Il ne reçoit aucune capacité.
+
+### Migration progressive des composants historiques
+
+| Composant actuel | Cible WIT envisagée | Capacités candidates |
+|---|---|---|
+| Agent et orchestration (`browser/agent.js`) | `component-agent` | context-read, model-inference, tool-execution, component-messaging |
+| Outils de l'espace de travail (`browser/workspace-tools.js`) | monde métier dédié | context-read, context-write, project-storage-read, project-storage-write |
+| Adaptateurs d'inférence (`browser/inference.js`) | interface hôte, pas de fournisseur dans le guest | model-inference, audio-transcription |
+| Stockage local (`browser/storage.js`) | interface hôte de stockage | project-storage-read, project-storage-write |
+
+Ce tableau décrit les cibles, pas des migrations déjà réalisées. Les fonctions JavaScript historiques restent exécutées dans l'hôte ; elles ne sont pas présentées comme isolées par WASI. Leur migration se fera par tranches, avec tests de conformité et adaptateurs temporaires à privilèges minimaux.
+
+### Tests
+
+- Tests unitaires du registre, du manifeste, des capacités inconnues/non accordées, des limites de payload et de la corrélation.
+- Build CI du vrai binaire composant depuis le WIT.
+- Smoke test Playwright dans Chromium : chargement du composant transpillé, appel de `lifecycle` et vérification du résultat.
+- Build GitHub Pages vérifie la présence de tous les artefacts WASI avant publication.
