@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { chatCompletionsEndpoint, audioTranscriptionsEndpoint, chatCompletion } from "../inference.js";
+import { chatCompletionsEndpoint, audioTranscriptionsEndpoint, chatCompletion, resolveInferenceRoute } from "../inference.js";
 import { webcrypto } from "node:crypto";
 import { loadCredentialVault, saveCredentialVault, migrateLegacyCredentials } from "../credentials.js";
 globalThis.crypto ||= webcrypto;
@@ -41,6 +41,10 @@ test("enterprise gateway requests can include the enterprise SSO session without
   assert.equal(captured.options.headers.Authorization, undefined);
 });
 
+test("the selected gateway route resolves without a provider key and includes SSO cookies",()=>{
+ const target=resolveInferenceRoute({kind:"text",routing:{text:"gateway",audio:"local"},gateways:{text:"https://gateway.example.org"},gatewayModels:{text:"managed-chat"}});
+ assert.deepEqual(target,{baseUrl:"https://gateway.example.org",model:"managed-chat",apiKey:"",credentials:"include",route:"gateway"});
+});
 test("credentials cannot be smuggled in endpoint URLs", () => {
   assert.throws(() => chatCompletionsEndpoint("https://alice:secret@inference.example/v1"), /identifiants ne doivent pas être intégrés/);
 });
@@ -79,9 +83,11 @@ test("legacy plaintext API keys are migrated into the encrypted vault", async ()
 test("frontend uses the encrypted vault and never stores API keys in plaintext settings", async () => {
   const [app, html, wit] = await Promise.all([read("../app.js"), read("../index.html"), read("../../component-model/wit/icare-component.wit")]);
   assert.ok(app.includes("saveCredentialVault(db"));
-  assert.match(app, /enterprise-gateway/);
-  assert.match(app, /apiKey:"",credentials:"include"/);
-  assert.match(html, /enterprise-gateway-url/);
+  assert.match(app, /resolveInferenceRoute/);
+  assert.match(app, /inference-gateways/);
+  assert.match(html, /gateway-shared-url/);
+  assert.match(html, /gateway-text-url/);
+  assert.match(html, /gateway-audio-url/);
   assert.ok(app.includes("migrateLegacyCredentials(db"));
   assert.ok(app.includes('sessionStorage.removeItem("icare-api-key"'));
   assert.ok(!app.includes('sessionStorage.setItem("icare-api-key"'));
