@@ -7,6 +7,7 @@ const config = {
   cors: { allowedOrigins: ["https://icare.example.org"] },
   auth: { identityHeader: "x-icare-authenticated-user", groupsHeader: "x-icare-authenticated-groups" },
   limits: { requestsPerMinute: 10, maxJsonBytes: 4096, maxAudioBytes: 4096, timeoutMs: 1000 },
+  defaults: { chatModel: "small-chat" },
   models: [{ id: "small-chat", provider: "test", upstreamBaseUrl: "https://provider.example/v1", upstreamModel: "real-small", apiKeyEnv: "ICARE_TEST_KEY", capabilities: ["chat"], allowedGroups: ["research"] }]
 };
 
@@ -23,6 +24,17 @@ test("gateway denies requests without an authenticated reverse-proxy identity", 
   const url = "http://127.0.0.1:" + server.address().port;
   const response = await fetch(url + "/v1/models", { headers: { Origin: "https://icare.example.org" } });
   assert.equal(response.status, 401);
+});
+
+test("gateway returns only defaults visible to the authenticated group", async t => {
+  const server = createGatewayServer(config);
+  await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  const url = "http://127.0.0.1:" + server.address().port;
+  const denied = await fetch(url + "/v1/icare/config", { headers: { Origin: "https://icare.example.org", "X-ICARE-Authenticated-User": "alice", "X-ICARE-Authenticated-Groups": "staff" } });
+  assert.equal((await denied.json()).defaults.chatModel, "");
+  const allowed = await fetch(url + "/v1/icare/config", { headers: { Origin: "https://icare.example.org", "X-ICARE-Authenticated-User": "alice", "X-ICARE-Authenticated-Groups": "research" } });
+  assert.equal((await allowed.json()).defaults.chatModel, "small-chat");
 });
 
 test("gateway exposes only configured models to an authenticated user", async t => {
