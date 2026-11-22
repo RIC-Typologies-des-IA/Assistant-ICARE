@@ -108,10 +108,11 @@ test("brand logo, browser favicon and PWA icon use bundled same-origin assets", 
   ]);
   const manifest = JSON.parse(manifestText);
   assert.match(html, /class="ric-logo" src="\.\/ric-logo\.png"/);
-  assert.match(html, /rel="icon" type="image\/svg\+xml" href="\.\/icon\.svg"/);
+  assert.match(html, /rel="icon" type="image\/svg\+xml" href="\.\/favicon\.svg\?v=0\.10\.5"/);
   assert.match(html, /rel="apple-touch-icon" href="\.\/ric-logo\.png"/);
-  assert.equal(manifest.icons[0].src, "./icon.svg");
+  assert.equal(manifest.icons[0].src, "./favicon.svg");
   assert.equal(manifest.icons[0].type, "image/svg+xml");
   assert.ok(sw.includes('"./ric-logo.png"'), "le Service Worker doit précacher le logo de la bannière");
+  assert.ok(sw.includes('"./favicon.svg"'), "le Service Worker doit précacher le favicon dédié");
   assert.ok(logo.byteLength > 1000, "le logo RIC doit être embarqué dans le build navigateur");
 });
