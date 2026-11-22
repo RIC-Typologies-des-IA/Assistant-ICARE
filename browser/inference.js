@@ -2,16 +2,19 @@ function cleanBase(baseUrl){let base=String(baseUrl||"").trim().replace(/\/+$/,"
 export function chatCompletionsEndpoint(baseUrl){const base=cleanBase(baseUrl);return base.endsWith("/v1")?base+"/chat/completions":base+"/v1/chat/completions";}
 function friendlyNetworkError(error){if(error?.name==="AbortError")return "Délai dépassé pendant l’appel au fournisseur.";if(error instanceof TypeError)return "Le navigateur ne parvient pas à joindre l’API. Vérifiez l’adresse, que le serveur est démarré et qu’il autorise CORS depuis https://ric-typologies-des-ia.github.io. Pour un moteur local, configurez explicitement les origines autorisées.";return error?.message||String(error);}
 async function request(url,options,fetchImpl){try{return await fetchImpl(url,options);}catch(error){throw new Error(friendlyNetworkError(error));}}
-export function resolveTranscriptionConfig({activeMode="standalone",standalone={},enterprise={},testOnly=false}={}) {
-  if (!testOnly && activeMode === "enterprise") {
-    return {
-      gatewayUrl: enterprise.gatewayUrl || "",
-      baseUrl: "",
-      model: enterprise.transcriptionModel || "",
-      apiKey: ""
-    };
-  }
-  return { ...standalone, gatewayUrl: "" };
+export function resolveInferenceRoute({kind="text",routing={},localSettings={},gateways={},gatewayModels={},sameGateway=false}={}) {
+ const route=kind==="audio"?"audio":"text";
+ if(routing[route]==="gateway"){
+  const raw=sameGateway&&routing.text==="gateway"&&routing.audio==="gateway"?gateways.text:gateways[route];
+  if(!raw)throw new Error("Renseignez l’adresse du gateway pour "+(route==="audio"?"la transcription":"le traitement du texte")+".");
+  let parsed;try{parsed=new URL(raw);}catch{throw new Error("Adresse de gateway invalide.");}
+  if(parsed.protocol!=="https:")throw new Error("Le gateway doit utiliser HTTPS.");
+  if(parsed.username||parsed.password)throw new Error("Les identifiants ne doivent pas être intégrés à l’URL du gateway.");
+  while(parsed.pathname.length>1&&parsed.pathname.endsWith("/"))parsed.pathname=parsed.pathname.slice(0,-1);
+  const pathname=parsed.pathname==="/"?"":parsed.pathname;
+  return {baseUrl:parsed.origin+pathname,model:gatewayModels[route]||"",apiKey:"",credentials:"include",route:"gateway"};
+ }
+ return {baseUrl:localSettings.baseUrl||"",model:localSettings.model||"",apiKey:localSettings.apiKey||"",credentials:"omit",route:"local"};
 }
 
 export async function chatCompletion({baseUrl,model,apiKey="",messages,credentials="omit",fetchImpl=fetch}){if(!String(model||"").trim())throw new Error("Renseignez l’identifiant exact du modèle.");const headers={"Content-Type":"application/json"};if(apiKey)headers.Authorization="Bearer "+apiKey;const response=await request(chatCompletionsEndpoint(baseUrl),{method:"POST",headers,body:JSON.stringify({model,messages,temperature:.4,stream:false}),credentials},fetchImpl);if(!response.ok){let detail="";try{const data=await response.json();detail=data.error?.message||data.message||"";}catch{}throw new Error("Erreur fournisseur "+response.status+(detail?" : "+detail:"")+". Vérifiez la clé, le modèle et les droits d’accès.");}const data=await response.json(),content=data.choices?.[0]?.message?.content;if(typeof content!=="string"||!content.trim())throw new Error("Réponse du fournisseur vide ou non reconnue (format Chat Completions attendu).");return content.trim();}

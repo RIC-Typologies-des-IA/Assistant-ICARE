@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { chatCompletionsEndpoint, chatCompletion, audioTranscriptionsEndpoint, transcribeAudio, audioBufferToWav, listModels, resolveTranscriptionConfig } from "../inference.js";
+import { chatCompletionsEndpoint, chatCompletion, audioTranscriptionsEndpoint, transcribeAudio, audioBufferToWav, listModels, resolveInferenceRoute } from "../inference.js";
 test("normalise les endpoints OpenAI compatibles",()=>{assert.equal(chatCompletionsEndpoint("https://api.example/v1"),"https://api.example/v1/chat/completions");assert.equal(chatCompletionsEndpoint("https://api.example"),"https://api.example/v1/chat/completions");assert.equal(chatCompletionsEndpoint("https://api.example/v1/chat/completions"),"https://api.example/v1/chat/completions");});
 test("refuse une URL vide",()=>assert.throws(()=>chatCompletionsEndpoint("  "),/adresse de l.?API/i));
 test("envoie le modèle, les messages et le bearer token",async()=>{let captured;const answer=await chatCompletion({baseUrl:"https://api.example/v1",model:"model-x",apiKey:"secret",messages:[{role:"user",content:"bonjour"}],fetchImpl:async(url,options)=>{captured={url,options};return{ok:true,json:async()=>({choices:[{message:{content:"Bonjour."}}]})};}});assert.equal(answer,"Bonjour.");assert.equal(captured.url,"https://api.example/v1/chat/completions");assert.equal(captured.options.headers.Authorization,"Bearer secret");assert.equal(JSON.parse(captured.options.body).model,"model-x");});
@@ -23,15 +23,31 @@ test("refuse HTTP pour les endpoints distants",()=>{assert.throws(()=>chatComple
 test("refuse les identifiants dans une URL d’API",()=>assert.throws(()=>chatCompletionsEndpoint("https://user:password@api.example/v1"),/identifiants ne doivent pas être intégrés/));
 test("autorise HTTP uniquement sur loopback, IPv4 et IPv6",()=>{assert.equal(chatCompletionsEndpoint("http://localhost:11434/v1"),"http://localhost:11434/v1/chat/completions");assert.equal(chatCompletionsEndpoint("http://127.0.0.1:13305/v1"),"http://127.0.0.1:13305/v1/chat/completions");assert.equal(chatCompletionsEndpoint("http://[::1]:11434/v1"),"http://[::1]:11434/v1/chat/completions");assert.throws(()=>chatCompletionsEndpoint("http://192.168.1.2:11434/v1"),/HTTPS est obligatoire/);});
 
-test("la dictée active en mode entreprise utilise le modèle audio fourni par le gateway",()=>{
- const config=resolveTranscriptionConfig({activeMode:"enterprise",standalone:{baseUrl:"https://local.example/v1",model:"local-audio",apiKey:"local-secret"},enterprise:{gatewayUrl:"https://gateway.example.org",transcriptionModel:"enterprise-audio"}});
- assert.deepEqual(config,{gatewayUrl:"https://gateway.example.org",baseUrl:"",model:"enterprise-audio",apiKey:""});
+test("route la transcription en local et le texte vers une Gateway",()=>{
+ const audio=resolveInferenceRoute({kind:"audio",routing:{audio:"local",text:"gateway"},localSettings:{baseUrl:"http://127.0.0.1:13305/v1",model:"whisper",apiKey:"local-audio"},gateways:{text:"https://text.example.org"},gatewayModels:{text:"chat-model"}});
+ const text=resolveInferenceRoute({kind:"text",routing:{audio:"local",text:"gateway"},localSettings:{baseUrl:"https://local.example/v1",model:"local-chat",apiKey:"secret"},gateways:{text:"https://text.example.org"},gatewayModels:{text:"chat-model"}});
+ assert.deepEqual(audio,{baseUrl:"http://127.0.0.1:13305/v1",model:"whisper",apiKey:"local-audio",credentials:"omit",route:"local"});
+ assert.deepEqual(text,{baseUrl:"https://text.example.org",model:"chat-model",apiKey:"",credentials:"include",route:"gateway"});
 });
-test("le test de configuration audio reste autonome même si le mode entreprise est actif",()=>{
- const config=resolveTranscriptionConfig({activeMode:"enterprise",testOnly:true,standalone:{baseUrl:"https://local.example/v1",model:"local-audio",apiKey:"local-secret"},enterprise:{gatewayUrl:"https://gateway.example.org",transcriptionModel:"enterprise-audio"}});
- assert.deepEqual(config,{gatewayUrl:"",baseUrl:"https://local.example/v1",model:"local-audio",apiKey:"local-secret"});
+test("route la transcription vers une Gateway et le texte en local",()=>{
+ const audio=resolveInferenceRoute({kind:"audio",routing:{audio:"gateway",text:"local"},localSettings:{baseUrl:"http://127.0.0.1:13305/v1",model:"whisper",apiKey:"local-audio"},gateways:{audio:"https://audio.example.org"},gatewayModels:{audio:"remote-whisper"}});
+ const text=resolveInferenceRoute({kind:"text",routing:{audio:"gateway",text:"local"},localSettings:{baseUrl:"http://localhost:11434/v1",model:"local-chat",apiKey:"local-text"},gateways:{audio:"https://audio.example.org"},gatewayModels:{audio:"remote-whisper"}});
+ assert.equal(audio.baseUrl,"https://audio.example.org");assert.equal(audio.model,"remote-whisper");assert.equal(audio.credentials,"include");assert.equal(audio.apiKey,"");
+ assert.equal(text.baseUrl,"http://localhost:11434/v1");assert.equal(text.model,"local-chat");assert.equal(text.credentials,"omit");assert.equal(text.apiKey,"local-text");
 });
-test("la dictée active en mode autonome conserve son profil audio autonome",()=>{
- const config=resolveTranscriptionConfig({activeMode:"standalone",standalone:{baseUrl:"https://local.example/v1",model:"local-audio",apiKey:"local-secret"},enterprise:{gatewayUrl:"https://gateway.example.org",transcriptionModel:"enterprise-audio"}});
- assert.deepEqual(config,{gatewayUrl:"",baseUrl:"https://local.example/v1",model:"local-audio",apiKey:"local-secret"});
+test("partage une seule Gateway lorsque les deux fonctions sont routées à la même adresse",()=>{
+ const options={routing:{audio:"gateway",text:"gateway"},gateways:{text:"https://shared.example.org",audio:"https://audio-other.example.org"},gatewayModels:{text:"chat",audio:"speech"},sameGateway:true};
+ assert.equal(resolveInferenceRoute({...options,kind:"text"}).baseUrl,"https://shared.example.org");
+ assert.equal(resolveInferenceRoute({...options,kind:"audio"}).baseUrl,"https://shared.example.org");
 });
+test("accepte deux Gateways distinctes pour audio et texte",()=>{
+ const options={routing:{audio:"gateway",text:"gateway"},gateways:{text:"https://text.example.org",audio:"https://audio.example.org"},gatewayModels:{text:"chat",audio:"speech"},sameGateway:false};
+ assert.equal(resolveInferenceRoute({...options,kind:"text"}).baseUrl,"https://text.example.org");
+ assert.equal(resolveInferenceRoute({...options,kind:"audio"}).baseUrl,"https://audio.example.org");
+});
+test("refuse les gateways HTTP et exige une adresse pour chaque route distante",()=>{
+ assert.throws(()=>resolveInferenceRoute({kind:"text",routing:{text:"gateway"},gateways:{text:"http://gateway.example.org"}}),/HTTPS/);
+ assert.throws(()=>resolveInferenceRoute({kind:"audio",routing:{audio:"gateway"},gateways:{}}),/adresse du gateway/);
+});
+
+test("refuse les identifiants intégrés à l’URL d’une Gateway",()=>assert.throws(()=>resolveInferenceRoute({kind:"text",routing:{text:"gateway"},gateways:{text:"https://user:secret@gateway.example.org"}}),/identifiants/));
