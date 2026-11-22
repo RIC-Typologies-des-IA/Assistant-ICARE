@@ -91,7 +91,12 @@ export function createComponentRuntime({
     if (!lifecycle || typeof lifecycle.describe !== "function" || typeof lifecycle.invoke !== "function") {
       throw new Error("Le composant ne respecte pas le contrat lifecycle WIT.");
     }
-    const manifest = authorizeManifest(lifecycle.describe(), grants[id] || []);
+    const described = lifecycle.describe();
+    if (described?.componentId !== entry.componentId) throw new Error("L'identifiant du manifeste ne correspond pas au registre ICARE.");
+    const manifest = authorizeManifest(described, grants[id] || []);
+    if (entry.world === "component-base" && manifest.requiredCapabilities.length) {
+      throw new Error("Le monde WIT component-base ne déclare aucun import de capacité ; créez un monde WIT dédié avant de demander des droits.");
+    }
     const instance = Object.freeze({
       manifest,
       async invoke(operation, payload = {}, correlationId = crypto.randomUUID()) {
