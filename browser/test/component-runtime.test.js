@@ -8,7 +8,7 @@ const manifest = {
   displayName: "Test",
   requiredCapabilities: []
 };
-const registry = { schemaVersion: 1, components: [{ id: "sample", entrypoint: "./components/sample/sample.js", world: "component-base" }] };
+const registry = { schemaVersion: 1, components: [{ id: "sample", componentId: "icare:test/component", entrypoint: "./components/sample/sample.js", world: "component-base" }] };
 
 function runtime({ described = manifest, grants = [], invoke } = {}) {
   return createComponentRuntime({
@@ -43,6 +43,11 @@ test("rejects unknown capabilities instead of silently granting them", () => {
     () => authorizeManifest({ ...manifest, requiredCapabilities: ["network-anywhere"] }, ["network-anywhere"]),
     /Capacité inconnue ou non prise en charge/
   );
+});
+
+test("component-base cannot claim capabilities because its WIT world has no imports", async () => {
+  const host = await runtime({ described: { ...manifest, requiredCapabilities: ["model-inference"] }, grants: ["model-inference"] });
+  await assert.rejects(host.load("sample"), /component-base ne déclare aucun import de capacité/);
 });
 
 test("rejects malformed manifests and oversized payloads", async () => {
