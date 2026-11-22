@@ -1,0 +1,36 @@
+{
+  "listen": { "host": "127.0.0.1", "port": 8787 },
+  "cors": {
+    "allowedOrigins": [
+      "https://ric-typologies-des-ia.github.io"
+    ]
+  },
+  "auth": {
+    "identityHeader": "x-icare-authenticated-user",
+    "groupsHeader": "x-icare-authenticated-groups"
+  },
+  "limits": {
+    "requestsPerMinute": 60,
+    "maxJsonBytes": 2097152,
+    "maxAudioBytes": 26214400,
+    "timeoutMs": 90000
+  },
+  "models": [
+    {
+      "id": "gpt-4.1-mini",
+      "provider": "openai",
+      "upstreamBaseUrl": "https://api.openai.com/v1",
+      "upstreamModel": "gpt-4.1-mini",
+      "apiKeyEnv": "ICARE_OPENAI_API_KEY",
+      "capabilities": ["chat"]
+    },
+    {
+      "id": "whisper-1",
+      "provider": "openai",
+      "upstreamBaseUrl": "https://api.openai.com/v1",
+      "upstreamModel": "whisper-1",
+      "apiKeyEnv": "ICARE_OPENAI_API_KEY",
+      "capabilities": ["transcription"]
+    }
+  ]
+}
