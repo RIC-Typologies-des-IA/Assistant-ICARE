@@ -45,7 +45,6 @@ La branche `feat/wasi-component-runtime` ajoute un premier chemin d'exécution v
 ### Chaîne de construction
 
 - `@bytecodealliance/jco` est épinglé à la version `1.40.0` dans les workflows.
-- `component-model/examples/hello/hello.js` implémente le monde WIT `component-base`.
 - `browser/scripts/build-components.mjs` produit le composant `.wasm`, puis le transpile en modules ES et module(s) Wasm core compatibles avec les navigateurs.
 - Les artefacts sont générés pendant CI et le build GitHub Pages ; ils ne sont pas suivis dans Git.
 - Le Service Worker précache le runtime, le registre, le module transpillé et son module Wasm core.
