@@ -154,7 +154,7 @@ $("test-gateway-audio")?.addEventListener("click",async()=>{if(recorder?.state==
 $("new-project").onclick=()=>projectDialog();$("edit-project").onclick=()=>projectDialog(state.projects.find(p=>p.id===state.projectId));
 $("project-form").addEventListener("submit",async e=>{e.preventDefault();try{await saveProject();$("project-dialog").close();}catch(error){alert("Impossible d’enregistrer le projet : "+error.message);}});
 $("project-select").onchange=async e=>{state.projectId=e.target.value;renderProjects();await loadTurns();await loadWorkspace();document.body.classList.remove("project-menu-open");$("project-menu-toggle").setAttribute("aria-expanded","false");};
-$("settings-button").onclick=()=>{$("settings-dialog").showModal();setSettingsMode(state.activeMode);};
+
 async function saveInferenceConfiguration(){
  const status=$("routing-status"),button=$("save-inference-config");
  const routing={text:$("text-route").value,audio:$("audio-route").value};
