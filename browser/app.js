@@ -91,7 +91,7 @@ async function loadSettings(){
 }
 function modelLabel(){
  const text=state.routing.text==="gateway"?"Gateway · "+(state.gatewayModels.text||"modèle non attribué"):(state.settings.model||"non configuré")+" (direct)";
- const audio=state.routing.audio==="gateway"?"Gateway · "+(state.gatewayModels.audio||"modèle non attribué"):(state.transcriptionSettings.model||"non configuré")+" (local)";
+ const audio=state.routing.audio==="gateway"?"Gateway · "+(state.gatewayModels.audio||"modèle non attribué"):(state.transcriptionSettings.model||"non configuré")+" (direct)";
  $("model-label").textContent="Texte : "+text+" · Transcription : "+audio;
 }
 function resolveInferenceTarget(kind){
