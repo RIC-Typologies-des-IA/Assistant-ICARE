@@ -46,6 +46,8 @@ jobs:
           node --check browser/theme.js
           test -s browser/vendor/markdown-it.min.js
           test -s browser/vendor/purify.min.js
+          test -s browser/vendor/highlight.min.js
+          test -s browser/vendor/mermaid.min.js
       - name: Validate version consistency
         run: |
           node -e 'const fs=require("fs"); const p=JSON.parse(fs.readFileSync("browser/package.json")); const s=fs.readFileSync("browser/version.js","utf8"); const v=s.match(/"([^"]+)"/)?.[1]; const parts=v?.split("."); if (!v || p.version!==v || parts?.length!==3 || parts.some(x=>!/^[0-9]+$/.test(x))) throw new Error("Invalid or inconsistent MAJOR.MINOR.PATCH: "+p.version+" / "+v);'
