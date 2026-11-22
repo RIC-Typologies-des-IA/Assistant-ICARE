@@ -30,6 +30,18 @@ const markdown = window.markdownit({
 // Responsive tables are wrapped at parse time, before sanitization.
 markdown.renderer.rules.table_open = () => '<div class="markdown-table-wrap"><table>';
 markdown.renderer.rules.table_close = () => '</table></div>';
+for (const type of ["th_open", "td_open"]) {
+  markdown.renderer.rules[type] = (tokens, index, options, env, self) => {
+    const token = tokens[index];
+    const styleIndex = token.attrIndex("style");
+    if (styleIndex >= 0) {
+      const alignment = token.attrs[styleIndex][1].match(/text-align:\\s*(left|center|right)/i)?.[1]?.toLowerCase();
+      token.attrs.splice(styleIndex, 1);
+      if (alignment) token.attrJoin("class", "align-" + alignment);
+    }
+    return self.renderToken(tokens, index, options);
+  };
+}
 
 // Mermaid source is emitted as escaped text. The diagram engine receives it only after
 // sanitization; its SVG is sanitized separately before it enters the document.
@@ -85,7 +97,7 @@ window.DOMPurify.addHook("uponSanitizeAttribute", (node, data) => {
   }
   if (name === "class") {
     const classes = data.attrValue.split(/\s+/).filter(value =>
-      /^(?:language-[a-z0-9_+-]+|hljs(?:-[a-z0-9_+-]+)?|markdown-table-wrap|task-list-item|contains-task-list|mermaid-source|footnotes|footnote-ref|footnote-backref)$/.test(value)
+      /^(?:language-[a-z0-9_+-]+|hljs(?:-[a-z0-9_+-]+)?|markdown-table-wrap|task-list-item|contains-task-list|mermaid-source|footnotes|footnote-ref|footnote-backref|align-left|align-center|align-right)$/.test(value)
     );
     data.attrValue = classes.join(" ");
     if (!data.attrValue) data.keepAttr = false;
