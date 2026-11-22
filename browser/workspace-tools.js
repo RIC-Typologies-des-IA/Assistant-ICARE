@@ -73,6 +73,21 @@ export function createIcareToolExecutor({
     }
 
     if (name === "propose_observation") {
+      if (componentRuntime) {
+        const validator = await componentRuntime.load("ontology-validator");
+        const validation = await validator.invoke("validate-observation", {
+          observation: args,
+          vocabularies: {
+            temporal: ontology.temporal,
+            evaluation: ontology.evaluation,
+            modality: ontology.modality,
+            epistemic: ontology.epistemic,
+            practical: ontology.practical
+          }
+        });
+        if (!validation.valid) throw new Error(validation.errors.join(" "));
+        args = validation.normalized;
+      }
       if (!nonEmpty(args.text)) throw new Error("Le texte de l'observation est obligatoire.");
       if (!Array.isArray(args.dimensions) || !args.dimensions.length) throw new Error("Au moins une dimension ICARE valide est obligatoire.");
       const dimensions = [...new Set(args.dimensions)];
