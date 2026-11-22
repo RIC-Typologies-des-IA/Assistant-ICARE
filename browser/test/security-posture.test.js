@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { chatCompletionsEndpoint, audioTranscriptionsEndpoint } from "../inference.js";
+import { chatCompletionsEndpoint, audioTranscriptionsEndpoint, chatCompletion } from "../inference.js";
 import { webcrypto } from "node:crypto";
 import { loadCredentialVault, saveCredentialVault, migrateLegacyCredentials } from "../credentials.js";
 globalThis.crypto ||= webcrypto;
@@ -31,6 +31,14 @@ test("HTTP is restricted to loopback inference services", () => {
   assert.equal(chatCompletionsEndpoint("http://127.0.0.1:13305/v1"), "http://127.0.0.1:13305/v1/chat/completions");
   assert.equal(chatCompletionsEndpoint("http://[::1]:11434/v1"), "http://[::1]:11434/v1/chat/completions");
   assert.throws(() => chatCompletionsEndpoint("http://192.168.1.20:11434/v1"), /HTTPS est obligatoire/);
+});
+
+test("enterprise gateway requests can include the enterprise SSO session without a provider key", async () => {
+  let captured;
+  await chatCompletion({ baseUrl: "https://gateway.example", model: "managed-model", apiKey: "", credentials: "include", messages: [{ role: "user", content: "hello" }], fetchImpl: async (url, options) => { captured = { url, options }; return new Response(JSON.stringify({ choices: [{ message: { content: "ok" } }] }), { status: 200, headers: { "Content-Type": "application/json" } }); } });
+  assert.equal(captured.url, "https://gateway.example/v1/chat/completions");
+  assert.equal(captured.options.credentials, "include");
+  assert.equal(captured.options.headers.Authorization, undefined);
 });
 
 test("credentials cannot be smuggled in endpoint URLs", () => {
@@ -71,6 +79,9 @@ test("legacy plaintext API keys are migrated into the encrypted vault", async ()
 test("frontend uses the encrypted vault and never stores API keys in plaintext settings", async () => {
   const [app, html] = await Promise.all([read("../app.js"), read("../index.html")]);
   assert.match(app, /saveCredentialVault\\(db/);
+  assert.match(app, /enterprise-gateway/);
+  assert.match(app, /apiKey:"",credentials:"include"/);
+  assert.match(html, /enterprise-gateway-url/);
   assert.match(app, /migrateLegacyCredentials\\(db/);
   assert.match(app, /sessionStorage\\.removeItem\\("icare-api-key"/);
   assert.doesNotMatch(app, /sessionStorage\\.setItem\\("icare-api-key"/);
