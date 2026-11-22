@@ -42,6 +42,7 @@ jobs:
           node --check browser/component-runtime.js
           node --check component-model/examples/ontology-validator/ontology-validator.js
           node --check component-model/examples/context-summary/context-summary.js
+          node --check component-model/examples/storage-probe/storage-probe.js
           node --check browser/scripts/build-components.mjs
           node --check browser/inference.js
           node --check enterprise-gateway/server.mjs
