@@ -2,6 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { chatCompletionsEndpoint, audioTranscriptionsEndpoint } from "../inference.js";
+import { webcrypto } from "node:crypto";
+import { loadCredentialVault, saveCredentialVault } from "../credentials.js";
+globalThis.crypto ||= webcrypto;
 
 const read = path => readFile(new URL(path, import.meta.url), "utf8");
 
@@ -9,7 +12,9 @@ test("security contract is explicit and machine-readable", async () => {
   const policy = JSON.parse(await read("../security-policy.json"));
   assert.equal(policy.modelVersion, "1.0.0");
   assert.equal(policy.invariants.projectDataHasNoRemotePersistence, true);
-  assert.equal(policy.invariants.credentialsPersistedOutsideSession, false);
+  assert.equal(policy.invariants.credentialsPersistedOutsideSession, true);
+  assert.equal(policy.invariants.credentialsEncryptedAtRest, true);
+  assert.equal(policy.invariants.encryptionKeyNonExtractable, true);
   assert.equal(policy.invariants.remoteInferenceRequiresHttps, true);
   assert.equal(policy.assurance.notAComplianceCertification, true);
 });
@@ -32,13 +37,27 @@ test("credentials cannot be smuggled in endpoint URLs", () => {
   assert.throws(() => chatCompletionsEndpoint("https://alice:secret@inference.example/v1"), /identifiants ne doivent pas être intégrés/);
 });
 
-test("frontend never persists provider credentials or loads the logo from a third-party origin", async () => {
+test("provider credentials are encrypted at rest and survive reloads", async () => {
+  const records = new Map();
+  const db = { transaction() { return { objectStore() { return {
+    get(key) { const request = {}; queueMicrotask(() => { request.result = records.get(key); request.onsuccess?.(); }); return request; },
+    put(value) { const request = {}; queueMicrotask(() => { records.set(value.id, value); request.result = value.id; request.onsuccess?.(); }); return request; }
+  }; } }; } };
+  await saveCredentialVault(db, { text: "sk-text-secret", audio: "sk-audio-secret" });
+  const persisted = [...records.values()];
+  assert.ok(persisted.some(record => record.id === "credential-encryption-key-v1" && record.key.extractable === false));
+  const vault = persisted.find(record => record.id === "credential-vault-v1");
+  assert.ok(vault);
+  assert.doesNotMatch(JSON.stringify(vault), /sk-text-secret|sk-audio-secret/);
+  assert.deepEqual(await loadCredentialVault(db), { text: "sk-text-secret", audio: "sk-audio-secret" });
+});
+
+test("frontend uses the encrypted vault and never stores API keys in plaintext settings", async () => {
   const [app, html] = await Promise.all([read("../app.js"), read("../index.html")]);
-  assert.match(app, /sessionStorage\.setItem\("icare-api-key"/);
-  assert.match(app, /apiKey:"",rememberKey:false/);
-  assert.match(app, /id:"inference",apiKey:"",rememberKey:false/);
-  assert.match(app, /persistedTextKey/);
-  assert.doesNotMatch(app, /apiKey:remember\?key:""/);
-  assert.doesNotMatch(html, /raw\.githubusercontent\.com/);
-  assert.doesNotMatch(html, /id="remember-key"|id="remember-transcription-key"/);
+  assert.match(app, /saveCredentialVault\\(db/);
+  assert.match(app, /migrateLegacyCredentials\\(db/);
+  assert.match(app, /sessionStorage\\.removeItem\\("icare-api-key"/);
+  assert.doesNotMatch(app, /sessionStorage\\.setItem\\("icare-api-key"/);
+  assert.doesNotMatch(html, /raw\\.githubusercontent\\.com/);
+  assert.match(html, /AES-GCM/);
 });
