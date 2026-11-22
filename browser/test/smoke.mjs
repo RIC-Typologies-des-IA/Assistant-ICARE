@@ -204,9 +204,9 @@ try{
   // Vérifie le parcours réel du client entreprise : découverte des valeurs par défaut,
   // appels sans secret fournisseur, persistance puis restauration après rechargement.
   await page.locator("#settings-button").click();
-  await page.locator("#enterprise-gateway-url").fill("https://gateway.example.org");
   await page.locator("#api-model").fill("");
   await page.locator("#transcription-model").fill("");
+  await page.locator("#enterprise-gateway-url").fill("https://gateway.example.org");
   await page.locator('#settings-form button[value="save"]').click();
   await page.locator("#settings-dialog").waitFor({state:"hidden"});
   assert.ok(gatewayRequests.some(request=>request.url.endsWith("/v1/icare/config")),"le client doit demander les modèles par défaut au gateway");
