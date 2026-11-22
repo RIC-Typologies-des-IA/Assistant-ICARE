@@ -53,6 +53,26 @@ try {
       "  B --> C[\"<img src=x onerror=alert(1)>\"]",
       "```",
       "",
+      "```mermaid",
+      "graph LR",
+      "  A[Forêt de Meudon] --> B{Pressions}",
+      "  B --> C[Urbanisation]",
+      "  B --> D[Pollution]",
+      "  A --> E[Services écosystémiques]",
+      "  E --> F[Qualité de l’air]",
+      "  E --> G[Récréation]",
+      "```",
+      "",
+      "```mermaid",
+      "flowchart LR",
+      "  I[\"Intention (I)\"] --> C[\"Contexte (C)\"]",
+      "  C --> A[\"Action (A)\"]",
+      "  A --> R[\"Régulation (R)\"]",
+      "  R --> E[\"Évolution (E)\"]",
+      "  E --> I",
+      "```",
+      "",
+      "",
       "<p class=\"note\"><strong>HTML documentaire autorisé</strong></p>",
       "<img src=\"x\" onerror=\"window.__xss = true\">",
       "<svg onload=\"window.__xss = true\"><script>alert(1)</script></svg>",
@@ -93,7 +113,7 @@ try {
   assert.ok(result.alignedCells >= 2, "l’alignement des colonnes doit survivre à la sanitisation sans style inline");
   assert.equal(result.footnotes, 1, "les notes de bas de page doivent être rendues");
   assert.ok(result.highlighted > 0, "les blocs de code doivent être colorisés");
-  assert.equal(result.mermaid, 1, "le bloc Mermaid doit être transformé en SVG");
+  assert.equal(result.mermaid, 3, "les blocs Mermaid de test, y compris les exemples forestier et ICARE, doivent être transformés en SVG");
   assert.equal(result.unsafeSvg, 0, "le SVG généré par Mermaid ne doit contenir ni foreignObject, script, iframe ni gestionnaire d’événement");
   assert.equal(result.remoteImages, 0, "les images distantes doivent être bloquées pour éviter le pistage par requête réseau");
   assert.equal(result.rawHtml, "HTML documentaire autorisé", "un sous-ensemble HTML documentaire doit rester disponible");
