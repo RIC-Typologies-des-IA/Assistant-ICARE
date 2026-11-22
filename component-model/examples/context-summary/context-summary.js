@@ -1,4 +1,4 @@
-import { getProjectContext } from "icare:component/context-api";
+import contextApi from "icare:component/context-api";
 
 export const lifecycle = {
   describe() {
@@ -17,7 +17,7 @@ export const lifecycle = {
         payloadJson: JSON.stringify({ error: "unsupported-operation" })
       };
     }
-    const raw = getProjectContext();
+    const raw = contextApi.getProjectContext();
     const context = typeof raw === "string" && raw.trim() ? JSON.parse(raw) : null;
     return {
       correlationId: request.correlationId,
