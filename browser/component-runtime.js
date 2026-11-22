@@ -9,6 +9,10 @@ const KNOWN_CAPABILITIES = new Set([
   "tool-execution"
 ]);
 const MAX_PAYLOAD_BYTES = 256 * 1024;
+const WORLD_CAPABILITIES = Object.freeze({
+  "component-base": new Set(),
+  "component-with-context": new Set(["context-read"])
+});
 const ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
 
 function assertManifest(manifest) {
@@ -38,6 +42,7 @@ function assertJsonPayload(value) {
 
 export function authorizeManifest(manifest, grants = []) {
   const checked = assertManifest(manifest);
+  if (!Array.isArray(grants)) throw new Error("La politique de capacités hôte doit être une liste.");
   const granted = new Set(grants);
   const denied = checked.requiredCapabilities.filter(capability => !granted.has(capability));
   if (denied.length) {
@@ -50,7 +55,8 @@ export function createComponentRuntime({
   baseUrl = new URL("./", import.meta.url),
   fetchImpl = fetch,
   importModule = specifier => import(specifier),
-  grants = {}
+  grants = {},
+  contextProvider = () => null
 } = {}) {
   const instances = new Map();
   let registryPromise;
@@ -67,7 +73,11 @@ export function createComponentRuntime({
           const ids = new Set();
           for (const item of data.components) {
             if (!item || !ID_PATTERN.test(item.id) || ids.has(item.id)) throw new Error("Identifiant de composant invalide ou dupliqué.");
-            if (item.world !== "component-base") throw new Error("Monde WIT non autorisé dans cette version du runtime.");
+            if (!WORLD_CAPABILITIES[item.world]) throw new Error("Monde WIT non autorisé dans cette version du runtime.");
+            if (!Array.isArray(item.requiredCapabilities)) throw new Error("Le registre doit épingler les capacités demandées.");
+            if (item.requiredCapabilities.some(capability => !WORLD_CAPABILITIES[item.world].has(capability))) {
+              throw new Error("Le registre demande une capacité absente du monde WIT.");
+            }
             if (item.entrypoint !== "./components/" + item.id + "/" + item.id + ".js") {
               throw new Error("Point d'entrée hors du répertoire de composants autorisé.");
             }
@@ -86,16 +96,43 @@ export function createComponentRuntime({
     const entry = entries.get(id);
     if (!entry) throw new Error("Composant absent du registre : " + id);
     const moduleUrl = new URL(entry.entrypoint.slice(2), baseUrl);
+    const requested = authorizeManifest({
+      componentId: entry.componentId,
+      version: entry.version || "0.1.0",
+      displayName: entry.displayName || entry.id,
+      requiredCapabilities: entry.requiredCapabilities
+    }, grants[id] || []);
     const module = await importModule(moduleUrl.href);
-    const lifecycle = module.lifecycle || module["icare:component/lifecycle@0.1.0"]?.lifecycle;
+    let componentExports = module;
+    if (typeof module.instantiate === "function") {
+      const imports = {};
+      if (entry.world === "component-with-context") {
+        imports["icare:component/context-api"] = {
+          getProjectContext() {
+            const value = contextProvider();
+            if (value === null || value === undefined) return null;
+            if (typeof value !== "string") throw new Error("Le contexte fourni à WASI doit être une chaîne JSON.");
+            assertJsonPayload(value);
+            return value;
+          }
+        };
+      }
+      const getCoreModule = async path => {
+        const response = await fetchImpl(new URL(path, moduleUrl), { cache: "force-cache" });
+        if (!response.ok) throw new Error("Module Wasm core indisponible (" + response.status + ").");
+        return WebAssembly.compile(await response.arrayBuffer());
+      };
+      componentExports = await module.instantiate(getCoreModule, imports);
+    }
+    const lifecycle = componentExports.lifecycle || componentExports["icare:component/lifecycle@0.1.0"]?.lifecycle || componentExports["icare:component/lifecycle@0.1.0"];
     if (!lifecycle || typeof lifecycle.describe !== "function" || typeof lifecycle.invoke !== "function") {
       throw new Error("Le composant ne respecte pas le contrat lifecycle WIT.");
     }
     const described = lifecycle.describe();
     if (described?.componentId !== entry.componentId) throw new Error("L'identifiant du manifeste ne correspond pas au registre ICARE.");
     const manifest = authorizeManifest(described, grants[id] || []);
-    if (entry.world === "component-base" && manifest.requiredCapabilities.length) {
-      throw new Error("Le monde WIT component-base ne déclare aucun import de capacité ; créez un monde WIT dédié avant de demander des droits.");
+    if (JSON.stringify([...manifest.requiredCapabilities].sort()) !== JSON.stringify([...requested.requiredCapabilities].sort())) {
+      throw new Error("Les capacités du manifeste diffèrent du registre ICARE.");
     }
     const instance = Object.freeze({
       manifest,
