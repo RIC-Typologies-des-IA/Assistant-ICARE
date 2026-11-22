@@ -253,7 +253,7 @@ async function loadMermaid() {
         },
         radar: { axisColor:"#8192aa", graticuleColor:"#aab7c8", curveOpacity:0.24, curveStrokeWidth:2.5, legendFontSize:"13px" },
         gantt: { barHeight:24, barGap:8, topPadding:48, leftPadding:80 },
-        maxTextSize: 40000, maxEdges: 500
+        maxTextSize: 40000, maxEdges: 500, deterministicIds: true
       });
       return engine;
     });
