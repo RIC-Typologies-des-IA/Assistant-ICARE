@@ -200,13 +200,29 @@ async function loadMermaid() {
     }).then(engine => {
       if (!engine?.render) throw new Error("Le moteur Mermaid n’est pas disponible.");
       engine.initialize({
-        startOnLoad: false,
-        securityLevel: "strict",
-        htmlLabels: false,
-        flowchart: { htmlLabels: false },
-        theme: "default",
-        maxTextSize: 40000,
-        maxEdges: 500
+        startOnLoad: false, securityLevel: "strict", htmlLabels: false,
+        flowchart: { htmlLabels: false, curve: "basis", nodeSpacing: 42, rankSpacing: 52 },
+        sequence: { actorMargin: 64, messageMargin: 38, noteMargin: 12, mirrorActors: false },
+        theme: "base",
+        themeVariables: {
+          background:"#fff", primaryColor:"#eaf1fa", primaryTextColor:"#20344f", primaryBorderColor:"#607b9f",
+          secondaryColor:"#f1f5fb", tertiaryColor:"#f8fafc", lineColor:"#536b8a", textColor:"#202b3a",
+          mainBkg:"#eaf1fa", secondBkg:"#f1f5fb", tertiaryBkg:"#f8fafc", nodeBorder:"#607b9f",
+          clusterBkg:"#f5f8fc", clusterBorder:"#a7b7cb",
+          actorBkg:"#eaf1fa", actorBorder:"#607b9f", actorTextColor:"#20344f", actorLineColor:"#7187a4",
+          signalColor:"#405a7b", signalTextColor:"#20344f", labelBoxBkgColor:"#f1f5fb",
+          labelBoxBorderColor:"#9aacc4", labelTextColor:"#20344f", loopTextColor:"#20344f",
+          noteBkgColor:"#fff7df", noteBorderColor:"#c7a85b", noteTextColor:"#51421d", classText:"#20344f",
+          pie1:"#4778b8",pie2:"#e39b45",pie3:"#4c9a83",pie4:"#9b79bd",pie5:"#d46d70",pie6:"#6b9eae",
+          pie7:"#b6a04b",pie8:"#6e83c1",pie9:"#a77b62",pie10:"#6eaa78",pie11:"#c47eaa",pie12:"#8c98a8",
+          pieTitleTextColor:"#20344f",pieSectionTextColor:"#fff",pieLegendTextColor:"#34465e",pieStrokeColor:"#fff",
+          cScale0:"#4778b8",cScale1:"#e39b45",cScale2:"#4c9a83",cScale3:"#9b79bd",cScale4:"#d46d70",cScale5:"#6b9eae",
+          cScale6:"#b6a04b",cScale7:"#6e83c1",cScale8:"#a77b62",cScale9:"#6eaa78",cScale10:"#c47eaa",cScale11:"#8c98a8",
+          git0:"#eaf1fa",git1:"#e5f3ed",git2:"#fff1df",git3:"#f3eafa",git4:"#e6f3f5",git5:"#fae9eb",git6:"#f4f0df",git7:"#edf0f5"
+        },
+        radar: { axisColor:"#8192aa", graticuleColor:"#aab7c8", curveOpacity:0.24, curveStrokeWidth:2.5, legendFontSize:"13px" },
+        gantt: { barHeight:24, barGap:8, topPadding:48, leftPadding:80 },
+        maxTextSize: 40000, maxEdges: 500
       });
       return engine;
     });
@@ -216,34 +232,41 @@ async function loadMermaid() {
 
 async function renderMermaid(sources) {
   if (!sources.length) return;
-  try {
-    const engine = await loadMermaid();
-    for (const source of sources) {
+  let engine;
+  try { engine = await loadMermaid(); }
+  catch (error) {
+    for (const source of sources) showMermaidError(source, error);
+    return;
+  }
+  // Une erreur locale ne doit jamais empêcher les diagrammes voisins de s'afficher.
+  for (const source of sources) {
+    try {
       const code = source.textContent || "";
-      if (code.length > 40000 || code.split("\n").length > 1500) {
+      if (code.length > 40000 || code.split("\\n").length > 1500)
         throw new Error("Diagramme trop volumineux (limite : 40 000 caractères et 1 500 lignes).");
-      }
       const id = "icare-mermaid-" + crypto.randomUUID();
-      const safeSource = code.replace(/%%\{init:[\s\S]*?\}%%/gi, "");
+      const safeSource = code.replace(/%%\\{init:[\\s\\S]*?\\}%%/gi, "");
       const result = await engine.render(id, safeSource);
       const svgDocument = new DOMParser().parseFromString(result.svg, "image/svg+xml");
       if (svgDocument.querySelector("parsererror")) throw new Error("SVG Mermaid invalide");
-      const svg = svgDocument.documentElement;
-      const safe = window.DOMPurify.sanitize(svg.outerHTML, SVG_SANITIZE_OPTIONS);
-      if (!(safe instanceof DocumentFragment) || !safe.firstElementChild) throw new Error("SVG Mermaid rejeté par le filtre de sécurité");
+      const safe = window.DOMPurify.sanitize(svgDocument.documentElement.outerHTML, SVG_SANITIZE_OPTIONS);
+      if (!(safe instanceof DocumentFragment) || !safe.firstElementChild)
+        throw new Error("SVG Mermaid rejeté par le filtre de sécurité");
       const wrapper = document.createElement("div");
       wrapper.className = "mermaid-diagram";
       wrapper.append(safe);
       source.replaceWith(wrapper);
-    }
-  } catch (error) {
-    for (const source of sources) {
-      const fallback = document.createElement("pre");
-      fallback.className = "mermaid-error";
-      fallback.textContent = "Diagramme Mermaid non rendu : " + (error?.message || "syntaxe invalide");
-      source.replaceWith(fallback);
-    }
+    } catch (error) { showMermaidError(source, error); }
   }
+}
+
+function showMermaidError(source, error) {
+  if (!source?.isConnected) return;
+  const fallback = document.createElement("pre");
+  fallback.className = "mermaid-error";
+  fallback.setAttribute("role", "status");
+  fallback.textContent = "Diagramme Mermaid non rendu : " + (error?.message || "syntaxe invalide");
+  source.replaceWith(fallback);
 }
 
 export { renderMarkdown };
