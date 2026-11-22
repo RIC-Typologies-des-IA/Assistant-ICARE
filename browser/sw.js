@@ -1,6 +1,6 @@
 importScripts("./version.js");
 const CACHE=`icare-browser-${self.ICARE_VERSION}-${self.ICARE_BUILD_ID||"dev"}`;
-const FILES=["./","./index.html","./styles.css","./app.js","./pwa.js","./component-runtime.js","./components/registry.json","./components/hello/hello.js","./components/hello/hello.core.wasm","./components/ontology-validator/ontology-validator.js","./components/ontology-validator/ontology-validator.core.wasm","./markdown.js","./agent.js","./workspace-tools.js","./theme.js","./storage.js","./credentials.js","./inference.js","./icon.svg","./manifest.webmanifest","./version.js","./system-prompt.md","./guide-icare.md","./icare.json","./vendor/markdown-it.min.js","./vendor/purify.min.js"];
+const FILES=["./","./index.html","./styles.css","./app.js","./pwa.js","./component-runtime.js","./components/registry.json","./components/hello/hello.js","./components/hello/hello.core.wasm","./components/ontology-validator/ontology-validator.js","./components/ontology-validator/ontology-validator.core.wasm","./components/context-summary/context-summary.js","./components/context-summary/context-summary.core.wasm","./markdown.js","./agent.js","./workspace-tools.js","./theme.js","./storage.js","./credentials.js","./inference.js","./icon.svg","./manifest.webmanifest","./version.js","./system-prompt.md","./guide-icare.md","./icare.json","./vendor/markdown-it.min.js","./vendor/purify.min.js"];
 const APP_SHELL=new Set(["/","/index.html","/styles.css","/app.js","/pwa.js","/version.js"]);
 self.addEventListener("install",event=>event.waitUntil(
   caches.open(CACHE)
