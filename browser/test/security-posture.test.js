@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { chatCompletionsEndpoint, audioTranscriptionsEndpoint } from "../inference.js";
 import { webcrypto } from "node:crypto";
-import { loadCredentialVault, saveCredentialVault } from "../credentials.js";
+import { loadCredentialVault, saveCredentialVault, migrateLegacyCredentials } from "../credentials.js";
 globalThis.crypto ||= webcrypto;
 
 const read = path => readFile(new URL(path, import.meta.url), "utf8");
@@ -50,6 +50,22 @@ test("provider credentials are encrypted at rest and survive reloads", async () 
   assert.ok(vault);
   assert.doesNotMatch(JSON.stringify(vault), /sk-text-secret|sk-audio-secret/);
   assert.deepEqual(await loadCredentialVault(db), { text: "sk-text-secret", audio: "sk-audio-secret" });
+});
+
+test("legacy plaintext API keys are migrated into the encrypted vault", async () => {
+  const records = new Map([
+    ["inference-text", { id: "inference-text", baseUrl: "https://api.example/v1", model: "model-a", apiKey: "legacy-text-key" }],
+    ["inference-transcription", { id: "inference-transcription", baseUrl: "https://speech.example/v1", model: "whisper", apiKey: "legacy-audio-key" }]
+  ]);
+  const db = { transaction() { return { objectStore() { return {
+    get(key) { const request = {}; queueMicrotask(() => { request.result = records.get(key); request.onsuccess?.(); }); return request; },
+    put(value) { const request = {}; queueMicrotask(() => { records.set(value.id, value); request.result = value.id; request.onsuccess?.(); }); return request; }
+  }; } }; } };
+  const migrated = await migrateLegacyCredentials(db, { text: "legacy-text-key", audio: "legacy-audio-key" });
+  assert.deepEqual(migrated, { text: "legacy-text-key", audio: "legacy-audio-key" });
+  const vault = records.get("credential-vault-v1");
+  assert.ok(vault.text && vault.audio);
+  assert.doesNotMatch(JSON.stringify(vault), /legacy-text-key|legacy-audio-key/);
 });
 
 test("frontend uses the encrypted vault and never stores API keys in plaintext settings", async () => {
