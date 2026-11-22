@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { chatCompletionsEndpoint, chatCompletion, audioTranscriptionsEndpoint, transcribeAudio, audioBufferToWav, listModels } from "../inference.js";
+import { chatCompletionsEndpoint, chatCompletion, audioTranscriptionsEndpoint, transcribeAudio, audioBufferToWav, listModels, resolveTranscriptionConfig } from "../inference.js";
 test("normalise les endpoints OpenAI compatibles",()=>{assert.equal(chatCompletionsEndpoint("https://api.example/v1"),"https://api.example/v1/chat/completions");assert.equal(chatCompletionsEndpoint("https://api.example"),"https://api.example/v1/chat/completions");assert.equal(chatCompletionsEndpoint("https://api.example/v1/chat/completions"),"https://api.example/v1/chat/completions");});
 test("refuse une URL vide",()=>assert.throws(()=>chatCompletionsEndpoint("  "),/adresse de l.?API/i));
 test("envoie le modèle, les messages et le bearer token",async()=>{let captured;const answer=await chatCompletion({baseUrl:"https://api.example/v1",model:"model-x",apiKey:"secret",messages:[{role:"user",content:"bonjour"}],fetchImpl:async(url,options)=>{captured={url,options};return{ok:true,json:async()=>({choices:[{message:{content:"Bonjour."}}]})};}});assert.equal(answer,"Bonjour.");assert.equal(captured.url,"https://api.example/v1/chat/completions");assert.equal(captured.options.headers.Authorization,"Bearer secret");assert.equal(JSON.parse(captured.options.body).model,"model-x");});
@@ -22,3 +22,16 @@ test("encode un audio PCM mono en WAV 16 kHz",()=>{const samples=new Float32Arra
 test("refuse HTTP pour les endpoints distants",()=>{assert.throws(()=>chatCompletionsEndpoint("http://inference.example/v1"),/HTTPS est obligatoire/);assert.throws(()=>audioTranscriptionsEndpoint("http://speech.example/v1"),/HTTPS est obligatoire/);});
 test("refuse les identifiants dans une URL d’API",()=>assert.throws(()=>chatCompletionsEndpoint("https://user:password@api.example/v1"),/identifiants ne doivent pas être intégrés/));
 test("autorise HTTP uniquement sur loopback, IPv4 et IPv6",()=>{assert.equal(chatCompletionsEndpoint("http://localhost:11434/v1"),"http://localhost:11434/v1/chat/completions");assert.equal(chatCompletionsEndpoint("http://127.0.0.1:13305/v1"),"http://127.0.0.1:13305/v1/chat/completions");assert.equal(chatCompletionsEndpoint("http://[::1]:11434/v1"),"http://[::1]:11434/v1/chat/completions");assert.throws(()=>chatCompletionsEndpoint("http://192.168.1.2:11434/v1"),/HTTPS est obligatoire/);});
+
+test("la dictée active en mode entreprise utilise le modèle audio fourni par le gateway",()=>{
+ const config=resolveTranscriptionConfig({activeMode:"enterprise",standalone:{baseUrl:"https://local.example/v1",model:"local-audio",apiKey:"local-secret"},enterprise:{gatewayUrl:"https://gateway.example.org",transcriptionModel:"enterprise-audio"}});
+ assert.deepEqual(config,{gatewayUrl:"https://gateway.example.org",baseUrl:"",model:"enterprise-audio",apiKey:""});
+});
+test("le test de configuration audio reste autonome même si le mode entreprise est actif",()=>{
+ const config=resolveTranscriptionConfig({activeMode:"enterprise",testOnly:true,standalone:{baseUrl:"https://local.example/v1",model:"local-audio",apiKey:"local-secret"},enterprise:{gatewayUrl:"https://gateway.example.org",transcriptionModel:"enterprise-audio"}});
+ assert.deepEqual(config,{gatewayUrl:"",baseUrl:"https://local.example/v1",model:"local-audio",apiKey:"local-secret"});
+});
+test("la dictée active en mode autonome conserve son profil audio autonome",()=>{
+ const config=resolveTranscriptionConfig({activeMode:"standalone",standalone:{baseUrl:"https://local.example/v1",model:"local-audio",apiKey:"local-secret"},enterprise:{gatewayUrl:"https://gateway.example.org",transcriptionModel:"enterprise-audio"}});
+ assert.deepEqual(config,{gatewayUrl:"",baseUrl:"https://local.example/v1",model:"local-audio",apiKey:"local-secret"});
+});
