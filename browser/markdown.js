@@ -1,52 +1,222 @@
-// Markdown-it provides the Markdown parser; DOMPurify sanitizes its generated HTML.
-// Pinned packages are bundled locally by npm run build:vendor.
-if (typeof window.markdownit !== "function") {
-  throw new Error("Le moteur Markdown-it n'a pas pu être chargé.");
-}
-if (!window.DOMPurify || typeof window.DOMPurify.sanitize !== "function") {
-  throw new Error("Le module de sécurisation DOMPurify n'a pas pu être chargé.");
+// Markdown-it parses; DOMPurify applies a strict HTML allowlist before DOM insertion.
+// Raw HTML is accepted only as inert document markup. Scripts, styles, embedded content,
+// forms, SVG supplied by authors and event attributes are never part of the output contract.
+for (const [name, predicate] of [
+  ["markdown-it", value => typeof value === "function"],
+  ["DOMPurify", value => typeof value?.sanitize === "function"],
+  ["Highlight.js", value => typeof value?.highlight === "function"],
+  ["Mermaid", value => typeof value?.render === "function"]
+]) {
+  const value = name === "markdown-it" ? window.markdownit
+    : name === "DOMPurify" ? window.DOMPurify
+    : name === "Highlight.js" ? window.hljs : window.mermaid;
+  if (!predicate(value)) throw new Error("Dépendance de rendu absente : " + name);
 }
 
 const markdown = window.markdownit({
-  html: false,       // Raw HTML from model output is treated as text, never trusted markup.
+  html: true,
   xhtmlOut: false,
   breaks: false,
   linkify: true,
-  typographer: false
+  typographer: false,
+  highlight(code, language) {
+    if (language && window.hljs.getLanguage(language)) {
+      try { return window.hljs.highlight(code, { language, ignoreIllegals: true }).value; }
+      catch { /* Unknown or malformed grammars fall back to escaped code. */ }
+    }
+    return "";
+  }
 });
 
-// Keep table markup inside a responsive wrapper without rewriting table parsing.
+window.mermaid.initialize({
+  startOnLoad: false,
+  securityLevel: "strict",
+  htmlLabels: false,
+  flowchart: { htmlLabels: false },
+  theme: "default"
+});
+
+// Responsive tables are wrapped at parse time, before sanitization.
 markdown.renderer.rules.table_open = () => '<div class="markdown-table-wrap"><table>';
 markdown.renderer.rules.table_close = () => '</table></div>';
 
-// External links opened in a new tab must not gain access to the opener window.
-const defaultLinkOpen = markdown.renderer.rules.link_open
-  || ((tokens, idx, options, env, self) => self.renderToken(tokens, idx, options));
-markdown.renderer.rules.link_open = (tokens, idx, options, env, self) => {
-  const token = tokens[idx];
-  token.attrSet("target", "_blank");
-  token.attrSet("rel", "noopener noreferrer");
-  return defaultLinkOpen(tokens, idx, options, env, self);
+// Mermaid source is emitted as escaped text. The diagram engine receives it only after
+// sanitization; its SVG is sanitized separately before it enters the document.
+const defaultFence = markdown.renderer.rules.fence;
+markdown.renderer.rules.fence = (tokens, index, options, env, self) => {
+  const token = tokens[index];
+  const language = (token.info || "").trim().split(/\s+/)[0].toLowerCase();
+  if (language === "mermaid") {
+    return '<pre class="mermaid-source"><code>' + self.renderInline(
+      [{ type: "text", content: token.content, children: null, attrs: null, attrIndex: null,
+        block: false, hidden: false, level: 0, markup: "", meta: null, nesting: 0,
+        tag: "", map: null, info: "", content: token.content, params: "", type: "text" }]
+    ) + '</code></pre>';
+  }
+  return defaultFence(tokens, index, options, env, self);
 };
+
+// Add task-list checkboxes without accepting arbitrary input elements from raw HTML.
+markdown.core.ruler.after("inline", "icare-task-lists", state => {
+  const tokens = state.tokens;
+  for (let i = 0; i < tokens.length; i++) {
+    const item = tokens[i];
+    if (item.type !== "list_item_open") continue;
+    const inline = tokens[i + 2];
+    if (!inline || inline.type !== "inline" || !inline.children?.length) continue;
+    const first = inline.children.find(child => child.type === "text" && child.content.trim());
+    if (!first) continue;
+    const match = first.content.match(/^\s*\[([ xX])\]\s+/);
+    if (!match) continue;
+    first.content = first.content.slice(match[0].length);
+    item.attrJoin("class", "task-list-item");
+    const list = tokens.slice(0, i).reverse().find(token => token.type === "bullet_list_open" || token.type === "ordered_list_open");
+    if (list) list.attrJoin("class", "contains-task-list");
+    const checkbox = new window.markdownit().utils.escapeHtml(match[1].toLowerCase());
+    inline.children.unshift(Object.assign(new window.markdownit().Token("html_inline", "", 0), {
+      content: '<input type="checkbox" disabled' + (checkbox === "x" ? " checked" : "") + ' aria-label="Tâche ' + (checkbox === "x" ? "terminée" : "à faire") + '"> '
+    }));
+  }
+});
+
+const ALLOWED_TAGS = [
+  "a","abbr","b","blockquote","br","caption","code","dd","del","details","div","dl","dt",
+  "em","figcaption","figure","h1","h2","h3","h4","h5","h6","hr","i","img","input",
+  "kbd","li","ol","p","pre","s","samp","section","small","span","strong","sub","summary",
+  "sup","table","tbody","td","tfoot","th","thead","tr","u","ul","var"
+];
+const ALLOWED_ATTR = [
+  "alt","aria-label","checked","class","colspan","disabled","height","href","loading",
+  "referrerpolicy","rel","rowspan","scope","src","start","target","title","type","width"
+];
+const SAFE_HREF = /^(?:(?:https?|mailto|tel):|#|\/?[^/]|\/\/)/i;
+
+window.DOMPurify.addHook("uponSanitizeAttribute", (node, data) => {
+  const name = data.attrName.toLowerCase();
+  if (name === "href") {
+    if (!SAFE_HREF.test(data.attrValue) || /^\s*javascript:/i.test(data.attrValue)) data.keepAttr = false;
+  }
+  if (name === "src") {
+    // Remote images are allowed only over HTTPS and never receive the page referrer.
+    if (node.nodeName !== "IMG" || !/^https:\/\//i.test(data.attrValue)) data.keepAttr = false;
+  }
+  if (name === "class") {
+    const classes = data.attrValue.split(/\s+/).filter(value =>
+      /^(?:language-[a-z0-9_+-]+|hljs(?:-[a-z0-9_+-]+)?|markdown-table-wrap|task-list-item|contains-task-list|mermaid-source|footnotes|footnote-ref|footnote-backref)$/.test(value)
+    );
+    data.attrValue = classes.join(" ");
+    if (!data.attrValue) data.keepAttr = false;
+  }
+});
+
+window.DOMPurify.addHook("afterSanitizeAttributes", node => {
+  if (node.nodeName === "A" && node.hasAttribute("href")) {
+    node.setAttribute("target", "_blank");
+    node.setAttribute("rel", "noopener noreferrer");
+  }
+  if (node.nodeName === "IMG") {
+    node.setAttribute("loading", "lazy");
+    node.setAttribute("referrerpolicy", "no-referrer");
+  }
+  if (node.nodeName === "INPUT") {
+    if (node.getAttribute("type") !== "checkbox") node.remove();
+    else {
+      node.setAttribute("disabled", "");
+      node.setAttribute("aria-label", node.getAttribute("aria-label") || "Tâche");
+    }
+  }
+});
 
 const SANITIZE_OPTIONS = {
-  USE_PROFILES: { html: true },
-  RETURN_DOM_FRAGMENT: true,
+  ALLOWED_TAGS,
+  ALLOWED_ATTR,
   ALLOW_DATA_ATTR: false,
-  FORBID_TAGS: ["script", "style", "iframe", "object", "embed", "form"],
-  FORBID_ATTR: ["srcdoc"]
+  ALLOW_ARIA_ATTR: true,
+  FORBID_TAGS: ["script","style","iframe","object","embed","form","svg","math","template"],
+  FORBID_ATTR: ["style","srcdoc","name","id","is","formaction","action","contenteditable"],
+  RETURN_DOM_FRAGMENT: true
+};
+const SVG_SANITIZE_OPTIONS = {
+  USE_PROFILES: { svg: true, svgFilters: false },
+  FORBID_TAGS: ["foreignObject","script","style","iframe","image","use"],
+  FORBID_ATTR: ["style","onload","onclick","onerror","href","xlink:href"],
+  ALLOW_DATA_ATTR: false,
+  RETURN_DOM_FRAGMENT: true
 };
 
-function renderMarkdown(source) {
-  // Retain ICARE's earlier tolerance for headings written without a space after #.
-  // (?!#) prevents the regex engine from backtracking and consuming only part of a heading marker.
-  const normalized = String(source ?? "").replace(/^( {0,3}#{1,6})(?!#)(?=\S)/gm, "$1 ");
-  const html = markdown.render(normalized);
+function footnoteSource(source) {
+  // A deliberately small, deterministic footnote extension. Definitions are removed
+  // only from ordinary lines; fenced code blocks remain byte-for-byte untouched.
+  const lines = String(source ?? "").split("\n");
+  const definitions = new Map();
+  let fence = null;
+  const body = [];
+  for (const line of lines) {
+    const marker = line.match(/^ {0,3}(`{3,}|~{3,})/);
+    if (marker) {
+      const char = marker[1][0];
+      if (!fence) fence = char;
+      else if (fence === char) fence = null;
+    }
+    const definition = !fence && line.match(/^\[\^([\w-]+)\]:\s*(.*)$/);
+    if (definition) definitions.set(definition[1], definition[2]);
+    else body.push(line);
+  }
+  if (!definitions.size) return { body: body.join("\n"), definitions };
+  const counts = new Map();
+  const rendered = body.join("\n").replace(/\[\^([\w-]+)\]/g, (whole, key) => {
+    if (!definitions.has(key)) return whole;
+    const number = (counts.get(key) || 0) + 1;
+    counts.set(key, number);
+    return '<sup class="footnote-ref"><a href="#fn-' + key + '" title="Note ' + key + '">' + key + '</a></sup>';
+  });
+  return { body: rendered, definitions };
+}
+
+function sanitize(html) {
   const fragment = window.DOMPurify.sanitize(html, SANITIZE_OPTIONS);
-  if (fragment instanceof DocumentFragment) return fragment;
-  const template = document.createElement("template");
-  template.innerHTML = String(fragment);
-  return template.content;
+  if (!(fragment instanceof DocumentFragment)) throw new Error("DOMPurify n’a pas retourné de DocumentFragment.");
+  return fragment;
+}
+
+function renderMarkdown(source) {
+  const normalized = String(source ?? "").replace(/^( {0,3}#{1,6})(?!#)(?=\S)/gm, "$1 ");
+  const notes = footnoteSource(normalized);
+  let html = markdown.render(notes.body);
+  if (notes.definitions.size) {
+    const entries = [...notes.definitions.entries()].map(([key, value]) =>
+      '<li><span class="footnote-ref" id="fn-' + key + '">' + markdown.renderInline(value) + '</span></li>'
+    ).join("");
+    html += '<section class="footnotes"><hr><ol>' + entries + '</ol></section>';
+  }
+  const fragment = sanitize(html);
+  queueMicrotask(() => renderMermaid(fragment));
+  return fragment;
+}
+
+async function renderMermaid(fragment) {
+  const sources = [...fragment.querySelectorAll("pre.mermaid-source")];
+  for (const source of sources) {
+    try {
+      const code = source.textContent || "";
+      const id = "icare-mermaid-" + crypto.randomUUID();
+      const result = await window.mermaid.render(id, code);
+      const svgDocument = new DOMParser().parseFromString(result.svg, "image/svg+xml");
+      if (svgDocument.querySelector("parsererror")) throw new Error("SVG Mermaid invalide");
+      const svg = svgDocument.documentElement;
+      const safe = window.DOMPurify.sanitize(svg.outerHTML, SVG_SANITIZE_OPTIONS);
+      if (!(safe instanceof DocumentFragment) || !safe.firstElementChild) throw new Error("SVG Mermaid rejeté par le filtre de sécurité");
+      const wrapper = document.createElement("div");
+      wrapper.className = "mermaid-diagram";
+      wrapper.append(safe);
+      source.replaceWith(wrapper);
+    } catch (error) {
+      const fallback = document.createElement("pre");
+      fallback.className = "mermaid-error";
+      fallback.textContent = "Diagramme Mermaid non rendu : " + (error?.message || "syntaxe invalide");
+      source.replaceWith(fallback);
+    }
+  }
 }
 
 export { renderMarkdown };
