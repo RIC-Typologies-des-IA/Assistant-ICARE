@@ -4,7 +4,7 @@ Première tranche autonome en cours de réalisation, destinée à être publiée
 
 Fonctions : projets locaux, conversations persistées dans IndexedDB, export/import JSON, configuration d'une API compatible OpenAI Chat Completions, PWA et cache statique.
 
-Limites : le fournisseur doit autoriser CORS depuis GitHub Pages ; les données restent dans ce navigateur/profil et ne sont pas synchronisées ; les propositions structurées, relations et CRDT seront réintégrés progressivement. Les clés API restent dans sessionStorage pour la session de l'onglet et ne sont jamais enregistrées dans IndexedDB ni incluses dans les exports. Les anciennes clés persistées sont effacées lors du chargement des paramètres. Le stockage navigateur n'est pas un coffre-fort contre un appareil compromis.
+Limites : le fournisseur doit autoriser CORS depuis GitHub Pages ; les données restent dans ce navigateur/profil et ne sont pas synchronisées ; les propositions structurées, relations et CRDT seront réintégrés progressivement. Les clés API sont chiffrées en AES-256-GCM via Web Crypto ; la clé de chiffrement est non exportable et conservée comme objet CryptoKey dans IndexedDB. Les secrets chiffrés persistent dans le profil du navigateur, sont déchiffrés automatiquement à la réouverture et ne sont jamais inclus dans les projets ou exports. Les anciennes clés en clair sont migrées vers le coffre puis supprimées. Le stockage navigateur n'est pas un coffre-fort contre un appareil compromis.
 
 Le workflow de déploiement publie le contenu de browser/ sur GitHub Pages. Dans Settings → Pages, sélectionner GitHub Actions comme source de publication. URL cible : https://ric-typologies-des-ia.github.io/Assistant-ICARE/
 
