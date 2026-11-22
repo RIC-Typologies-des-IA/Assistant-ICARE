@@ -35,7 +35,7 @@ test("loads a registered lifecycle component and correlates invocations", async 
 
 test("denies a capability that was not granted by the host policy", async () => {
   const host = await runtime({ described: { ...manifest, requiredCapabilities: ["model-inference"] } });
-  await assert.rejects(host.load("sample"), /Capacités ICARE refusées: model-inference/);
+  await assert.rejects(host.load("sample"), /Capacités ICARE refusées : model-inference/);
 });
 
 test("rejects unknown capabilities instead of silently granting them", () => {
