@@ -4,6 +4,7 @@ import { chatCompletion, chatCompletionMessage, listModels, transcribeAudio, aud
 import { runAgentTurn } from "./agent.js";
 import { createIcareToolExecutor } from "./workspace-tools.js";
 import { saveCredentialVault, migrateLegacyCredentials } from "./credentials.js";
+import { registerAppServiceWorker } from "./pwa.js";
 const $=id=>document.getElementById(id), db=await openDatabase();
 $("app-version").textContent=`— V${window.ICARE_VERSION} Alpha`;
 const state={projectId:null,projects:[],turns:[],settings:{},transcriptionSettings:{},gatewayUrl:"",workspace:null,busy:false};
@@ -103,4 +104,4 @@ $("proposal-form")?.addEventListener("submit",async event=>{event.preventDefault
 $("timeline-slider")?.addEventListener("input",event=>renderTimeline(Number(event.target.value)));
 $("api-preset")?.addEventListener("change",event=>{const preset=event.target.value,presets={openai:"https://api.openai.com/v1",ollama:"http://localhost:11434/v1",lemonade:"http://127.0.0.1:13305/v1"};if(presets[preset])$("api-base").value=presets[preset];const help={openai:"OpenAI : endpoint public HTTPS. Saisissez une clé API et chargez les modèles disponibles.",ollama:"Ollama local : http://localhost:11434/v1. Pour un site HTTPS distant, Ollama doit autoriser l’origine GitHub Pages via OLLAMA_ORIGINS. localhost désigne votre propre ordinateur.",lemonade:"Lemonade local : http://127.0.0.1:13305/v1. Pour un site HTTPS distant, le serveur doit autoriser l’origine GitHub Pages (CORS).", "":"API compatible OpenAI Chat Completions. Saisissez l’URL de base terminée par /v1."};$("provider-help").textContent=help[preset]||help[""];});
 
-await loadOntology();await loadProjects();await loadWorkspace();await loadSettings();if("serviceWorker"in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("./sw.js",{updateViaCache:"none"}).then(registration=>registration.update()).catch(console.warn);
+await loadOntology();await loadProjects();await loadWorkspace();await loadSettings();registerAppServiceWorker().catch(error=>console.warn("Service worker ICARE indisponible :",error));
