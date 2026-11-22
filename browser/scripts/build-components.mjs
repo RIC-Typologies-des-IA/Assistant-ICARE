@@ -6,7 +6,8 @@ import { spawnSync } from "node:child_process";
 const browserRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const components = [
   { id: "ontology-validator", source: "../component-model/examples/ontology-validator/ontology-validator.js", world: "component-base" },
-  { id: "context-summary", source: "../component-model/examples/context-summary/context-summary.js", world: "component-with-context", instantiation: true }
+  { id: "context-summary", source: "../component-model/examples/context-summary/context-summary.js", world: "component-with-context", instantiation: true },
+  { id: "storage-probe", source: "../component-model/examples/storage-probe/storage-probe.js", world: "component-with-storage", instantiation: true }
 ];
 for (const component of components) await mkdir(resolve(browserRoot, "components", component.id), { recursive: true });
 
