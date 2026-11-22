@@ -25,7 +25,7 @@ jobs:
       - name: Install production dependencies and build vendor assets
         working-directory: browser
         run: |
-          npm install --no-save @bytecodealliance/jco@1.0.3
+          npm install --no-save @bytecodealliance/jco@1.40.0
           npm run build:vendor
           npm run build:components
       - name: Stamp immutable deployment identity
