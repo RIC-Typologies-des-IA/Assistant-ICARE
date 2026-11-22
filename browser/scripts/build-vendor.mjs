@@ -5,7 +5,7 @@ await mkdir(vendor, { recursive: true });
 const assets = [
   ["../node_modules/markdown-it/dist/markdown-it.min.js", "markdown-it.min.js"],
   ["../node_modules/dompurify/dist/purify.min.js", "purify.min.js"],
-  ["../node_modules/highlight.js/build/highlight.min.js", "highlight.min.js"],
+  ["../node_modules/@highlightjs/cdn-assets/highlight.min.js", "highlight.min.js"],
   ["../node_modules/mermaid/dist/mermaid.min.js", "mermaid.min.js"]
 ];
 for (const [source, destination] of assets) {
