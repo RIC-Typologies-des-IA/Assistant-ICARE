@@ -409,3 +409,30 @@ body.project-menu-open .sidebar{
 
 .runtime-mode-switch{display:flex;align-items:center;gap:3px;padding:3px;border:1px solid #d7dfeb;border-radius:999px;background:#f1f4f8}.runtime-mode-switch[hidden]{display:none}.runtime-mode{border:0;border-radius:999px;padding:6px 10px;background:transparent;color:#52647b;font:inherit;font-size:11px;cursor:pointer;white-space:nowrap}.runtime-mode.active{background:#fff;color:#183e70;box-shadow:0 1px 4px #172b4d24;font-weight:700}.runtime-mode:disabled{opacity:.45;cursor:not-allowed}
 @media(max-width:760px){.top-actions{gap:6px;flex-wrap:wrap;justify-content:flex-end}.runtime-mode-switch{order:3;width:100%;justify-content:center}.runtime-mode{font-size:10px;padding:5px 8px}}
+
+/* Markdown renderer: task lists, footnotes, syntax highlighting and isolated Mermaid SVG. */
+.message-content ul.contains-task-list{list-style:none;padding-left:1.15em}
+.message-content li.task-list-item{list-style:none}
+.message-content li.task-list-item>input[type=checkbox]{margin:0 .45em 0 -1.25em;vertical-align:baseline;accent-color:#2458a6}
+.message-content .footnotes{margin-top:1.2em;padding-top:.4em;border-top:1px solid #dce3ec;font-size:.9em;color:#526176}
+.message-content .footnotes ol{padding-left:1.5em}
+.message-content sup.footnote-ref{font-size:.75em;line-height:0}
+.message-content .mermaid-diagram{max-width:100%;overflow:auto;margin:1em 0;padding:12px;border:1px solid #dce3ec;border-radius:9px;background:#fff}
+.message-content .mermaid-diagram svg{display:block;max-width:100%;height:auto;margin:auto}
+.message-content .mermaid-error{white-space:pre-wrap;background:#fff5f4;color:#8c302b;border:1px solid #f1c5c1}
+.message-content pre code.hljs{display:block;overflow-x:auto;padding:0;background:transparent}
+.message-content .hljs{color:#24364b}
+.message-content .hljs-keyword,.message-content .hljs-selector-tag{font-weight:700}
+
+.message-content .mermaid-diagram svg .node rect,
+.message-content .mermaid-diagram svg .node polygon,
+.message-content .mermaid-diagram svg .node circle{fill:#eef3fa;stroke:#536b8a;stroke-width:1.4px}
+.message-content .mermaid-diagram svg .cluster rect{fill:#f6f8fb;stroke:#9aaac0}
+.message-content .mermaid-diagram svg .edgePath path{stroke:#536b8a;stroke-width:1.5px;fill:none}
+.message-content .mermaid-diagram svg .marker path{fill:#536b8a;stroke:#536b8a}
+.message-content .mermaid-diagram svg .nodeLabel,
+.message-content .mermaid-diagram svg .edgeLabel{fill:#202b3a;font-family:Inter,ui-sans-serif,system-ui,sans-serif}
+
+.message-content th.align-left,.message-content td.align-left{text-align:left}
+.message-content th.align-center,.message-content td.align-center{text-align:center}
+.message-content th.align-right,.message-content td.align-right{text-align:right}

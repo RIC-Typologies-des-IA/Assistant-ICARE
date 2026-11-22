@@ -40,6 +40,8 @@ jobs:
           grep -q "ICARE_BUILD_ID" browser/version.js
           test -s browser/vendor/markdown-it.min.js
           test -s browser/vendor/purify.min.js
+          test -s browser/vendor/highlight.min.js
+          test -s browser/vendor/mermaid.min.js
           test -s browser/component-runtime.js
           test -s browser/components/registry.json
           test -s browser/components/ontology-validator/ontology-validator.js
