@@ -1,4 +1,4 @@
-import contextApi from "icare:component/context-api";
+import contextApi from "icare:component/context-api@0.1.0";
 
 export const lifecycle = {
   describe() {
