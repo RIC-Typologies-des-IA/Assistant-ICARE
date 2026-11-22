@@ -35,7 +35,7 @@ for (const type of ["th_open", "td_open"]) {
     const token = tokens[index];
     const styleIndex = token.attrIndex("style");
     if (styleIndex >= 0) {
-      const alignment = token.attrs[styleIndex][1].match(/text-align:\\s*(left|center|right)/i)?.[1]?.toLowerCase();
+      const alignment = token.attrs[styleIndex][1].match(/text-align:\s*(left|center|right)/i)?.[1]?.toLowerCase();
       token.attrs.splice(styleIndex, 1);
       if (alignment) token.attrJoin("class", "align-" + alignment);
     }
