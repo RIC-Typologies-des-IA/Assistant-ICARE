@@ -5,9 +5,34 @@ import { runAgentTurn } from "./agent.js";
 import { createIcareToolExecutor } from "./workspace-tools.js";
 import { saveCredentialVault, migrateLegacyCredentials } from "./credentials.js";
 import { registerAppServiceWorker } from "./pwa.js";
+import { createComponentRuntime } from "./component-runtime.js";
 const $=id=>document.getElementById(id), db=await openDatabase();
 $("app-version").textContent=`— V${window.ICARE_VERSION} Alpha`;
 const state={projectId:null,projects:[],turns:[],settings:{},transcriptionSettings:{},gatewayUrl:"",workspace:null,busy:false};
+const componentRuntime=createComponentRuntime({
+ grants: { "context-summary": ["context-read"], "storage-probe": ["project-storage-read", "project-storage-write"] },
+ storageProvider: () => state.workspace?.componentStorage || {},
+ storageCommit: async (_componentId, values) => {
+  if (!state.workspace) throw new Error("Aucun projet actif pour le stockage du composant.");
+  const previous = state.workspace.componentStorage || {};
+  state.workspace.componentStorage = values;
+  try { await saveWorkspace(); }
+  catch (error) { state.workspace.componentStorage = previous; throw error; }
+ },
+ contextProvider: () => {
+  const project=state.projects.find(item=>item.id===state.projectId);
+  const workspace=state.workspace;
+  return JSON.stringify({
+   project: project ? { id: project.id, name: project.name, intention: project.intention || "" } : null,
+   exploration: workspace ? {
+    dimensions: { ...workspace.dimensions },
+    justifications: { ...(workspace.dimensionJustifications || {}) }
+   } : null,
+   propositionCount: workspace?.proposals?.length || 0,
+   relationCount: workspace?.relations?.length || 0
+  });
+ }
+});
 const uid=()=>crypto.randomUUID(), now=()=>new Date().toISOString();
 let ontology=null;
 async function loadOntology(){try{const response=await fetch("./icare.json");if(!response.ok)throw Error("Ontologie indisponible");ontology=await response.json();}catch{ontology={dimensions:{I:"Intention / finalité",C:"Contexte / situation",A:"Action / opération",R:"Régulation / organisation",E:"Évolution / temporalité"}};}}
@@ -56,6 +81,7 @@ async function executeIcareTool(name,args){
   snapshot:captureSnapshot,
   render:renderWorkspace,
   listModels:()=>listModels(resolveInferenceTarget("text")),
+  componentRuntime,
   uid,
   now
  });
@@ -91,7 +117,7 @@ $("project-import-button").onclick=()=>$("project-import-file").click();$("proje
 const DIMENSION_META={I:"Intention",C:"Contexte",A:"Action",R:"Régulation",E:"Évolution"};
 const STATUS_META={unexplored:"Non exploré",insufficient:"Insuffisamment documenté",sufficient:"Suffisamment exploré",not_applicable:"Non applicable"};
 const defaultWorkspace=()=>({dimensions:{I:"unexplored",C:"unexplored",A:"unexplored",R:"unexplored",E:"unexplored"},proposals:[],relations:[],referenceDocuments:[],dimensionJustifications:{},snapshots:[]});
-function normaliseWorkspace(value){const d=defaultWorkspace();if(!value||typeof value!=="object")return d;for(const code of Object.keys(DIMENSION_META))if(STATUS_META[value.dimensions?.[code]])d.dimensions[code]=value.dimensions[code];d.proposals=Array.isArray(value.proposals)?value.proposals:[];d.relations=Array.isArray(value.relations)?value.relations:[];d.referenceDocuments=Array.isArray(value.referenceDocuments)?value.referenceDocuments:[];d.dimensionJustifications=value.dimensionJustifications||{};d.snapshots=Array.isArray(value.snapshots)?value.snapshots:[];return d;}
+function normaliseWorkspace(value){const d=defaultWorkspace();if(!value||typeof value!=="object")return d;for(const code of Object.keys(DIMENSION_META))if(STATUS_META[value.dimensions?.[code]])d.dimensions[code]=value.dimensions[code];d.proposals=Array.isArray(value.proposals)?value.proposals:[];d.relations=Array.isArray(value.relations)?value.relations:[];d.referenceDocuments=Array.isArray(value.referenceDocuments)?value.referenceDocuments:[];d.dimensionJustifications=value.dimensionJustifications||{};d.componentStorage=value.componentStorage&&typeof value.componentStorage==="object"&&!Array.isArray(value.componentStorage)?value.componentStorage:{};d.snapshots=Array.isArray(value.snapshots)?value.snapshots:[];return d;}
 async function loadWorkspace(){state.workspace=normaliseWorkspace(await get(db,"settings","workspace:"+state.projectId));if(!state.workspace.referenceDocuments.length){state.workspace.referenceDocuments=[{id:"guide-icare",title:"Guide de la démarche ICARE",content:await (await fetch("./guide-icare.md")).text(),createdAt:now()},{id:"ontology-icare",title:"Ontologie ICARE (JSON)",content:JSON.stringify(ontology,null,2),createdAt:now()}];await saveWorkspace();}if(!state.workspace.snapshots.length)captureSnapshot("Initialisation",false);renderWorkspace();}
 async function saveWorkspace(){await put(db,"settings",{id:"workspace:"+state.projectId,...state.workspace});}
 function renderRadar(dimensions=state.workspace.dimensions){const order=["I","C","A","R","E"],names={I:"Intention",C:"Contexte",A:"Action",R:"Régulation",E:"Évolution"},cx=160,cy=128,r=94,grid=$("radar-grid"),labels=$("radar-labels");if(!grid||!labels)return;grid.replaceChildren();labels.replaceChildren();const ns="http://www.w3.org/2000/svg";const make=(tag,attrs,text)=>{const el=document.createElementNS(ns,tag);for(const [k,v] of Object.entries(attrs))el.setAttribute(k,String(v));if(text)el.textContent=text;return el;};for(let ring=1;ring<=2;ring++){const points=order.map((_,i)=>{const angle=-Math.PI/2+i*2*Math.PI/5;return (cx+Math.cos(angle)*r*ring/2)+","+(cy+Math.sin(angle)*r*ring/2)}).join(" ");grid.append(make("polygon",{points,fill:"none",stroke:"#d9e0e9"}));}const values=[];for(let i=0;i<order.length;i++){const code=order[i],angle=-Math.PI/2+i*2*Math.PI/5,status=dimensions[code]||"unexplored",level=status==="sufficient"?2:status==="insufficient"?1:0,x=cx+Math.cos(angle)*r*level/2,y=cy+Math.sin(angle)*r*level/2;values.push(x+","+y);grid.append(make("line",{x1:cx,y1:cy,x2:cx+Math.cos(angle)*r,y2:cy+Math.sin(angle)*r,stroke:"#d9e0e9"}));labels.append(make("text",{x:cx+Math.cos(angle)*(r+18),y:cy+Math.sin(angle)*(r+18)+4,"text-anchor":"middle","font-size":11,"font-weight":600,fill:"#35445a"},names[code]));if(status==="not_applicable")labels.append(make("text",{x:cx+Math.cos(angle)*r*.76,y:cy+Math.sin(angle)*r*.76+4,"text-anchor":"middle","font-size":10,fill:"#9b6a28"},"N/A"));} $("radar-area").setAttribute("points",values.join(" "));}

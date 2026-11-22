@@ -3,12 +3,14 @@ on:
   pull_request:
     paths:
       - "browser/**"
+      - "component-model/**"
       - ".github/workflows/browser-ci.yml"
       - ".github/workflows/deploy-browser.yml"
   push:
     branches-ignore: [main]
     paths:
       - "browser/**"
+      - "component-model/**"
       - ".github/workflows/browser-ci.yml"
       - ".github/workflows/deploy-browser.yml"
 jobs:
@@ -23,8 +25,9 @@ jobs:
       - name: Install browser test runtime
         working-directory: browser
         run: |
-          npm install --no-save playwright
+          npm install --no-save playwright @bytecodealliance/jco@1.40.0
           npm run build:vendor
+          npm run build:components
           npx playwright install --with-deps chromium
       - name: Validate application modules
         run: |
@@ -36,6 +39,11 @@ jobs:
           node --check browser/storage.js
           node --check browser/credentials.js
           node --check browser/pwa.js
+          node --check browser/component-runtime.js
+          node --check component-model/examples/ontology-validator/ontology-validator.js
+          node --check component-model/examples/context-summary/context-summary.js
+          node --check component-model/examples/storage-probe/storage-probe.js
+          node --check browser/scripts/build-components.mjs
           node --check browser/inference.js
           node --check enterprise-gateway/server.mjs
           node --check browser/sw.js
@@ -54,6 +62,7 @@ jobs:
       - name: Run automated tests
         run: |
           node --test browser/test/*.test.js
+          node browser/test/component-wasm-smoke.mjs
           node browser/test/smoke.mjs
           node browser/test/pwa-update.mjs
           node --test enterprise-gateway/test/*.test.mjs

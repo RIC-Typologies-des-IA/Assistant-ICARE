@@ -8,6 +8,7 @@ export function createIcareToolExecutor({
   snapshot = () => {},
   render = () => {},
   listModels = async () => [],
+  componentRuntime = null,
   uid = () => globalThis.crypto.randomUUID(),
   now = () => new Date().toISOString()
 }) {
@@ -33,6 +34,20 @@ export function createIcareToolExecutor({
     const stamp = now();
 
     if (name === "list_available_models") return { ok: true, models: await listModels() };
+    if (name === "list_wasi_components") {
+      if (!componentRuntime) throw new Error("Runtime WASI indisponible.");
+      const entries = await componentRuntime.list();
+      const components = await Promise.all(entries.map(async entry => (await componentRuntime.load(entry.id)).manifest));
+      return { ok: true, components };
+    }
+    if (name === "invoke_wasi_component") {
+      if (!componentRuntime) throw new Error("Runtime WASI indisponible.");
+      if (typeof args.component_id !== "string" || typeof args.operation !== "string" || !args.payload || typeof args.payload !== "object" || Array.isArray(args.payload)) {
+        throw new Error("Identifiant, opération et payload objet sont obligatoires pour invoquer un composant WASI.");
+      }
+      const component = await componentRuntime.load(args.component_id);
+      return { ok: true, componentId: component.manifest.componentId, result: await component.invoke(args.operation, args.payload) };
+    }
     if (name === "get_ontology") return { ok: true, ontology };
     if (name === "get_exploration_state") {
       return {
@@ -58,6 +73,21 @@ export function createIcareToolExecutor({
     }
 
     if (name === "propose_observation") {
+      if (componentRuntime) {
+        const validator = await componentRuntime.load("ontology-validator");
+        const validation = await validator.invoke("validate-observation", {
+          observation: args,
+          vocabularies: {
+            temporal: ontology.temporal,
+            evaluation: ontology.evaluation,
+            modality: ontology.modality,
+            epistemic: ontology.epistemic,
+            practical: ontology.practical
+          }
+        });
+        if (!validation.valid) throw new Error(validation.errors.join(" "));
+        args = validation.normalized;
+      }
       if (!nonEmpty(args.text)) throw new Error("Le texte de l'observation est obligatoire.");
       if (!Array.isArray(args.dimensions) || !args.dimensions.length) throw new Error("Au moins une dimension ICARE valide est obligatoire.");
       const dimensions = [...new Set(args.dimensions)];
@@ -101,6 +131,15 @@ export function createIcareToolExecutor({
     }
 
     if (name === "propose_relation") {
+      if (componentRuntime) {
+        const validator = await componentRuntime.load("ontology-validator");
+        const validation = await validator.invoke("validate-relation", {
+          relation: args,
+          existingProposalIds: workspace.proposals.map(item => item.id),
+          allowedRelations: ontology.relations
+        });
+        if (!validation.valid) throw new Error(validation.errors.join(" "));
+      }
       const ids = new Set(workspace.proposals.map(item => item.id));
       if (!ids.has(args.from_id) || !ids.has(args.to_id)) throw new Error("Les deux propositions doivent exister dans ce projet.");
       if (args.from_id === args.to_id) throw new Error("Une relation doit relier deux propositions distinctes.");
@@ -123,6 +162,14 @@ export function createIcareToolExecutor({
     }
 
     if (name === "update_exploration_status") {
+      if (componentRuntime) {
+        const validator = await componentRuntime.load("ontology-validator");
+        const validation = await validator.invoke("validate-exploration-status", {
+          status: args,
+          vocabularies: { dimensions: DIMENSIONS, explorationStatuses: EXPLORATION_STATUSES }
+        });
+        if (!validation.valid) throw new Error(validation.errors.join(" "));
+      }
       if (!DIMENSIONS.includes(args.dimension) || !EXPLORATION_STATUSES.includes(args.status)) throw new Error("Dimension ou statut invalide.");
       if (["sufficient", "not_applicable"].includes(args.status) && !nonEmpty(args.justification)) {
         throw new Error("Une justification est obligatoire pour ce statut.");

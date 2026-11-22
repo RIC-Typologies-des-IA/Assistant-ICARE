@@ -52,6 +52,11 @@ interface storage-api {
   write: func(key: string, value: string) -> result<_, string>;
 }
 
+interface project-storage-api {
+  read: func(key: string) -> option<string>;
+  write: func(key: string, value: string);
+}
+
 interface messaging-api {
   send: func(target-component: string, message-json: string) -> result<_, string>;
 }
@@ -63,6 +68,11 @@ world component-base {
 world component-with-context {
   include component-base;
   import context-api;
+}
+
+world component-with-storage {
+  include component-base;
+  import project-storage-api;
 }
 
 world component-with-inference {
