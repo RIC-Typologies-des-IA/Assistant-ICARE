@@ -124,7 +124,7 @@ export function createComponentRuntime({
           write(key, value) {
             if (!requested.requiredCapabilities.includes("project-storage-write")) throw new Error("Capacité project-storage-write non accordée.");
             if (!activeStorage) throw new Error("Transaction de stockage inactive.");
-            if (typeof key !== "string" || !/^[a-zA-Z0-9._:-]{1,128}$/.test(key)) throw new Error("Clé de stockage ICARE invalide.");
+            if (typeof key !== "string" || !STORAGE_KEY_PATTERN.test(key)) throw new Error("Clé de stockage ICARE invalide.");
             if (typeof value !== "string" || new TextEncoder().encode(value).byteLength > 65536) throw new Error("Valeur de stockage ICARE invalide ou trop volumineuse.");
             const previousBytes = Object.hasOwn(activeStorage, key) ? new TextEncoder().encode(activeStorage[key]).byteLength : 0;
             const nextBytes = Object.entries(activeStorage).reduce((total, [storedKey, storedValue]) => total + new TextEncoder().encode(storedKey).byteLength + new TextEncoder().encode(storedValue).byteLength, 0) - previousBytes + new TextEncoder().encode(key).byteLength + new TextEncoder().encode(value).byteLength;
