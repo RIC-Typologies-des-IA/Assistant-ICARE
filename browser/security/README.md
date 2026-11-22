@@ -12,15 +12,18 @@ Ce dossier décrit le contrat de sécurité de l'application navigateur. Il sép
 
 Le modèle distingue :
 - `projectStore` : données de projets conservées localement ;
-- `sessionSecrets` : clés saisies pour la session courante ;
-- `persistentSecrets` : secrets qui ne doivent jamais être persistés ;
+- `sessionSecrets` : secrets en mémoire pendant une opération ;
+- `persistentSecrets` : secrets en clair, qui doivent toujours rester vides ;
+- `encryptedCredentialVault` : clés API chiffrées conservées dans IndexedDB ;
+- `cryptoKeyPresent` : présence de la CryptoKey non exportable.
 - `outbound` : requêtes quittant le navigateur ;
 - `userRequestedInference` : consentement explicite à l'inférence ;
 - `serviceWorkerEnabled` : capacité PWA optionnelle, non nécessaire à la sûreté des données.
 
 ## Invariants de sûreté
 
-1. **NoPersistentCredentials** : aucun secret fournisseur dans le stockage persistant.
+1. **NoPlaintextPersistentCredentials** : aucun secret fournisseur n'est conservé en clair dans le stockage persistant.
+2. **EncryptedVaultRequiresKey** : tout coffre de clés chiffrées suppose la présence de la CryptoKey non exportable.
 2. **InferenceRequiresConsent** : les flux métier vers l'inférence ne sont déclenchés qu'après une action explicite.
 3. **OnlyApprovedInferencePayloadsEgress** : seuls les contenus explicitement approuvés pour une requête d’inférence peuvent sortir du navigateur.
 4. **InferenceDestinationApproved** : chaque requête d’inférence vise une origine autorisée.
