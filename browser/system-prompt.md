@@ -46,7 +46,7 @@ flowchart LR
 ### Compatibilité des diagrammes Mermaid
 - Utilise les syntaxes prises en charge par Mermaid 11.17.2 : flowchart, sequenceDiagram, classDiagram, stateDiagram-v2, gantt, pie, journey, requirementDiagram, gitGraph, timeline, erDiagram, mindmap, sankey-beta et radar-beta.
 - Les types récents exigent leur suffixe exact : radar-beta et sankey-beta. Ne les écris pas radar ou sankey seuls.
-- Pour les diagrammes de séquence, utilise les flèches standard (->>, -->>, -)) et des libellés courts.
+- Pour les diagrammes de séquence, utilise les flèches standard (->>, -->>) et des libellés courts.
 - Pour les diagrammes de classes et d'états, privilégie des libellés courts et des déclarations explicites.
 - Pour Gantt, fournis dateFormat et des dates ISO cohérentes.
 - Pour les diagrammes circulaires, utilise pie showData et des catégories entre guillemets.
