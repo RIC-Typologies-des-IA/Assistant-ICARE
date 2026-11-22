@@ -1,6 +1,6 @@
 import { openDatabase, getAll, put, get } from "./storage.js";
 import { renderMarkdown } from "./markdown.js";
-import { chatCompletion, chatCompletionMessage, listModels, transcribeAudio, audioBlobToWav } from "./inference.js";
+import { chatCompletion, chatCompletionMessage, listModels, transcribeAudio, audioBlobToWav, resolveInferenceRoute } from "./inference.js";
 import { runAgentTurn } from "./agent.js";
 import { createIcareToolExecutor } from "./workspace-tools.js";
 import { saveCredentialVault, migrateLegacyCredentials } from "./credentials.js";
@@ -94,13 +94,7 @@ function modelLabel(){
 function gatewayUrlFor(kind){return state.sameGateway&&state.routing.text==="gateway"&&state.routing.audio==="gateway"?state.gateways.text:state.gateways[kind];}
 function resolveInferenceTarget(kind){
  const route=kind==="audio"?"audio":"text",settings=route==="audio"?state.transcriptionSettings:state.settings;
- if(state.routing[route]==="gateway"){
-  const raw=gatewayUrlFor(route);if(!raw)throw new Error("Renseignez l’adresse du gateway pour "+(route==="audio"?"la transcription":"le traitement du texte")+".");
-  const parsed=new URL(raw);if(parsed.protocol!=="https:")throw new Error("Le gateway doit utiliser HTTPS.");
-  while(parsed.pathname.length>1&&parsed.pathname.endsWith("/"))parsed.pathname=parsed.pathname.slice(0,-1);
-  return{baseUrl:parsed.origin+parsed.pathname,model:state.gatewayModels[route],apiKey:"",credentials:"include"};
- }
- return{baseUrl:settings.baseUrl,model:settings.model,apiKey:settings.apiKey||"",credentials:"omit"};
+ return resolveInferenceRoute({kind:route,routing:state.routing,localSettings:settings,gateways:state.gateways,gatewayModels:state.gatewayModels,sameGateway:state.sameGateway});
 }
 function renderRoutingConfig(){
  const textGateway= $("text-route").value==="gateway",audioGateway=$("audio-route").value==="gateway",both=textGateway&&audioGateway;
@@ -191,7 +185,6 @@ async function saveInferenceConfiguration(){
  }catch(error){status.textContent=error.message;}finally{button.disabled=false;}
 }
 $("settings-form").addEventListener("submit",async e=>{e.preventDefault();await saveInferenceConfiguration();});
-$("save-inference-config").addEventListener("click",saveInferenceConfiguration);
 
 $("test-provider").onclick=async()=>{const status=$("provider-status"),baseUrl=$("api-base").value.trim(),model=$("api-model").value.trim(),apiKey=$("api-key").value.trim();if(!baseUrl||!model){status.textContent="Renseignez l’adresse et le modèle du moteur local.";return;}$("test-provider").disabled=true;status.textContent="Test du modèle texte local…";try{const answer=await chatCompletion({baseUrl,model,apiKey,credentials:"omit",messages:[{role:"user",content:"Réponds uniquement : connexion réussie."}]});status.textContent="✓ Modèle texte local opérationnel — "+answer;}catch(error){status.textContent=error.message;}finally{$("test-provider").disabled=false;}};
 $("load-transcription-models").onclick=async()=>{const status=$("transcription-status");status.textContent="Recherche des modèles de transcription…";try{const baseUrl=$("transcription-base").value.trim(),apiKey=$("transcription-key").value.trim(),label=$("transcription-preset").value==="lemonade"?"transcription":"";const models=await listModels({baseUrl,apiKey,label,credentials:"omit"});const list=$("transcription-models");list.replaceChildren();for(const model of models){const option=document.createElement("option");option.value=model;list.append(option);}status.textContent=models.length?models.length+" modèle(s) "+(label?"portant le label transcription ":"")+"trouvé(s). Choisissez un identifiant dans la liste.":"Aucun modèle de transcription trouvé dans le catalogue. Vérifiez qu’un modèle audio est disponible sur le serveur.";if(!models.length&&label)status.textContent+=" Consultez le catalogue Lemonade ou installez un modèle compatible.";}catch(error){status.textContent=error.message;}};
