@@ -432,3 +432,7 @@ body.project-menu-open .sidebar{
 .message-content .mermaid-diagram svg .marker path{fill:#536b8a;stroke:#536b8a}
 .message-content .mermaid-diagram svg .nodeLabel,
 .message-content .mermaid-diagram svg .edgeLabel{fill:#202b3a;font-family:Inter,ui-sans-serif,system-ui,sans-serif}
+
+.message-content th.align-left,.message-content td.align-left{text-align:left}
+.message-content th.align-center,.message-content td.align-center{text-align:center}
+.message-content th.align-right,.message-content td.align-right{text-align:right}
