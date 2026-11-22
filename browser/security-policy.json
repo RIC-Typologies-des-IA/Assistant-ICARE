@@ -11,14 +11,14 @@
   "invariants": {
     "projectDataHasNoRemotePersistence": true,
     "remoteBusinessDataEgressRequiresUserInitiatedInference": true,
-    "credentialsPersistedOutsideSession": true,
     "remoteInferenceRequiresHttps": true,
     "plainHttpAllowedOnlyForLoopback": true,
     "thirdPartyRuntimeAssetsAllowedByDefault": false,
     "filesystemAccessRequiresUserAction": true,
     "serviceWorkerRequiredForCoreWorkflows": false,
     "credentialsEncryptedAtRest": true,
-    "encryptionKeyNonExtractable": true
+    "encryptionKeyNonExtractable": true,
+    "credentialsStoredOnlyEncrypted": true
   },
   "allowedNetworkPurposes": [
     "application-origin-static-assets",
