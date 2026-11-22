@@ -46,6 +46,10 @@ export function validateConfig(config) {
     if (!String(model.upstreamModel || "").trim()) throw new Error("upstreamModel is required.");
     if (model.allowedGroups !== undefined && (!Array.isArray(model.allowedGroups) || model.allowedGroups.some(group => typeof group !== "string" || !group.trim()))) throw new Error("allowedGroups must be an array of non-empty group names.");
   }
+  if (config.defaults !== undefined && (!config.defaults || typeof config.defaults !== "object" || Array.isArray(config.defaults))) throw new Error("defaults must be an object.");
+  for (const [capability, id] of Object.entries({ chat: config.defaults?.chatModel, transcription: config.defaults?.transcriptionModel })) {
+    if (id && !config.models.some(model => model.id === id && model.capabilities.includes(capability))) throw new Error("Configured default model does not provide capability: " + capability);
+  }
   const limits = config.limits || {};
   if (limits.requestsPerMinute !== undefined && (!Number.isInteger(limits.requestsPerMinute) || limits.requestsPerMinute < 1)) {
     throw new Error("limits.requestsPerMinute must be a positive integer.");
@@ -179,6 +183,13 @@ export function createGatewayServer(config) {
       if (!allowRequest(user)) { json(res, 429, { error: { message: "Enterprise gateway request quota exceeded." } }); return; }
 
       const groups = requestGroups(req, config);
+      if (req.method === "GET" && path === "/v1/icare/config") {
+        const available = visibleModels(config, groups);
+        const chat = available.find(model => model.id === config.defaults?.chatModel && model.capabilities.includes("chat")) || available.find(model => model.capabilities.includes("chat"));
+        const audio = available.find(model => model.id === config.defaults?.transcriptionModel && model.capabilities.includes("transcription")) || available.find(model => model.capabilities.includes("transcription"));
+        json(res, 200, { service: "icare-enterprise-gateway", defaults: { chatModel: chat?.id || "", transcriptionModel: audio?.id || "" } });
+        return;
+      }
       if (req.method === "GET" && path === "/v1/models") {
         json(res, 200, { object: "list", data: visibleModels(config, groups).map(model => ({ id: model.id, object: "model", owned_by: "icare-enterprise", labels: model.capabilities })) });
         return;
