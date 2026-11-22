@@ -36,7 +36,7 @@ WASI n'est pas, à lui seul, le système de permissions ICARE : les imports doiv
 4. Maintenir des adaptateurs à capacités restreintes pour les composants historiques jusqu'à leur migration.
 5. Ajouter des tests de conformité du manifeste, des imports et des refus de capacités.
 
-La présente PR livre le contrat WIT initial et le gateway d'entreprise. Le runtime WebAssembly complet et la migration des composants sont des étapes ultérieures explicitement non revendiquées comme terminées.
+La PR #85 a livré le contrat WIT initial et le gateway d'entreprise. Cette tranche ajoute le runtime navigateur et migre les premières règles métier ; la migration de l'ensemble des composants historiques reste progressive et n'est pas présentée comme terminée.
 
 ## État d'implémentation — première tranche runtime navigateur
 
@@ -57,18 +57,19 @@ Les navigateurs savent exécuter WebAssembly core, mais pas instancier nativemen
 - Le chemin d'entrée est dérivé de l'identifiant et doit correspondre strictement à `./components/<id>/<id>.js`.
 - Le manifeste retourné par `lifecycle.describe()` doit correspondre à l'identité épinglée dans le registre.
 - Les capacités inconnues sont rejetées ; les capacités requises doivent être accordées par l'hôte.
-- Le premier monde `component-base` n'importe aucune capacité : il est donc interdit à un composant de déclarer des capacités dans ce monde, même si une configuration de grants le demanderait. Un monde WIT doté d'importations hôte explicites et de leurs liaisons contrôlées est requis avant d'accorder contexte, stockage, inférence ou messagerie.
+- Le monde `component-base` n'importe aucune capacité et ne peut donc en déclarer. Le monde `component-with-context` lie explicitement `context-read` à un instantané JSON fourni par l'hôte. Les capacités d'écriture, de stockage, d'inférence et de messagerie restent bloquées jusqu'à la création et aux tests de leurs liaisons dédiées.
 - Les payloads JSON sont bornés à 256 Kio et les identifiants de corrélation sont contrôlés à l'aller et au retour.
 - Le runtime ne fournit aucun accès réseau, système de fichiers, secret ou stockage ambiant.
 
-Le composant `hello` sert de test de bout en bout du contrat `lifecycle`. Le composant `ontology-validator` porte la validation déterministe des observations, relations et statuts d'exploration ICARE. Un composant `context-summary` démontre le binding réel d'une capacité hôte `context-read`. L'agent l'appelle avant toute écriture ; la validation JavaScript de l'hôte reste en défense en profondeur. Les deux sont invocables via les outils `list_wasi_components` et `invoke_wasi_component`, Le validateur ne reçoit aucune capacité ; `context-summary` reçoit uniquement `context-read`.
+Le composant `ontology-validator` porte la validation déterministe des observations, relations et statuts d'exploration ICARE. Le composant `context-summary` démontre le binding réel d'une capacité hôte `context-read`. L'agent invoque le validateur avant toute écriture ; la validation JavaScript de l'hôte reste en défense en profondeur. Les deux composants sont invocables via `list_wasi_components` et `invoke_wasi_component`. Le validateur ne reçoit aucune capacité ; `context-summary` reçoit uniquement `context-read`.
 
 ### Migration progressive des composants historiques
 
 | Composant actuel | Cible WIT envisagée | Capacités candidates |
 |---|---|---|
 | Agent et orchestration (`browser/agent.js`) | `component-agent` | context-read, model-inference, tool-execution, component-messaging |
-| Validation des observations, relations et statuts (`ontology-validator`) | `component-base` (migré) | aucune capacité ; vocabulaire et IDs passés en entrée |\n| Lecture du contexte (`context-summary`) | `component-with-context` (première liaison hôte) | context-read ; instantané JSON fourni par l'hôte |\n| Outils de l'espace de travail (`browser/workspace-tools.js`) | monde métier dédié | context-read, context-write, project-storage-read, project-storage-write |
+| Validation des observations, relations et statuts (`ontology-validator`) | `component-base` (migré) | aucune capacité ; vocabulaire et IDs passés en entrée |
+| Lecture du contexte (`context-summary`) | `component-with-context` (première liaison hôte) | context-read ; instantané JSON fourni par l'hôte |\n| Outils de l'espace de travail (`browser/workspace-tools.js`) | monde métier dédié | context-read, context-write, project-storage-read, project-storage-write |
 | Adaptateurs d'inférence (`browser/inference.js`) | interface hôte, pas de fournisseur dans le guest | model-inference, audio-transcription |
 | Stockage local (`browser/storage.js`) | interface hôte de stockage | project-storage-read, project-storage-write |
 
@@ -78,5 +79,6 @@ Ce tableau distingue explicitement la première logique métier migrée des cibl
 
 - Tests unitaires du registre, du manifeste, des capacités inconnues/non accordées, des limites de payload et de la corrélation.
 - Build CI du vrai binaire composant depuis le WIT.
-- Smoke test Playwright dans Chromium : chargement des deux composants transpilés, appel de `lifecycle`, vérification du résultat et validation d'observations, relations et statuts valides/invalides dans le guest WASM.\n- Test du chemin métier : une validation refusée par le composant WASI empêche toute écriture du registre.
+- Smoke test Playwright dans Chromium : chargement des deux composants transpilés, appel de `lifecycle`, vérification du résultat et validation d'observations, relations et statuts valides/invalides dans le guest WASM.
+- Test du chemin métier : une validation refusée par le composant WASI empêche toute écriture du registre.
 - Build GitHub Pages vérifie la présence de tous les artefacts WASI avant publication.
