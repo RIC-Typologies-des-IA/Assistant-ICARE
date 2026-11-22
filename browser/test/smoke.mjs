@@ -217,11 +217,12 @@ try{
   assert.ok(enterprisePayload?.messages?.some(message=>message.role==="user"&&message.content==="Bonjour entreprise"),"le dialogue doit réellement être routé vers le gateway");
   await page.reload();
   await page.waitForFunction(()=>document.querySelector("#project-select").options.length>=1);
+  await page.waitForFunction(()=>document.querySelector("#enterprise-gateway-url").value==="https://gateway.example.org");
   await page.locator("#settings-button").click();
   assert.equal(await page.locator("#enterprise-gateway-url").inputValue(),"https://gateway.example.org","le mode entreprise doit être conservé après rechargement");
   assert.equal(await page.locator("#api-key").evaluate(el=>el.parentElement.hidden),true,"les clés directes doivent rester masquées après rechargement");
   assert.equal(await page.locator("#api-model").inputValue(),"enterprise-chat","le modèle par défaut attribué par le gateway doit être persisté");
-  await page.locator("#settings-dialog").close();
+  await page.locator("#settings-dialog").evaluate(dialog=>dialog.close());
 
   const autoContext=await browser.newContext({colorScheme:"light"});
   const autoPage=await autoContext.newPage();
