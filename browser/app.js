@@ -1,6 +1,6 @@
 import { openDatabase, getAll, put, get } from "./storage.js";
 import { renderMarkdown } from "./markdown.js";
-import { chatCompletion, chatCompletionMessage, listModels, transcribeAudio, audioBlobToWav, resolveTranscriptionConfig } from "./inference.js";
+import { chatCompletion, chatCompletionMessage, listModels, transcribeAudio, audioBlobToWav } from "./inference.js";
 import { runAgentTurn } from "./agent.js";
 import { createIcareToolExecutor } from "./workspace-tools.js";
 import { saveCredentialVault, migrateLegacyCredentials } from "./credentials.js";
@@ -8,7 +8,7 @@ import { registerAppServiceWorker } from "./pwa.js";
 import { createComponentRuntime } from "./component-runtime.js";
 const $=id=>document.getElementById(id), db=await openDatabase();
 $("app-version").textContent=`— V${window.ICARE_VERSION} Alpha`;
-const state={projectId:null,projects:[],turns:[],settings:{},transcriptionSettings:{},enterpriseModels:{chatModel:"",transcriptionModel:""},gatewayUrl:"",activeMode:"standalone",workspace:null,busy:false};
+const state={projectId:null,projects:[],turns:[],settings:{},transcriptionSettings:{},routing:{text:"local",audio:"local"},gateways:{text:"",audio:""},gatewayModels:{text:"",audio:""},sameGateway:true,workspace:null,busy:false};
 const componentRuntime=createComponentRuntime({
  grants: { "context-summary": ["context-read"], "storage-probe": ["project-storage-read", "project-storage-write"] },
  storageProvider: () => state.workspace?.componentStorage || {},
@@ -45,12 +45,27 @@ async function loadProjects(){state.projects=(await getAll(db,"projects")).sort(
 function detectPreset(url=""){return url.includes("api.openai.com")?"openai":url.includes(":11434")?"ollama":url.includes(":13305")?"lemonade":"";}
 async function loadSettings(){
  const legacy=await get(db,"settings","inference")||{baseUrl:"",model:""};
- const gateway=await get(db,"settings","enterprise-gateway")||{url:""};state.gatewayUrl=gateway.url||"";$("enterprise-gateway-url").value=state.gatewayUrl;state.enterpriseModels=await get(db,"settings","enterprise-inference-models")||{chatModel:"",transcriptionModel:""};const active=await get(db,"settings","active-inference-mode");state.activeMode=active?.mode||(state.gatewayUrl?"enterprise":"standalone");
  state.settings=await get(db,"settings","inference-text")||{...legacy,id:"inference-text"};
  state.transcriptionSettings=await get(db,"settings","inference-transcription")||{id:"inference-transcription",baseUrl:"http://127.0.0.1:13305/v1",model:""};
  if(!state.transcriptionSettings.baseUrl)state.transcriptionSettings.baseUrl="http://127.0.0.1:13305/v1";
  if(state.transcriptionSettings.baseUrl.includes(":13305")&&state.transcriptionSettings.model==="whisper-1")state.transcriptionSettings.model="";
- if(state.gatewayUrl&&!state.enterpriseModels.chatModel&&state.settings.model){state.enterpriseModels={chatModel:state.settings.model,transcriptionModel:state.transcriptionSettings.model||""};await put(db,"settings",{id:"enterprise-inference-models",...state.enterpriseModels});}
+ const legacyGateway=await get(db,"settings","enterprise-gateway")||{url:""};
+ const legacyModels=await get(db,"settings","enterprise-inference-models")||{chatModel:"",transcriptionModel:""};
+ const routing=await get(db,"settings","inference-routing");
+ const gateways=await get(db,"settings","inference-gateways");
+ const gatewayModels=await get(db,"settings","inference-gateway-models");
+ if(routing){
+  state.routing={text:routing.text==="gateway"?"gateway":"local",audio:routing.audio==="gateway"?"gateway":"local"};
+  state.gateways={text:gateways?.text||legacyGateway.url||"",audio:gateways?.audio||legacyGateway.url||""};
+  state.gatewayModels={text:gatewayModels?.text||legacyModels.chatModel||"",audio:gatewayModels?.audio||legacyModels.transcriptionModel||""};
+  state.sameGateway=gateways?.sameGateway??(state.gateways.text===state.gateways.audio);
+ }else{
+  const legacyEnterprise=(await get(db,"settings","active-inference-mode"))?.mode==="enterprise";
+  state.routing={text:legacyEnterprise?"gateway":"local",audio:legacyEnterprise?"gateway":"local"};
+  state.gateways={text:legacyGateway.url||"",audio:legacyGateway.url||""};
+  state.gatewayModels={text:legacyModels.chatModel||"",audio:legacyModels.transcriptionModel||""};
+  state.sameGateway=true;
+ }
  const credentials=await migrateLegacyCredentials(db,{
   text:state.settings.apiKey||sessionStorage.getItem("icare-api-key")||"",
   audio:state.transcriptionSettings.apiKey||sessionStorage.getItem("icare-transcription-api-key")||"",
@@ -64,21 +79,51 @@ async function loadSettings(){
  await put(db,"settings",{...safeLegacy,id:"inference"});
  await put(db,"settings",{...safeText,id:"inference-text"});
  await put(db,"settings",{...safeAudio,id:"inference-transcription"});
- $("api-base").value=state.settings.baseUrl;$("api-model").value=state.settings.model;$("api-key").value=state.settings.apiKey;$("api-preset").value=detectPreset(state.settings.baseUrl);$("api-preset").dispatchEvent(new Event("change"));
- $("transcription-base").value=state.transcriptionSettings.baseUrl;$("transcription-model").value=state.transcriptionSettings.model;$("transcription-key").value=state.transcriptionSettings.apiKey;$("transcription-preset").value=detectPreset(state.transcriptionSettings.baseUrl);$("transcription-preset").dispatchEvent(new Event("change"));updateGatewayUi();renderRuntimeMode();modelLabel();
+ $("api-base").value=state.settings.baseUrl||"";$("api-model").value=state.settings.model||"";$("api-key").value=state.settings.apiKey||"";$("api-preset").value=detectPreset(state.settings.baseUrl);$("api-preset").dispatchEvent(new Event("change"));
+ $("transcription-base").value=state.transcriptionSettings.baseUrl||"";$("transcription-model").value=state.transcriptionSettings.model||"";$("transcription-key").value=state.transcriptionSettings.apiKey||"";$("transcription-preset").value=detectPreset(state.transcriptionSettings.baseUrl);$("transcription-preset").dispatchEvent(new Event("change"));
+ $("text-route").value=state.routing.text;$("audio-route").value=state.routing.audio;
+ $("gateway-text-url").value=state.gateways.text;$("gateway-audio-url").value=state.gateways.audio;$("gateway-shared-url").value=state.gateways.text||state.gateways.audio;
+ $("same-gateway").checked=state.sameGateway;
+ renderRoutingConfig();modelLabel();
 }
-function modelLabel(){const enterprise=state.activeMode==="enterprise";$("model-label").textContent=enterprise?"Mode entreprise · Texte : "+(state.enterpriseModels.chatModel||"non configuré")+" · Transcription : "+(state.enterpriseModels.transcriptionModel||"non configurée"):state.settings.model?"Mode autonome · Texte : "+state.settings.model+" · Transcription : "+(state.transcriptionSettings.model||"non configurée"):"Mode autonome · Configurez le modèle de traitement du texte.";}
-function renderRuntimeMode(){const standaloneReady=!!(state.settings.baseUrl&&state.settings.model),enterpriseReady=!!(state.gatewayUrl&&state.enterpriseModels.chatModel);const switcher=$("runtime-mode-switch");switcher.hidden=!(standaloneReady&&enterpriseReady);$("runtime-mode-standalone").disabled=!standaloneReady;$("runtime-mode-enterprise").disabled=!enterpriseReady;for(const mode of ["standalone","enterprise"]){const active=state.activeMode===mode,button=$("runtime-mode-"+mode);button.classList.toggle("active",active);button.setAttribute("aria-pressed",String(active));}}
-async function activateRuntimeMode(mode){if(mode==="enterprise"&&(!state.gatewayUrl||!state.enterpriseModels.chatModel))return;if(mode==="standalone"&&(!state.settings.baseUrl||!state.settings.model))return;state.activeMode=mode;await put(db,"settings",{id:"active-inference-mode",mode});renderRuntimeMode();modelLabel();}
-function resolveInferenceTarget(kind,{gatewayUrl=state.activeMode==="enterprise"?state.gatewayUrl:"",model,apiKey}={}){const enterprise=!!gatewayUrl,settings=kind==="audio"?state.transcriptionSettings:state.settings;const selectedModel=enterprise?(kind==="audio"?state.enterpriseModels.transcriptionModel:state.enterpriseModels.chatModel):settings.model;if(enterprise){const parsed=new URL(gatewayUrl);if(parsed.protocol!=="https:")throw new Error("Le gateway d’entreprise doit utiliser HTTPS.");while(parsed.pathname.length>1&&parsed.pathname.endsWith("/"))parsed.pathname=parsed.pathname.slice(0,-1);return{baseUrl:parsed.origin+parsed.pathname,model:model??selectedModel,apiKey:"",credentials:"include"};}return{baseUrl:settings.baseUrl,model:model??selectedModel,apiKey:apiKey??settings.apiKey??"",credentials:"omit"};}
-function setSettingsMode(mode){const enterprise=mode==="enterprise";$("settings-panel-enterprise").hidden=!enterprise;$("settings-panel-standalone").hidden=enterprise;$("settings-tab-enterprise").setAttribute("aria-selected",String(enterprise));$("settings-tab-standalone").setAttribute("aria-selected",String(!enterprise));$("settings-tab-enterprise").tabIndex=enterprise?0:-1;$("settings-tab-standalone").tabIndex=enterprise?-1:0;$("api-base").required=!enterprise;$("api-model").required=!enterprise;}
-function updateGatewayUi(){modelLabel();}
-$("runtime-mode-standalone").addEventListener("click",()=>activateRuntimeMode("standalone"));
-$("runtime-mode-enterprise").addEventListener("click",()=>activateRuntimeMode("enterprise"));
-$("settings-tab-standalone").addEventListener("click",()=>setSettingsMode("standalone"));
-$("settings-tab-enterprise").addEventListener("click",()=>setSettingsMode("enterprise"));
-$("settings-button").addEventListener("click",()=>setSettingsMode(state.activeMode));
+function modelLabel(){
+ const text=state.routing.text==="gateway"?"Gateway · "+(state.gatewayModels.text||"modèle non attribué"):(state.settings.model||"non configuré")+" (local");
+ const audio=state.routing.audio==="gateway"?"Gateway · "+(state.gatewayModels.audio||"modèle non attribué"):(state.transcriptionSettings.model||"non configuré")+" (local)";
+ $("model-label").textContent="Texte : "+text+" · Transcription : "+audio;
+}
+function gatewayUrlFor(kind){return state.sameGateway&&state.routing.text==="gateway"&&state.routing.audio==="gateway"?state.gateways.text:state.gateways[kind];}
+function resolveInferenceTarget(kind){
+ const route=kind==="audio"?"audio":"text",settings=route==="audio"?state.transcriptionSettings:state.settings;
+ if(state.routing[route]==="gateway"){
+  const raw=gatewayUrlFor(route);if(!raw)throw new Error("Renseignez l’adresse du gateway pour "+(route==="audio"?"la transcription":"le traitement du texte")+".");
+  const parsed=new URL(raw);if(parsed.protocol!=="https:")throw new Error("Le gateway doit utiliser HTTPS.");
+  while(parsed.pathname.length>1&&parsed.pathname.endsWith("/"))parsed.pathname=parsed.pathname.slice(0,-1);
+  return{baseUrl:parsed.origin+parsed.pathname,model:state.gatewayModels[route],apiKey:"",credentials:"include"};
+ }
+ return{baseUrl:settings.baseUrl,model:settings.model,apiKey:settings.apiKey||"",credentials:"omit"};
+}
+function renderRoutingConfig(){
+ const textGateway= $("text-route").value==="gateway",audioGateway=$("audio-route").value==="gateway",both=textGateway&&audioGateway;
+ $("local-text-config").hidden=textGateway;$("local-audio-config").hidden=audioGateway;
+ $("gateway-text-config").hidden=!textGateway;$("gateway-audio-config").hidden=!audioGateway;
+ $("same-gateway-option").hidden=!both;
+ const shared=both&&$("same-gateway").checked;
+ $("gateway-shared-config").hidden=!shared;
+ $("gateway-text-config").hidden= !textGateway||shared;
+ $("gateway-audio-config").hidden= !audioGateway||shared;
+ $("api-base").required=!textGateway;$("api-model").required=!textGateway;
+ $("transcription-base").required=!audioGateway;$("transcription-model").required=!audioGateway;
+ if(shared)$("gateway-shared-url").value=$("gateway-text-url").value||$("gateway-audio-url").value||$("gateway-shared-url").value;
+}
+$("text-route").addEventListener("change",renderRoutingConfig);
+$("audio-route").addEventListener("change",renderRoutingConfig);
+$("same-gateway").addEventListener("change",()=>{if($("same-gateway").checked){const value=$("gateway-text-url").value||$("gateway-audio-url").value;$("gateway-shared-url").value=value;}renderRoutingConfig();});
+$("gateway-shared-url").addEventListener("input",e=>{$("gateway-text-url").value=e.target.value;$("gateway-audio-url").value=e.target.value;});
+$("gateway-text-url").addEventListener("input",e=>{if(!$("same-gateway").checked)$("gateway-text-url").value=e.target.value;});
+$("gateway-audio-url").addEventListener("input",e=>{if(!$("same-gateway").checked)$("gateway-audio-url").value=e.target.value;});
+$("settings-button").addEventListener("click",()=>{$("settings-dialog").showModal();renderRoutingConfig();});
 $("close-settings-dialog").addEventListener("click",()=>$("settings-dialog").close());
+
 $("api-preset").addEventListener("change",e=>{const presets={openai:"https://api.openai.com/v1",ollama:"http://localhost:11434/v1",lemonade:"http://127.0.0.1:13305/v1"};if(presets[e.target.value])$("api-base").value=presets[e.target.value];});
 $("load-models").addEventListener("click",async()=>{const status=$("provider-status");status.textContent="Chargement du catalogue…";try{const target={baseUrl:$("api-base").value.trim(),model:$("api-model").value.trim(),apiKey:$("api-key").value.trim(),credentials:"omit"};const models=await listModels(target);const list=$("available-models");list.replaceChildren();for(const model of models){const option=document.createElement("option");option.value=model;list.append(option);}status.textContent=models.length+" modèle(s) trouvé(s). Vous pouvez aussi saisir un identifiant manuellement.";}catch(error){status.textContent=error.message;}});
 async function complete(messages){return chatCompletion({...resolveInferenceTarget("text"),messages});}
@@ -108,17 +153,47 @@ $("composer").addEventListener("submit",e=>{e.preventDefault();send($("message-i
 $("message-input").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();$("composer").requestSubmit();}});
 let recorder=null,recordingStream=null,recordedChunks=[],recordingTimer=null,recordingTest=false;
 function transcriptionFormSettings(){return{gatewayUrl:"",baseUrl:$("transcription-base").value.trim(),model:$("transcription-model").value.trim(),apiKey:$("transcription-key").value.trim()};}
-async function startAudioCapture(testOnly=false){const button=$("mic-button"),testButton=$("test-transcription"),status=$("mic-status"),config=resolveTranscriptionConfig({activeMode:state.activeMode,standalone:testOnly?transcriptionFormSettings():state.transcriptionSettings,enterprise:{gatewayUrl:state.gatewayUrl,transcriptionModel:state.enterpriseModels.transcriptionModel},testOnly});if(!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder){status.textContent="La dictée nécessite un navigateur compatible, en HTTPS, avec accès au microphone.";return;}if((!config.gatewayUrl&&!config.baseUrl)||!config.model){status.textContent="Configurez le gateway ou l’adresse du serveur et choisissez un modèle de transcription dans Configuration.";return;}try{recordingTest=testOnly;recordingStream=await navigator.mediaDevices.getUserMedia({audio:true});recordedChunks=[];const types=["audio/webm;codecs=opus","audio/webm","audio/mp4"];const mimeType=types.find(type=>MediaRecorder.isTypeSupported(type));recorder=new MediaRecorder(recordingStream,mimeType?{mimeType}:undefined);recorder.addEventListener("dataavailable",event=>{if(event.data?.size)recordedChunks.push(event.data);});recorder.addEventListener("stop",async()=>{if(recordingTimer)clearTimeout(recordingTimer);recordingTimer=null;recordingStream?.getTracks().forEach(track=>track.stop());recordingStream=null;const sourceBlob=new Blob(recordedChunks,{type:recorder.mimeType||"audio/webm"});try{status.textContent="Conversion en WAV puis transcription…";const wavBlob=await audioBlobToWav(sourceBlob);const target=config.gatewayUrl?{baseUrl:config.gatewayUrl,model:config.model,apiKey:"",credentials:"include"}:{baseUrl:config.baseUrl,model:config.model,apiKey:config.apiKey,credentials:"omit"};const text=await transcribeAudio({...target,audioBlob:wavBlob,filename:"icare-dictation.wav"});if(recordingTest){$("transcription-status").textContent="✓ Transcription opérationnelle : « "+text+" »";status.textContent="Test réussi. Le modèle audio répond correctement.";}else{const input=$("message-input");input.value=(input.value.trim()?input.value.trim()+" ":"")+text;input.focus();status.textContent="Transcription ajoutée au champ de message. Vous pouvez la relire et la corriger avant l’envoi.";}}catch(error){const message="Échec de la transcription : "+error.message;if(recordingTest)$("transcription-status").textContent=message;status.textContent=message;}finally{button.disabled=false;button.textContent="🎙";button.title="Démarrer la dictée";button.setAttribute("aria-pressed","false");testButton.disabled=false;recorder=null;recordedChunks=[];recordingTest=false;}});recorder.start();if(testOnly){testButton.disabled=true;status.textContent="Test audio : parlez clairement pendant 4 secondes…";recordingTimer=setTimeout(()=>{if(recorder?.state==="recording")recorder.stop();},4000);}else{button.textContent="■";button.title="Arrêter l’enregistrement";button.setAttribute("aria-pressed","true");status.textContent="Enregistrement en cours… appuyez de nouveau sur le micro pour arrêter et transcrire.";}}catch(error){recordingStream?.getTracks().forEach(track=>track.stop());recordingStream=null;button.disabled=false;testButton.disabled=false;button.textContent="🎙";status.textContent="Accès au microphone impossible : "+error.message;}}
+async function startAudioCapture(testOnly=false){const button=$("mic-button"),testButton=$("test-transcription"),status=$("mic-status"),config=resolveInferenceTarget("audio");if(!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder){status.textContent="La dictée nécessite un navigateur compatible, en HTTPS, avec accès au microphone.";return;}if((!config.gatewayUrl&&!config.baseUrl)||!config.model){status.textContent="Configurez le gateway ou l’adresse du serveur et choisissez un modèle de transcription dans Configuration.";return;}try{recordingTest=testOnly;recordingStream=await navigator.mediaDevices.getUserMedia({audio:true});recordedChunks=[];const types=["audio/webm;codecs=opus","audio/webm","audio/mp4"];const mimeType=types.find(type=>MediaRecorder.isTypeSupported(type));recorder=new MediaRecorder(recordingStream,mimeType?{mimeType}:undefined);recorder.addEventListener("dataavailable",event=>{if(event.data?.size)recordedChunks.push(event.data);});recorder.addEventListener("stop",async()=>{if(recordingTimer)clearTimeout(recordingTimer);recordingTimer=null;recordingStream?.getTracks().forEach(track=>track.stop());recordingStream=null;const sourceBlob=new Blob(recordedChunks,{type:recorder.mimeType||"audio/webm"});try{status.textContent="Conversion en WAV puis transcription…";const wavBlob=await audioBlobToWav(sourceBlob);const target=config;const text=await transcribeAudio({...target,audioBlob:wavBlob,filename:"icare-dictation.wav"});if(recordingTest){$("transcription-status").textContent="✓ Transcription opérationnelle : « "+text+" »";status.textContent="Test réussi. Le modèle audio répond correctement.";}else{const input=$("message-input");input.value=(input.value.trim()?input.value.trim()+" ":"")+text;input.focus();status.textContent="Transcription ajoutée au champ de message. Vous pouvez la relire et la corriger avant l’envoi.";}}catch(error){const message="Échec de la transcription : "+error.message;if(recordingTest)$("transcription-status").textContent=message;status.textContent=message;}finally{button.disabled=false;button.textContent="🎙";button.title="Démarrer la dictée";button.setAttribute("aria-pressed","false");testButton.disabled=false;recorder=null;recordedChunks=[];recordingTest=false;}});recorder.start();if(testOnly){testButton.disabled=true;status.textContent="Test audio : parlez clairement pendant 4 secondes…";recordingTimer=setTimeout(()=>{if(recorder?.state==="recording")recorder.stop();},4000);}else{button.textContent="■";button.title="Arrêter l’enregistrement";button.setAttribute("aria-pressed","true");status.textContent="Enregistrement en cours… appuyez de nouveau sur le micro pour arrêter et transcrire.";}}catch(error){recordingStream?.getTracks().forEach(track=>track.stop());recordingStream=null;button.disabled=false;testButton.disabled=false;button.textContent="🎙";status.textContent="Accès au microphone impossible : "+error.message;}}
 $("mic-button").addEventListener("click",async()=>{const button=$("mic-button"),status=$("mic-status");if(recorder?.state==="recording"){recorder.stop();button.disabled=true;button.textContent="…";status.textContent="Enregistrement terminé, conversion WAV et transcription en cours…";return;}await startAudioCapture(false);});
 $("test-transcription").addEventListener("click",async()=>{if(recorder?.state==="recording")return;await startAudioCapture(true);});
 $("new-project").onclick=()=>projectDialog();$("edit-project").onclick=()=>projectDialog(state.projects.find(p=>p.id===state.projectId));
 $("project-form").addEventListener("submit",async e=>{e.preventDefault();try{await saveProject();$("project-dialog").close();}catch(error){alert("Impossible d’enregistrer le projet : "+error.message);}});
 $("project-select").onchange=async e=>{state.projectId=e.target.value;renderProjects();await loadTurns();await loadWorkspace();document.body.classList.remove("project-menu-open");$("project-menu-toggle").setAttribute("aria-expanded","false");};
 $("settings-button").onclick=()=>{$("settings-dialog").showModal();setSettingsMode(state.activeMode);};
-async function saveEnterpriseConfiguration(){const gatewayUrl=$("enterprise-gateway-url").value.trim(),status=$("enterprise-status");if(!gatewayUrl){status.textContent="Renseignez l’adresse du gateway de votre organisation.";return;}let parsed;try{parsed=new URL(gatewayUrl);if(parsed.protocol!=="https:")throw Error();}catch{status.textContent="Renseignez une URL HTTPS valide pour le gateway d’entreprise.";return;}const button=$("save-enterprise-config");button.disabled=true;status.textContent="Vérification de la connexion à votre organisation…";try{const base=gatewayUrl.replace(/\/+$/,""),configUrl=base.endsWith("/v1")?base+"/icare/config":base+"/v1/icare/config",response=await fetch(configUrl,{credentials:"include"});if(!response.ok)throw Error("Gateway inaccessible ("+response.status+"). Vérifiez votre connexion à l’organisation.");const config=await response.json(),chatModel=config.defaults?.chatModel||"",audioModel=config.defaults?.transcriptionModel||"";if(!chatModel)throw Error("Aucun modèle de conversation n’est attribué à votre identité par le gateway.");state.gatewayUrl=gatewayUrl;state.enterpriseModels={chatModel,transcriptionModel:audioModel};await put(db,"settings",{id:"enterprise-gateway",url:gatewayUrl});await put(db,"settings",{id:"enterprise-inference-models",...state.enterpriseModels});await activateRuntimeMode("enterprise");updateGatewayUi();renderRuntimeMode();modelLabel();$("settings-dialog").close();}catch(error){status.textContent=error.message;}finally{button.disabled=false;}}
-$("save-enterprise-config").addEventListener("click",saveEnterpriseConfiguration);
-$("settings-form").addEventListener("submit",async e=>{if(e.submitter?.value!=="save")return;e.preventDefault();if(!e.currentTarget.reportValidity())return;const key=$("api-key").value.trim(),audioKey=$("transcription-key").value.trim();state.settings={id:"inference-text",baseUrl:$("api-base").value.trim(),model:$("api-model").value.trim(),apiKey:key};state.transcriptionSettings={id:"inference-transcription",baseUrl:$("transcription-base").value.trim(),model:$("transcription-model").value.trim(),apiKey:audioKey};try{await saveCredentialVault(db,{text:key,audio:audioKey});const {apiKey:textSecret,...safeText}=state.settings;const {apiKey:audioSecret,...safeAudio}=state.transcriptionSettings;await put(db,"settings",safeText);await put(db,"settings",safeAudio);await activateRuntimeMode("standalone");updateGatewayUi();renderRuntimeMode();modelLabel();$("settings-dialog").close();}catch(error){$("provider-status").textContent="Enregistrement sécurisé impossible : "+error.message;}});
-$("test-provider").onclick=async()=>{const status=$("provider-status"),old=state.settings,oldGateway=state.gatewayUrl,oldMode=state.activeMode;const baseUrl=$("api-base").value.trim(),model=$("api-model").value.trim(),apiKey=$("api-key").value.trim();if(!baseUrl||!model){status.textContent="Renseignez l’adresse du gateway ou de l’API et l’identifiant du modèle texte.";return;}state.gatewayUrl="";state.settings={...state.settings,baseUrl,model,apiKey};$("test-provider").disabled=true;status.textContent="Test du modèle texte…";try{const answer=await complete([{role:"user",content:"Réponds uniquement : connexion réussie."}]);status.textContent="✓ Modèle texte opérationnel — "+answer;}catch(error){status.textContent=error.message;}finally{state.settings=old;state.gatewayUrl=oldGateway;state.activeMode=oldMode;$("test-provider").disabled=false;}};
+async function saveInferenceConfiguration(){
+ const status=$("routing-status"),button=$("save-inference-config");
+ const routing={text:$("text-route").value,audio:$("audio-route").value};
+ const sameGateway=routing.text==="gateway"&&routing.audio==="gateway"&&$("same-gateway").checked;
+ const gateways={text:routing.text==="gateway"?(sameGateway?$("gateway-shared-url").value.trim():$("gateway-text-url").value.trim()):"",audio:routing.audio==="gateway"?(sameGateway?$("gateway-shared-url").value.trim():$("gateway-audio-url").value.trim()):"",sameGateway};
+ const textSettings={id:"inference-text",baseUrl:$("api-base").value.trim(),model:$("api-model").value.trim(),apiKey:$("api-key").value.trim()};
+ const audioSettings={id:"inference-transcription",baseUrl:$("transcription-base").value.trim(),model:$("transcription-model").value.trim(),apiKey:$("transcription-key").value.trim()};
+ if(routing.text==="local"&&(!textSettings.baseUrl||!textSettings.model)){status.textContent="Configurez l’adresse et le modèle du moteur local de traitement du texte.";return;}
+ if(routing.audio==="local"&&(!audioSettings.baseUrl||!audioSettings.model)){status.textContent="Configurez l’adresse et le modèle du moteur local de transcription.";return;}
+ for(const kind of ["text","audio"])if(routing[kind]==="gateway"){try{const parsed=new URL(gateways[kind]);if(parsed.protocol!=="https:")throw Error();}catch{status.textContent="Renseignez une URL HTTPS valide pour le gateway "+(kind==="text"?"de traitement du texte":"de transcription")+".";
+ return;}}
+ button.disabled=true;status.textContent="Vérification des gateways et enregistrement des profils…";
+ try{
+  const models={text:"",audio:""},configs=new Map();
+  for(const kind of ["text","audio"])if(routing[kind]==="gateway"){
+   const url=gateways[kind];let config=configs.get(url);
+   if(!config){const base=url.replace(/\\/+$/,""),configUrl=base.endsWith("/v1")?base+"/icare/config":base+"/v1/icare/config",response=await fetch(configUrl,{credentials:"include"});if(!response.ok)throw Error("Gateway inaccessible ("+response.status+"). Vérifiez la connexion et les droits.");config=await response.json();configs.set(url,config);}
+   models[kind]=kind==="text"?(config.defaults?.chatModel||""):(config.defaults?.transcriptionModel||"");
+   if(!models[kind])throw Error(kind==="text"?"Aucun modèle de conversation n’est attribué par le gateway.":"Aucun modèle de transcription n’est attribué par le gateway.");
+  }
+  await saveCredentialVault(db,{text:textSettings.apiKey,audio:audioSettings.apiKey});
+  state.settings=textSettings;state.transcriptionSettings=audioSettings;state.routing=routing;state.gateways=gateways;state.gatewayModels=models;state.sameGateway=sameGateway;
+  const {apiKey:textSecret,...safeText}=textSettings,{apiKey:audioSecret,...safeAudio}=audioSettings;
+  await put(db,"settings",safeText);await put(db,"settings",safeAudio);
+  await put(db,"settings",{id:"inference-routing",...routing});
+  await put(db,"settings",{id:"inference-gateways",...gateways});
+  await put(db,"settings",{id:"inference-gateway-models",...models});
+  renderRoutingConfig();modelLabel();$("settings-dialog").close();
+ }catch(error){status.textContent=error.message;}finally{button.disabled=false;}
+}
+$("settings-form").addEventListener("submit",async e=>{e.preventDefault();await saveInferenceConfiguration();});
+$("save-inference-config").addEventListener("click",saveInferenceConfiguration);
+
+$("test-provider").onclick=async()=>{const status=$("provider-status"),baseUrl=$("api-base").value.trim(),model=$("api-model").value.trim(),apiKey=$("api-key").value.trim();if(!baseUrl||!model){status.textContent="Renseignez l’adresse et le modèle du moteur local.";return;}$("test-provider").disabled=true;status.textContent="Test du modèle texte local…";try{const answer=await chatCompletion({baseUrl,model,apiKey,credentials:"omit",messages:[{role:"user",content:"Réponds uniquement : connexion réussie."}]});status.textContent="✓ Modèle texte local opérationnel — "+answer;}catch(error){status.textContent=error.message;}finally{$("test-provider").disabled=false;}};
 $("load-transcription-models").onclick=async()=>{const status=$("transcription-status");status.textContent="Recherche des modèles de transcription…";try{const baseUrl=$("transcription-base").value.trim(),apiKey=$("transcription-key").value.trim(),label=$("transcription-preset").value==="lemonade"?"transcription":"";const models=await listModels({baseUrl,apiKey,label,credentials:"omit"});const list=$("transcription-models");list.replaceChildren();for(const model of models){const option=document.createElement("option");option.value=model;list.append(option);}status.textContent=models.length?models.length+" modèle(s) "+(label?"portant le label transcription ":"")+"trouvé(s). Choisissez un identifiant dans la liste.":"Aucun modèle de transcription trouvé dans le catalogue. Vérifiez qu’un modèle audio est disponible sur le serveur.";if(!models.length&&label)status.textContent+=" Consultez le catalogue Lemonade ou installez un modèle compatible.";}catch(error){status.textContent=error.message;}};
 $("transcription-preset").addEventListener("change",e=>{const presets={openai:"https://api.openai.com/v1",ollama:"http://localhost:11434/v1",lemonade:"http://127.0.0.1:13305/v1"};if(presets[e.target.value])$("transcription-base").value=presets[e.target.value];const help={openai:"API Audio Transcriptions compatible OpenAI. Consultez la documentation du fournisseur pour les modèles et formats audio acceptés.",ollama:"Vérifiez que votre version expose un endpoint de transcription audio compatible OpenAI.",lemonade:"Lemonade expose /v1/audio/transcriptions. Son API attend un fichier WAV et un modèle portant le label « transcription ». ICARE convertit automatiquement l’enregistrement en WAV.", "":"Le serveur doit exposer un endpoint compatible /v1/audio/transcriptions. Vérifiez les formats audio et les modèles pris en charge dans sa documentation."};$("transcription-help").textContent=help[e.target.value]||help[""];});
 $("close-project-dialog").onclick=()=>$("project-dialog").close();$("cancel-project").onclick=()=>$("project-dialog").close();$("close-export-dialog").onclick=()=>$("export-dialog").close();$("cancel-export").onclick=()=>$("export-dialog").close();
