@@ -12,6 +12,12 @@
       "componentId": "icare:ontology/validator",
       "entrypoint": "./components/ontology-validator/ontology-validator.js",
       "world": "component-base"
+    },
+    {
+      "id": "context-summary",
+      "componentId": "icare:context/summary",
+      "entrypoint": "./components/context-summary/context-summary.js",
+      "world": "component-with-context"
     }
   ]
 }
