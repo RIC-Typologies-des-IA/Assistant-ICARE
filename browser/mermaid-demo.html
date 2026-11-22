@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#172b4d">
+  <meta name="description" content="Démonstration interactive du rendu Mermaid dans ICARE.">
+  <title>ICARE — Démonstration Mermaid</title>
+  <link rel="icon" type="image/svg+xml" href="./icon.svg">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <a class="brand-home" href="./" aria-label="Retour à ICARE"><img class="ric-logo" src="./ric-logo.png" alt="" width="118" height="125"></a>
+      <div class="brand-copy">
+        <div class="brand-title"><strong>ICARE</strong><small class="app-version">Démonstration Mermaid</small></div>
+        <small class="brand-tagline">Des diagrammes directement dans les conversations</small>
+        <small class="brand-affiliation">Rendu local dans le navigateur · aucun service externe</small>
+      </div>
+    </div>
+    <div class="top-actions"><a class="button secondary" href="./">← Retour au dialogue</a></div>
+  </header>
+  <main class="layout">
+    <section class="chat-panel" aria-labelledby="demo-title">
+      <div class="chat-heading">
+        <div><h1 id="demo-title">Voir Mermaid en action</h1><p class="muted">Trois familles de diagrammes rendues par le moteur intégré à ICARE.</p></div>
+      </div>
+      <div class="messages" style="max-height:none">
+        <article class="message assistant" style="max-width:100%;width:100%">
+          <div id="mermaid-demo" class="message-content" aria-live="polite"><p>Chargement des diagrammes…</p></div>
+        </article>
+      </div>
+      <div class="chat-heading"><div><h2>Essayer dans une conversation</h2><p class="muted">Copie un bloc Mermaid dans le dialogue ICARE : le diagramme sera rendu automatiquement.</p></div></div>
+    </section>
+  </main>
+  <script src="./vendor/markdown-it.min.js"></script>
+  <script src="./vendor/purify.min.js"></script>
+  <script src="./vendor/highlight.min.js"></script>
+  <script type="module">
+    import { renderMarkdown } from "./markdown.js";
+    const source = [
+      "# 1. Organigramme — cycle d’exploration ICARE",
+      "",
+      "```mermaid",
+      "flowchart TD",
+      "  I[Intention] --> C[Contexte]",
+      "  C --> A[Action]",
+      "  A --> R[Régulation]",
+      "  R --> E[Évolution]",
+      "  E -->|Nouvelles questions| I",
+      "  R -.->|Ajustement| A",
+      "```",
+      "",
+      "Ce premier diagramme représente une boucle d’exploration : l’évolution fait émerger de nouvelles questions et relance le cycle.",
+      "",
+      "---",
+      "",
+      "# 2. Séquence — dialogue entre l’utilisateur et ICARE",
+      "",
+      "```mermaid",
+      "sequenceDiagram",
+      "  actor U as Utilisateur",
+      "  participant I as ICARE",
+      "  participant P as Projet local",
+      "  U->>I: Décrit une situation",
+      "  I->>P: Lit le contexte du projet",
+      "  P-->>I: Contexte et historique",
+      "  I-->>U: Question de clarification",
+      "  U->>I: Précise son intention",
+      "  I->>P: Enregistre l’échange",
+      "  I-->>U: Reformulation et pistes",
+      "```",
+      "",
+      "La séquence montre les échanges et la conservation du contexte dans le projet local.",
+      "",
+      "---",
+      "",
+      "# 3. Machine à états — cycle d’une proposition",
+      "",
+      "```mermaid",
+      "stateDiagram-v2",
+      "  [*] --> Proposée",
+      "  Proposée --> EnDiscussion: Examiner",
+      "  EnDiscussion --> Acceptée: Valider",
+      "  EnDiscussion --> ÀRevoir: Préciser",
+      "  ÀRevoir --> EnDiscussion: Reprendre",
+      "  Acceptée --> [*]",
+      "```",
+      "",
+      "Une proposition peut être discutée, précisée, puis acceptée. Les diagrammes sont calculés localement à partir du texte."
+    ].join("\n");
+    const host = document.getElementById("mermaid-demo");
+    try {
+      host.replaceChildren(renderMarkdown(source));
+    } catch (error) {
+      host.textContent = "Impossible de rendre les exemples : " + (error?.message || "erreur inconnue");
+    }
+  </script>
+</body>
+</html>
