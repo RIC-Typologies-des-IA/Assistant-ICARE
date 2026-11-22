@@ -74,6 +74,7 @@ try {
       footnotes: host.querySelectorAll(".footnotes li").length,
       highlighted: host.querySelectorAll("pre code .hljs-keyword, pre code .hljs-number").length,
       mermaid: host.querySelectorAll(".mermaid-diagram svg").length,
+      remoteImages: host.querySelectorAll("img").length,
       rawHtml: host.querySelector("p.note strong")?.textContent || "",
       safeLink: [...host.querySelectorAll("a")].some(a => a.href === "https://example.org/" && a.rel.includes("noopener"))
     };
@@ -88,6 +89,7 @@ try {
   assert.equal(result.footnotes, 1, "les notes de bas de page doivent être rendues");
   assert.ok(result.highlighted > 0, "les blocs de code doivent être colorisés");
   assert.equal(result.mermaid, 1, "le bloc Mermaid doit être transformé en SVG");
+  assert.equal(result.remoteImages, 0, "les images distantes doivent être bloquées pour éviter le pistage par requête réseau");
   assert.equal(result.rawHtml, "HTML documentaire autorisé", "un sous-ensemble HTML documentaire doit rester disponible");
   assert.equal(result.safeLink, true, "les liens HTTPS doivent rester accessibles sans opener");
   console.log("Markdown rendering/security tests passed.");
