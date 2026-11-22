@@ -167,6 +167,51 @@ test("la validation des observations passe par le composant WASI avant toute éc
   assert.equal(writes, 0);
 });
 
+test("les règles de relation et de statut sont déléguées au validateur WASI", async () => {
+  const project = workspace();
+  project.proposals.push({ id: "p1" }, { id: "p2" });
+  const operations = [];
+  let writes = 0;
+  const componentRuntime = {
+    load: async () => ({
+      invoke: async (operation, payload) => {
+        operations.push(operation);
+        if (operation === "validate-relation") return {
+          valid: payload.relation.from_id !== payload.relation.to_id &&
+            payload.existingProposalIds.includes(payload.relation.from_id) &&
+            payload.existingProposalIds.includes(payload.relation.to_id) &&
+            payload.allowedRelations.includes(payload.relation.relation),
+          errors: ["Relation refusée par le WASM."]
+        };
+        if (operation === "validate-exploration-status") return {
+          valid: payload.status.status !== "sufficient" || Boolean(payload.status.justification.trim()),
+          errors: ["Statut refusé par le WASM."]
+        };
+        throw new Error("Opération inattendue : " + operation);
+      }
+    })
+  };
+  const execute = createIcareToolExecutor({
+    workspace: project,
+    ontology,
+    componentRuntime,
+    persist: async () => writes++
+  });
+  await execute("propose_relation", { from_id: "p1", to_id: "p2", relation: "complements" });
+  await assert.rejects(
+    execute("propose_relation", { from_id: "p1", to_id: "p1", relation: "complements" }),
+    /Relation refusée par le WASM/
+  );
+  await assert.rejects(
+    execute("update_exploration_status", { dimension: "C", status: "sufficient", justification: "" }),
+    /Statut refusé par le WASM/
+  );
+  assert.deepEqual(operations, ["validate-relation", "validate-relation", "validate-exploration-status"]);
+  assert.equal(project.relations.length, 1);
+  assert.equal(project.dimensions.C, "unexplored");
+  assert.equal(writes, 1);
+});
+
 test("une relation exige deux propositions locales et un prédicat de l'ontologie", async () => {
   const project = workspace();
   project.proposals.push({ id: "p1" }, { id: "p2" });
