@@ -8,6 +8,7 @@ Ce registre est une base de contrôle. Il doit être mis à jour à chaque ajout
 | Service Worker | Installation / mise à jour | Code du cache applicatif | Même origine ; optionnel pour les fonctions locales |
 | Inférence texte | Envoi volontaire d'un message | Contexte sélectionné, historique récent et message courant | Endpoint configuré ; HTTPS obligatoire hors boucle locale |
 | Transcription audio | Dictée volontaire | Enregistrement audio | Endpoint configuré ; HTTPS obligatoire hors boucle locale |
+| Inférence via gateway d'entreprise | Envoi volontaire d'un message ou d'une dictée | Payload d'inférence autorisé et identité de session | Origine HTTPS exacte, authentification IdP/reverse proxy, alias de modèle et droits administrés côté gateway ; aucune clé fournisseur dans le navigateur |
 | Liens documentaires | Clic explicite | Navigation du navigateur | Ouverture volontaire ; pas un appel applicatif en arrière-plan |
 | Télémétrie / analytics | Aucun | Aucun | Désactivé / absent par défaut |
 
