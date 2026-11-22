@@ -1,5 +1,8 @@
 {
-  "listen": { "host": "127.0.0.1", "port": 8787 },
+  "listen": {
+    "host": "127.0.0.1",
+    "port": 8787
+  },
   "cors": {
     "allowedOrigins": [
       "https://ric-typologies-des-ia.github.io"
@@ -22,7 +25,9 @@
       "upstreamBaseUrl": "https://api.openai.com/v1",
       "upstreamModel": "gpt-4.1-mini",
       "apiKeyEnv": "ICARE_OPENAI_API_KEY",
-      "capabilities": ["chat"]
+      "capabilities": [
+        "chat"
+      ]
     },
     {
       "id": "whisper-1",
@@ -30,7 +35,13 @@
       "upstreamBaseUrl": "https://api.openai.com/v1",
       "upstreamModel": "whisper-1",
       "apiKeyEnv": "ICARE_OPENAI_API_KEY",
-      "capabilities": ["transcription"]
+      "capabilities": [
+        "transcription"
+      ]
     }
-  ]
+  ],
+  "defaults": {
+    "chatModel": "gpt-4.1-mini",
+    "transcriptionModel": "whisper-1"
+  }
 }
