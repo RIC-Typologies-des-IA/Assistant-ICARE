@@ -27,7 +27,8 @@ export function validateConfig(config) {
     if (parsed.protocol !== "https:" || parsed.origin !== origin) throw new Error("Allowed origins must be exact HTTPS origins.");
   }
   const identityHeader = String(config.auth?.identityHeader || "").toLowerCase();
-  if (!/^x-[a-z0-9-]+$/.test(identityHeader)) throw new Error("A trusted reverse-proxy identityHeader is required.");
+  const groupsHeader = String(config.auth?.groupsHeader || "").toLowerCase();
+  if (!/^x-[a-z0-9-]+$/.test(identityHeader) || !/^x-[a-z0-9-]+$/.test(groupsHeader)) throw new Error("Trusted reverse-proxy identityHeader and groupsHeader are required.");
   if (!Array.isArray(config.models) || !config.models.length) throw new Error("At least one model must be configured.");
   const ids = new Set();
   for (const model of config.models) {
@@ -43,6 +44,7 @@ export function validateConfig(config) {
       throw new Error("Model capabilities must be chat and/or transcription.");
     }
     if (!String(model.upstreamModel || "").trim()) throw new Error("upstreamModel is required.");
+    if (model.allowedGroups !== undefined && (!Array.isArray(model.allowedGroups) || model.allowedGroups.some(group => typeof group !== "string" || !group.trim()))) throw new Error("allowedGroups must be an array of non-empty group names.");
   }
   const limits = config.limits || {};
   if (limits.requestsPerMinute !== undefined && (!Number.isInteger(limits.requestsPerMinute) || limits.requestsPerMinute < 1)) {
@@ -126,23 +128,35 @@ function createRateLimiter(limit) {
   };
 }
 
-function modelFor(config, id, capability) {
-  const model = config.models.find(candidate => candidate.id === id && candidate.capabilities.includes(capability));
-  if (!model) throw Object.assign(new Error("The requested model or capability is not enabled by this enterprise gateway."), { status: 403 });
+function requestGroups(req, config) {
+  const header = String(req.headers[String(config.auth.groupsHeader).toLowerCase()] || "");
+  return new Set(header.split(",").map(group => group.trim()).filter(Boolean));
+}
+
+function visibleModels(config, groups) {
+  return config.models.filter(model => !model.allowedGroups?.length || model.allowedGroups.some(group => groups.has(group)));
+}
+
+function modelFor(config, id, capability, groups) {
+  const model = visibleModels(config, groups).find(candidate => candidate.id === id && candidate.capabilities.includes(capability));
+  if (!model) throw Object.assign(new Error("The requested model or capability is not enabled for this enterprise identity."), { status: 403 });
   const apiKey = process.env[model.apiKeyEnv];
   if (!apiKey) throw Object.assign(new Error("The administrator has not configured credentials for this provider."), { status: 503 });
   return { ...model, apiKey };
 }
 
 async function upstreamFetch(model, suffix, options, config) {
-  const base = model.upstreamBaseUrl.replace(/\/+$/, "");
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), config.limits?.timeoutMs || 90_000);
-  try {
-    return await fetch(base + suffix, { ...options, signal: controller.signal });
-  } finally {
-    clearTimeout(timeout);
-  }
+  const base = model.upstreamBaseUrl.replace(/\\/+$/, "");
+  return fetch(base + suffix, { ...options, signal: AbortSignal.timeout(config.limits?.timeoutMs || 90_000) });
+}
+
+function sanitizeChatPayload(payload, upstreamModel) {
+  const allowed = ["messages", "temperature", "top_p", "n", "stop", "max_tokens", "max_completion_tokens", "frequency_penalty", "presence_penalty", "tools", "tool_choice", "response_format", "seed", "user", "parallel_tool_calls"];
+  const clean = {};
+  for (const key of allowed) if (payload[key] !== undefined) clean[key] = payload[key];
+  clean.model = upstreamModel;
+  clean.stream = false;
+  return clean;
 }
 
 export function createGatewayServer(config) {
@@ -150,13 +164,13 @@ export function createGatewayServer(config) {
   const allowRequest = createRateLimiter(config.limits?.requestsPerMinute || 60);
   return createServer(async (req, res) => {
     try {
+      const path = new URL(req.url, "http://gateway.invalid").pathname;
+      if (req.method === "GET" && path === "/healthz") { json(res, 200, { status: "ok", service: "icare-enterprise-gateway" }); return; }
       if (!applyCors(req, res, config)) {
         json(res, 403, { error: { message: "Origin not allowed by this enterprise gateway." } });
         return;
       }
       if (req.method === "OPTIONS") { res.writeHead(204); res.end(); return; }
-      const path = new URL(req.url, "http://gateway.invalid").pathname;
-      if (req.method === "GET" && path === "/healthz") { json(res, 200, { status: "ok", service: "icare-enterprise-gateway" }); return; }
       const user = String(req.headers[String(config.auth.identityHeader).toLowerCase()] || "").trim();
       if (!user || user.length > 256 || /[\r\n]/.test(user)) {
         json(res, 401, { error: { message: "An authenticated enterprise identity is required. Configure the trusted authentication reverse proxy." } });
@@ -164,8 +178,9 @@ export function createGatewayServer(config) {
       }
       if (!allowRequest(user)) { json(res, 429, { error: { message: "Enterprise gateway request quota exceeded." } }); return; }
 
+      const groups = requestGroups(req, config);
       if (req.method === "GET" && path === "/v1/models") {
-        json(res, 200, { object: "list", data: config.models.map(model => ({ id: model.id, object: "model", owned_by: "icare-enterprise", labels: model.capabilities })) });
+        json(res, 200, { object: "list", data: visibleModels(config, groups).map(model => ({ id: model.id, object: "model", owned_by: "icare-enterprise", labels: model.capabilities })) });
         return;
       }
 
@@ -176,8 +191,8 @@ export function createGatewayServer(config) {
         if (!Array.isArray(payload.messages) || payload.stream === true) {
           json(res, 400, { error: { message: "messages must be an array; streaming is not enabled by this gateway version." } }); return;
         }
-        const model = modelFor(config, payload.model, "chat");
-        const forwarded = { ...payload, model: model.upstreamModel, stream: false };
+        const model = modelFor(config, payload.model, "chat", groups);
+        const forwarded = sanitizeChatPayload(payload, model.upstreamModel);
         const upstream = await upstreamFetch(model, "/chat/completions", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: "Bearer " + model.apiKey },
@@ -197,7 +212,7 @@ export function createGatewayServer(config) {
         if (!modelPart || !filePart || !filePart.data.length) {
           json(res, 400, { error: { message: "A model field and non-empty audio file are required." } }); return;
         }
-        const model = modelFor(config, modelPart.data.toString("utf8").trim(), "transcription");
+        const model = modelFor(config, modelPart.data.toString("utf8").trim(), "transcription", groups);
         const form = new FormData();
         form.append("model", model.upstreamModel);
         form.append("file", new File([filePart.data], filePart.filename || "audio.bin", { type: filePart.type }));
