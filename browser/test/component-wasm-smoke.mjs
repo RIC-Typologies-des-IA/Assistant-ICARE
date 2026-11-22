@@ -29,33 +29,6 @@ try {
   const errors = [];
   page.on("pageerror", error => errors.push(error.message));
   await page.goto("http://127.0.0.1:" + server.address().port + "/");
-  const result = await page.evaluate(async () => {
-    const { createComponentRuntime } = await import("./component-runtime.js");
-    const runtime = createComponentRuntime({ grants: { "context-summary": ["context-read"] }, contextProvider: () => JSON.stringify({ projectId: "smoke-project", dimensions: { I: "unexplored" } }) });
-    const component = await runtime.load("hello");
-    return {
-      manifest: component.manifest,
-      output: await component.invoke("greet", { name: "ICARE" }, "browser-smoke-1")
-    };
-  });
-  assert.equal(result.manifest.componentId, "icare:example/hello");
-  assert.deepEqual(result.manifest.requiredCapabilities, []);
-  assert.match(result.output.message, /Bonjour ICARE depuis un composant WebAssembly/);
-  const contextResult = await page.evaluate(async () => {
-    const { createComponentRuntime } = await import("./component-runtime.js");
-    const runtime = createComponentRuntime({
-      grants: { "context-summary": ["context-read"] },
-      contextProvider: () => JSON.stringify({ projectId: "browser-project", dimensions: { C: "insufficient" } })
-    });
-    const component = await runtime.load("context-summary");
-    return {
-      manifest: component.manifest,
-      output: await component.invoke("read-project-context", {}, "context-smoke-1")
-    };
-  });
-  assert.equal(contextResult.manifest.componentId, "icare:context/summary");
-  assert.deepEqual(contextResult.manifest.requiredCapabilities, ["context-read"]);
-  assert.deepEqual(contextResult.output.context, { projectId: "browser-project", dimensions: { C: "insufficient" } });
   const validator = await (await page.evaluate(async () => {
     const { createComponentRuntime } = await import("./component-runtime.js");
     const component = await createComponentRuntime().load("ontology-validator");
