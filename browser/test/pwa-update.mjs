@@ -13,7 +13,8 @@ const html=`<!doctype html><html><body><output id="version"></output><script typ
   const response=await fetch("./version.js",{cache:"no-store"});
   const source=await response.text();
   document.querySelector("#version").textContent=source.match(/"([^"]+)"/)?.[1]||"unknown";
-  window.registration=await registerAppServiceWorker();
+  window.safeToReload=false;
+  window.registration=await registerAppServiceWorker({canReload:()=>window.safeToReload});
   const key="icare-pwa-reload-count";
   sessionStorage.setItem(key,String(Number(sessionStorage.getItem(key)||"0")+1));
   document.body.dataset.reloadCount=sessionStorage.getItem(key);
@@ -44,8 +45,12 @@ try{
 
   version="0.9.1";
   await page.evaluate(()=>window.registration.update());
+  await page.waitForTimeout(1000);
+  assert.equal(await page.locator("#version").textContent(),"0.9.0","une mise à jour ne doit pas interrompre un brouillon en cours");
+  assert.equal(await page.locator("body").getAttribute("data-reload-count"),"1","le client ne doit pas recharger tant que l'utilisateur n'est pas prêt");
+  await page.evaluate(()=>{window.safeToReload=true;document.dispatchEvent(new Event("input",{bubbles:true}));});
   await page.waitForFunction(()=>document.querySelector("#version")?.textContent==="0.9.1",{timeout:15000});
-  assert.equal(await page.locator("body").getAttribute("data-reload-count"),"2","un worker mis à jour doit recharger automatiquement l'onglet une seule fois");
+  assert.equal(await page.locator("body").getAttribute("data-reload-count"),"2","un worker mis à jour doit recharger automatiquement l'onglet une seule fois dès que le brouillon est levé");
   assert.equal(await page.evaluate(()=>navigator.serviceWorker.controller?.state),"activated","le nouvel onglet doit être contrôlé par le worker activé");
   await context.close();
   console.log("PWA update test passed: new worker detected, activated and client tab automatically reloaded.");
