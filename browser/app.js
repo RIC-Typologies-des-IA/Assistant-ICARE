@@ -57,7 +57,7 @@ async function loadSettings(){
  if(routing){
   state.routing={text:routing.text==="gateway"?"gateway":"local",audio:routing.audio==="gateway"?"gateway":"local"};
   state.gateways=gateways?{text:gateways.text||"",audio:gateways.audio||""}:{text:legacyGateway.url||"",audio:legacyGateway.url||""};
-  state.gatewayModels={text:gatewayModels?.text||legacyModels.chatModel||"",audio:gatewayModels?.audio||legacyModels.transcriptionModel||""};
+  state.gatewayModels=gatewayModels?{text:gatewayModels.text||"",audio:gatewayModels.audio||""}:{text:legacyModels.chatModel||"",audio:legacyModels.transcriptionModel||""};
   state.sameGateway=gateways?.sameGateway??(state.gateways.text===state.gateways.audio);
  }else{
   const legacyMode=(await get(db,"settings","active-inference-mode"))?.mode;const legacyEnterprise=legacyMode==="enterprise"||(!legacyMode&&!!legacyGateway.url);
