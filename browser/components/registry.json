@@ -12,7 +12,8 @@
       "id": "ontology-validator",
       "componentId": "icare:ontology/validator",
       "entrypoint": "./components/ontology-validator/ontology-validator.js",
-      "world": "component-base"
+      "world": "component-base",
+      "requiredCapabilities": []
     },
     {
       "id": "context-summary",
