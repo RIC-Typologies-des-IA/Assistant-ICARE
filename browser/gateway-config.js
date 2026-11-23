@@ -14,8 +14,7 @@ function normalise(value){
   const owner=d.gateways.find(g=>g.id===preferredId&&g.capabilities.includes(service))
    ||d.gateways.find(g=>g.capabilities.includes(service));
   for(const g of d.gateways)if(g.capabilities.includes(service)&&g!==owner)g.capabilities=g.capabilities.filter(item=>item!==service);
-  if(owner)d.routes[service]="gateway-"+owner.id;
-  else d.routes[service]="direct";
+  if(d.routes[service]!=="direct"&&(!owner||d.routes[service]!=="gateway-"+owner.id))d.routes[service]="direct";
  }
  if(!d.gateways.some(g=>g.capabilities.length))d.gateways[0].capabilities=[...SERVICES];
  return d;
