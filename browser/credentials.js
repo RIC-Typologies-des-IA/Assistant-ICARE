@@ -91,6 +91,6 @@ export async function migrateLegacyCredentials(db, { text = "", audio = "", scor
     text: current.text || text || legacy,
     audio: current.audio || audio
   };
-  if (next.text || next.audio) await saveCredentialVault(db, next);
+  if (next.text || next.audio || next.scoring) await saveCredentialVault(db, next);
   return next;
 }
