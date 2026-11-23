@@ -434,7 +434,7 @@ body.project-menu-open .sidebar{
 
 /* Mermaid: preserve native palettes and diagram-specific SVG styles. */
 .message-content .mermaid-diagram{
-  max-width:100%;overflow:auto;margin:1em 0;padding:12px;
+  box-sizing:border-box;max-width:100%;overflow:auto;margin:1em 0;padding:12px;
   border:1px solid #d5deea;border-radius:9px;background:#fff;color:#202b3a
 }
 .message-content .mermaid-diagram svg{
