@@ -15,7 +15,6 @@ test("gateway configuration rejects unsafe origins and upstream URLs", () => {
   assert.throws(() => validateConfig({ ...config, cors: { allowedOrigins: ["*"] } }));
   assert.throws(() => validateConfig({ ...config, models: [{ ...config.models[0], upstreamBaseUrl: "http://provider.example/v1" }] }));
   assert.throws(() => validateConfig({ ...config, auth: { identityHeader: "authorization" } }));
-  assert.throws(() => validateConfig({ ...config, models: [...config.models, { id:"remote-scoring", provider:"hf", upstreamBaseUrl:"https://provider.example", upstreamModel:"remote", apiKeyEnv:"ICARE_REMOTE_KEY", capabilities:["scoring"] }] }), /remote scoring providers are forbidden/);
 });
 
 test("gateway denies requests without an authenticated reverse-proxy identity", async t => {
@@ -98,30 +97,23 @@ test("gateway rejects unconfigured models before any provider call", async t => 
   assert.equal(response.status, 403);
 });
 
-test("gateway runs multilabel scoring locally without provider credentials or network inference", async t => {
-  const scoringModel = { id: "horizon", provider: "local", runtime: "transformers-js", modelId: "Horizon-Labs/multilingual-zeroshot-base", capabilities: ["scoring"] };
-  const scoringConfig = { ...config, auth: { ...config.auth, allowLoopbackWithoutIdentity: true }, defaults: { ...config.defaults, scoringModel: "horizon" }, models: [...config.models, scoringModel] };
-  let received;
-  const server = createGatewayServer(scoringConfig, { localScorer: async args => { received=args; return { scores:{I:.8,C:.7,A:.6,R:.5,E:.4}, labels:["I","C","A","R","E"] }; } });
-  await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
-  t.after(() => new Promise(resolve => server.close(resolve)));
-  const url="http://127.0.0.1:"+server.address().port;
+test("gateway forwards ICARE multilabel scoring to its configured endpoint without knowing the engine", async t => {
+  const scoringConfig={...config,scoring:{endpointUrl:"https://scoring.example.org/v1/score"}};
+  let forwarded;
+  const server=createGatewayServer(scoringConfig,{fetchImpl:async(url,options)=>{forwarded={url,options};return new Response(JSON.stringify({scores:{I:.8,C:.7,A:.6,R:.5,E:.4}}),{status:200,headers:{"content-type":"application/json"}});}});
+  await new Promise(resolve=>server.listen(0,"127.0.0.1",resolve));t.after(()=>new Promise(resolve=>server.close(resolve)));
   const origin="https://icare.example.org";
-  const configResponse=await fetch(url+"/v1/icare/config",{headers:{Origin:origin,"X-ICARE-Authenticated-User":"alice"}});
-  assert.equal((await configResponse.json()).defaults.scoringModel,"horizon");
-  const response=await fetch(url+"/v1/icare/scoring",{method:"POST",headers:{Origin,"Content-Type":"application/json"},body:JSON.stringify({model:"horizon",text:"Bonjour, nous révisons notre stratégie.",multi_label:true,labels:["I","C","A","R","E"].map(code=>({code,label:code,description:"Dimension "+code}))})});
-  assert.equal(response.status,200);
-  assert.deepEqual((await response.json()).scores,{I:.8,C:.7,A:.6,R:.5,E:.4});
-  assert.equal(received.text,"Bonjour, nous révisons notre stratégie.");
-  assert.equal(received.modelId,"Horizon-Labs/multilingual-zeroshot-base");
-  const unauthenticatedChat=await fetch(url+"/v1/chat/completions",{method:"POST",headers:{Origin,"Content-Type":"application/json"},body:JSON.stringify({messages:[{role:"user",content:"hello"}]})});
-  assert.equal(unauthenticatedChat.status,401,"l’accès loopback anonyme doit rester limité au scoring local");
+  const payload={text:"Bonjour, nous révisons notre stratégie.",multi_label:true,dimensions:["I","C","A","R","E"].map(code=>({code,label:"Dimension "+code,description:"Description"}))};
+  const response=await fetch("http://127.0.0.1:"+server.address().port+"/v1/icare/scoring",{method:"POST",headers:{Origin:origin,"X-ICARE-Authenticated-User":"alice","Content-Type":"application/json"},body:JSON.stringify(payload)});
+  assert.equal(response.status,200);assert.deepEqual((await response.json()).scores,{I:.8,C:.7,A:.6,R:.5,E:.4});
+  assert.equal(forwarded.url,"https://scoring.example.org/v1/score");assert.deepEqual(JSON.parse(forwarded.options.body),payload);
 });
-test("gateway rejects malformed scoring requests", async t => {
+test("gateway rejects malformed scoring requests and unsafe endpoint URLs", async t => {
+  assert.throws(()=>validateConfig({...config,scoring:{endpointUrl:"http://remote.example/score"}}),/HTTPS/);
   const server=createGatewayServer(config);await new Promise(resolve=>server.listen(0,"127.0.0.1",resolve));t.after(()=>new Promise(resolve=>server.close(resolve)));
-  const response=await fetch("http://127.0.0.1:"+server.address().port+"/v1/icare/scoring",{method:"POST",headers:{Origin:"https://icare.example.org","X-ICARE-Authenticated-User":"alice","Content-Type":"application/json"},body:JSON.stringify({text:"Bonjour",multi_label:false,labels:[]})});
+  const headers={Origin:"https://icare.example.org","X-ICARE-Authenticated-User":"alice","Content-Type":"application/json"};
+  const response=await fetch("http://127.0.0.1:"+server.address().port+"/v1/icare/scoring",{method:"POST",headers,body:JSON.stringify({text:"Bonjour",multi_label:false,dimensions:[]})});
   assert.equal(response.status,400);
-  const duplicateLabels=["I","I","A","R","E"].map(code=>({code,label:"Dimension "+code,description:"Description"}));
-  const duplicate=await fetch("http://127.0.0.1:"+server.address().port+"/v1/icare/scoring",{method:"POST",headers:{Origin:"https://icare.example.org","X-ICARE-Authenticated-User":"alice","Content-Type":"application/json"},body:JSON.stringify({text:"Bonjour",multi_label:true,labels:duplicateLabels})});
-  assert.equal(duplicate.status,400,"chaque dimension ICARE doit être présente une seule fois");
+  const noEndpoint=await fetch("http://127.0.0.1:"+server.address().port+"/v1/icare/scoring",{method:"POST",headers,body:JSON.stringify({text:"Bonjour",multi_label:true,dimensions:["I","C","A","R","E"].map(code=>({code}))})});
+  assert.equal(noEndpoint.status,503);
 });
