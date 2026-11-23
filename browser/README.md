@@ -2,7 +2,7 @@
 
 Première tranche autonome en cours de réalisation, destinée à être publiée en fichiers statiques : pas de serveur Node.js, SQLite ou bot Discord.
 
-Fonctions : projets locaux, conversations persistées dans IndexedDB, export/import JSON, configuration d'une API compatible OpenAI Chat Completions, PWA et cache statique.
+Fonctions : projets locaux, conversations persistées dans IndexedDB, export/import JSON, routage indépendant du LLM, de la transcription et du scoring ICARE multilabel, trois passerelles configurables, PWA et cache statique.
 
 Limites : le fournisseur doit autoriser CORS depuis GitHub Pages ; les données restent dans ce navigateur/profil et ne sont pas synchronisées ; les propositions structurées, relations et CRDT seront réintégrés progressivement. Les clés API sont chiffrées en AES-256-GCM via Web Crypto ; la clé de chiffrement est non exportable et conservée comme objet CryptoKey dans IndexedDB. Les secrets chiffrés persistent dans le profil du navigateur, sont déchiffrés automatiquement à la réouverture et ne sont jamais inclus dans les projets ou exports. Les anciennes clés en clair sont migrées vers le coffre puis supprimées. Le stockage navigateur n'est pas un coffre-fort contre un appareil compromis.
 
@@ -63,3 +63,15 @@ Le premier composant de démonstration respecte le contrat `lifecycle` et peut �
 Cette première tranche n'exécute pas encore les mondes WIT qui importent le contexte, le stockage, l'inférence ou la messagerie. Ces interfaces nécessitent leurs liaisons hôte dédiées et des politiques de permissions avant d'être activées. Les composants historiques restent dans l'hôte JavaScript jusqu'à leur migration.
 
 Le composant `ontology-validator` exécute dans le guest WASM la validation déterministe des observations, relations et statuts avant enregistrement. Le composant `context-summary` reçoit la capacité `context-read` via un import WIT lié par l'hôte ; il ne reçoit qu'un instantané JSON du projet, sans accès direct à IndexedDB, au réseau ou à l'inférence. Les validations côté hôte restent en défense en profondeur.
+
+
+## Scoring ICARE multilabel
+
+Le scoring utilise `Horizon-Labs/multilingual-zeroshot-base`. Chaque message utilisateur reçoit cinq scores indépendants I/C/A/R/E ; ils ne sont pas normalisés à une somme de 1. Le résultat est enregistré avec le message et réaffiché lors de la relecture de l'historique.
+
+- Accès direct : endpoint Hugging Face Inference Router configurable ; le jeton facultatif est chiffré dans le coffre AES-GCM du navigateur.
+- Via Gateway : `POST /v1/icare/scoring` ; le secret Hugging Face reste côté serveur dans `ICARE_HF_API_KEY`.
+- Le mode direct par défaut utilise le service d'inférence hébergé Hugging Face ; il ne signifie pas que le modèle tourne localement sur le processeur AMD. Un endpoint direct local peut être configuré si un runtime ONNX compatible est déployé sur la machine.
+- Les textes sont en français ; les labels et descriptions de classification sont en anglais, conformément à la fiche du modèle.
+
+Les trois fiches Gateway affichent les capacités LLM, transcription et scoring. La règle de disponibilité limite les fiches superflues sans effacer silencieusement les routes déjà sélectionnées.
