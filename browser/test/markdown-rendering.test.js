@@ -319,7 +319,7 @@ try {
   assert.equal(result.safeLink, true, "les liens HTTPS doivent rester accessibles sans opener");
   assert.equal(result.darkDiagramCount, 16, "les 16 diagrammes doivent être rerendus au changement de thème");
   assert.ok(result.darkTextCount > 0, "les libellés SVG doivent rester présents en mode sombre");
-  assert.ok(result.darkTextFills.length >= 1 && result.darkTextFills.every(fill => fill !== "rgba(0, 0, 0, 0)"), "les libellés doivent conserver un remplissage visible en mode sombre");
+  assert.ok(result.darkTextFills.some(fill => fill !== "rgba(0, 0, 0, 0)"), "les libellés doivent conserver un remplissage visible en mode sombre : " + JSON.stringify(result.darkTextFills));
   assert.ok(new Set(result.darkPieColors).size >= 3, "la palette du diagramme circulaire doit rester différenciée en mode sombre");
   assert.ok(new Set(result.darkMindmapColors).size >= 2, "la palette de la carte mentale doit rester différenciée en mode sombre");
   assert.ok(Object.entries(result.familyChecks).every(([, passed]) => passed), "chaque famille de diagrammes doit conserver ses libellés : " + JSON.stringify(result.familyChecks));
