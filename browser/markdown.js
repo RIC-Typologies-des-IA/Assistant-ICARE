@@ -251,8 +251,7 @@ function initializeMermaid(engine) {
 let mermaidRenderGeneration = 0;
 
 function materializeMermaidStyles(svgRoot) {
-  const debugCustom = (svgRoot.textContent || "").includes("Style personnalisé");
-  if (debugCustom) window.__mermaidStyleDebug = { styles: [...svgRoot.querySelectorAll("style")].map(node => node.textContent), svg: svgRoot.outerHTML.slice(0, 6000) };
+  const originalInlineStyles = new WeakMap();
   // Mermaid emits presentation rules in SVG <style> blocks. DOMPurify intentionally
   // removes style elements, so translate a constrained subset into safe inline
   // presentation attributes before sanitizing the SVG.
@@ -268,7 +267,6 @@ function materializeMermaidStyles(svgRoot) {
       try {
         matches = [...(svgRoot.matches(rule.selectorText) ? [svgRoot] : []), ...svgRoot.querySelectorAll(rule.selectorText)];
       } catch { continue; }
-      if (debugCustom) console.log("MERMAID_STYLE_RULE", rule.selectorText, matches.length);
       for (const node of matches) {
         const declarations = new Map();
         for (let index = 0; index < rule.style.length; index++) {
@@ -280,11 +278,24 @@ function materializeMermaidStyles(svgRoot) {
           declarations.set(property, value);
         }
         if (!declarations.size) continue;
-        const existing = node.getAttribute("style") || "";
+        let originalInline = originalInlineStyles.get(node);
+        if (!originalInline) {
+          originalInline = new Map();
+          for (const declaration of (node.getAttribute("style") || "").split(";")) {
+            const colon = declaration.indexOf(":");
+            if (colon < 1) continue;
+            const property = declaration.slice(0, colon).trim().toLowerCase();
+            const rawValue = declaration.slice(colon + 1).trim();
+            originalInline.set(property, /!important\s*$/i.test(rawValue) ? "important" : "");
+          }
+          originalInlineStyles.set(node, originalInline);
+        }
         for (const [property, value] of declarations) {
-          const inlineProperties = new Set(existing.split(";").map(declaration => declaration.split(":")[0].trim().toLowerCase()));
-          if (inlineProperties.has(property)) continue;
-          node.style.setProperty(property, value);
+          const priority = rule.style.getPropertyPriority(property);
+          const originalPriority = originalInline.get(property);
+          if (originalInline.has(property) && (priority !== "important" || originalPriority === "important")) continue;
+          if (node.style.getPropertyPriority(property) === "important" && priority !== "important") continue;
+          node.style.setProperty(property, value, priority);
         }
       }
     }
