@@ -286,6 +286,7 @@ try{
   await page.locator("#settings-dialog").waitFor({state:"hidden"});
   assert.ok(gatewayRequests.some(request=>request.url.endsWith("/one/v1/icare/config")),"la configuration Gateway 1 doit être interrogée pour le modèle LLM");
   assert.ok(gatewayRequests.some(request=>request.url.endsWith("/two/v1/icare/config")),"la configuration Gateway 2 doit être interrogée pour le modèle audio");
+  assert.ok(gatewayRequests.some(request=>request.url.endsWith("/three/v1/icare/config")),"la configuration Gateway 3 doit être interrogée pour vérifier sa capacité de scoring");
   await page.locator("#message-input").fill("Bonjour gateway texte");
   await page.locator("#composer").evaluate(form=>form.requestSubmit());
   await page.waitForTimeout(1500);
