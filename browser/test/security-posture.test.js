@@ -87,7 +87,8 @@ test("frontend uses the encrypted vault and never stores API keys in plaintext s
   assert.match(app, /inference-gateways/);
   assert.match(html, /gateway-shared-url/);
   assert.match(html, /gateway-text-url/);
-  assert.match(html, /gateway-audio-url/);\n  assert.match(html, /route-scoring/);\n  assert.match(html, /gateway-3-scoring/);\n  assert.ok(app.includes("scoreIcareMultilabel"));\n  assert.ok(app.includes("scoringApiKey"));
+  assert.match(html, /gateway-audio-url/);
+  assert.match(html, /route-scoring/);\n  assert.match(html, /gateway-3-scoring/);\n  assert.ok(app.includes("scoreIcareMultilabel"));\n  assert.ok(app.includes("scoringApiKey"));
   assert.ok(app.includes("migrateLegacyCredentials(db"));
   assert.ok(app.includes('sessionStorage.removeItem("icare-api-key"'));
   assert.ok(!app.includes('sessionStorage.setItem("icare-api-key"'));
