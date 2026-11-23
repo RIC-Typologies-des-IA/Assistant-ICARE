@@ -68,6 +68,6 @@ L'authentification est déléguée à l'IdP d'entreprise placé devant le gatewa
 - Cette première livraison ne prétend pas fournir un SSO universel : la configuration de l'IdP/reverse proxy reste spécifique à l'organisation.
 
 
-## Scoring local et cache du modèle
+## Relais du scoring ICARE
 
-Le scoring utilise Transformers.js et ONNX Runtime sur le CPU de la machine Gateway. La première utilisation récupère uniquement les fichiers de poids et de tokenizer du modèle, puis les met en cache dans `.cache/transformers` ou dans le répertoire défini par `ICARE_MODEL_CACHE`. Les appels de scoring eux-mêmes restent intégralement locaux. Pour un environnement isolé, précharger le cache, définir `ICARE_MODELS_OFFLINE=1` et éventuellement configurer `modelId` vers un chemin local.
+La Gateway peut relayer le service de scoring multilabel ICARE vers un endpoint administré indépendamment. Renseigner `scoring.endpointUrl` dans le fichier de configuration local. L’URL doit utiliser HTTPS, sauf si le service est explicitement hébergé sur loopback HTTP. La Gateway valide le contrat ICARE et relaie la requête/réponse ; elle n’embarque aucun moteur, poids, runtime ou dépendance de scoring.
