@@ -10,8 +10,7 @@
   },
   "auth": {
     "identityHeader": "x-icare-authenticated-user",
-    "groupsHeader": "x-icare-authenticated-groups",
-    "allowLoopbackWithoutIdentity": false
+    "groupsHeader": "x-icare-authenticated-groups"
   },
   "limits": {
     "requestsPerMinute": 60,
