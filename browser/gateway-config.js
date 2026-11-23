@@ -10,7 +10,7 @@ function normalise(value){
  if(!d.gateways.some(g=>g.capabilities.length))d.gateways[0].capabilities=[...SERVICES];
  return d;
 }
-export async function initGatewayConfiguration({db,get,set,saveLegacy}) {
+export async function initGatewayConfiguration({db,get,set,saveLegacy,loadScoringKey=async()=>""}) {
  const saved=await get(db,"settings",KEY);let config=normalise(saved);
  if(!saved){
   config.gateways[0].capabilities=[];
@@ -24,6 +24,7 @@ export async function initGatewayConfiguration({db,get,set,saveLegacy}) {
   await set(db,"settings",{id:KEY,...config});
  }
  $("direct-scoring-url").value=config.directScoringUrl;
+ $("direct-scoring-key").value=await loadScoringKey();
  const routeIds={llm:"route-llm",audio:"route-audio",scoring:"route-scoring"};
  const gateway=id=>config.gateways.find(g=>g.id===id);
  const eligible=(service,id)=>gateway(id)?.capabilities.includes(service)||false;
@@ -58,7 +59,7 @@ export async function initGatewayConfiguration({db,get,set,saveLegacy}) {
    Object.assign(config,normalise({...config,directScoringUrl:$("direct-scoring-url").value.trim(),gateways:config.gateways.map(g=>({...g,name:$("gateway-"+g.id+"-name").value.trim()||"Gateway "+g.id,url:$("gateway-"+g.id+"-url").value.trim(),capabilities:SERVICES.filter(s=>$("gateway-"+g.id+"-"+s).checked)})),routes:Object.fromEntries(SERVICES.map(s=>[s,$(routeIds[s]).value]))}));
    if(config.directScoringUrl){let endpoint;try{endpoint=new URL(config.directScoringUrl);}catch{throw Error("URL du moteur de scoring ICARE invalide.");}const loopback=["localhost","127.0.0.1","[::1]"].includes(endpoint.hostname);if((endpoint.protocol!=="https:"&&!(endpoint.protocol==="http:"&&loopback))||endpoint.username||endpoint.password)throw Error("Utilisez HTTPS pour le scoring distant, ou HTTP uniquement sur loopback local.");}
    for(const service of SERVICES){const route=config.routes[service];if(route!=="direct"){const id=Number(route.slice(-1)),g=gateway(id);if(!g?.capabilities.includes(service))throw Error("La passerelle sélectionnée ne déclare pas la capacité "+service+".");if(!/^https:\/\//i.test(g.url))throw Error("L’URL de Gateway "+id+" doit commencer par HTTPS.");const u=new URL(g.url);if(u.username||u.password)throw Error("Ne placez pas d’identifiants dans l’URL d’une Gateway.");}}
-   await saveLegacy({config});
+   await saveLegacy({config,scoringApiKey:$("direct-scoring-key").value.trim()});
    await set(db,"settings",{id:KEY,...config});
    status.textContent="Routage Gateway enregistré.";$("settings-dialog").close();
   }catch(error){status.textContent=error.message;}
