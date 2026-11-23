@@ -703,3 +703,12 @@ html[data-theme="dark"] .project-row-action{color:#c0cee0!important}
  body.project-menu-open .layout{grid-template-columns:min(280px,78vw) minmax(0,1fr)!important}
  body.project-menu-open .sidebar{width:min(280px,78vw)!important;min-width:min(280px,78vw)!important}
 }
+
+
+/* Conserver l'ancrage du hamburger malgré la bordure du panneau ouvert. */
+body.project-menu-open .sidebar{
+  padding:4px!important;
+}
+body.project-menu-open .sidebar-toolbar{
+  margin:-1px 0 0 -1px!important;
+}
