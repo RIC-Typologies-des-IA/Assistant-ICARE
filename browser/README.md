@@ -2,7 +2,7 @@
 
 Première tranche autonome en cours de réalisation, destinée à être publiée en fichiers statiques : pas de serveur Node.js, SQLite ou bot Discord.
 
-Fonctions : projets locaux, conversations persistées dans IndexedDB, export/import JSON, routage indépendant du LLM, de la transcription et du scoring ICARE multilabel, trois passerelles configurables, PWA et cache statique.
+Fonctions : projets locaux, conversations persistées dans IndexedDB, export/import JSON, configuration d'une API compatible OpenAI Chat Completions, PWA et cache statique.
 
 Limites : le fournisseur doit autoriser CORS depuis GitHub Pages ; les données restent dans ce navigateur/profil et ne sont pas synchronisées ; les propositions structurées, relations et CRDT seront réintégrés progressivement. Les clés API sont chiffrées en AES-256-GCM via Web Crypto ; la clé de chiffrement est non exportable et conservée comme objet CryptoKey dans IndexedDB. Les secrets chiffrés persistent dans le profil du navigateur, sont déchiffrés automatiquement à la réouverture et ne sont jamais inclus dans les projets ou exports. Les anciennes clés en clair sont migrées vers le coffre puis supprimées. Le stockage navigateur n'est pas un coffre-fort contre un appareil compromis.
 
@@ -69,6 +69,4 @@ Le composant `ontology-validator` exécute dans le guest WASM la validation dét
 
 Le scoring ICARE est un service indépendant du LLM conversationnel et de la transcription. Pour chaque message utilisateur, il reçoit le texte et les cinq dimensions I/C/A/R/E et renvoie cinq scores indépendants compris entre 0 et 1. Les scores ne sont pas normalisés pour totaliser 1.
 
-Dans la configuration ICARE, renseignez simplement l’URL HTTP(S) du service de scoring. ICARE ne fournit, n’installe et ne choisit aucun modèle de scoring : le moteur, son runtime, ses poids et son hébergement sont administrés indépendamment. Le contrat d’échange est un POST JSON contenant le texte, les dimensions et `multi_label: true`, avec une réponse `{ "scores": { "I": 0.7, "C": 0.4, "A": 0.8, "R": 0.2, "E": 0.5 } }`.
-
-Une Gateway peut relayer le service de scoring en configurant `scoring.endpointUrl` dans sa configuration locale. Cette URL doit être HTTPS, sauf pour un endpoint HTTP explicitement hébergé sur loopback. Aucune dépendance à un fournisseur ou à un modèle particulier n’est embarquée dans ICARE.
+Dans la configuration ICARE, renseignez simplement l’URL HTTP(S) du service de scoring. ICARE ne fournit, n’installe et ne choisit aucun modèle de scoring : le moteur, son runtime, ses poids et son hébergement sont administrés indépendamment. Le contrat d’échange est un POST JSON contenant le texte, les dimensions et le booléen multi_label, avec une réponse scores indexée par I, C, A, R et E.
