@@ -24,7 +24,7 @@ export async function scoreIcareMultilabel({text,route="direct",gatewayUrl="",ga
  let url,body,credentials;
  if(viaGateway){
   if(!gatewayUrl)throw new Error("URL de la Gateway locale de scoring absente.");
-  const base=gatewayUrl.replace(/\\/+$/,"");url=(base.endsWith("/v1")?base:base+"/v1")+"/icare/scoring";
+  const base=gatewayUrl.replace(/\/+$/,"");url=(base.endsWith("/v1")?base:base+"/v1")+"/icare/scoring";
   body={model:gatewayModel||"horizon-multilingual-zeroshot",text,labels:LABELS.map(x=>({code:x.code,label:x.label,description:x.description})),multi_label:true};
   credentials="include";
  }else{
