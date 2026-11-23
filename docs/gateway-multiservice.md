@@ -17,4 +17,4 @@ Les URLs de passerelles distantes doivent être HTTPS. Les clés fournisseur ne 
 
 Le service est nommé **Scoring ICARE (multilabel)**. Il renvoie cinq scores indépendants pour I, C, A, R et E. Il ne s'agit ni d'une décision exclusive ni d'une normalisation des scores à une somme de 1.
 
-Le contrat d'inférence du scoring doit être exposé par la passerelle sur `/v1/icare/scoring`. La présente tranche introduit le modèle de configuration et l'interface de routage ; l'adaptateur d'inférence du modèle Horizon Labs et son endpoint Gateway doivent être livrés dans la tranche runtime suivante.
+Le contrat d'inférence du scoring doit être exposé par la passerelle sur `/v1/icare/scoring`. L'adaptateur d'inférence Horizon Labs et le endpoint Gateway sont implémentés dans cette tranche. Le endpoint direct par défaut est hébergé par Hugging Face ; pour exécuter le modèle sur l'AMD local, il faut configurer un endpoint direct local compatible.
