@@ -85,14 +85,17 @@ test("frontend uses the encrypted vault and never stores API keys in plaintext s
   assert.ok(app.includes("saveCredentialVault(db"));
   assert.match(app, /resolveInferenceRoute/);
   assert.match(app, /inference-gateways/);
-  assert.match(html, /gateway-shared-url/);
-  assert.match(html, /gateway-text-url/);
-  assert.match(html, /gateway-audio-url/);
+  assert.match(html, /settings-tab-direct/);
+  assert.match(html, /settings-tab-gateway/);
+  assert.match(html, /direct-scoring-url/);
+  assert.match(html, /direct-scoring-key/);
+  assert.doesNotMatch(html, /gateway-shared-url|gateway-text-url|gateway-audio-url/, "les anciens champs Gateway dupliqués doivent être absents");
   assert.match(html, /route-scoring/);
   assert.match(html, /gateway-3-scoring/);
   assert.match(html, /direct-scoring-key/);
   assert.ok(app.includes("scoreIcareMultilabel"));
   assert.ok(app.includes("scoringApiKey"));
+  assert.ok(app.includes("loadCredentialVault"));
   assert.ok(app.includes("migrateLegacyCredentials(db"));
   assert.ok(app.includes('sessionStorage.removeItem("icare-api-key"'));
   assert.ok(!app.includes('sessionStorage.setItem("icare-api-key"'));
@@ -121,4 +124,14 @@ test("brand logo, browser favicon and PWA icon use bundled same-origin assets", 
   assert.ok(sw.includes('"./ric-logo.png"'), "le Service Worker doit précacher le logo de la bannière");
   assert.ok(sw.includes('"./favicon.svg"'), "le Service Worker doit précacher le favicon dédié");
   assert.ok(logo.byteLength > 1000, "le logo RIC doit être embarqué dans le build navigateur");
+});
+
+test("settings expose mutually exclusive Direct and Gateway tabs without duplicate legacy controls",async()=>{
+ const html=await read("../index.html","utf8");
+ const app=await read("../app.js","utf8");
+ for(const id of ["settings-tab-direct","settings-tab-gateway","settings-panel-direct","settings-panel-gateway"])assert.equal((html.match(new RegExp('id="'+id+'"',"g"))||[]).length,1,"unique "+id);
+ for(const id of ["text-route","audio-route","gateway-text-url","gateway-audio-url","same-gateway","gateway-shared-url"])assert.equal(html.includes('id="'+id+'"'),false,"legacy duplicate "+id+" must be removed");
+ assert.match(app,/function setSettingsTab\(mode\)/);
+ assert.match(app,/settings-panel-direct"\)\.hidden=gateway/);
+ assert.match(app,/settings-panel-gateway"\)\.hidden=!gateway/);
 });

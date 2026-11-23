@@ -19,7 +19,7 @@ try{
   await page.addInitScript(()=>{const original=window.fetch;window.__icareFetchCalls=[];window.fetch=(input,init={})=>{window.__icareFetchCalls.push({url:String(input),credentials:init.credentials||"same-origin",authorization:new Headers(init.headers||{}).get("Authorization"),body:typeof init.body==="string"?init.body:""});return original(input,init);};});
   await page.route("https://mock-provider.example/**",route=>{assert.equal(route.request().headers()["authorization"],"Bearer test-secret","la clé doit être disponible en mémoire de session");const requestBody=route.request().postDataJSON();if(Array.isArray(requestBody?.messages))chatPayloads.push(requestBody);const body=route.request().url().endsWith("/models")?{data:[{id:"test-model"}]}:{choices:[{message:{content:["Réponse locale de test.","","# Niveau 1","","## Niveau 2","","### Votre avis","","#### Auto-évaluation","", "#### Points d’attention / tensions éventuelles","","##### Niveau 5","","###### Niveau 6","","####Titre sans espace","","**Texte en gras**.","","| Étape | Ce qui a été réalisé | Conformité aux principes ICARE & maïeutiques |","|-------|----------------------|----------------------------------------------|","| **1. Capture de l’intention (I)** | - Vous avez exprimé votre **but** : fournir des connaissances. | ✅ Reformulation pour vérification ; ✅ distinction claire. |","| **2. Confirmation de l’intention** | Vous avez confirmé la reformulation (« Oui »). | ✅ Attente d’un accord avant de passer à la suite. |","| **3. Passage à la dimension suivante (C)** | J’ai présenté les cinq axes possibles du **Contexte**. | ✅ Question unique, ouverte. |","","### Synthèse de la dimension I","","| Champ | Valeur |","|-------|--------|","| **id** | `proj-foret-I-001` |","| **text** | *Instruire les politiques publiques de la forêt.* |","","> undefined","","<img src=x onerror=alert(1)>","[lien dangereux](javascript:alert(1))"].join("\n")}}]};return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(body)});});
   let gatewayRequests=[];
-  let gatewayConfigPayload={service:"icare-enterprise-gateway",defaults:{chatModel:"enterprise-chat",transcriptionModel:"enterprise-audio"}};
+  let gatewayConfigPayload={service:"icare-enterprise-gateway",capabilities:{chat:true,transcription:true,scoring:true},defaults:{chatModel:"enterprise-chat",transcriptionModel:"enterprise-audio"}};
   let gatewayConfigStatus=200;
   await page.route("https://gateway.example.org/**",async route=>{
     const request=route.request(),url=new URL(request.url());
@@ -30,9 +30,11 @@ try{
     if(url.pathname.endsWith("/icare/config")&&gatewayConfigStatus!==200)return route.fulfill({status:gatewayConfigStatus,contentType:"application/json",body:JSON.stringify({error:"Configuration indisponible"})});
     const body=url.pathname.endsWith("/icare/config")
       ?gatewayConfigPayload
-      :url.pathname.endsWith("/models")
-        ?{data:[{id:"enterprise-chat"},{id:"enterprise-audio"}]}
-        :{choices:[{message:{content:"Réponse entreprise de test."}}]};
+      :url.pathname.endsWith("/icare/scoring")
+        ?{scores:{I:0.81,C:0.72,A:0.63,R:0.54,E:0.45}}
+        :url.pathname.endsWith("/models")
+          ?{data:[{id:"enterprise-chat"},{id:"enterprise-audio"}]}
+          :{choices:[{message:{content:"Réponse entreprise de test."}}]};
     return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(body)});
   });
   await page.goto(url);
@@ -74,8 +76,11 @@ try{
   assert.equal(await page.locator("#dimension-statuses .dimension-status-row").count(),5,"les cinq statuts doivent être éditables");
   assert.equal(await page.locator("#project-title").textContent(),"Mon premier projet");
   await page.locator("#settings-button").click();
-  assert.equal(await page.locator("#text-route").inputValue(),"local","le traitement du texte doit être local par défaut");
-  assert.equal(await page.locator("#audio-route").inputValue(),"local","la transcription doit être locale par défaut");
+  assert.equal(await page.locator("#settings-tab-direct").getAttribute("aria-selected"),"true","l’onglet Accès direct doit être sélectionné par défaut");
+  assert.equal(await page.locator("#settings-panel-direct").isVisible(),true,"le panneau Accès direct doit être visible");
+  assert.equal(await page.locator("#settings-panel-gateway").isVisible(),false,"le panneau Gateway doit être masqué tant qu’il n’est pas sélectionné");
+  assert.equal(await page.locator("#route-llm").count(),1,"un seul sélecteur de routage LLM doit exister");
+  assert.equal(await page.locator("#text-route").count(),0,"l’ancien sélecteur de routage ne doit plus exister");
   await page.locator("#close-settings-dialog").click();
   assert.equal(await page.locator("#settings-dialog").evaluate(dialog=>dialog.open),false,"la boîte de dialogue doit toujours pouvoir être fermée sans modèle renseigné");
   await page.locator("#settings-button").click();
@@ -85,8 +90,14 @@ try{
   await page.locator("#transcription-base").fill("https://mock-provider.example/v1");
   await page.locator("#transcription-model").fill("test-audio-model");
   await page.locator("#transcription-key").fill("test-secret");
+  await page.locator("#direct-scoring-key").fill("scoring-secret");
+  assert.equal(await page.locator("#local-text-config").isVisible(),true,"la configuration directe du LLM doit être visible dans son onglet");
+  assert.equal(await page.locator("#local-audio-config").isVisible(),true,"la configuration directe de la transcription doit être visible dans son onglet");
+  assert.equal(await page.locator("#direct-scoring-url").isVisible(),true,"l’URL du scoring direct doit être visible dans son onglet");
   await page.locator("#load-models").click();
   await page.waitForFunction(()=>document.querySelectorAll("#available-models option").length===1);
+  assert.equal(await page.locator("#load-transcription-models").count(),1,"la recherche de modèles audio doit être présente dans l’onglet direct");
+  assert.equal(await page.locator("#test-transcription").count(),1,"le test du moteur audio doit être présent dans l’onglet direct");
   await page.locator("#test-provider").click();
   await page.waitForFunction(()=>document.querySelector("#provider-status").textContent.includes("Réponse locale de test"));
   await page.locator("#save-inference-config").click();
@@ -242,80 +253,73 @@ try{
 
 
 
-  // Vérifie les deux axes de routage indépendants et leur persistance.
+  // Les onglets isolent totalement l’accès direct et le paramétrage Gateway.
   await page.locator("#settings-button").click();
-  assert.equal(await page.locator("#text-route").inputValue(),"local","le traitement du texte doit rester local par défaut");
-  assert.equal(await page.locator("#audio-route").inputValue(),"local","la transcription doit rester locale par défaut");
-  assert.equal(await page.locator("#same-gateway-option").isVisible(),false,"le choix de Gateway partagée doit être masqué hors du double routage Gateway");
-  assert.equal(await page.locator("#same-gateway").isDisabled(),true,"le choix de Gateway partagée doit être désactivé hors du double routage Gateway");
-  assert.ok(await page.locator("#api-preset").count(),"le fournisseur de l’inférence locale doit rester indépendant");
-  assert.ok(await page.locator("#transcription-preset").count(),"le fournisseur de la transcription locale doit rester indépendant");
-  await page.locator("#text-route").selectOption("gateway");
-  await page.locator("#gateway-text-url").fill("https://gateway.example.org");
-  await page.locator("#save-inference-config").click();
+  assert.equal(await page.locator("#settings-tab-direct").getAttribute("aria-selected"),"true");
+  assert.equal(await page.locator("#settings-panel-direct").isVisible(),true);
+  await page.locator("#settings-tab-gateway").click();
+  assert.equal(await page.locator("#settings-tab-gateway").getAttribute("aria-selected"),"true");
+  assert.equal(await page.locator("#settings-panel-gateway").isVisible(),true);
+  assert.equal(await page.locator("#settings-panel-direct").isVisible(),false);
+  assert.equal(await page.locator("#gateway-card-1").isVisible(),true,"Gateway 1 doit apparaître par défaut");
+  assert.equal(await page.locator("#gateway-card-2").isVisible(),false,"Gateway 2 doit être masquée avec les trois capacités cochées");
+  assert.equal(await page.locator("#gateway-card-3").isVisible(),false,"Gateway 3 doit être masquée avec les trois capacités cochées");
+  for(const service of ["llm","audio","scoring"])assert.equal(await page.locator("#gateway-1-"+service).isChecked(),true,"Gateway 1 doit prendre en charge "+service+" par défaut");
+  await page.locator("#gateway-1-url").fill("https://gateway.example.org/one");
+  await page.locator("#route-llm").selectOption("gateway-1");
+  await page.locator("#gateway-1-audio").uncheck();
+  assert.equal(await page.locator("#gateway-card-2").isVisible(),true,"Gateway 2 doit apparaître dès qu’une capacité est décochée");
+  assert.equal(await page.locator("#gateway-card-3").isVisible(),false,"Gateway 3 doit rester masquée tant qu’une seule capacité est décochée");
+  await page.locator("#gateway-2-url").fill("https://gateway.example.org/two");
+  await page.locator("#gateway-2-audio").check();
+  await page.locator("#route-audio").selectOption("gateway-2");
+  await page.locator("#gateway-1-scoring").uncheck();
+  assert.equal(await page.locator("#gateway-card-3").isVisible(),true,"Gateway 3 doit apparaître dès qu’une deuxième capacité est décochée");
+  await page.locator("#gateway-3-url").fill("https://gateway.example.org/three");
+  await page.locator("#gateway-3-scoring").check();
+  await page.locator("#route-scoring").selectOption("gateway-3");
+  assert.equal(await page.locator("#route-llm").inputValue(),"gateway-1");
+  assert.equal(await page.locator("#route-audio").inputValue(),"gateway-2");
+  assert.equal(await page.locator("#route-scoring").inputValue(),"gateway-3");
+  await page.locator("#save-gateway-matrix").click();
+  await page.waitForFunction(()=>document.querySelector("#gateway-matrix-status").textContent.includes("Routage Gateway enregistré"));
   await page.locator("#settings-dialog").waitFor({state:"hidden"});
-  assert.ok(gatewayRequests.some(request=>request.url.endsWith("/v1/icare/config")),"le modèle texte doit être découvert auprès du gateway");
+  assert.ok(gatewayRequests.some(request=>request.url.endsWith("/one/v1/icare/config")),"la configuration Gateway 1 doit être interrogée pour le modèle LLM");
+  assert.ok(gatewayRequests.some(request=>request.url.endsWith("/two/v1/icare/config")),"la configuration Gateway 2 doit être interrogée pour le modèle audio");
+  assert.ok(gatewayRequests.some(request=>request.url.endsWith("/three/v1/icare/config")),"la configuration Gateway 3 doit être interrogée pour vérifier sa capacité de scoring");
   await page.locator("#message-input").fill("Bonjour gateway texte");
   await page.locator("#composer").evaluate(form=>form.requestSubmit());
-  await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Réponse entreprise de test."));
-  const textGatewayCall=await page.evaluate(()=>window.__icareFetchCalls.find(call=>call.url.startsWith("https://gateway.example.org/")&&call.url.endsWith("/v1/chat/completions")&&JSON.parse(call.body||"{}").messages?.some(message=>message.content==="Bonjour gateway texte")));
-  assert.equal(textGatewayCall?.credentials,"include","le texte envoyé au gateway doit utiliser la session SSO");
-  assert.equal(textGatewayCall?.authorization,null,"aucune clé fournisseur ne doit être envoyée au gateway");
+  await page.waitForTimeout(1500);
+  const gatewayChatDiagnostic=await page.evaluate(()=>({messages:document.querySelector("#messages")?.innerText||"",calls:window.__icareFetchCalls.filter(call=>call.url.includes("gateway.example.org")).map(call=>({url:call.url,credentials:call.credentials,body:call.body.slice(0,160)}))}));
+  assert.ok(gatewayChatDiagnostic.messages.includes("Réponse entreprise de test."),"la réponse LLM via Gateway doit être rendue ; diagnostic : "+JSON.stringify(gatewayChatDiagnostic));
+  const textGatewayCall=await page.evaluate(()=>window.__icareFetchCalls.find(call=>call.url.startsWith("https://gateway.example.org/one/")&&call.url.endsWith("/v1/chat/completions")&&JSON.parse(call.body||"{}").messages?.some(message=>message.content==="Bonjour gateway texte")));
+  assert.equal(textGatewayCall?.credentials,"include","le texte envoyé à la Gateway sélectionnée doit utiliser la session SSO");
+  assert.equal(textGatewayCall?.authorization,null,"aucune clé fournisseur ne doit être envoyée à la Gateway");
+  const scoringGatewayCall=await page.evaluate(()=>window.__icareFetchCalls.find(call=>call.url==="https://gateway.example.org/three/v1/icare/scoring"));
+  assert.equal(scoringGatewayCall?.credentials,"include","le scoring doit utiliser la Gateway explicitement sélectionnée");
+  assert.equal(scoringGatewayCall?.authorization,null,"la clé de scoring direct ne doit jamais être transmise à une Gateway");
   await page.reload();
   await page.waitForFunction(()=>document.querySelector("#project-select").options.length>=1);
   await page.locator("#settings-button").click();
-  assert.equal(await page.locator("#text-route").inputValue(),"gateway","le routage texte doit persister");
-  assert.equal(await page.locator("#audio-route").inputValue(),"local","le routage audio indépendant doit rester local");
-  assert.equal(await page.locator("#gateway-text-url").inputValue(),"https://gateway.example.org","l’adresse gateway texte doit persister");
-  assert.equal(await page.locator("#local-audio-config").isVisible(),true,"la configuration audio locale doit rester disponible quand le texte passe par Gateway");
-  assert.equal(await page.locator("#local-text-config").isVisible(),false,"les paramètres locaux du texte ne doivent pas s’afficher quand le texte passe par Gateway");
-  // Le routage inverse est également valide : audio distant et texte local.
-  await page.locator("#text-route").selectOption("local");
-  await page.locator("#audio-route").selectOption("gateway");
-  await page.locator("#gateway-audio-url").fill("https://gateway.example.org/audio");
-  await page.locator("#save-inference-config").click();
-  await page.locator("#settings-dialog").waitFor({state:"hidden"});
-  await page.locator("#settings-button").click();
-  assert.equal(await page.locator("#text-route").inputValue(),"local");
-  assert.equal(await page.locator("#audio-route").inputValue(),"gateway");
-  assert.equal(await page.locator("#local-text-config").isVisible(),true);
-  assert.equal(await page.locator("#local-audio-config").isVisible(),false);
-  assert.equal(await page.locator("#gateway-audio-url").inputValue(),"https://gateway.example.org/audio");
-  // Les deux fonctions peuvent partager une seule Gateway.
-  await page.locator("#text-route").selectOption("gateway");
-  await page.locator("#audio-route").selectOption("gateway");
-  await page.locator("#same-gateway").check();
-  await page.locator("#gateway-shared-url").fill("https://gateway.example.org/shared");
-  assert.equal(await page.locator("#gateway-shared-config").isVisible(),true);
-  assert.equal(await page.locator("#gateway-text-config").isVisible(),false);
-  assert.equal(await page.locator("#gateway-audio-config").isVisible(),false);
-  await page.locator("#save-inference-config").click();
-  await page.locator("#settings-dialog").waitFor({state:"hidden"});
-  await page.reload();
-  await page.waitForFunction(()=>document.querySelector("#project-select").options.length>=1);
-  await page.locator("#settings-button").click();
-  assert.equal(await page.locator("#text-route").inputValue(),"gateway");
-  assert.equal(await page.locator("#audio-route").inputValue(),"gateway");
-  assert.equal(await page.locator("#same-gateway").isChecked(),true);
-  assert.equal(await page.locator("#gateway-shared-url").inputValue(),"https://gateway.example.org/shared");
-  assert.equal((await page.locator("#model-label").textContent()).includes("Gateway"),true);
-  // Puis deux adresses distinctes, sans réutiliser par erreur le même endpoint.
-  await page.locator("#same-gateway").uncheck();
-  await page.locator("#gateway-text-url").fill("https://gateway.example.org/text");
-  await page.locator("#gateway-audio-url").fill("https://gateway.example.org/audio");
-  await page.locator("#save-inference-config").click();
-  await page.locator("#settings-dialog").waitFor({state:"hidden"});
-  const callsBeforeDedicated=await page.evaluate(()=>window.__icareFetchCalls.length);
-  await page.locator("#message-input").fill("Texte via gateway dédiée");
-  await page.locator("#composer").evaluate(form=>form.requestSubmit());
-  await page.waitForFunction(before=>window.__icareFetchCalls.slice(before).some(call=>call.url.startsWith("https://gateway.example.org/text/")&&call.url.endsWith("/v1/chat/completions")&&JSON.parse(call.body||"{}").messages?.some(message=>message.content==="Texte via gateway dédiée")),callsBeforeDedicated);
-  const dedicatedTextCall=await page.evaluate(()=>window.__icareFetchCalls.find(call=>call.url.startsWith("https://gateway.example.org/text/")&&call.url.endsWith("/v1/chat/completions")&&JSON.parse(call.body||"{}").messages?.some(message=>message.content==="Texte via gateway dédiée")));
-  assert.ok(dedicatedTextCall,"le traitement du texte doit utiliser son adresse Gateway dédiée");
-  assert.equal(dedicatedTextCall.credentials,"include");
-  await page.locator("#settings-button").click();
-  await page.locator("#gateway-text-url").fill("http://gateway.example.org/insecure");
-  await page.locator("#save-inference-config").click();
-  assert.match(await page.locator("#routing-status").textContent(),/HTTPS/,"un gateway distant en HTTP doit être refusé");
+  assert.equal(await page.locator("#settings-tab-gateway").getAttribute("aria-selected"),"true","le dernier onglet choisi doit être mémorisé");
+  assert.equal(await page.locator("#route-llm").inputValue(),"gateway-1","le routage LLM doit persister");
+  assert.equal(await page.locator("#route-audio").inputValue(),"gateway-2","le routage audio doit persister indépendamment");
+  assert.equal(await page.locator("#route-scoring").inputValue(),"gateway-3","le routage du scoring doit persister indépendamment");
+  assert.equal(await page.locator("#gateway-1-url").inputValue(),"https://gateway.example.org/one");
+  assert.equal(await page.locator("#gateway-2-url").inputValue(),"https://gateway.example.org/two");
+  assert.equal(await page.locator("#gateway-3-url").inputValue(),"https://gateway.example.org/three");
+  assert.equal(await page.locator("#gateway-card-2").isVisible(),true);
+  assert.equal(await page.locator("#gateway-card-3").isVisible(),true);
+  await page.locator("#settings-tab-direct").click();
+  assert.equal(await page.locator("#settings-panel-direct").isVisible(),true);
+  assert.equal(await page.locator("#settings-panel-gateway").isVisible(),false);
+  assert.equal(await page.locator("#api-base").inputValue(),"https://mock-provider.example/v1","les paramètres directs doivent rester disponibles et distincts");
+  assert.equal(await page.locator("#transcription-base").inputValue(),"https://mock-provider.example/v1");
+  assert.equal(await page.locator("#direct-scoring-key").inputValue(),"scoring-secret","la clé du scoring direct doit persister dans le coffre chiffré");
+  await page.locator("#settings-tab-gateway").click();
+  await page.locator("#gateway-1-url").fill("http://gateway.example.org/insecure");
+  await page.locator("#save-gateway-matrix").click();
+  assert.match(await page.locator("#gateway-matrix-status").textContent(),/HTTPS/,"une Gateway distante en HTTP doit être refusée");
   assert.equal(await page.locator("#settings-dialog").evaluate(dialog=>dialog.open),true,"une URL non sécurisée doit laisser le dialogue ouvert");
   await page.locator("#settings-dialog").evaluate(dialog=>dialog.close());
 

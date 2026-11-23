@@ -53,44 +53,24 @@ async function loadSettings(){
  if(state.transcriptionSettings.baseUrl.includes(":13305")&&state.transcriptionSettings.model==="whisper-1")state.transcriptionSettings.model="";
  const legacyGateway=await get(db,"settings","enterprise-gateway")||{url:""};
  const legacyModels=await get(db,"settings","enterprise-inference-models")||{chatModel:"",transcriptionModel:""};
- const routing=await get(db,"settings","inference-routing");
- const gateways=await get(db,"settings","inference-gateways");
- const gatewayModels=await get(db,"settings","inference-gateway-models");
- if(routing){
-  state.routing={text:routing.text==="gateway"?"gateway":"local",audio:routing.audio==="gateway"?"gateway":"local"};
-  state.gateways=gateways?{text:gateways.text||"",audio:gateways.audio||""}:{text:legacyGateway.url||"",audio:legacyGateway.url||""};
-  state.gatewayModels=gatewayModels?{text:gatewayModels.text||"",audio:gatewayModels.audio||""}:{text:legacyModels.chatModel||"",audio:legacyModels.transcriptionModel||""};
-  state.sameGateway=gateways?.sameGateway??(state.gateways.text===state.gateways.audio);
- }else{
-  const legacyMode=(await get(db,"settings","active-inference-mode"))?.mode;const legacyEnterprise=legacyMode==="enterprise"||(!legacyMode&&!!legacyGateway.url);
-  state.routing={text:legacyEnterprise?"gateway":"local",audio:legacyEnterprise?"gateway":"local"};
-  state.gateways={text:legacyGateway.url||"",audio:legacyGateway.url||""};
-  state.gatewayModels={text:legacyModels.chatModel||"",audio:legacyModels.transcriptionModel||""};
-  state.sameGateway=true;
-  await put(db,"settings",{id:"inference-routing",...state.routing});
-  await put(db,"settings",{id:"inference-gateways",...state.gateways,sameGateway:true});
-  await put(db,"settings",{id:"inference-gateway-models",...state.gatewayModels});
- }
- const credentials=await migrateLegacyCredentials(db,{
-  text:state.settings.apiKey||sessionStorage.getItem("icare-api-key")||"",
-  audio:state.transcriptionSettings.apiKey||sessionStorage.getItem("icare-transcription-api-key")||"",
-  scoring:"",
-  legacy:legacy.apiKey||""
- });
+ const gatewayModels=await get(db,"settings","inference-gateway-models")||{};
+ const config=gatewayRoutingConfig||{routes:{llm:"direct",audio:"direct",scoring:"direct"},gateways:[],directScoringUrl:""};
+ const gatewayUrl=route=>route==="direct"?"":(config.gateways||[]).find(g=>g.id===Number(String(route).slice(-1)))?.url||"";
+ state.routing={text:config.routes.llm==="direct"?"local":"gateway",audio:config.routes.audio==="direct"?"local":"gateway"};
+ state.gateways={text:gatewayUrl(config.routes.llm)||legacyGateway.url||"",audio:gatewayUrl(config.routes.audio)||legacyGateway.url||""};
+ state.gatewayModels={text:gatewayModels.text||legacyModels.chatModel||"",audio:gatewayModels.audio||legacyModels.transcriptionModel||""};
+ state.sameGateway=!!state.gateways.text&&state.gateways.text===state.gateways.audio;
+ $("direct-scoring-url").value=config.directScoringUrl||"";
+ const credentials=await migrateLegacyCredentials(db,{text:state.settings.apiKey||sessionStorage.getItem("icare-api-key")||"",audio:state.transcriptionSettings.apiKey||sessionStorage.getItem("icare-transcription-api-key")||"",scoring:"",legacy:legacy.apiKey||""});
  state.settings.apiKey=credentials.text;state.transcriptionSettings.apiKey=credentials.audio;state.scoringSettings.apiKey=credentials.scoring;
  sessionStorage.removeItem("icare-api-key");sessionStorage.removeItem("icare-transcription-api-key");
  const {apiKey:legacyKey,rememberKey:legacyRemember,...safeLegacy}=legacy;
  const {apiKey:textKey,rememberKey:textRemember,...safeText}=state.settings;
  const {apiKey:audioKey,rememberKey:audioRemember,...safeAudio}=state.transcriptionSettings;
- await put(db,"settings",{...safeLegacy,id:"inference"});
- await put(db,"settings",{...safeText,id:"inference-text"});
- await put(db,"settings",{...safeAudio,id:"inference-transcription"});
+ await put(db,"settings",{...safeLegacy,id:"inference"});await put(db,"settings",{...safeText,id:"inference-text"});await put(db,"settings",{...safeAudio,id:"inference-transcription"});
  $("api-base").value=state.settings.baseUrl||"";$("api-model").value=state.settings.model||"";$("api-key").value=state.settings.apiKey||"";$("api-preset").value=detectPreset(state.settings.baseUrl);$("api-preset").dispatchEvent(new Event("change"));
  $("transcription-base").value=state.transcriptionSettings.baseUrl||"";$("transcription-model").value=state.transcriptionSettings.model||"";$("transcription-key").value=state.transcriptionSettings.apiKey||"";$("transcription-preset").value=detectPreset(state.transcriptionSettings.baseUrl);$("transcription-preset").dispatchEvent(new Event("change"));
- $("text-route").value=state.routing.text;$("audio-route").value=state.routing.audio;
- $("gateway-text-url").value=state.gateways.text;$("gateway-audio-url").value=state.gateways.audio;$("gateway-shared-url").value=state.gateways.text||state.gateways.audio;
- $("same-gateway").checked=state.sameGateway;$("same-gateway-option").dataset.both=String(state.routing.text==="gateway"&&state.routing.audio==="gateway");
- renderRoutingConfig();modelLabel();
+ modelLabel();
 }
 function modelLabel(){
  const text=state.routing.text==="gateway"?"Gateway · "+(state.gatewayModels.text||"modèle non attribué"):(state.settings.model||"non configuré")+" (direct)";
@@ -101,30 +81,16 @@ function resolveInferenceTarget(kind){
  const route=kind==="audio"?"audio":"text",settings=route==="audio"?state.transcriptionSettings:state.settings;
  return resolveInferenceRoute({kind:route,routing:state.routing,localSettings:settings,gateways:state.gateways,gatewayModels:state.gatewayModels,sameGateway:state.sameGateway});
 }
-function renderRoutingConfig(){
- const textGateway= $("text-route").value==="gateway",audioGateway=$("audio-route").value==="gateway",both=textGateway&&audioGateway,wasBoth=$("same-gateway-option").dataset.both==="true";
- if(both&&!wasBoth){$("same-gateway").checked=true;$("gateway-shared-url").value=$("gateway-text-url").value||$("gateway-audio-url").value||$("gateway-shared-url").value;}
- $("same-gateway-option").dataset.both=String(both);
- $("local-text-config").hidden=textGateway;$("local-audio-config").hidden=audioGateway;
- $("gateway-text-config").hidden=!textGateway;$("gateway-audio-config").hidden=!audioGateway;
- $("same-gateway-option").hidden=!both;$("same-gateway").disabled=!both;
- const shared=both&&$("same-gateway").checked;
- $("gateway-shared-config").hidden=!shared;
- $("gateway-text-config").hidden= !textGateway||shared;
- $("gateway-audio-config").hidden= !audioGateway||shared;
- $("api-base").required=!textGateway;$("api-model").required=!textGateway;
- $("transcription-base").required=!audioGateway;$("transcription-model").required=!audioGateway;
- if(shared)$("gateway-shared-url").value=$("gateway-text-url").value||$("gateway-audio-url").value||$("gateway-shared-url").value;
+function setSettingsTab(mode){
+ const gateway=mode==="gateway";
+ $("settings-tab-direct").setAttribute("aria-selected",String(!gateway));$("settings-tab-gateway").setAttribute("aria-selected",String(gateway));
+ $("settings-panel-direct").hidden=gateway;$("settings-panel-gateway").hidden=!gateway;
+ localStorage.setItem("icare-settings-tab",gateway?"gateway":"direct");
 }
-$("text-route").addEventListener("change",renderRoutingConfig);
-$("audio-route").addEventListener("change",renderRoutingConfig);
-$("same-gateway").addEventListener("change",()=>{if($("same-gateway").checked){const value=$("gateway-text-url").value||$("gateway-audio-url").value;$("gateway-shared-url").value=value;}renderRoutingConfig();});
-$("gateway-shared-url").addEventListener("input",e=>{$("gateway-text-url").value=e.target.value;$("gateway-audio-url").value=e.target.value;});
-$("gateway-audio-url").addEventListener("input",e=>{if(!$("same-gateway").checked)$("gateway-audio-url").value=e.target.value;});
-$("settings-button").addEventListener("click",()=>{$("settings-dialog").showModal();renderRoutingConfig();});
+$("settings-tab-direct").addEventListener("click",()=>setSettingsTab("direct"));
+$("settings-tab-gateway").addEventListener("click",()=>setSettingsTab("gateway"));
+$("settings-button").addEventListener("click",()=>{$("settings-dialog").showModal();setSettingsTab(localStorage.getItem("icare-settings-tab")==="gateway"?"gateway":"direct");});
 $("close-settings-dialog").addEventListener("click",()=>$("settings-dialog").close());
-
-$("api-preset").addEventListener("change",e=>{const presets={openai:"https://api.openai.com/v1",ollama:"http://localhost:11434/v1",lemonade:"http://127.0.0.1:13305/v1"};if(presets[e.target.value])$("api-base").value=presets[e.target.value];});
 $("load-models").addEventListener("click",async()=>{const status=$("provider-status");status.textContent="Chargement du catalogue…";try{const target={baseUrl:$("api-base").value.trim(),model:$("api-model").value.trim(),apiKey:$("api-key").value.trim(),credentials:"omit"};const models=await listModels(target);const list=$("available-models");list.replaceChildren();for(const model of models){const option=document.createElement("option");option.value=model;list.append(option);}status.textContent=models.length+" modèle(s) trouvé(s). Vous pouvez aussi saisir un identifiant manuellement.";}catch(error){status.textContent=error.message;}});
 async function complete(messages){return chatCompletion({...resolveInferenceTarget("text"),messages});}
 async function completeAgent(messages,tools){return chatCompletionMessage({...resolveInferenceTarget("text"),messages,tools});}
@@ -170,45 +136,33 @@ let recorder=null,recordingStream=null,recordedChunks=[],recordingTimer=null,rec
 async function startAudioCapture(testOnly=false,testRoute="active"){const button=$("mic-button"),testButton=$("test-transcription"),status=$("mic-status"),config=testOnly&&testRoute==="local"?{baseUrl:$("transcription-base").value.trim(),model:$("transcription-model").value.trim(),apiKey:$("transcription-key").value.trim(),credentials:"omit"}:resolveInferenceTarget("audio");if(!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder){status.textContent="La dictée nécessite un navigateur compatible, en HTTPS, avec accès au microphone.";return;}if(!config.baseUrl||!config.model){status.textContent="Configurez un moteur de transcription et choisissez son modèle dans Configuration.";return;}try{recordingTest=testOnly;recordingStream=await navigator.mediaDevices.getUserMedia({audio:true});recordedChunks=[];const types=["audio/webm;codecs=opus","audio/webm","audio/mp4"];const mimeType=types.find(type=>MediaRecorder.isTypeSupported(type));recorder=new MediaRecorder(recordingStream,mimeType?{mimeType}:undefined);recorder.addEventListener("dataavailable",event=>{if(event.data?.size)recordedChunks.push(event.data);});recorder.addEventListener("stop",async()=>{if(recordingTimer)clearTimeout(recordingTimer);recordingTimer=null;recordingStream?.getTracks().forEach(track=>track.stop());recordingStream=null;const sourceBlob=new Blob(recordedChunks,{type:recorder.mimeType||"audio/webm"});try{status.textContent="Conversion en WAV puis transcription…";const wavBlob=await audioBlobToWav(sourceBlob);const target=config;const text=await transcribeAudio({...target,audioBlob:wavBlob,filename:"icare-dictation.wav"});if(recordingTest){$("transcription-status").textContent="✓ Transcription opérationnelle : « "+text+" »";status.textContent="Test réussi. Le modèle audio répond correctement.";}else{const input=$("message-input");input.value=(input.value.trim()?input.value.trim()+" ":"")+text;input.focus();status.textContent="Transcription ajoutée au champ de message. Vous pouvez la relire et la corriger avant l’envoi.";}}catch(error){const message="Échec de la transcription : "+error.message;if(recordingTest)$("transcription-status").textContent=message;status.textContent=message;}finally{button.disabled=false;button.textContent="🎙";button.title="Démarrer la dictée";button.setAttribute("aria-pressed","false");testButton.disabled=false;recorder=null;recordedChunks=[];recordingTest=false;}});recorder.start();if(testOnly){testButton.disabled=true;status.textContent="Test audio : parlez clairement pendant 4 secondes…";recordingTimer=setTimeout(()=>{if(recorder?.state==="recording")recorder.stop();},4000);}else{button.textContent="■";button.title="Arrêter l’enregistrement";button.setAttribute("aria-pressed","true");status.textContent="Enregistrement en cours… appuyez de nouveau sur le micro pour arrêter et transcrire.";}}catch(error){recordingStream?.getTracks().forEach(track=>track.stop());recordingStream=null;button.disabled=false;testButton.disabled=false;button.textContent="🎙";status.textContent="Accès au microphone impossible : "+error.message;}}
 $("mic-button").addEventListener("click",async()=>{const button=$("mic-button"),status=$("mic-status");if(recorder?.state==="recording"){recorder.stop();button.disabled=true;button.textContent="…";status.textContent="Enregistrement terminé, conversion WAV et transcription en cours…";return;}await startAudioCapture(false);});
 $("test-transcription").addEventListener("click",async()=>{if(recorder?.state==="recording")return;await startAudioCapture(true,"local");});
-$("test-gateway-audio")?.addEventListener("click",async()=>{if(recorder?.state==="recording")return;await startAudioCapture(true,"gateway");});
+$("test-gateway-audio")?.addEventListener("click",async()=>{if(recorder?.state==="recording")return;if(!gatewayRoutingConfig?.routes?.audio||gatewayRoutingConfig.routes.audio==="direct"){$("transcription-status").textContent="Sélectionnez d’abord une Gateway pour la transcription dans l’onglet Gateway.";return;}await startAudioCapture(true,"gateway");});
 $("new-project").onclick=()=>projectDialog();
 $("project-form").addEventListener("submit",async e=>{e.preventDefault();try{await saveProject();$("project-dialog").close();}catch(error){alert("Impossible d’enregistrer le projet : "+error.message);}});
 $("project-select").onchange=async e=>{state.projectId=e.target.value;renderProjects();await loadTurns();await loadWorkspace();document.body.classList.remove("project-menu-open");$("project-menu-toggle").setAttribute("aria-expanded","false");};
 
 async function saveInferenceConfiguration(){
  const status=$("routing-status"),button=$("save-inference-config");
- const routing={text:$("text-route").value,audio:$("audio-route").value};
- const sameGateway=routing.text==="gateway"&&routing.audio==="gateway"&&$("same-gateway").checked;
- const gateways={text:routing.text==="gateway"?(sameGateway?$("gateway-shared-url").value.trim():$("gateway-text-url").value.trim()):"",audio:routing.audio==="gateway"?(sameGateway?$("gateway-shared-url").value.trim():$("gateway-audio-url").value.trim()):"",sameGateway};
  const textSettings={id:"inference-text",baseUrl:$("api-base").value.trim(),model:$("api-model").value.trim(),apiKey:$("api-key").value.trim()};
  const audioSettings={id:"inference-transcription",baseUrl:$("transcription-base").value.trim(),model:$("transcription-model").value.trim(),apiKey:$("transcription-key").value.trim()};
- if(routing.text==="local"&&(!textSettings.baseUrl||!textSettings.model)){status.textContent="Configurez l’adresse et le modèle du moteur local de traitement du texte.";return;}
- if(routing.audio==="local"&&(!audioSettings.baseUrl||!audioSettings.model)){status.textContent="Configurez l’adresse et le modèle du moteur local de transcription.";return;}
- for(const kind of ["text","audio"])if(routing[kind]==="gateway"){try{const parsed=new URL(gateways[kind]);if(parsed.protocol!=="https:"||parsed.username||parsed.password)throw Error();}catch{status.textContent="Renseignez une URL HTTPS valide pour le gateway "+(kind==="text"?"de traitement du texte":"de transcription")+".";
- return;}}
- button.disabled=true;status.textContent="Vérification des gateways et enregistrement des profils…";
+ const config=gatewayRoutingConfig||{routes:{llm:"direct",audio:"direct",scoring:"direct"},gateways:[],directScoringUrl:""};
+ if(config.routes.llm==="direct"&&(!textSettings.baseUrl||!textSettings.model)){status.textContent="Configurez l’adresse et le modèle du moteur direct de traitement du texte.";return;}
+ if(config.routes.audio==="direct"&&(!audioSettings.baseUrl||!audioSettings.model)){status.textContent="Configurez l’adresse et le modèle du moteur direct de transcription.";return;}
+ const scoringUrl=$("direct-scoring-url").value.trim();
+ const scoringApiKey=$("direct-scoring-key").value.trim();
+ if(scoringUrl){try{const endpoint=new URL(scoringUrl),loopback=["localhost","127.0.0.1","[::1]"].includes(endpoint.hostname);if((endpoint.protocol!=="https:"&&!(endpoint.protocol==="http:"&&loopback))||endpoint.username||endpoint.password)throw Error();}catch{status.textContent="Utilisez HTTPS pour le scoring distant, ou HTTP uniquement sur loopback local.";return;}}
+ button.disabled=true;status.textContent="Enregistrement des moteurs en accès direct…";
  try{
-  const models={text:"",audio:""},configs=new Map();
-  for(const kind of ["text","audio"])if(routing[kind]==="gateway"){
-   const url=gateways[kind];let config=configs.get(url);
-   if(!config){const base=url.replace(/\/+$/,""),configUrl=base.endsWith("/v1")?base+"/icare/config":base+"/v1/icare/config",response=await fetch(configUrl,{credentials:"include"});if(!response.ok)throw Error("Gateway inaccessible ("+response.status+"). Vérifiez la connexion et les droits.");config=await response.json();configs.set(url,config);}
-   models[kind]=kind==="text"?(config.defaults?.chatModel||""):(config.defaults?.transcriptionModel||"");
-   if(!models[kind])throw Error(kind==="text"?"Aucun modèle de conversation n’est attribué par le gateway.":"Aucun modèle de transcription n’est attribué par le gateway.");
-  }
-  const scoringApiKey=$("direct-scoring-key").value.trim();
-  await saveCredentialVault(db,{text:textSettings.apiKey,audio:audioSettings.apiKey,scoring:scoringApiKey});
-  state.scoringSettings={apiKey:scoringApiKey};
-  state.settings=textSettings;state.transcriptionSettings=audioSettings;state.routing=routing;state.gateways=gateways;state.gatewayModels=models;state.sameGateway=sameGateway;
+  await saveCredentialVault(db,{text:textSettings.apiKey,audio:audioSettings.apiKey});state.settings=textSettings;state.transcriptionSettings=audioSettings;
   const {apiKey:textSecret,...safeText}=textSettings,{apiKey:audioSecret,...safeAudio}=audioSettings;
   await put(db,"settings",safeText);await put(db,"settings",safeAudio);
-  await put(db,"settings",{id:"inference-routing",...routing});
-  await put(db,"settings",{id:"inference-gateways",...gateways});
-  await put(db,"settings",{id:"inference-gateway-models",...models});
-  renderRoutingConfig();modelLabel();$("settings-dialog").close();
+  config.directScoringUrl=scoringUrl;gatewayRoutingConfig=config;await put(db,"settings",{id:"inference-gateway-config",...config});
+  state.routing={text:config.routes.llm==="direct"?"local":"gateway",audio:config.routes.audio==="direct"?"local":"gateway"};
+  state.gateways={text:(config.gateways||[]).find(g=>g.id===Number(String(config.routes.llm).slice(-1)))?.url||"",audio:(config.gateways||[]).find(g=>g.id===Number(String(config.routes.audio).slice(-1)))?.url||""};
+  modelLabel();status.textContent="Configuration d’accès direct enregistrée."; $("settings-dialog").close();
  }catch(error){status.textContent=error.message;}finally{button.disabled=false;}
 }
 $("settings-form").addEventListener("submit",async e=>{e.preventDefault();await saveInferenceConfiguration();});
-
 $("test-provider").onclick=async()=>{const status=$("provider-status"),baseUrl=$("api-base").value.trim(),model=$("api-model").value.trim(),apiKey=$("api-key").value.trim();if(!baseUrl||!model){status.textContent="Renseignez l’adresse et le modèle du moteur local.";return;}$("test-provider").disabled=true;status.textContent="Test du modèle texte local…";try{const answer=await chatCompletion({baseUrl,model,apiKey,credentials:"omit",messages:[{role:"user",content:"Réponds uniquement : connexion réussie."}]});status.textContent="✓ Modèle texte local opérationnel — "+answer;}catch(error){status.textContent=error.message;}finally{$("test-provider").disabled=false;}};
 $("load-transcription-models").onclick=async()=>{const status=$("transcription-status");status.textContent="Recherche des modèles de transcription…";try{const baseUrl=$("transcription-base").value.trim(),apiKey=$("transcription-key").value.trim(),label=$("transcription-preset").value==="lemonade"?"transcription":"";const models=await listModels({baseUrl,apiKey,label,credentials:"omit"});const list=$("transcription-models");list.replaceChildren();for(const model of models){const option=document.createElement("option");option.value=model;list.append(option);}status.textContent=models.length?models.length+" modèle(s) "+(label?"portant le label transcription ":"")+"trouvé(s). Choisissez un identifiant dans la liste.":"Aucun modèle de transcription trouvé dans le catalogue. Vérifiez qu’un modèle audio est disponible sur le serveur.";if(!models.length&&label)status.textContent+=" Consultez le catalogue Lemonade ou installez un modèle compatible.";}catch(error){status.textContent=error.message;}};
 $("transcription-preset").addEventListener("change",e=>{const presets={openai:"https://api.openai.com/v1",ollama:"http://localhost:11434/v1",lemonade:"http://127.0.0.1:13305/v1"};if(presets[e.target.value])$("transcription-base").value=presets[e.target.value];const help={openai:"API Audio Transcriptions compatible OpenAI. Consultez la documentation du fournisseur pour les modèles et formats audio acceptés.",ollama:"Vérifiez que votre version expose un endpoint de transcription audio compatible OpenAI.",lemonade:"Lemonade expose /v1/audio/transcriptions. Son API attend un fichier WAV et un modèle portant le label « transcription ». ICARE convertit automatiquement l’enregistrement en WAV.", "":"Le serveur doit exposer un endpoint compatible /v1/audio/transcriptions. Vérifiez les formats audio et les modèles pris en charge dans sa documentation."};$("transcription-help").textContent=help[e.target.value]||help[""];});
@@ -232,37 +186,24 @@ $("proposal-form")?.addEventListener("submit",async event=>{event.preventDefault
 $("timeline-slider")?.addEventListener("input",event=>renderTimeline(Number(event.target.value)));
 $("api-preset")?.addEventListener("change",event=>{const preset=event.target.value,presets={openai:"https://api.openai.com/v1",ollama:"http://localhost:11434/v1",lemonade:"http://127.0.0.1:13305/v1"};if(presets[preset])$("api-base").value=presets[preset];const help={openai:"OpenAI : endpoint public HTTPS. Saisissez une clé API et chargez les modèles disponibles.",ollama:"Ollama local : http://localhost:11434/v1. Pour un site HTTPS distant, Ollama doit autoriser l’origine GitHub Pages via OLLAMA_ORIGINS. localhost désigne votre propre ordinateur.",lemonade:"Lemonade local : http://127.0.0.1:13305/v1. Pour un site HTTPS distant, le serveur doit autoriser l’origine GitHub Pages (CORS).", "":"API compatible OpenAI Chat Completions. Saisissez l’URL de base terminée par /v1."};$("provider-help").textContent=help[preset]||help[""];});
 
-await loadOntology();gatewayRoutingConfig=await initGatewayConfiguration({db,get,set:put,loadScoringKey:async()=>(await loadCredentialVault(db)).scoring,saveLegacy:async({llm,audio,textGateway,audioGateway,scoringRoute,scoringGateway,scoringApiKey})=>{
+await loadOntology();gatewayRoutingConfig=await initGatewayConfiguration({db,get,set:put,loadScoringKey:async()=>(await loadCredentialVault(db)).scoring,saveLegacy:async({config,scoringApiKey})=>{
  const modelCache=new Map();
- async function modelForGateway(url,capability){
-  if(!url)return "";
-  if(!modelCache.has(url)){
-   const base=url.replace(/\/+$/,""),endpoint=(base.endsWith("/v1")?base:base+"/v1")+"/models";
-   const response=await fetch(endpoint,{credentials:"include",cache:"no-store"});
-   if(!response.ok)throw Error("Impossible de charger les modèles de la Gateway ("+response.status+").");
-   modelCache.set(url,(await response.json()).data||[]);
-  }
-  const model=modelCache.get(url).find(item=>item.labels?.includes(capability));
-  if(!model)throw Error("La Gateway "+url+" ne publie aucun modèle pour "+capability+".");
-  return model.id;
+ async function gatewayConfig(url){
+  if(!modelCache.has(url)){const base=url.replace(/\/+$/,""),endpoint=(base.endsWith("/v1")?base:base+"/v1")+"/icare/config";const response=await fetch(endpoint,{credentials:"include",cache:"no-store"});if(!response.ok)throw Error("Impossible de lire la configuration de la Gateway ("+response.status+").");modelCache.set(url,await response.json());}
+  return modelCache.get(url);
  }
- const [textModel,audioModel]=await Promise.all([
-  llm==="direct"?"":modelForGateway(textGateway,"chat"),
-  audio==="direct"?"":modelForGateway(audioGateway,"transcription")
- ]);
- if(scoringRoute!=="direct"){
-  if(!scoringGateway)throw Error("Renseignez l’URL de la Gateway de scoring.");
-  const base=scoringGateway.replace(/\/+$/,""),endpoint=base.endsWith("/v1")?base+"/icare/config":base+"/v1/icare/config";
-  const response=await fetch(endpoint,{credentials:"include",cache:"no-store"});
-  if(!response.ok)throw Error("Impossible de vérifier la capacité de scoring de la Gateway ("+response.status+").");
-  const gatewayInfo=await response.json();
-  if(gatewayInfo.capabilities?.scoring!==true)throw Error("Cette Gateway n’expose pas le scoring ICARE. Configurez scoring.endpointUrl côté serveur.");
+ const modelFor=async(service,capability)=>{const route=config.routes[service];if(route==="direct")return "";const gateway=config.gateways.find(g=>g.id===Number(route.slice(-1)));const remote=await gatewayConfig(gateway.url);const model=capability==="chat"?remote.defaults?.chatModel:remote.defaults?.transcriptionModel;if(!model)throw Error("Aucun modèle "+(capability==="chat"?"de conversation":"de transcription")+" n’est attribué à "+gateway.name+".");return model;};
+ const [textModel,audioModel]=await Promise.all([modelFor("llm","chat"),modelFor("audio","transcription")]);
+ if(config.routes.scoring!=="direct"){
+  const scoringGateway=config.gateways.find(g=>g.id===Number(config.routes.scoring.slice(-1)));
+  const remote=await gatewayConfig(scoringGateway.url);
+  if(remote.capabilities?.scoring!==true)throw Error("Cette Gateway n’expose pas le scoring ICARE. Configurez scoring.endpointUrl côté serveur.");
  }
- await saveCredentialVault(db,{text:state.settings.apiKey||"",audio:state.transcriptionSettings.apiKey||"",scoring:scoringApiKey||""});
- state.scoringSettings={apiKey:scoringApiKey||""};
- state.routing={text:llm==="direct"?"local":"gateway",audio:audio==="direct"?"local":"gateway"};
- state.gateways={text:textGateway,audio:audioGateway};state.gatewayModels={text:textModel,audio:audioModel};
- await put(db,"settings",{id:"inference-routing",...state.routing});
- await put(db,"settings",{id:"inference-gateways",...state.gateways,sameGateway:false});
- await put(db,"settings",{id:"inference-gateway-models",...state.gatewayModels});
+ const scoringKey=String(scoringApiKey||"").trim();
+ await saveCredentialVault(db,{text:state.settings.apiKey||"",audio:state.transcriptionSettings.apiKey||"",scoring:scoringKey});
+ state.scoringSettings={apiKey:scoringKey};
+ const urlFor=service=>{const route=config.routes[service];return route==="direct"?"":config.gateways.find(g=>g.id===Number(route.slice(-1)))?.url||"";};
+ state.routing={text:config.routes.llm==="direct"?"local":"gateway",audio:config.routes.audio==="direct"?"local":"gateway"};
+ state.gateways={text:urlFor("llm"),audio:urlFor("audio")};state.gatewayModels={text:textModel,audio:audioModel};state.sameGateway=!!state.gateways.text&&state.gateways.text===state.gateways.audio;
+ await put(db,"settings",{id:"inference-routing",...state.routing});await put(db,"settings",{id:"inference-gateways",...state.gateways,sameGateway:state.sameGateway});await put(db,"settings",{id:"inference-gateway-models",...state.gatewayModels});modelLabel();
 }});await loadProjects();await loadWorkspace();await loadSettings();registerAppServiceWorker({canReload:()=>!state.busy&&!$("message-input").value.trim()}).catch(error=>console.warn("Service worker ICARE indisponible :",error));
