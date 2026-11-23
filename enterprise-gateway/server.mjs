@@ -40,14 +40,14 @@ export function validateConfig(config) {
     }
     if (!/^ICARE_[A-Z0-9_]+$/.test(model.apiKeyEnv || "")) throw new Error("Each provider requires an ICARE_* apiKeyEnv variable.");
     if (!Array.isArray(model.capabilities) || !model.capabilities.length ||
-        model.capabilities.some(capability => !["chat", "transcription"].includes(capability))) {
-      throw new Error("Model capabilities must be chat and/or transcription.");
+        model.capabilities.some(capability => !["chat", "transcription", "scoring"].includes(capability))) {
+      throw new Error("Model capabilities must be chat, transcription and/or scoring.");
     }
     if (!String(model.upstreamModel || "").trim()) throw new Error("upstreamModel is required.");
     if (model.allowedGroups !== undefined && (!Array.isArray(model.allowedGroups) || model.allowedGroups.some(group => typeof group !== "string" || !group.trim()))) throw new Error("allowedGroups must be an array of non-empty group names.");
   }
   if (config.defaults !== undefined && (!config.defaults || typeof config.defaults !== "object" || Array.isArray(config.defaults))) throw new Error("defaults must be an object.");
-  for (const [capability, id] of Object.entries({ chat: config.defaults?.chatModel, transcription: config.defaults?.transcriptionModel })) {
+  for (const [capability, id] of Object.entries({ chat: config.defaults?.chatModel, transcription: config.defaults?.transcriptionModel, scoring: config.defaults?.scoringModel })) {
     if (id && !config.models.some(model => model.id === id && model.capabilities.includes(capability))) throw new Error("Configured default model does not provide capability: " + capability);
   }
   const limits = config.limits || {};
@@ -187,11 +187,34 @@ export function createGatewayServer(config) {
         const available = visibleModels(config, groups);
         const chat = available.find(model => model.id === config.defaults?.chatModel && model.capabilities.includes("chat")) || available.find(model => model.capabilities.includes("chat"));
         const audio = available.find(model => model.id === config.defaults?.transcriptionModel && model.capabilities.includes("transcription")) || available.find(model => model.capabilities.includes("transcription"));
-        json(res, 200, { service: "icare-enterprise-gateway", defaults: { chatModel: chat?.id || "", transcriptionModel: audio?.id || "" } });
+        const scoring = available.find(model => model.id === config.defaults?.scoringModel && model.capabilities.includes("scoring")) || available.find(model => model.capabilities.includes("scoring"));\n        json(res, 200, { service: "icare-enterprise-gateway", defaults: { chatModel: chat?.id || "", transcriptionModel: audio?.id || "", scoringModel: scoring?.id || "" } });
         return;
       }
       if (req.method === "GET" && path === "/v1/models") {
         json(res, 200, { object: "list", data: visibleModels(config, groups).map(model => ({ id: model.id, object: "model", owned_by: "icare-enterprise", labels: model.capabilities })) });
+        return;
+      }
+
+      if (req.method === "POST" && path === "/v1/icare/scoring") {
+        const body = await readBody(req, config.limits?.maxJsonBytes || 2 * 1024 * 1024);
+        let payload;
+        try { payload = JSON.parse(body.toString("utf8")); } catch { json(res, 400, { error: { message: "Invalid JSON request." } }); return; }
+        if (typeof payload.text !== "string" || !payload.text.trim() || payload.text.length > (config.limits?.maxScoringChars || 12000) ||
+            payload.multi_label !== true || !Array.isArray(payload.labels) || payload.labels.length !== 5 ||
+            payload.labels.some(item => !item || !/^[ICARE]$/.test(item.code || "") || typeof item.label !== "string" || typeof item.description !== "string")) {
+          json(res, 400, { error: { message: "A text and exactly five ICARE multilabel dimensions are required." } }); return;
+        }
+        const model = modelFor(config, payload.model, "scoring", groups);
+        const candidateLabels = payload.labels.map(item => item.label + " : " + item.description);
+        const forwarded = { inputs: payload.text, parameters: { candidate_labels: candidateLabels, multi_label: true } };
+        const upstream = await upstreamFetch(model, "", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: "Bearer " + model.apiKey },
+          body: JSON.stringify(forwarded)
+        }, config);
+        const text = await upstream.text();
+        res.writeHead(upstream.status, { "Content-Type": upstream.headers.get("content-type") || "application/json", "Cache-Control": "no-store" });
+        res.end(text);
         return;
       }
 
