@@ -113,10 +113,10 @@ test("obsolete browser icons are absent; the RIC logo remains the PWA identity",
     readFile(new URL("../ric-logo.png", import.meta.url))
   ]);
   const manifest = JSON.parse(manifestText);
-  assert.match(html, /class="ric-logo" src="\\.\\/ric-logo\\.png"/);
+  assert.ok(html.includes('class="ric-logo" src="./ric-logo.png"'));
   assert.doesNotMatch(html, /rel="(?:shortcut )?icon"/i, "aucun favicon ne doit être déclaré pour l’onglet navigateur");
   assert.doesNotMatch(html, /favicon\\.svg|icon\\.svg/i, "aucune ancienne icône SVG ne doit être référencée");
-  assert.match(html, /rel="apple-touch-icon" href="\\.\\/ric-logo\\.png"/);
+  assert.ok(html.includes('rel="apple-touch-icon" href="./ric-logo.png"'));
   assert.equal(manifest.icons[0].src, "./ric-logo.png");
   assert.equal(manifest.icons[0].type, "image/png");
   assert.ok(sw.includes('"./ric-logo.png"'), "le Service Worker doit précacher le logo RIC pour la PWA");
