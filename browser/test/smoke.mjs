@@ -154,6 +154,11 @@ try{
   assert.equal(await page.locator("#new-project").evaluate(el=>el.closest(".sidebar-toolbar")!==null),true,"Nouveau projet doit être au même niveau qu’Importer");
   assert.equal(await page.locator("#project-list .project-row").count(),2,"les deux projets doivent être visibles dans la liste");
   for(const row of await page.locator("#project-list .project-row").all()){assert.equal(await row.locator(".project-row-name").count(),1,"chaque projet doit avoir son nom");assert.equal(await row.locator("[aria-label^=\"Renommer \"]").count(),1,"chaque projet doit avoir sa propre commande Renommer");assert.equal(await row.locator("[aria-label^=\"Télécharger \"]").count(),1,"chaque projet doit avoir sa propre commande Télécharger");}
+  await page.locator("#project-list .project-row").filter({has:page.locator(".project-row-name",{hasText:"Projet navigateur"})}).locator("[aria-label^=\"Renommer \"]").click();
+  await page.locator("#project-name").fill("Projet navigateur renommé");
+  await page.locator("#save-project").click();
+  await page.locator("#project-dialog").waitFor({state:"hidden"});
+  assert.equal(await page.locator("#project-title").textContent(),"Projet navigateur renommé","le renommage depuis la ligne du projet doit actualiser le titre principal");
   assert.equal(await page.locator(".sidebar").evaluate(el=>Math.round(el.getBoundingClientRect().width)),250,"le rail doit s’élargir sans se superposer au dialogue");
   await page.locator("#project-menu-toggle").click();
   assert.equal(await page.locator("body").evaluate(el=>el.classList.contains("project-menu-open")),false,"le hamburger doit replier le volet en conservant le rail");
@@ -187,12 +192,17 @@ try{
   await page.locator("#cancel-project").click();
   assert.equal(await page.locator("#project-title").textContent(),"Projet navigateur","Annuler ne doit ni enregistrer ni changer de projet");
   assert.equal(await page.locator("#project-select option").count(),2,"Annuler ne doit pas créer de projet");
+  const otherProjectDownload=page.waitForEvent("download");
+  await page.locator("#project-list .project-row").filter({has:page.locator(".project-row-name",{hasText:"Mon premier projet"})}).locator("[aria-label^=\"Télécharger \"]").click();
+  const otherProjectBackup=JSON.parse(await readFile(await (await otherProjectDownload).path(),"utf8"));
+  assert.equal(otherProjectBackup.project.name,"Mon premier projet","le téléchargement doit viser le projet de la ligne cliquée et non le projet actif");
+  assert.ok(otherProjectBackup.turns.length>0,"l’export du projet non actif doit contenir son propre historique");
   const downloadPromise=page.waitForEvent("download");
   await page.locator("#project-list .project-row").filter({has:page.locator(".project-row-name", {hasText:"Projet navigateur"})}).locator("[aria-label^=\"Télécharger \"]").click();
   const backupDownload=await downloadPromise,backupPath=await backupDownload.path();
   const backup=JSON.parse(await readFile(backupPath,"utf8"));
   assert.equal(backup.format,"icare-project-export","l'export doit être limité au format de sauvegarde d'un projet");
-  assert.equal(backup.project.name,"Projet navigateur","l'export doit contenir le projet actif");
+  assert.equal(backup.project.name,"Projet navigateur renommé","l'export doit contenir le projet actif");
   assert.equal(backup.turns.length,0,"les échanges d'un autre projet ne doivent pas être exportés");
   await page.locator("#project-import-file").setInputFiles(backupPath);
   await page.waitForFunction(()=>document.querySelector("#project-select").options.length===3);
