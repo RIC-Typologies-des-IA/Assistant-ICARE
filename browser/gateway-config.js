@@ -62,7 +62,7 @@ export async function initGatewayConfiguration({db,get,set,saveLegacy}) {
    const llm=config.routes.llm,audio=config.routes.audio;$("text-route").value=llm==="direct"?"local":"gateway";$("audio-route").value=audio==="direct"?"local":"gateway";
    $("gateway-text-url").value=llm==="direct"?"":gateway(Number(llm.slice(-1))).url;$("gateway-audio-url").value=audio==="direct"?"":gateway(Number(audio.slice(-1))).url;
    $("same-gateway").checked=false;$("gateway-shared-url").value="";
-   status.textContent="Configuration des passerelles et du scoring enregistrée.";await saveLegacy();
+   status.textContent="Configuration des passerelles et du scoring enregistrée.";await saveLegacy({llm,audio,textGateway,audioGateway});
   }catch(error){status.textContent=error.message;}
  });
  return config;
