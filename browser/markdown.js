@@ -108,11 +108,13 @@ window.DOMPurify.addHook("uponSanitizeAttribute", (node, data) => {
       const colon = part.indexOf(":");
       if (colon < 1) return null;
       const property = part.slice(0, colon).trim().toLowerCase();
-      const value = part.slice(colon + 1).trim();
+      const rawValue = part.slice(colon + 1).trim();
+      const important = /!important\s*$/i.test(rawValue);
+      const value = rawValue.replace(/!important\s*$/i, "").trim();
       if ((!SAFE_SVG_STYLE_PROPERTIES.has(property) && !/^--mermaid-[a-z0-9-]{1,80}$/.test(property)) || !value || value.length > 160) return null;
       if (/(?:url\s*\(\s*(?!#)|expression\s*\(|javascript:|@import|[<>])/i.test(value) || value.includes("\\")) return null;
       if (!/^[A-Za-z0-9#(),.%\s"'_+-]+$/.test(value)) return null;
-      return property + ":" + value;
+      return property + ":" + value + (important ? "!important" : "");
     }).filter(Boolean);
     data.attrValue = declarations.join(";");
     if (!data.attrValue) data.keepAttr = false;
@@ -261,12 +263,6 @@ function materializeMermaidStyles(svgRoot) {
     styleSheetNode.textContent = styleNode.textContent || "";
     parserDocument.head.append(styleSheetNode);
     const rules = styleSheetNode.sheet?.cssRules || [];
-    if ((svgRoot.textContent || "").includes("Style personnalisé")) {
-      window.__mermaidStyleDebug = {
-        classes: [...svgRoot.querySelectorAll("[class]")].map(node => ({ tag: node.tagName, className: node.getAttribute("class"), id: node.id, text: (node.textContent || "").slice(0, 80) })),
-        rules: [...rules].filter(rule => rule.selectorText?.includes("redStyle") || rule.selectorText?.includes("greenStyle")).map(rule => ({ selector: rule.selectorText, count: (() => { try { return svgRoot.querySelectorAll(rule.selectorText).length; } catch { return -1; } })() }))
-      };
-    }
     for (const rule of rules) {
       if (rule.type !== 1 || !/^[A-Za-z0-9_.#\s>:+~,*\[\]="'^$|-]+$/.test(rule.selectorText || "")) continue;
       let matches;
