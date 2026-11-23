@@ -60,7 +60,7 @@ export async function initGatewayConfiguration({db,get,set,saveLegacy}) {
    for(const service of SERVICES){const route=config.routes[service];if(route!=="direct"){const id=Number(route.slice(-1)),g=gateway(id);if(!g?.capabilities.includes(service))throw Error("La passerelle sélectionnée ne déclare pas la capacité "+service+".");if(!/^https:\/\//i.test(g.url))throw Error("L’URL de Gateway "+id+" doit commencer par HTTPS.");const u=new URL(g.url);if(u.username||u.password)throw Error("Ne placez pas d’identifiants dans l’URL d’une Gateway.");}}
    await saveLegacy({config});
    await set(db,"settings",{id:KEY,...config});
-   status.textContent="Routage Gateway enregistré.";
+   status.textContent="Routage Gateway enregistré.";$("settings-dialog").close();
   }catch(error){status.textContent=error.message;}
  });
  return config;
