@@ -66,16 +66,16 @@ export async function decryptSecret(db, record) {
 
 export async function loadCredentialVault(db) {
   const vault = await get(db, "settings", VAULT_ID);
-  if (!vault) return { text: "", audio: "" };
+  if (!vault) return { text: "", audio: "", scoring: "" };
   return {
     text: await decryptSecret(db, vault.text),
     audio: await decryptSecret(db, vault.audio)
   };
 }
 
-export async function saveCredentialVault(db, { text = "", audio = "" }) {
+export async function saveCredentialVault(db, { text = "", audio = "", scoring = "" }) {
   const encryptedText = await encryptSecret(db, text);
-  const encryptedAudio = await encryptSecret(db, audio);
+  const encryptedAudio = await encryptSecret(db, audio);\n  const encryptedScoring = await encryptSecret(db, scoring);
   await put(db, "settings", {
     id: VAULT_ID,
     version: 1,
@@ -85,7 +85,7 @@ export async function saveCredentialVault(db, { text = "", audio = "" }) {
   });
 }
 
-export async function migrateLegacyCredentials(db, { text = "", audio = "", legacy = "" } = {}) {
+export async function migrateLegacyCredentials(db, { text = "", audio = "", scoring = "", legacy = "" } = {}) {
   const current = await loadCredentialVault(db);
   const next = {
     text: current.text || text || legacy,
