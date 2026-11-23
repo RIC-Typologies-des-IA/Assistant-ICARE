@@ -762,3 +762,9 @@ body.project-menu-open .sidebar .project-row-action{
   height:24px!important;
   padding:4px!important;
 }
+
+
+/* L'origine du hamburger est identique dans les deux états. */
+body.project-menu-open .sidebar{
+  padding:4px!important;
+}
