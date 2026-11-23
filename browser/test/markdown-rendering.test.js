@@ -217,7 +217,7 @@ try {
       tag: node.tagName, className: node.getAttribute("class"), fill: node.getAttribute("fill"),
       style: node.getAttribute("style"), computedFill: getComputedStyle(node).fill
     }));
-    return {
+    const lightSnapshot = {
       html: host.innerHTML,
       xss: window.__xss === true,
       scripts: host.querySelectorAll("script,iframe,form,svg script,foreignObject").length,
@@ -241,6 +241,27 @@ try {
       rawHtml: [...host.querySelectorAll("p")].find(p => p.textContent.includes("HTML documentaire autorisé"))?.querySelector("strong")?.textContent || "",
       safeLink: [...host.querySelectorAll("a")].some(a => a.href === "https://example.org/" && a.rel.includes("noopener"))
     };
+    document.documentElement.dataset.theme = "dark";
+    window.dispatchEvent(new CustomEvent("icare-theme-change", { detail: { theme: "dark" } }));
+    await new Promise(resolve => {
+      const started = Date.now();
+      const poll = () => {
+        if (!host.querySelector(".mermaid-source") && host.querySelectorAll(".mermaid-diagram svg").length === 16) resolve();
+        else if (Date.now() - started > 10000) resolve();
+        else setTimeout(poll, 50);
+      };
+      poll();
+    });
+    const darkSvgs = [...host.querySelectorAll(".mermaid-diagram svg")];
+    const darkTexts = darkSvgs.flatMap(svg => [...svg.querySelectorAll("text,tspan")]);
+    const darkPieColors = [...host.querySelectorAll(".mermaid-diagram .pieCircle")].map(node => getComputedStyle(node).fill);
+    return {
+      ...lightSnapshot,
+      darkDiagramCount: darkSvgs.length,
+      darkTextCount: darkTexts.length,
+      darkTextFills: [...new Set(darkTexts.map(node => getComputedStyle(node).fill).filter(fill => fill && fill !== "none"))],
+      darkPieColors
+    };
   });
   assert.equal(result.xss, false, "aucun gestionnaire d’événement ne doit être exécuté");
   assert.equal(result.scripts, 0, "scripts, iframes, formulaires et SVG arbitraire doivent être absents");
@@ -262,6 +283,10 @@ try {
   assert.equal(result.remoteImages, 0, "les images distantes doivent être bloquées pour éviter le pistage par requête réseau");
   assert.equal(result.rawHtml, "HTML documentaire autorisé", "un sous-ensemble HTML documentaire doit rester disponible");
   assert.equal(result.safeLink, true, "les liens HTTPS doivent rester accessibles sans opener");
+  assert.equal(result.darkDiagramCount, 16, "les 16 diagrammes doivent être rerendus au changement de thème");
+  assert.ok(result.darkTextCount > 0, "les libellés SVG doivent rester présents en mode sombre");
+  assert.ok(result.darkTextFills.length >= 1 && result.darkTextFills.every(fill => fill !== "rgba(0, 0, 0, 0)"), "les libellés doivent conserver un remplissage visible en mode sombre");
+  assert.ok(new Set(result.darkPieColors).size >= 3, "la palette du diagramme circulaire doit rester différenciée en mode sombre");
   console.log("Markdown rendering/security tests passed.");
 
 } finally {
