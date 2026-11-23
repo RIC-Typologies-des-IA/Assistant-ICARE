@@ -69,9 +69,9 @@ Le composant `ontology-validator` exécute dans le guest WASM la validation dét
 
 Le scoring utilise `Horizon-Labs/multilingual-zeroshot-base`. Chaque message utilisateur reçoit cinq scores indépendants I/C/A/R/E ; ils ne sont pas normalisés à une somme de 1. Le résultat est enregistré avec le message et réaffiché lors de la relecture de l'historique.
 
-- Accès direct : endpoint Hugging Face Inference Router configurable ; le jeton facultatif est chiffré dans le coffre AES-GCM du navigateur.
-- Via Gateway : `POST /v1/icare/scoring` ; le secret Hugging Face reste côté serveur dans `ICARE_HF_API_KEY`.
-- Le mode direct par défaut utilise le service d'inférence hébergé Hugging Face ; il ne signifie pas que le modèle tourne localement sur le processeur AMD. Un endpoint direct local peut être configuré si un runtime ONNX compatible est déployé sur la machine.
+- Accès direct : endpoint local sur `http://127.0.0.1:8787/v1/icare/scoring`.
+- Via Gateway : `POST /v1/icare/scoring` sur une Gateway contrôlée, qui exécute elle-même le modèle localement.
+- Aucune clé Hugging Face, aucune API d'inférence distante et aucun envoi du texte des conversations à un fournisseur externe.
 - Les textes sont en français ; les labels et descriptions de classification sont en anglais, conformément à la fiche du modèle.
 
 Les trois fiches Gateway affichent les capacités LLM, transcription et scoring. La règle de disponibilité limite les fiches superflues sans effacer silencieusement les routes déjà sélectionnées.
