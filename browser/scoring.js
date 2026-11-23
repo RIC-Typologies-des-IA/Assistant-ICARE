@@ -10,8 +10,8 @@ function parseScores(payload){
  let result=payload;
  if(Array.isArray(result)&&result.length===1)result=result[0];
  if(result?.labels&&result?.scores){const scores={};result.labels.forEach((label,i)=>{const item=LABELS.find(x=>x.label===label||x.code===label||String(label).startsWith(x.label+" :"));if(item)scores[item.code]=Number(result.scores[i]);});return scores;}
- if(result?.scores&&typeof result.scores==="object"&&!Array.isArray(result.scores))return Object.fromEntries(["I","C","A","R","E"].map(k=>[k,Number(result.scores[k]??0)]));
- if(result?.I!==undefined)return Object.fromEntries(["I","C","A","R","E"].map(k=>[k,Number(result[k]??0)]));
+ if(result?.scores&&typeof result.scores==="object"&&!Array.isArray(result.scores))return Object.fromEntries(["I","C","A","R","E"].map(k=>[k,Number(result.scores[k])]));
+ if(result?.I!==undefined)return Object.fromEntries(["I","C","A","R","E"].map(k=>[k,Number(result[k])]));
  throw new Error("Réponse du moteur de scoring non reconnue.");
 }
 export async function scoreIcareMultilabel({text,route="direct",gatewayUrl="",gatewayModel="",directUrl="",apiKey="",fetchImpl=fetch}){
