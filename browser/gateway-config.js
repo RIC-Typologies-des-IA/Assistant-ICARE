@@ -47,7 +47,7 @@ export async function initGatewayConfiguration({db,get,set,saveLegacy,loadScorin
     const input=$("gateway-"+g.id+"-"+service),owner=config.gateways.find(candidate=>candidate.capabilities.includes(service));
     const label=input.closest("label");
     const unavailable=!!owner&&owner.id!==g.id;
-    label.hidden=unavailable;input.disabled=unavailable;
+    label.hidden=unavailable;label.style.display=unavailable?"none":"";input.disabled=unavailable;
     input.checked=g.capabilities.includes(service);
    }
   }
