@@ -11,7 +11,7 @@
   "auth": {
     "identityHeader": "x-icare-authenticated-user",
     "groupsHeader": "x-icare-authenticated-groups",
-    "allowLoopbackWithoutIdentity": true
+    "allowLoopbackWithoutIdentity": false
   },
   "limits": {
     "requestsPerMinute": 60,
@@ -31,15 +31,6 @@
       ]
     },
     {
-      "id": "horizon-multilingual-zeroshot",
-      "provider": "local",
-      "runtime": "transformers-js",
-      "modelId": "Horizon-Labs/multilingual-zeroshot-base",
-      "capabilities": [
-        "scoring"
-      ]
-    },
-    {
       "id": "whisper-1",
       "provider": "openai",
       "upstreamBaseUrl": "https://api.openai.com/v1",
@@ -52,7 +43,9 @@
   ],
   "defaults": {
     "chatModel": "gpt-4.1-mini",
-    "transcriptionModel": "whisper-1",
-    "scoringModel": "horizon-multilingual-zeroshot"
+    "transcriptionModel": "whisper-1"
+  },
+  "scoring": {
+    "endpointUrl": "https://scoring.example.org/v1/icare/scoring"
   }
 }
