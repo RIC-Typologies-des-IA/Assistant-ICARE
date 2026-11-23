@@ -110,7 +110,7 @@ window.DOMPurify.addHook("uponSanitizeAttribute", (node, data) => {
       const property = part.slice(0, colon).trim().toLowerCase();
       const value = part.slice(colon + 1).trim();
       if (!SAFE_SVG_STYLE_PROPERTIES.has(property) || !value || value.length > 160) return null;
-      if (/(?:url\s*\(\s*(?!#)|expression\s*\(|javascript:|@import|[<>\\])/i.test(value)) return null;
+      if (/(?:url\s*\(\s*(?!#)|expression\s*\(|javascript:|@import|[<>])/i.test(value) || value.includes("\\")) return null;
       if (!/^[A-Za-z0-9#(),.%\s"'_+-]+$/.test(value)) return null;
       return property + ":" + value;
     }).filter(Boolean);
@@ -226,39 +226,66 @@ async function loadMermaid() {
       document.head.append(script);
     }).then(engine => {
       if (!engine?.render) throw new Error("Le moteur Mermaid n’est pas disponible.");
-      engine.initialize({
-        startOnLoad: false, securityLevel: "strict", htmlLabels: false,
-        flowchart: { htmlLabels: false, curve: "basis", nodeSpacing: 42, rankSpacing: 52 },
-        sequence: { actorMargin: 64, messageMargin: 38, noteMargin: 12, mirrorActors: false },
-        theme: "base",
-        themeVariables: {
-          background:"#fff", fontFamily:"Inter, ui-sans-serif, system-ui, sans-serif", primaryColor:"#eaf1fa", primaryTextColor:"#20344f", primaryBorderColor:"#607b9f",
-          secondaryColor:"#f1f5fb", tertiaryColor:"#f8fafc", lineColor:"#536b8a", textColor:"#202b3a",
-          mainBkg:"#eaf1fa", secondBkg:"#f1f5fb", tertiaryBkg:"#f8fafc", nodeBorder:"#607b9f",
-          clusterBkg:"#f5f8fc", clusterBorder:"#a7b7cb",
-          actorBkg:"#eaf1fa", actorBorder:"#607b9f", actorTextColor:"#20344f", actorLineColor:"#7187a4",
-          signalColor:"#405a7b", signalTextColor:"#20344f", labelBoxBkgColor:"#f1f5fb",
-          labelBoxBorderColor:"#9aacc4", labelTextColor:"#20344f", loopTextColor:"#20344f",
-          noteBkgColor:"#fff7df", noteBorderColor:"#c7a85b", noteTextColor:"#51421d", classText:"#20344f",
-          pie1:"#4778b8",pie2:"#e39b45",pie3:"#4c9a83",pie4:"#9b79bd",pie5:"#d46d70",pie6:"#6b9eae",
-          pie7:"#b6a04b",pie8:"#6e83c1",pie9:"#a77b62",pie10:"#6eaa78",pie11:"#c47eaa",pie12:"#8c98a8",
-          pieTitleTextColor:"#20344f",pieSectionTextColor:"#fff",pieLegendTextColor:"#34465e",pieStrokeColor:"#fff",
-          cScale0:"#4778b8",cScale1:"#e39b45",cScale2:"#4c9a83",cScale3:"#9b79bd",cScale4:"#d46d70",cScale5:"#6b9eae",
-          cScale6:"#b6a04b",cScale7:"#6e83c1",cScale8:"#a77b62",cScale9:"#6eaa78",cScale10:"#c47eaa",cScale11:"#8c98a8",
-          taskBkgColor:"#dce8f6", taskBorderColor:"#607b9f", activeTaskBkgColor:"#8fb2dc", activeTaskBorderColor:"#4778b8",
-          doneTaskBkgColor:"#d9eee2", doneTaskBorderColor:"#4c9a83", critTaskBkgColor:"#f3dfe0", critTaskBorderColor:"#d46d70",
-          taskTextColor:"#26384f", taskTextLightColor:"#26384f", taskTextOutsideColor:"#26384f", taskTextClickableColor:"#4778b8",
-          sectionBkgColor:"#edf2f8", altSectionBkgColor:"#f8fafc", sectionBkgColor2:"#f1f5fb", gridColor:"#d5deea", todayLineColor:"#d46d70",
-          git0:"#eaf1fa",git1:"#e5f3ed",git2:"#fff1df",git3:"#f3eafa",git4:"#e6f3f5",git5:"#fae9eb",git6:"#f4f0df",git7:"#edf0f5"
-        },
-        radar: { axisColor:"#8192aa", graticuleColor:"#aab7c8", curveOpacity:0.24, curveStrokeWidth:2.5, legendFontSize:"13px" },
-        gantt: { barHeight:24, barGap:8, topPadding:48, leftPadding:80 },
-        maxTextSize: 40000, maxEdges: 500
-      });
       return engine;
     });
   }
   return mermaidLoadPromise;
+}
+
+function initializeMermaid(engine) {
+  const dark = document.documentElement.dataset.theme === "dark";
+  engine.initialize({
+    startOnLoad: false,
+    securityLevel: "strict",
+    htmlLabels: false,
+    theme: dark ? "dark" : "default",
+    flowchart: { htmlLabels: false, curve: "basis", nodeSpacing: 42, rankSpacing: 52 },
+    sequence: { actorMargin: 64, messageMargin: 38, noteMargin: 12, mirrorActors: false },
+    radar: { axisColor: dark ? "#9aa9bd" : "#8192aa", graticuleColor: dark ? "#53657d" : "#aab7c8", curveOpacity: 0.28, curveStrokeWidth: 2.5, legendFontSize: "13px" },
+    gantt: { barHeight: 24, barGap: 8, topPadding: 48, leftPadding: 80 },
+    maxTextSize: 40000,
+    maxEdges: 500
+  });
+}
+
+let mermaidRenderGeneration = 0;
+
+function materializeMermaidStyles(svgRoot) {
+  // Mermaid emits presentation rules in SVG <style> blocks. DOMPurify intentionally
+  // removes style elements, so translate a constrained subset into safe inline
+  // presentation attributes before sanitizing the SVG.
+  for (const styleNode of [...svgRoot.querySelectorAll("style")]) {
+    const parserDocument = document.implementation.createHTMLDocument("");
+    const styleSheetNode = parserDocument.createElement("style");
+    styleSheetNode.textContent = styleNode.textContent || "";
+    parserDocument.head.append(styleSheetNode);
+    const rules = styleSheetNode.sheet?.cssRules || [];
+    for (const rule of rules) {
+      if (rule.type !== 1 || !/^[A-Za-z0-9_.#\s>:+~,*\[\]="'-]+$/.test(rule.selectorText || "")) continue;
+      let matches;
+      try { matches = svgRoot.querySelectorAll(rule.selectorText); }
+      catch { continue; }
+      for (const node of matches) {
+        const declarations = new Map();
+        for (let index = 0; index < rule.style.length; index++) {
+          const property = rule.style[index].toLowerCase();
+          const value = rule.style.getPropertyValue(property).trim();
+          if (!SAFE_SVG_STYLE_PROPERTIES.has(property) || !value || value.length > 160) continue;
+          if (/(?:url\s*\(|expression\s*\(|javascript:|@import|[<>])/i.test(value) || value.includes("\\")) continue;
+          if (!/^[A-Za-z0-9#(),.%\s"'_+-]+$/.test(value)) continue;
+          declarations.set(property, value);
+        }
+        if (!declarations.size) continue;
+        const existing = node.getAttribute("style") || "";
+        for (const [property, value] of declarations) {
+          const inlineProperties = new Set(existing.split(";").map(declaration => declaration.split(":")[0].trim().toLowerCase()));
+          if (inlineProperties.has(property)) continue;
+          node.style.setProperty(property, value);
+        }
+      }
+    }
+    styleNode.remove();
+  }
 }
 
 async function renderMermaid(sources) {
@@ -269,6 +296,10 @@ async function renderMermaid(sources) {
     for (const source of sources) showMermaidError(source, error);
     return;
   }
+  // La configuration est recalculée à chaque rendu : les SVG ne conservent
+  // jamais une palette d'un thème précédent.
+  const generation = ++mermaidRenderGeneration;
+  initializeMermaid(engine);
   // Une erreur locale ne doit jamais empêcher les diagrammes voisins de s'afficher.
   for (const source of sources) {
     try {
@@ -278,18 +309,33 @@ async function renderMermaid(sources) {
       const id = "icare-mermaid-" + crypto.randomUUID();
       const safeSource = code.replace(/%%\{init:[\s\S]*?\}%%/gi, "");
       const result = await engine.render(id, safeSource);
+      if (generation !== mermaidRenderGeneration || !source.isConnected) continue;
       const svgDocument = new DOMParser().parseFromString(result.svg, "image/svg+xml");
       if (svgDocument.querySelector("parsererror")) throw new Error("SVG Mermaid invalide");
+      materializeMermaidStyles(svgDocument.documentElement);
       const safe = window.DOMPurify.sanitize(svgDocument.documentElement.outerHTML, SVG_SANITIZE_OPTIONS);
       if (!(safe instanceof DocumentFragment) || !safe.firstElementChild)
         throw new Error("SVG Mermaid rejeté par le filtre de sécurité");
       const wrapper = document.createElement("div");
       wrapper.className = "mermaid-diagram";
+      wrapper.mermaidSource = code;
       wrapper.append(safe);
       source.replaceWith(wrapper);
     } catch (error) { showMermaidError(source, error); }
   }
 }
+
+window.addEventListener("icare-theme-change", () => {
+  const sources = [...document.querySelectorAll(".mermaid-diagram, .mermaid-source")].map(node => {
+    if (node.matches(".mermaid-source")) return node;
+    const source = document.createElement("pre");
+    source.className = "mermaid-source";
+    source.textContent = node.mermaidSource || "";
+    node.replaceWith(source);
+    return source;
+  }).filter(node => node.textContent.trim());
+  if (sources.length) renderMermaid(sources);
+});
 
 function showMermaidError(source, error) {
   if (!source?.isConnected) return;
