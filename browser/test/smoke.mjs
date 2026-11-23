@@ -145,6 +145,7 @@ try{
   await page.waitForFunction(()=>document.querySelector("#project-title").textContent==="Projet navigateur");
   assert.equal(await page.locator("#project-select option").count(),2,"la création doit ajouter un deuxième projet");
   const hamburgerClosed=await page.locator("#project-menu-toggle").boundingBox();
+  const railClosedWidth=await page.locator(".sidebar").evaluate(el=>el.getBoundingClientRect().width);
   await page.locator("#project-menu-toggle").click();
   assert.equal(await page.locator("body").evaluate(el=>el.classList.contains("project-menu-open")),true,"le bouton hamburger doit ouvrir le volet projets");
   const hamburgerOpen=await page.locator("#project-menu-toggle").boundingBox();
@@ -159,8 +160,10 @@ try{
   await page.locator("#save-project").click();
   await page.locator("#project-dialog").waitFor({state:"hidden"});
   assert.equal(await page.locator("#project-title").textContent(),"Projet navigateur renommé","le renommage depuis la ligne du projet doit actualiser le titre principal");
-  await page.waitForFunction(()=>Math.round(document.querySelector(".sidebar").getBoundingClientRect().width)===250,{timeout:1000});
-  assert.equal(await page.locator(".sidebar").evaluate(el=>Math.round(el.getBoundingClientRect().width)),250,"le rail doit s’élargir sans se superposer au dialogue une fois la transition terminée");
+  await page.waitForFunction(closedWidth=>document.querySelector(".sidebar").getBoundingClientRect().width>closedWidth+100,railClosedWidth,{timeout:1000});
+  const expandedGeometry=await page.evaluate(()=>{const rail=document.querySelector(".sidebar").getBoundingClientRect(),chat=document.querySelector(".chat-panel").getBoundingClientRect();return {railWidth:rail.width,railRight:rail.right,chatLeft:chat.left}});
+  assert.ok(expandedGeometry.railWidth>railClosedWidth+100,"le volet doit réellement s’élargir à l’ouverture : "+JSON.stringify(expandedGeometry));
+  assert.ok(expandedGeometry.railRight<expandedGeometry.chatLeft,"le volet élargi ne doit pas se superposer au dialogue : "+JSON.stringify(expandedGeometry));
   await page.locator("#project-menu-toggle").click();
   assert.equal(await page.locator("body").evaluate(el=>el.classList.contains("project-menu-open")),false,"le hamburger doit replier le volet en conservant le rail");
   const hamburgerClosedAgain=await page.locator("#project-menu-toggle").boundingBox();
