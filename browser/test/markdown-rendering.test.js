@@ -255,12 +255,46 @@ try {
     const darkSvgs = [...host.querySelectorAll(".mermaid-diagram svg")];
     const darkTexts = darkSvgs.flatMap(svg => [...svg.querySelectorAll("text,tspan")]);
     const darkPieColors = [...host.querySelectorAll(".mermaid-diagram .pieCircle")].map(node => getComputedStyle(node).fill);
+    const darkMindmap = darkSvgs.find(svg => ["Intention","Contexte","Action","Régulation","Évolution"].every(label => svg.textContent.includes(label)));
+    const darkMindmapColors = [...(darkMindmap?.querySelectorAll("rect,circle,ellipse,path,polygon") || [])]
+      .map(node => getComputedStyle(node).fill).filter(fill => fill && fill !== "none" && fill !== "rgba(0, 0, 0, 0)");
+    const familyText = darkSvgs.map(svg => svg.textContent || "");
+    const familyChecks = {
+      flowchart: familyText.some(text => text.includes("Départ") && text.includes("Arrivée")),
+      sequence: familyText.some(text => text.includes("Bonjour Bob")),
+      classDiagram: familyText.some(text => text.includes("Animal")),
+      stateDiagram: familyText.some(text => text.includes("Inactive")),
+      gantt: familyText.some(text => text.includes("Développement")),
+      pie: familyText.some(text => text.includes("Répartition")),
+      journey: familyText.some(text => text.includes("Parcours utilisateur")),
+      requirement: familyText.some(text => text.includes("Accès sécurisé")),
+      gitGraph: familyText.some(text => text.includes("main")),
+      timeline: familyText.some(text => text.includes("Évolution du projet")),
+      erDiagram: familyText.some(text => text.includes("CLIENT")),
+      radar: familyText.some(text => text.includes("Compétences")),
+      mindmap: familyText.some(text => text.includes("Intention")),
+      sankey: familyText.some(text => text.includes("Source A"))
+    };
+    document.documentElement.dataset.theme = "light";
+    window.dispatchEvent(new CustomEvent("icare-theme-change", { detail: { theme: "light" } }));
+    await new Promise(resolve => {
+      const started = Date.now();
+      const poll = () => {
+        if (!host.querySelector(".mermaid-source") && host.querySelectorAll(".mermaid-diagram svg").length === 16) resolve();
+        else if (Date.now() - started > 10000) resolve();
+        else setTimeout(poll, 50);
+      };
+      poll();
+    });
     return {
       ...lightSnapshot,
       darkDiagramCount: darkSvgs.length,
       darkTextCount: darkTexts.length,
       darkTextFills: [...new Set(darkTexts.map(node => getComputedStyle(node).fill).filter(fill => fill && fill !== "none"))],
-      darkPieColors
+      darkPieColors,
+      darkMindmapColors,
+      familyChecks,
+      lightRestoredCount: host.querySelectorAll(".mermaid-diagram svg").length
     };
   });
   assert.equal(result.xss, false, "aucun gestionnaire d’événement ne doit être exécuté");
@@ -287,6 +321,29 @@ try {
   assert.ok(result.darkTextCount > 0, "les libellés SVG doivent rester présents en mode sombre");
   assert.ok(result.darkTextFills.length >= 1 && result.darkTextFills.every(fill => fill !== "rgba(0, 0, 0, 0)"), "les libellés doivent conserver un remplissage visible en mode sombre");
   assert.ok(new Set(result.darkPieColors).size >= 3, "la palette du diagramme circulaire doit rester différenciée en mode sombre");
+  assert.ok(new Set(result.darkMindmapColors).size >= 2, "la palette de la carte mentale doit rester différenciée en mode sombre");
+  assert.ok(Object.entries(result.familyChecks).every(([, passed]) => passed), "chaque famille de diagrammes doit conserver ses libellés : " + JSON.stringify(result.familyChecks));
+  assert.equal(result.lightRestoredCount, 16, "le retour au mode clair doit rerendre les 16 diagrammes");
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobileLayout = await page.evaluate(() => {
+    const host = document.querySelector(".message-content");
+    const wrapper = host?.querySelector(".mermaid-diagram");
+    const svg = wrapper?.querySelector("svg");
+    if (!host || !wrapper || !svg) return null;
+    const hostRect = host.getBoundingClientRect();
+    const wrapperRect = wrapper.getBoundingClientRect();
+    return {
+      hostWidth: hostRect.width,
+      wrapperRight: wrapperRect.right,
+      hostRight: hostRect.right,
+      wrapperOverflow: getComputedStyle(wrapper).overflowX,
+      svgMaxWidth: getComputedStyle(svg).maxWidth
+    };
+  });
+  assert.ok(mobileLayout, "un diagramme doit rester présent sur mobile");
+  assert.ok(mobileLayout.wrapperRight <= mobileLayout.hostRight + 1, "le conteneur Mermaid ne doit pas déborder horizontalement sur mobile");
+  assert.equal(mobileLayout.wrapperOverflow, "auto", "un diagramme large doit rester défilable horizontalement sur mobile");
+  assert.equal(mobileLayout.svgMaxWidth, "100%", "le SVG doit s'adapter à la largeur disponible");
   console.log("Markdown rendering/security tests passed.");
 
 } finally {
