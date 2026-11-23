@@ -110,7 +110,7 @@ window.DOMPurify.addHook("uponSanitizeAttribute", (node, data) => {
       const property = part.slice(0, colon).trim().toLowerCase();
       const value = part.slice(colon + 1).trim();
       if (!SAFE_SVG_STYLE_PROPERTIES.has(property) || !value || value.length > 160) return null;
-      if (/(?:url\s*\(\s*(?!#)|expression\s*\(|javascript:|@import|[<>\])/i.test(value)) return null;
+      if (/(?:url\s*\(\s*(?!#)|expression\s*\(|javascript:|@import|[<>])/i.test(value) || value.includes("\\")) return null;
       if (!/^[A-Za-z0-9#(),.%\s"'_+-]+$/.test(value)) return null;
       return property + ":" + value;
     }).filter(Boolean);
@@ -271,7 +271,7 @@ function materializeMermaidStyles(svgRoot) {
           const property = rule.style[index].toLowerCase();
           const value = rule.style.getPropertyValue(property).trim();
           if (!SAFE_SVG_STYLE_PROPERTIES.has(property) || !value || value.length > 160) continue;
-          if (/(?:url\s*\(|expression\s*\(|javascript:|@import|[<>\\])/i.test(value)) continue;
+          if (/(?:url\s*\(|expression\s*\(|javascript:|@import|[<>])/i.test(value) || value.includes("\\")) continue;
           if (!/^[A-Za-z0-9#(),.%\s"'_+-]+$/.test(value)) continue;
           declarations.set(property, value);
         }
