@@ -32,7 +32,7 @@ export async function scoreLocally({ text, labels, modelId = DEFAULT_MODEL }) {
   const candidateLabels = labels.map(item => item.label + " : " + item.description);
   const result = await classifier(text, candidateLabels, {
     multi_label: true,
-    hypothesis_template: "This text concerns {}."
+    hypothesis_template: "This text is about {}."
   });
   const scores = {};
   for (let i = 0; i < result.labels.length; i++) {
