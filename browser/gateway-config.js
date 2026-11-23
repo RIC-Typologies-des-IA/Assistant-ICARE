@@ -59,7 +59,6 @@ export async function initGatewayConfiguration({db,get,set,saveLegacy,loadScorin
    Object.assign(config,normalise({...config,directScoringUrl:$("direct-scoring-url").value.trim(),gateways:config.gateways.map(g=>({...g,name:$("gateway-"+g.id+"-name").value.trim()||"Gateway "+g.id,url:$("gateway-"+g.id+"-url").value.trim(),capabilities:SERVICES.filter(s=>$("gateway-"+g.id+"-"+s).checked)})),routes:Object.fromEntries(SERVICES.map(s=>[s,$(routeIds[s]).value]))}));
    if(config.routes.scoring==="direct"&&config.directScoringUrl){let endpoint;try{endpoint=new URL(config.directScoringUrl);}catch{throw Error("URL du moteur de scoring ICARE invalide.");}const loopback=["localhost","127.0.0.1","[::1]"].includes(endpoint.hostname);if((endpoint.protocol!=="https:"&&!(endpoint.protocol==="http:"&&loopback))||endpoint.username||endpoint.password||endpoint.hash)throw Error("Utilisez HTTPS pour un service distant, ou HTTP uniquement sur localhost, sans identifiants intégrés.");}
    for(const service of SERVICES){const route=config.routes[service];if(route!=="direct"){const id=Number(route.slice(-1)),g=gateway(id);if(!g?.capabilities.includes(service))throw Error("La passerelle sélectionnée ne déclare pas la capacité "+service+".");if(!/^https:\/\//i.test(g.url))throw Error("L’URL de Gateway "+id+" doit commencer par HTTPS.");const u=new URL(g.url);if(u.username||u.password)throw Error("Ne placez pas d’identifiants dans l’URL d’une Gateway.");}}
-   await set(db,"settings",{id:KEY,...config});
    const llm=config.routes.llm,audio=config.routes.audio,scoring=config.routes.scoring;
    const textGateway=llm==="direct"?"":gateway(Number(llm.slice(-1))).url;
    const audioGateway=audio==="direct"?"":gateway(Number(audio.slice(-1))).url;
@@ -69,6 +68,7 @@ export async function initGatewayConfiguration({db,get,set,saveLegacy,loadScorin
    $("same-gateway").checked=false;$("gateway-shared-url").value="";
    status.textContent="Configuration des trois services d’inférence enregistrée.";
    await saveLegacy({llm,audio,textGateway,audioGateway,scoringRoute:scoring,scoringGateway,scoringApiKey:$("direct-scoring-key").value.trim()});
+   await set(db,"settings",{id:KEY,...config});
   }catch(error){status.textContent=error.message;}
  });
  return config;
