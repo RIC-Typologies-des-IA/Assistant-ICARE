@@ -196,8 +196,7 @@ export function createGatewayServer(config, { fetchImpl = fetch } = {}) {
         const available = visibleModels(config, groups);
         const chat = available.find(model => model.id === config.defaults?.chatModel && model.capabilities.includes("chat")) || available.find(model => model.capabilities.includes("chat"));
         const audio = available.find(model => model.id === config.defaults?.transcriptionModel && model.capabilities.includes("transcription")) || available.find(model => model.capabilities.includes("transcription"));
-        const scoring = available.find(model => model.id === config.defaults?.scoringModel && model.capabilities.includes("scoring")) || available.find(model => model.capabilities.includes("scoring"));
-        json(res, 200, { service: "icare-enterprise-gateway", defaults: { chatModel: chat?.id || "", transcriptionModel: audio?.id || "", scoringModel: scoring?.id || "" } });
+        json(res, 200, { service: "icare-enterprise-gateway", defaults: { chatModel: chat?.id || "", transcriptionModel: audio?.id || "" } });
         return;
       }
       if (req.method === "GET" && path === "/v1/models") {
