@@ -108,7 +108,7 @@ test("brand logo, browser favicon and PWA icon use bundled same-origin assets", 
   ]);
   const manifest = JSON.parse(manifestText);
   assert.match(html, /class="ric-logo" src="\.\/ric-logo\.png"/);
-  assert.match(html, /rel="icon" type="image\/svg\+xml" href="\.\/favicon\.svg\?v=0\.10\.5"/);
+  assert.match(html, /rel="icon" type="image\/svg\+xml" href="\.\/favicon\.svg\?v=0\.10\.6"/);
   assert.match(html, /rel="apple-touch-icon" href="\.\/ric-logo\.png"/);
   assert.equal(manifest.icons[0].src, "./favicon.svg");
   assert.equal(manifest.icons[0].type, "image/svg+xml");
