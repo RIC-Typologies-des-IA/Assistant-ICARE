@@ -187,7 +187,7 @@ $("api-preset")?.addEventListener("change",event=>{const preset=event.target.val
 await loadOntology();gatewayRoutingConfig=await initGatewayConfiguration({db,get,set:put,saveLegacy:async({config})=>{
  const modelCache=new Map();
  async function gatewayConfig(url){
-  if(!modelCache.has(url)){const base=url.replace(/\\/+$/,""),endpoint=(base.endsWith("/v1")?base:base+"/v1")+"/icare/config";const response=await fetch(endpoint,{credentials:"include",cache:"no-store"});if(!response.ok)throw Error("Impossible de lire la configuration de la Gateway ("+response.status+").");modelCache.set(url,await response.json());}
+  if(!modelCache.has(url)){const base=url.replace(/\/+$/,""),endpoint=(base.endsWith("/v1")?base:base+"/v1")+"/icare/config";const response=await fetch(endpoint,{credentials:"include",cache:"no-store"});if(!response.ok)throw Error("Impossible de lire la configuration de la Gateway ("+response.status+").");modelCache.set(url,await response.json());}
   return modelCache.get(url);
  }
  const modelFor=async(service,capability)=>{const route=config.routes[service];if(route==="direct")return "";const gateway=config.gateways.find(g=>g.id===Number(route.slice(-1)));const remote=await gatewayConfig(gateway.url);const model=capability==="chat"?remote.defaults?.chatModel:remote.defaults?.transcriptionModel;if(!model)throw Error("Aucun modèle "+(capability==="chat"?"de conversation":"de transcription")+" n’est attribué à "+gateway.name+".");return model;};
