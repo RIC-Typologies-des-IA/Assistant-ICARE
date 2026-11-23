@@ -513,3 +513,30 @@ html[data-theme="dark"] .project-row-name{color:#e8eef7}
 html[data-theme="dark"] .project-row-action{color:#c0cee0}
 html[data-theme="dark"] .project-row-action:hover{background:#344b67;color:#fff}
 @media(max-width:700px){.sidebar{padding:6px 4px !important}body.project-menu-open .sidebar{padding:8px 9px !important}.sidebar-toolbar{gap:6px}.sidebar-toolbar-button{padding:7px 8px;font-size:11px}.project-row-name{font-size:11px}.project-row-action{width:27px;height:27px}.project-heading h1{font-size:20px}}
+
+
+/* Le bouton hamburger est ancré au même point dans les deux états du volet.
+   Le padding du conteneur ne doit donc jamais varier à l'ouverture. */
+.sidebar,
+body.project-menu-open .sidebar{
+  padding:6px 4px !important;
+}
+.sidebar-toolbar{
+  padding:0 !important;
+  margin-left:0 !important;
+}
+.sidebar .menu-toggle{
+  margin:0 !important;
+  align-self:flex-start !important;
+  justify-self:start !important;
+  position:relative !important;
+  left:0 !important;
+  top:0 !important;
+  transform:none !important;
+}
+@media(max-width:700px){
+  .sidebar,
+  body.project-menu-open .sidebar{
+    padding:6px 3px !important;
+  }
+}
