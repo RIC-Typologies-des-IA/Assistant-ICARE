@@ -465,3 +465,21 @@ html[data-theme="dark"] .message-content .mermaid-diagram{
 :root[data-theme="dark"] .route-choice{background:#142235;border-color:#465a74}
 :root[data-theme="dark"] .route-choice strong{color:#e5edf7}
 :root[data-theme="dark"] .route-choice select{background:#142235;color:#e5edf7;border-color:#465a74}
+
+
+/* Projet actif et commandes dans le volet ; hamburger immobile à gauche. */
+.sidebar{padding:6px 4px !important}
+body.project-menu-open .sidebar{padding:6px 4px !important}
+.sidebar .menu-toggle{margin:0 0 10px 0 !important;align-self:flex-start !important;justify-self:start !important;position:relative !important;left:0 !important;transform:none !important}
+.sidebar-project-heading{display:none;align-items:center;gap:6px;margin:4px 4px 12px;padding:0 0 12px;border-bottom:1px solid #e1e6ed;min-width:0}
+body.project-menu-open .sidebar-project-heading{display:flex}
+.sidebar-project-name{flex:1 1 auto;min-width:0}
+.sidebar-project-name .eyebrow{margin:0 0 3px;font-size:9px}
+.sidebar-project-name h2{margin:0;font-size:13px;line-height:1.25;overflow-wrap:anywhere}
+.sidebar-project-actions{display:flex;align-items:center;gap:3px;flex:0 0 auto}
+.sidebar-project-actions .project-action{width:30px;height:30px;padding:5px;border-radius:7px}
+.sidebar-project-actions .project-action svg{width:19px;height:19px}
+.sidebar-project-actions .project-rename-button{padding:6px 7px;font-size:10px;white-space:nowrap}
+body.project-menu-open .sidebar .section-heading,body.project-menu-open .sidebar select,body.project-menu-open .sidebar .sidebar-note{margin-left:4px;margin-right:4px}
+html[data-theme="dark"] .sidebar-project-heading{border-color:#465a74}
+@media(max-width:700px){.sidebar{padding:6px 4px !important}body.project-menu-open .sidebar{padding:6px 4px !important}.sidebar-project-heading{gap:4px}.sidebar-project-name h2{font-size:12px}.sidebar-project-actions{gap:2px}.sidebar-project-actions .project-action{width:27px;height:27px}.sidebar-project-actions .project-rename-button{padding:5px;font-size:9px}}
