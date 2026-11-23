@@ -281,7 +281,9 @@ try{
   assert.ok(gatewayRequests.some(request=>request.url.endsWith("/two/v1/icare/config")),"la configuration Gateway 2 doit être interrogée pour le modèle audio");
   await page.locator("#message-input").fill("Bonjour gateway texte");
   await page.locator("#composer").evaluate(form=>form.requestSubmit());
-  await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Réponse entreprise de test."));
+  await page.waitForTimeout(1500);
+  const gatewayChatDiagnostic=await page.evaluate(()=>({messages:document.querySelector("#messages")?.innerText||"",calls:window.__icareFetchCalls.filter(call=>call.url.includes("gateway.example.org")).map(call=>({url:call.url,credentials:call.credentials,body:call.body.slice(0,160)}))}));
+  assert.ok(gatewayChatDiagnostic.messages.includes("Réponse entreprise de test."),"la réponse LLM via Gateway doit être rendue ; diagnostic : "+JSON.stringify(gatewayChatDiagnostic));
   const textGatewayCall=await page.evaluate(()=>window.__icareFetchCalls.find(call=>call.url.startsWith("https://gateway.example.org/one/")&&call.url.endsWith("/v1/chat/completions")&&JSON.parse(call.body||"{}").messages?.some(message=>message.content==="Bonjour gateway texte")));
   assert.equal(textGatewayCall?.credentials,"include","le texte envoyé à la Gateway sélectionnée doit utiliser la session SSO");
   assert.equal(textGatewayCall?.authorization,null,"aucune clé fournisseur ne doit être envoyée à la Gateway");
