@@ -1,10 +1,10 @@
 const SERVICES=["llm","audio","scoring"];
 const KEY="inference-gateway-config";
-const defaults=()=>({version:1,gateways:[1,2,3].map(id=>({id,name:"Gateway "+id,url:"",capabilities:[]})),routes:{llm:"direct",audio:"direct",scoring:"direct"}});
+const defaults=()=>({version:1,directScoringUrl:"https://router.huggingface.co/hf-inference/models/Horizon-Labs/multilingual-zeroshot-base",gateways:[1,2,3].map(id=>({id,name:"Gateway "+id,url:"",capabilities:[]})),routes:{llm:"direct",audio:"direct",scoring:"direct"}});
 const $=id=>document.getElementById(id);
-function normalise(value){const d=defaults();if(!value||typeof value!=="object")return d;for(const service of SERVICES){const route=value.routes?.[service];if(route==="direct"||/^gateway-[123]$/.test(route))d.routes[service]=route;}for(const g of d.gateways){const old=value.gateways?.find?.(x=>Number(x.id)===g.id);if(old){g.name=String(old.name||g.name).slice(0,60);g.url=String(old.url||"");g.capabilities=Array.isArray(old.capabilities)?old.capabilities.filter(x=>SERVICES.includes(x)):[];}}return d;}
+function normalise(value){const d=defaults();if(!value||typeof value!=="object")return d;d.directScoringUrl=String(value.directScoringUrl||d.directScoringUrl);for(const service of SERVICES){const route=value.routes?.[service];if(route==="direct"||/^gateway-[123]$/.test(route))d.routes[service]=route;}for(const g of d.gateways){const old=value.gateways?.find?.(x=>Number(x.id)===g.id);if(old){g.name=String(old.name||g.name).slice(0,60);g.url=String(old.url||"");g.capabilities=Array.isArray(old.capabilities)?old.capabilities.filter(x=>SERVICES.includes(x)):[];}}return d;}
 export async function initGatewayConfiguration({db,get,set,saveLegacy}) {
- let config=normalise(await get(db,"settings",KEY));
+ let config=normalise(await get(db,"settings",KEY));$("direct-scoring-url").value=config.directScoringUrl;
  const routeIds={llm:"route-llm",audio:"route-audio",scoring:"route-scoring"};
  function gateway(id){return config.gateways.find(g=>g.id===id);}
  function eligible(service,id){return gateway(id)?.capabilities.includes(service)||false;}
@@ -36,7 +36,7 @@ export async function initGatewayConfiguration({db,get,set,saveLegacy}) {
  $("save-gateway-matrix").addEventListener("click",async()=>{
   const status=$("gateway-matrix-status");
   try{
-   config=normalise({...config,gateways:config.gateways.map(g=>({...g,name:$("gateway-"+g.id+"-name").value.trim()||"Gateway "+g.id,url:$("gateway-"+g.id+"-url").value.trim(),capabilities:SERVICES.filter(s=>$("gateway-"+g.id+"-"+s).checked)})),routes:Object.fromEntries(SERVICES.map(s=>[s,$(routeIds[s]).value]))});
+   config=normalise({...config,directScoringUrl:$("direct-scoring-url").value.trim(),gateways:config.gateways.map(g=>({...g,name:$("gateway-"+g.id+"-name").value.trim()||"Gateway "+g.id,url:$("gateway-"+g.id+"-url").value.trim(),capabilities:SERVICES.filter(s=>$("gateway-"+g.id+"-"+s).checked)})),routes:Object.fromEntries(SERVICES.map(s=>[s,$(routeIds[s]).value]))});
    for(const service of SERVICES){const route=config.routes[service];if(route!=="direct"){const id=Number(route.slice(-1)),g=gateway(id);if(!g?.capabilities.includes(service))throw Error("La passerelle sélectionnée ne déclare pas la capacité "+service+".");if(!/^https:\/\//i.test(g.url))throw Error("L’URL de Gateway "+id+" doit commencer par HTTPS.");let u;try{u=new URL(g.url);}catch{throw Error("URL invalide pour Gateway "+id+".");}if(u.username||u.password)throw Error("Ne placez pas d’identifiants dans l’URL d’une Gateway.");}}
    await set(db,"settings",{id:KEY,...config});
    const llm=config.routes.llm,audio=config.routes.audio;
