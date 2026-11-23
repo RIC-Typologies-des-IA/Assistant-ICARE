@@ -13,7 +13,7 @@ test("three gateway cards stay visible and each inference capability has a singl
  assert.match(module,/config\.gateways\.find\(candidate=>candidate\.capabilities\.includes\(service\)\)/);
  assert.match(module,/other\.capabilities=other\.capabilities\.filter\(item=>item!==service\)/);
  assert.match(module,/config\.routes\[service\]="gateway-"\+g\.id/);
- assert.match(module,/if\(assigned\)g\.capabilities=g\.capabilities\.filter/);
+ assert.match(module,/for\(const g of d\.gateways\)if\(g\.capabilities\.includes\(service\)&&g!==owner\)g\.capabilities=g\.capabilities\.filter/);
  assert.doesNotMatch(module,/firstCount|id===2&&|id===3&&/);
 });
 
