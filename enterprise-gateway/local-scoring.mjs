@@ -1,5 +1,6 @@
 import { pipeline, env } from "@huggingface/transformers";
 import { resolve } from "node:path";
+import { availableParallelism } from "node:os";
 
 const DEFAULT_MODEL = "Horizon-Labs/multilingual-zeroshot-base";
 env.cacheDir = process.env.ICARE_MODEL_CACHE || resolve(process.cwd(), ".cache", "transformers");
@@ -7,7 +8,7 @@ env.allowLocalModels = true;
 env.allowRemoteModels = process.env.ICARE_MODELS_OFFLINE !== "1";
 env.useBrowserCache = false;
 env.useFSCache = true;
-env.backends.onnx.wasm.numThreads = Math.max(1, Number(process.env.ICARE_ONNX_THREADS || 4));
+env.backends.onnx.wasm.numThreads = Math.max(1, Number(process.env.ICARE_ONNX_THREADS || Math.min(12, availableParallelism() - 1)));
 
 const pipelines = new Map();
 
