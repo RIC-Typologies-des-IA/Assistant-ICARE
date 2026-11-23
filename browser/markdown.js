@@ -261,6 +261,12 @@ function materializeMermaidStyles(svgRoot) {
     styleSheetNode.textContent = styleNode.textContent || "";
     parserDocument.head.append(styleSheetNode);
     const rules = styleSheetNode.sheet?.cssRules || [];
+    if ((svgRoot.textContent || "").includes("Style personnalisé")) {
+      window.__mermaidStyleDebug = {
+        classes: [...svgRoot.querySelectorAll("[class]")].map(node => ({ tag: node.tagName, className: node.getAttribute("class"), id: node.id, text: (node.textContent || "").slice(0, 80) })),
+        rules: [...rules].filter(rule => rule.selectorText?.includes("redStyle") || rule.selectorText?.includes("greenStyle")).map(rule => ({ selector: rule.selectorText, count: (() => { try { return svgRoot.querySelectorAll(rule.selectorText).length; } catch { return -1; } })() }))
+      };
+    }
     for (const rule of rules) {
       if (rule.type !== 1 || !/^[A-Za-z0-9_.#\s>:+~,*\[\]="'^$|-]+$/.test(rule.selectorText || "")) continue;
       let matches;
