@@ -252,7 +252,7 @@ let mermaidRenderGeneration = 0;
 
 function materializeMermaidStyles(svgRoot) {
   const debugCustom = (svgRoot.textContent || "").includes("Style personnalisé");
-  if (debugCustom) console.log("MERMAID_STYLE_BLOCKS", JSON.stringify([...svgRoot.querySelectorAll("style")].map(node => node.textContent)));
+  if (debugCustom) window.__mermaidStyleDebug = { styles: [...svgRoot.querySelectorAll("style")].map(node => node.textContent), svg: svgRoot.outerHTML.slice(0, 6000) };
   // Mermaid emits presentation rules in SVG <style> blocks. DOMPurify intentionally
   // removes style elements, so translate a constrained subset into safe inline
   // presentation attributes before sanitizing the SVG.
