@@ -37,6 +37,12 @@ test("gateway returns only defaults visible to the authenticated group", async t
   assert.equal((await allowed.json()).defaults.chatModel, "small-chat");
 });
 
+test("gateway advertises the scoring capability only when its upstream is configured", async t => {
+  const server=createGatewayServer({...config,scoring:{endpointUrl:"https://scoring.example.org/v1/score"}});
+  await new Promise(resolve=>server.listen(0,"127.0.0.1",resolve));t.after(()=>new Promise(resolve=>server.close(resolve)));
+  const response=await fetch("http://127.0.0.1:"+server.address().port+"/v1/icare/config",{headers:{Origin:"https://icare.example.org","X-ICARE-Authenticated-User":"alice","X-ICARE-Authenticated-Groups":"research"}});
+  const data=await response.json();assert.equal(response.status,200);assert.deepEqual(data.capabilities,{chat:true,transcription:false,scoring:true});
+});
 test("gateway exposes only configured models to an authenticated user", async t => {
   const server = createGatewayServer(config);
   await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
