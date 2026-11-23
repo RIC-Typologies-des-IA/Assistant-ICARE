@@ -483,3 +483,13 @@ body.project-menu-open .sidebar-project-heading{display:flex}
 body.project-menu-open .sidebar .section-heading,body.project-menu-open .sidebar select,body.project-menu-open .sidebar .sidebar-note{margin-left:4px;margin-right:4px}
 html[data-theme="dark"] .sidebar-project-heading{border-color:#465a74}
 @media(max-width:700px){.sidebar{padding:6px 4px !important}body.project-menu-open .sidebar{padding:6px 4px !important}.sidebar-project-heading{gap:4px}.sidebar-project-name h2{font-size:12px}.sidebar-project-actions{gap:2px}.sidebar-project-actions .project-action{width:27px;height:27px}.sidebar-project-actions .project-rename-button{padding:5px;font-size:9px}}
+
+/* Configuration multi-services et trois passerelles */
+.gateway-matrix{display:grid;gap:14px}.gateway-routes{display:grid;gap:8px}.gateway-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.gateway-card{min-width:0;border:1px solid #cbd5e1;border-radius:10px;padding:12px;display:grid;gap:9px;background:var(--panel,#fff)}
+.gateway-card legend{font-weight:750;padding:0 6px}.gateway-card label{display:grid;gap:5px;font-size:13px}
+.gateway-card input[type=text],.gateway-card input[type=url]{width:100%;min-width:0;padding:9px;border:1px solid #cbd5e1;border-radius:8px;background:var(--input-bg,#fff);color:var(--text,#263b58);font:inherit}
+.gateway-capabilities{display:grid;gap:5px}.gateway-capabilities label{display:flex;align-items:center;gap:8px}
+.gateway-card:disabled,.gateway-card.is-disabled{opacity:.48;background:#eef1f5}.gateway-card.is-disabled input,.gateway-card.is-disabled label{cursor:not-allowed}
+.gateway-disabled-reason{font-size:11px;color:var(--muted,#64748b);margin:0;min-height:1.2em}
+@media(max-width:760px){.gateway-cards{grid-template-columns:1fr}}
