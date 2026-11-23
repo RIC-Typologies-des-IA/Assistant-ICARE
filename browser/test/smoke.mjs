@@ -190,7 +190,7 @@ try{
   await page.locator("#new-project").click();
   await page.locator("#project-name").fill("Projet à annuler");
   await page.locator("#cancel-project").click();
-  assert.equal(await page.locator("#project-title").textContent(),"Projet navigateur","Annuler ne doit ni enregistrer ni changer de projet");
+  assert.equal(await page.locator("#project-title").textContent(),"Projet navigateur renommé","Annuler ne doit ni enregistrer ni changer de projet");
   assert.equal(await page.locator("#project-select option").count(),2,"Annuler ne doit pas créer de projet");
   const otherProjectDownload=page.waitForEvent("download");
   await page.locator("#project-list .project-row").filter({has:page.locator(".project-row-name",{hasText:"Mon premier projet"})}).locator("[aria-label^=\"Télécharger \"]").click();
@@ -198,7 +198,7 @@ try{
   assert.equal(otherProjectBackup.project.name,"Mon premier projet","le téléchargement doit viser le projet de la ligne cliquée et non le projet actif");
   assert.ok(otherProjectBackup.turns.length>0,"l’export du projet non actif doit contenir son propre historique");
   const downloadPromise=page.waitForEvent("download");
-  await page.locator("#project-list .project-row").filter({has:page.locator(".project-row-name", {hasText:"Projet navigateur"})}).locator("[aria-label^=\"Télécharger \"]").click();
+  await page.locator("#project-list .project-row").filter({has:page.locator(".project-row-name", {hasText:"Projet navigateur renommé"})}).locator("[aria-label^=\"Télécharger \"]").click();
   const backupDownload=await downloadPromise,backupPath=await backupDownload.path();
   const backup=JSON.parse(await readFile(backupPath,"utf8"));
   assert.equal(backup.format,"icare-project-export","l'export doit être limité au format de sauvegarde d'un projet");
@@ -206,7 +206,7 @@ try{
   assert.equal(backup.turns.length,0,"les échanges d'un autre projet ne doivent pas être exportés");
   await page.locator("#project-import-file").setInputFiles(backupPath);
   await page.waitForFunction(()=>document.querySelector("#project-select").options.length===3);
-  assert.equal(await page.locator("#project-title").textContent(),"Projet navigateur","l'import doit ouvrir le projet nouvellement importé");
+  assert.equal(await page.locator("#project-title").textContent(),"Projet navigateur renommé","l'import doit ouvrir le projet nouvellement importé");
 
 
   await page.emulateMedia({colorScheme:"dark"});
