@@ -261,7 +261,7 @@ function materializeMermaidStyles(svgRoot) {
     parserDocument.head.append(styleSheetNode);
     const rules = styleSheetNode.sheet?.cssRules || [];
     for (const rule of rules) {
-      if (rule.type !== 1 || !/^[A-Za-z0-9_.#\s>:+~,*\[\]="'-]+$/.test(rule.selectorText || "")) continue;
+      if (rule.type !== 1 || !/^[A-Za-z0-9_.#\s>:+~,*\[\]="'^$|-]+$/.test(rule.selectorText || "")) continue;
       let matches;
       try {
         matches = [...(svgRoot.matches(rule.selectorText) ? [svgRoot] : []), ...svgRoot.querySelectorAll(rule.selectorText)];
