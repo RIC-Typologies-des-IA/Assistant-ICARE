@@ -261,7 +261,7 @@ try {
         const style = current.getAttribute("style") || "";
         const attrFill = current.getAttribute("fill") || "";
         if (attrFill && !/^(?:none|transparent)$/i.test(attrFill)) return true;
-        if (/(?:^|;)\\s*fill\\s*:\\s*(?!none(?:;|$)|transparent(?:;|$))/i.test(style)) return true;
+        if (/(?:^|;)\s*fill\s*:\s*(?!none(?:;|$)|transparent(?:;|$))/i.test(style)) return true;
         current = current.parentElement;
       }
       return false;
