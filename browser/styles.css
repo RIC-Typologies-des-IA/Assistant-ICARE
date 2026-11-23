@@ -768,3 +768,15 @@ body.project-menu-open .sidebar .project-row-action{
 body.project-menu-open .sidebar{
   padding:4px!important;
 }
+
+
+/* Le volet projets ne contient que ses commandes et les projets.
+   Le texte d'aide historique gonflait artificiellement sa hauteur. */
+body.project-menu-open .sidebar .sidebar-note{
+  display:none!important;
+  margin:0!important;
+  padding:0!important;
+}
+body.project-menu-open .sidebar select[hidden]{
+  display:none!important;
+}
