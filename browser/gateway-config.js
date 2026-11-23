@@ -59,20 +59,6 @@ export async function initGatewayConfiguration({db,get,set,saveLegacy,loadScorin
   }
  }
  for(const g of config.gateways){
-   const visible=g.id===1||(g.id===2&&firstCount<3)||(g.id===3&&firstCount<2);
-   const card=$("gateway-card-"+g.id);card.hidden=!visible;
-   for(const service of SERVICES){const input=$("gateway-"+g.id+"-"+service);input.disabled=!visible;}
-   $("gateway-"+g.id+"-name").disabled=!visible;$("gateway-"+g.id+"-url").disabled=!visible;
-   $("gateway-"+g.id+"-reason").textContent="";
-  }
-  for(const service of SERVICES){
-   const select=$(routeIds[service]),previous=config.routes[service]||"direct";
-   select.replaceChildren(new Option("Accès direct","direct"));
-   for(let id=1;id<=3;id++)if(eligible(service,id)){const option=new Option(gateway(id).name||"Gateway "+id,"gateway-"+id);select.add(option);}
-   select.value=[...select.options].some(o=>o.value===previous)?previous:"direct";config.routes[service]=select.value;
-  }
- }
- for(const g of config.gateways){
   $("gateway-"+g.id+"-name").value=g.name;$("gateway-"+g.id+"-url").value=g.url;
   for(const service of SERVICES)$("gateway-"+g.id+"-"+service).checked=g.capabilities.includes(service);
   for(const field of ["name","url"])$("gateway-"+g.id+"-"+field).addEventListener("input",()=>{g[field]=$("gateway-"+g.id+"-"+field).value;refresh();});
