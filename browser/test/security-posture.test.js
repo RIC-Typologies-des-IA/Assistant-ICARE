@@ -85,9 +85,10 @@ test("frontend uses the encrypted vault and never stores API keys in plaintext s
   assert.ok(app.includes("saveCredentialVault(db"));
   assert.match(app, /resolveInferenceRoute/);
   assert.match(app, /inference-gateways/);
-  assert.match(html, /gateway-shared-url/);
-  assert.match(html, /gateway-text-url/);
-  assert.match(html, /gateway-audio-url/);
+  assert.match(html, /settings-tab-direct/);
+  assert.match(html, /settings-tab-gateway/);
+  assert.match(html, /direct-scoring-url/);
+  assert.doesNotMatch(html, /gateway-shared-url|gateway-text-url|gateway-audio-url/, "les anciens champs Gateway dupliqués doivent être absents");
   assert.match(html, /route-scoring/);
   assert.match(html, /gateway-3-scoring/);
   assert.ok(app.includes("scoreIcareMultilabel"));
