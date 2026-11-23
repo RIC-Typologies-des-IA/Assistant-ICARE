@@ -234,7 +234,7 @@ await loadOntology();gatewayRoutingConfig=await initGatewayConfiguration({db,get
  async function modelForGateway(url,capability){
   if(!url)return "";
   if(!modelCache.has(url)){
-   const base=url.replace(/\\/+$/,""),endpoint=(base.endsWith("/v1")?base:base+"/v1")+"/models";
+   const base=url.replace(/\/+$/,""),endpoint=(base.endsWith("/v1")?base:base+"/v1")+"/models";
    const response=await fetch(endpoint,{credentials:"include",cache:"no-store"});
    if(!response.ok)throw Error("Impossible de charger les modèles de la Gateway ("+response.status+").");
    modelCache.set(url,(await response.json()).data||[]);
