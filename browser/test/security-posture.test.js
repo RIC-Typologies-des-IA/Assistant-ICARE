@@ -116,7 +116,7 @@ test("the RIC logo is used consistently as banner, browser favicon and PWA icon"
   assert.ok(html.includes('class="ric-logo" src="./ric-logo.png"'), "le logo RIC doit rester dans la bannière");
   assert.ok(html.includes('<link rel="icon" type="image/png" sizes="118x125" href="./ric-logo.png">'), "ric-logo.png doit être le favicon du navigateur");
   assert.ok(html.includes('<link rel="apple-touch-icon" href="./ric-logo.png">'), "ric-logo.png doit être l’icône Apple");
-  assert.doesNotMatch(html, /favicon\\.svg|icon\\.svg/i, "aucune ancienne icône SVG ne doit être référencée");
+  assert.doesNotMatch(html, /favicon\.svg|icon\.svg/i, "aucune ancienne icône SVG ne doit être référencée");
   assert.equal(manifest.icons.length, 1, "la PWA doit déclarer une icône de marque unique");
   assert.equal(manifest.icons[0].src, "./ric-logo.png");
   assert.equal(manifest.icons[0].type, "image/png");
