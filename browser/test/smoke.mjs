@@ -245,6 +245,25 @@ try{
   assert.equal(await page.locator(".chat-panel").evaluate(el=>getComputedStyle(el).backgroundColor),"rgb(27, 41, 59)","le panneau de dialogue doit réellement devenir sombre");
   assert.equal(await page.locator("#theme-toggle").evaluate(el=>getComputedStyle(el).width),"34px","le sélecteur de thème doit rester une petite icône");
   assert.ok(await page.locator("#settings-button").evaluate(el=>el.nextElementSibling?.id==="theme-toggle"),"l’icône de thème doit être immédiatement à droite de Configuration");
+
+  // La configuration Gateway doit rester lisible et cohérente en mode sombre.
+  await page.locator("#settings-button").click();
+  await page.locator("#settings-tab-gateway").click();
+  const darkGatewayPalette=await page.evaluate(()=>({
+    tabs:getComputedStyle(document.querySelector("#settings-dialog .settings-tabs")).backgroundColor,
+    card:getComputedStyle(document.querySelector("#gateway-card-1")).backgroundColor,
+    field:getComputedStyle(document.querySelector("#gateway-1-url")).backgroundColor,
+    fieldText:getComputedStyle(document.querySelector("#gateway-1-url")).color,
+    route:getComputedStyle(document.querySelector("#route-llm").closest(".route-choice")).backgroundColor,
+    routeSelect:getComputedStyle(document.querySelector("#route-llm")).backgroundColor
+  }));
+  assert.equal(darkGatewayPalette.tabs,"rgb(17, 30, 48)","les onglets Gateway doivent adopter la palette sombre");
+  assert.equal(darkGatewayPalette.card,"rgb(29, 45, 66)","les cartes Gateway ne doivent plus rester blanches");
+  assert.equal(darkGatewayPalette.field,"rgb(16, 30, 48)","les champs Gateway doivent avoir un fond sombre");
+  assert.equal(darkGatewayPalette.fieldText,"rgb(240, 245, 252)","le texte saisi dans les champs Gateway doit rester très lisible");
+  assert.equal(darkGatewayPalette.route,"rgb(29, 45, 66)","les lignes de routage doivent être cohérentes avec les cartes");
+  assert.equal(darkGatewayPalette.routeSelect,"rgb(16, 30, 48)","les listes de routage doivent être sombres");
+  await page.locator("#close-settings-dialog").click();
   await page.locator("#theme-toggle").click();
   assert.equal(await page.locator("html").getAttribute("data-theme"),"light","le bouton doit permettre de choisir le thème clair");
   assert.equal(await page.evaluate(()=>localStorage.getItem("icare-theme")),"light","le choix manuel doit être enregistré");
