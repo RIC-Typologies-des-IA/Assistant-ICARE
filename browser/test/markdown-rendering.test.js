@@ -356,7 +356,7 @@ try {
   assert.ok(/fill:\s*(?:#00aa00|rgb\(0,\s*170,\s*0\))/i.test(result.darkCustomStyleFills[1]), "la couleur verte explicitement définie doit être conservée");
   assert.ok(new Set(result.darkMindmapColors).size >= 2, "la palette de la carte mentale doit rester différenciée en mode sombre");
   assert.ok(Object.entries(result.familyChecks).every(([, passed]) => passed), "chaque famille de diagrammes doit conserver ses libellés : " + JSON.stringify(result.familyChecks));
-  assert.equal(result.lightRestoredCount, 17, "le retour au mode clair doit rerendre les 16 diagrammes");
+  assert.equal(result.lightRestoredCount, 17, "le retour au mode clair doit rerendre les 17 diagrammes");
   await page.setViewportSize({ width: 390, height: 844 });
   const mobileLayout = await page.evaluate(() => {
     const host = document.querySelector(".mermaid-test-host");
