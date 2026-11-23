@@ -181,7 +181,8 @@ async function saveInferenceConfiguration(){
  const sameGateway=routing.text==="gateway"&&routing.audio==="gateway"&&$("same-gateway").checked;
  const gateways={text:routing.text==="gateway"?(sameGateway?$("gateway-shared-url").value.trim():$("gateway-text-url").value.trim()):"",audio:routing.audio==="gateway"?(sameGateway?$("gateway-shared-url").value.trim():$("gateway-audio-url").value.trim()):"",sameGateway};
  const textSettings={id:"inference-text",baseUrl:$("api-base").value.trim(),model:$("api-model").value.trim(),apiKey:$("api-key").value.trim()};
- const scoringApiKey=$("scoring-api-key").value.trim();\n const audioSettings={id:"inference-transcription",baseUrl:$("transcription-base").value.trim(),model:$("transcription-model").value.trim(),apiKey:$("transcription-key").value.trim()};
+ const scoringApiKey=$("scoring-api-key").value.trim();
+ const audioSettings={id:"inference-transcription",baseUrl:$("transcription-base").value.trim(),model:$("transcription-model").value.trim(),apiKey:$("transcription-key").value.trim()};
  if(routing.text==="local"&&(!textSettings.baseUrl||!textSettings.model)){status.textContent="Configurez l’adresse et le modèle du moteur local de traitement du texte.";return;}
  if(routing.audio==="local"&&(!audioSettings.baseUrl||!audioSettings.model)){status.textContent="Configurez l’adresse et le modèle du moteur local de transcription.";return;}
  for(const kind of ["text","audio"])if(routing[kind]==="gateway"){try{const parsed=new URL(gateways[kind]);if(parsed.protocol!=="https:"||parsed.username||parsed.password)throw Error();}catch{status.textContent="Renseignez une URL HTTPS valide pour le gateway "+(kind==="text"?"de traitement du texte":"de transcription")+".";
