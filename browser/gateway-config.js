@@ -18,7 +18,7 @@ export async function initGatewayConfiguration({db,get,set,saveLegacy}) {
    $(`gateway-${g.id}-reason`).textContent=blocked?(g.id===2?"Gateway 1 prend déjà en charge les trois services.":"Deux services au moins sont déjà affectés à Gateway 1 ; une troisième passerelle n’est pas nécessaire."):"";
   }
   for(const service of SERVICES){
-   const select=$(routeIds[service]),previous=select.value;select.replaceChildren(new Option("Accès direct","direct"));
+   const select=$(routeIds[service]),previous=config.routes[service]||select.value;select.replaceChildren(new Option("Accès direct","direct"));
    for(let id=1;id<=3;id++)if(eligible(service,id)){const g=gateway(id);select.add(new Option(g.name||"Gateway "+id,"gateway-"+id));}
    select.value=[...select.options].some(o=>o.value===previous)?previous:"direct";
    config.routes[service]=select.value;
