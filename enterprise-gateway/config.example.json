@@ -10,7 +10,8 @@
   },
   "auth": {
     "identityHeader": "x-icare-authenticated-user",
-    "groupsHeader": "x-icare-authenticated-groups"
+    "groupsHeader": "x-icare-authenticated-groups",
+    "allowLoopbackWithoutIdentity": true
   },
   "limits": {
     "requestsPerMinute": 60,
@@ -31,10 +32,9 @@
     },
     {
       "id": "horizon-multilingual-zeroshot",
-      "provider": "huggingface",
-      "upstreamBaseUrl": "https://router.huggingface.co/hf-inference/models/Horizon-Labs/multilingual-zeroshot-base",
-      "upstreamModel": "Horizon-Labs/multilingual-zeroshot-base",
-      "apiKeyEnv": "ICARE_HF_API_KEY",
+      "provider": "local",
+      "runtime": "transformers-js",
+      "modelId": "Horizon-Labs/multilingual-zeroshot-base",
       "capabilities": [
         "scoring"
       ]
