@@ -780,3 +780,10 @@ body.project-menu-open .sidebar .sidebar-note{
 body.project-menu-open .sidebar select[hidden]{
   display:none!important;
 }
+
+
+@media(max-width:700px){
+  :root{--project-rail-width:38px}
+  .layout{grid-template-columns:var(--project-rail-width) minmax(0,1fr)!important}
+  .sidebar{width:var(--project-rail-width)!important;min-width:var(--project-rail-width)!important}
+}
