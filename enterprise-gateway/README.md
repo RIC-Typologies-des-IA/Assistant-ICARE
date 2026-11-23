@@ -1,6 +1,6 @@
 # ICARE Enterprise Gateway
 
-Le gateway est un service distant administré par l'organisation. Dans ICARE Browser, l'utilisateur ne renseigne que son URL ; les clés fournisseurs restent sur le serveur et ne sont jamais envoyées au navigateur.
+La Gateway ICARE peut être hébergée sur la machine AMD de l’organisation. Elle exécute le scoring localement ; les appareils mobiles et tablettes lui transmettent leurs messages via une connexion HTTPS contrôlée.
 
 ## Contrat
 
@@ -8,7 +8,7 @@ Le gateway expose une façade compatible OpenAI pour le chat et la transcription
 - `GET /v1/models`
 - `POST /v1/chat/completions`
 - `POST /v1/audio/transcriptions`
-- `POST /v1/icare/scoring` (scoring multilabel ICARE via Horizon Labs)
+- `POST /v1/icare/scoring` (scoring multilabel ICARE exécuté localement)
 - `GET /v1/icare/config` (modèles par défaut visibles pour l'identité authentifiée)
 
 Les identifiants de modèles visibles par le navigateur sont des alias administrés. Chaque alias est associé côté serveur à un fournisseur, un modèle amont, une URL HTTPS fixe et une variable d'environnement contenant la clé API. Le client ne peut jamais choisir une URL amont ni transmettre une clé fournisseur.
@@ -19,7 +19,7 @@ Prérequis : Node.js 22 ou supérieur, un reverse proxy TLS et un fournisseur d'
 
 1. Copier `config.example.json` vers `config.json`.
 2. Adapter les origines exactes autorisées et les modèles publiés.
-3. Injecter les clés API dans l'environnement du service (par exemple `ICARE_OPENAI_API_KEY`, `ICARE_HF_API_KEY`) depuis le gestionnaire de secrets de l'entreprise. Ne pas les mettre dans le fichier de configuration, l'image du conteneur ou le dépôt.
+3. Pour le scoring ICARE, aucune clé fournisseur n’est nécessaire. Le modèle est téléchargé une fois dans le cache local au premier démarrage. Les clés éventuellement utilisées par les services LLM ou transcription restent indépendantes.
 4. Lancer `npm start` avec `ICARE_GATEWAY_CONFIG=/etc/icare-gateway/config.json`.
 5. Conserver le service lié à `127.0.0.1` derrière un reverse proxy HTTPS. Ne pas l'exposer directement sur Internet.
 6. Configurer le reverse proxy pour authentifier chaque requête avec le fournisseur d'identité de l'entreprise, supprimer toute valeur entrante du header d'identité, puis injecter lui-même `X-ICARE-Authenticated-User` (et éventuellement les groupes). Le service refuse les requêtes sans cette identité.
@@ -47,7 +47,7 @@ Le proxy doit authentifier réellement la session (OIDC/SAML via un composant é
 
 ## Configuration côté administrateur
 
-`config.example.json` est volontairement sans secret. Les clés sont injectées par variables d'environnement ou par le gestionnaire de secrets de la plateforme. Les modèles non déclarés ou sans capacité adéquate sont refusés. Le modèle de scoring doit déclarer la capacité `scoring` et utiliser un endpoint HTTPS administré, par exemple le endpoint Hugging Face Inference Router de `Horizon-Labs/multilingual-zeroshot-base`. Le secret Hugging Face est fourni par `ICARE_HF_API_KEY` ; il n’est jamais transmis au navigateur. Les URL amont doivent être HTTPS et sont définies uniquement par l'administrateur. Un modèle peut aussi déclarer `allowedGroups` dans la configuration ; seuls les groupes transmis par l'IdP via le header de confiance peuvent alors le voir et l'utiliser.
+`config.example.json` est volontairement sans secret. Les clés sont injectées par variables d'environnement ou par le gestionnaire de secrets de la plateforme. Les modèles non déclarés ou sans capacité adéquate sont refusés. Le modèle de scoring déclare la capacité `scoring` et le runtime local `transformers-js`, avec `modelId` pointant vers `Horizon-Labs/multilingual-zeroshot-base` ou un répertoire local. Aucune URL amont, clé API ou inférence distante n’est admise pour le scoring. Les URL amont doivent être HTTPS et sont définies uniquement par l'administrateur. Un modèle peut aussi déclarer `allowedGroups` dans la configuration ; seuls les groupes transmis par l'IdP via le header de confiance peuvent alors le voir et l'utiliser.
 
 Les limites par défaut incluent quotas par identité, tailles maximales de requête, délai amont et absence de journalisation des prompts. Les requêtes de streaming sont refusées dans cette première version. Le scoring reçoit le texte du message et cinq libellés indépendants ; les cinq scores retournés ne sont pas normalisés en distribution exclusive. Le gateway ne fournit pas de stockage de conversation : les projets restent dans le navigateur.
 
@@ -66,3 +66,8 @@ L'authentification est déléguée à l'IdP d'entreprise placé devant le gatewa
 - Les quotas sont en mémoire dans cette première version ; une installation multi-instance doit utiliser un limiteur partagé.
 - Le gateway ne remplace ni l'IdP, ni le pare-feu, ni la gestion des secrets, ni les contrôles contractuels de conservation des données chez le fournisseur.
 - Cette première livraison ne prétend pas fournir un SSO universel : la configuration de l'IdP/reverse proxy reste spécifique à l'organisation.
+
+
+## Scoring local et cache du modèle
+
+Le scoring utilise Transformers.js et ONNX Runtime sur le CPU de la machine Gateway. Le premier démarrage récupère uniquement les fichiers de poids et de tokenizer du modèle, puis les met en cache dans `.cache/transformers` ou dans le répertoire défini par `ICARE_MODEL_CACHE`. Les appels de scoring eux-mêmes restent intégralement locaux. Pour un environnement isolé, précharger le cache, définir `ICARE_MODELS_OFFLINE=1` et éventuellement configurer `modelId` vers un chemin local.
