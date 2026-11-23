@@ -14,14 +14,14 @@ function parseScores(payload){
  if(result?.I!==undefined)return Object.fromEntries(["I","C","A","R","E"].map(k=>[k,Number(result[k]??0)]));
  throw new Error("Réponse du moteur de scoring non reconnue.");
 }
-export async function scoreIcareMultilabel({text,route="direct",gatewayUrl="",directUrl="",fetchImpl=fetch}){
+export async function scoreIcareMultilabel({text,route="direct",gatewayUrl="",gatewayModel="",directUrl="",fetchImpl=fetch}){
  if(!text?.trim())throw new Error("Message vide : scoring impossible.");
  const viaGateway=route!=="direct";
  let url,body,credentials;
  if(viaGateway){
   if(!gatewayUrl)throw new Error("URL de la Gateway de scoring absente.");
   const base=gatewayUrl.replace(/\/+$/,"");url=(base.endsWith("/v1")?base:base+"/v1")+"/icare/scoring";
-  body={model:"horizon-multilingual-zeroshot",text,labels:LABELS.map(x=>({code:x.code,label:x.label,description:x.description})),multi_label:true};
+  body={model:gatewayModel||"horizon-multilingual-zeroshot",text,labels:LABELS.map(x=>({code:x.code,label:x.label,description:x.description})),multi_label:true};
   credentials="include";
  }else{
   url=directUrl||"https://router.huggingface.co/hf-inference/models/"+MODEL;
