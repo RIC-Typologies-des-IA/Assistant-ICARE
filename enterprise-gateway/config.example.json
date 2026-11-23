@@ -52,6 +52,7 @@
   ],
   "defaults": {
     "chatModel": "gpt-4.1-mini",
-    "transcriptionModel": "whisper-1",\n    "scoringModel": "horizon-multilingual-zeroshot"
+    "transcriptionModel": "whisper-1",
+    "scoringModel": "horizon-multilingual-zeroshot"
   }
 }
