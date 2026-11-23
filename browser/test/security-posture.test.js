@@ -120,5 +120,6 @@ test("brand logo, browser favicon and PWA icon use bundled same-origin assets", 
   assert.equal(manifest.icons[0].type, "image/svg+xml");
   assert.ok(sw.includes('"./ric-logo.png"'), "le Service Worker doit précacher le logo de la bannière");
   assert.ok(sw.includes('"./favicon.svg"'), "le Service Worker doit précacher le favicon dédié");
+  assert.ok(!sw.includes('"./icon.svg"'), "l’ancienne icône ne doit plus être précachée");
   assert.ok(logo.byteLength > 1000, "le logo RIC doit être embarqué dans le build navigateur");
 });
