@@ -67,18 +67,8 @@ Le composant `ontology-validator` exécute dans le guest WASM la validation dét
 
 ## Scoring ICARE multilabel
 
-Le scoring utilise `Horizon-Labs/multilingual-zeroshot-base`. Chaque message utilisateur reçoit cinq scores indépendants I/C/A/R/E ; ils ne sont pas normalisés à une somme de 1. Le résultat est enregistré avec le message et réaffiché lors de la relecture de l'historique.
+Le scoring ICARE est un service indépendant du LLM conversationnel et de la transcription. Pour chaque message utilisateur, il reçoit le texte et les cinq dimensions I/C/A/R/E et renvoie cinq scores indépendants compris entre 0 et 1. Les scores ne sont pas normalisés pour totaliser 1.
 
-- Accès direct : endpoint local sur `http://127.0.0.1:8787/v1/icare/scoring`.
-- Via Gateway : `POST /v1/icare/scoring` sur une Gateway contrôlée, qui exécute elle-même le modèle localement.
-- Aucune clé Hugging Face, aucune API d'inférence distante et aucun envoi du texte des conversations à un fournisseur externe.
-- Les textes sont en français ; les labels et descriptions de classification sont en anglais, conformément à la fiche du modèle.
+Dans la configuration ICARE, renseignez simplement l’URL HTTP(S) du service de scoring. ICARE ne fournit, n’installe et ne choisit aucun modèle de scoring : le moteur, son runtime, ses poids et son hébergement sont administrés indépendamment. Le contrat d’échange est un POST JSON contenant le texte, les dimensions et `multi_label: true`, avec une réponse `{ "scores": { "I": 0.7, "C": 0.4, "A": 0.8, "R": 0.2, "E": 0.5 } }`.
 
-Les trois fiches Gateway affichent les capacités LLM, transcription et scoring. La règle de disponibilité limite les fiches superflues sans effacer silencieusement les routes déjà sélectionnées.
-
-
-## Exécution locale du scoring
-
-Le scoring ICARE utilise `Horizon-Labs/multilingual-zeroshot-base` via Transformers.js et ONNX Runtime CPU. À la première utilisation du scoring, les fichiers du modèle sont téléchargés depuis le dépôt public du modèle puis conservés dans `.cache/transformers` (ou `ICARE_MODEL_CACHE`). **Ce téléchargement concerne uniquement les poids du modèle : les textes et les requêtes d’inférence ne sont jamais envoyés à Hugging Face.**
-
-Pour une installation préparée hors ligne, placer les fichiers du modèle dans un répertoire local, définir `modelId` vers ce répertoire et lancer avec `ICARE_MODELS_OFFLINE=1`. Le endpoint direct du navigateur est limité à `localhost`, `127.0.0.1` ou `::1`. Une Gateway utilisée par les mobiles doit exécuter le même modèle localement sur la machine qui l’héberge ; l’accès depuis le réseau doit être protégé par HTTPS et authentification.
+Une Gateway peut relayer le service de scoring en configurant `scoring.endpointUrl` dans sa configuration locale. Cette URL doit être HTTPS, sauf pour un endpoint HTTP explicitement hébergé sur loopback. Aucune dépendance à un fournisseur ou à un modèle particulier n’est embarquée dans ICARE.
