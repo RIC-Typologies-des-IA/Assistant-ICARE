@@ -41,6 +41,8 @@ jobs:
           node --check browser/scripts/build-components.mjs
           node --check browser/inference.js
           node --check enterprise-gateway/server.mjs
+          node --check browser/scoring.js
+          node --check browser/gateway-config.js
           node --check browser/sw.js
           node --check browser/markdown.js
           node --check browser/theme.js

@@ -65,3 +65,8 @@ L'authentification est déléguée à l'IdP d'entreprise placé devant le gatewa
 - Les quotas sont en mémoire dans cette première version ; une installation multi-instance doit utiliser un limiteur partagé.
 - Le gateway ne remplace ni l'IdP, ni le pare-feu, ni la gestion des secrets, ni les contrôles contractuels de conservation des données chez le fournisseur.
 - Cette première livraison ne prétend pas fournir un SSO universel : la configuration de l'IdP/reverse proxy reste spécifique à l'organisation.
+
+
+## Relais du scoring ICARE
+
+La Gateway peut relayer le service de scoring multilabel ICARE vers un endpoint administré indépendamment. Renseigner scoring.endpointUrl dans le fichier de configuration local. L’URL doit utiliser HTTPS, sauf si le service est explicitement hébergé sur loopback HTTP. La Gateway valide le contrat ICARE et relaie la requête/réponse ; elle n’embarque aucun moteur, poids, runtime ou dépendance de scoring.

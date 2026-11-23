@@ -50,6 +50,11 @@ export function validateConfig(config) {
   for (const [capability, id] of Object.entries({ chat: config.defaults?.chatModel, transcription: config.defaults?.transcriptionModel })) {
     if (id && !config.models.some(model => model.id === id && model.capabilities.includes(capability))) throw new Error("Configured default model does not provide capability: " + capability);
   }
+  if (config.scoring?.endpointUrl) {
+    const scoringUrl = new URL(config.scoring.endpointUrl);
+    const loopback = ["localhost", "127.0.0.1", "::1"].includes(scoringUrl.hostname);
+    if ((scoringUrl.protocol !== "https:" && !(scoringUrl.protocol === "http:" && loopback)) || scoringUrl.username || scoringUrl.password || scoringUrl.hash) throw new Error("Scoring endpoint must use HTTPS, except for an explicit local loopback HTTP endpoint.");
+  }
   const limits = config.limits || {};
   if (limits.requestsPerMinute !== undefined && (!Number.isInteger(limits.requestsPerMinute) || limits.requestsPerMinute < 1)) {
     throw new Error("limits.requestsPerMinute must be a positive integer.");
@@ -163,7 +168,7 @@ function sanitizeChatPayload(payload, upstreamModel) {
   return clean;
 }
 
-export function createGatewayServer(config) {
+export function createGatewayServer(config, { fetchImpl = fetch } = {}) {
   validateConfig(config);
   const allowRequest = createRateLimiter(config.limits?.requestsPerMinute || 60);
   return createServer(async (req, res) => {
@@ -195,7 +200,31 @@ export function createGatewayServer(config) {
         return;
       }
 
-      if (req.method === "POST" && path === "/v1/chat/completions") {
+      if (req.method === "POST" && path === "/v1/icare/scoring") {
+        const body = await readBody(req, config.limits?.maxJsonBytes || 2 * 1024 * 1024);
+        let payload;
+        try { payload = JSON.parse(body.toString("utf8")); } catch { json(res, 400, { error: { message: "Invalid JSON request." } }); return; }
+        const codes = Array.isArray(payload.dimensions) ? payload.dimensions.map(item => item?.code) : [];
+        if (typeof payload.text !== "string" || !payload.text.trim() || payload.text.length > (config.limits?.maxScoringChars || 12000) ||
+            payload.multi_label !== true || codes.length !== 5 || new Set(codes).size !== 5 ||
+            ["I","C","A","R","E"].some(code => !codes.includes(code))) {
+          json(res, 400, { error: { message: "A text and exactly five ICARE multilabel dimensions are required." } }); return;
+        }
+        const endpoint = config.scoring?.endpointUrl;
+        if (!endpoint) { json(res, 503, { error: { message: "No scoring endpoint is configured on this Gateway." } }); return; }
+        const upstream = await fetchImpl(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          signal: AbortSignal.timeout(config.limits?.timeoutMs || 90_000)
+        });
+        const responseText = await upstream.text();
+        res.writeHead(upstream.status, { "Content-Type": upstream.headers.get("content-type") || "application/json", "Cache-Control": "no-store" });
+        res.end(responseText);
+        return;
+      }
+
+                  if (req.method === "POST" && path === "/v1/chat/completions") {
         const body = await readBody(req, config.limits?.maxJsonBytes || 2 * 1024 * 1024);
         let payload;
         try { payload = JSON.parse(body.toString("utf8")); } catch { json(res, 400, { error: { message: "Invalid JSON request." } }); return; }
