@@ -63,7 +63,7 @@ export async function initGatewayConfiguration({db,get,set,saveLegacy}) {
    for(const service of SERVICES){const route=config.routes[service];if(route!=="direct"){const id=Number(route.slice(-1)),g=gateway(id);if(!g?.capabilities.includes(service))throw Error("La passerelle sélectionnée ne déclare pas la capacité "+service+".");if(!/^https:\/\//i.test(g.url))throw Error("L’URL de Gateway "+id+" doit commencer par HTTPS.");let u;try{u=new URL(g.url);}catch{throw Error("URL invalide pour Gateway "+id+".");}if(u.username||u.password)throw Error("Ne placez pas d’identifiants dans l’URL d’une Gateway.");}}
    const scoringRoute=config.routes.scoring;
    if(scoringRoute!=="direct"){
-    const selected=gateway(Number(scoringRoute.slice(-1))),base=selected.url.replace(/\\/+$/,""),configUrl=base.endsWith("/v1")?base+"/icare/config":base+"/v1/icare/config";
+    const selected=gateway(Number(scoringRoute.slice(-1))),base=selected.url.replace(/\/+$/,""),configUrl=base.endsWith("/v1")?base+"/icare/config":base+"/v1/icare/config";
     const response=await fetch(configUrl,{credentials:"include"});
     if(!response.ok)throw Error("Gateway de scoring inaccessible ("+response.status+").");
     const remote=await response.json();config.scoringModel=remote.defaults?.scoringModel||"";
