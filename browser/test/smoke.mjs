@@ -161,6 +161,9 @@ try{
   await page.locator("#save-project").click();
   await page.locator("#project-dialog").waitFor({state:"hidden"});
   assert.equal(await page.locator("#project-title").textContent(),"Projet navigateur renommé","le renommage depuis la ligne du projet doit actualiser le titre principal");
+  // Le renommage ferme volontairement le volet ; le rouvrir avant de mesurer sa géométrie.
+  await page.locator("#project-menu-toggle").click();
+  await page.waitForFunction(()=>document.body.classList.contains("project-menu-open"));
   await page.waitForFunction(closedWidth=>document.querySelector(".sidebar").getBoundingClientRect().width>closedWidth+100,railClosedWidth,{timeout:1000});
   const expandedGeometry=await page.evaluate(()=>{const rail=document.querySelector(".sidebar").getBoundingClientRect(),chat=document.querySelector(".chat-panel").getBoundingClientRect();return {railWidth:rail.width,railRight:rail.right,chatLeft:chat.left}});
   assert.ok(expandedGeometry.railWidth>railClosedWidth+100,"le volet doit réellement s’élargir à l’ouverture : "+JSON.stringify(expandedGeometry));
