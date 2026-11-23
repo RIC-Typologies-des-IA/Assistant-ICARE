@@ -75,3 +75,10 @@ Le scoring utilise `Horizon-Labs/multilingual-zeroshot-base`. Chaque message uti
 - Les textes sont en français ; les labels et descriptions de classification sont en anglais, conformément à la fiche du modèle.
 
 Les trois fiches Gateway affichent les capacités LLM, transcription et scoring. La règle de disponibilité limite les fiches superflues sans effacer silencieusement les routes déjà sélectionnées.
+
+
+## Exécution locale du scoring
+
+Le scoring ICARE utilise `Horizon-Labs/multilingual-zeroshot-base` via Transformers.js et ONNX Runtime CPU. Au premier démarrage, les fichiers du modèle sont téléchargés depuis le dépôt public du modèle puis conservés dans `.cache/transformers` (ou `ICARE_MODEL_CACHE`). **Ce téléchargement concerne uniquement les poids du modèle : les textes et les requêtes d’inférence ne sont jamais envoyés à Hugging Face.**
+
+Pour une installation préparée hors ligne, placer les fichiers du modèle dans un répertoire local, définir `modelId` vers ce répertoire et lancer avec `ICARE_MODELS_OFFLINE=1`. Le endpoint direct du navigateur est limité à `localhost`, `127.0.0.1` ou `::1`. Une Gateway utilisée par les mobiles doit exécuter le même modèle localement sur la machine qui l’héberge ; l’accès depuis le réseau doit être protégé par HTTPS et authentification.
