@@ -120,4 +120,7 @@ test("gateway rejects malformed scoring requests", async t => {
   const server=createGatewayServer(config);await new Promise(resolve=>server.listen(0,"127.0.0.1",resolve));t.after(()=>new Promise(resolve=>server.close(resolve)));
   const response=await fetch("http://127.0.0.1:"+server.address().port+"/v1/icare/scoring",{method:"POST",headers:{Origin:"https://icare.example.org","X-ICARE-Authenticated-User":"alice","Content-Type":"application/json"},body:JSON.stringify({text:"Bonjour",multi_label:false,labels:[]})});
   assert.equal(response.status,400);
+  const duplicateLabels=["I","I","A","R","E"].map(code=>({code,label:"Dimension "+code,description:"Description"}));
+  const duplicate=await fetch("http://127.0.0.1:"+server.address().port+"/v1/icare/scoring",{method:"POST",headers:{Origin:"https://icare.example.org","X-ICARE-Authenticated-User":"alice","Content-Type":"application/json"},body:JSON.stringify({text:"Bonjour",multi_label:true,labels:duplicateLabels})});
+  assert.equal(duplicate.status,400,"chaque dimension ICARE doit être présente une seule fois");
 });
