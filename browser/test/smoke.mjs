@@ -149,8 +149,11 @@ try{
   assert.equal(await page.locator("body").evaluate(el=>el.classList.contains("project-menu-open")),true,"le bouton hamburger doit ouvrir le volet projets");
   const hamburgerOpen=await page.locator("#project-menu-toggle").boundingBox();
   assert.ok(Math.abs(hamburgerOpen.x-hamburgerClosed.x)<0.5 && Math.abs(hamburgerOpen.y-hamburgerClosed.y)<0.5,"le hamburger doit rester exactement à la même position quand le volet se déploie");
-  assert.equal(await page.locator("#project-title").evaluate(el=>el.closest(".sidebar")!==null),true,"le nom du projet actif doit être dans le volet latéral");
-  for(const id of ["project-export-button","project-import-button","edit-project"]) assert.equal(await page.locator("#"+id).evaluate(el=>el.closest(".sidebar")!==null),true,id+" doit être dans le volet à côté du nom du projet");
+  assert.equal(await page.locator("#project-title").evaluate(el=>el.closest(".workspace")!==null),true,"le nom du projet actif doit rester au-dessus de la conversation");
+  assert.equal(await page.locator("#project-import-button").evaluate(el=>el.closest(".sidebar-toolbar")!==null),true,"Importer doit être dans la barre supérieure du volet");
+  assert.equal(await page.locator("#new-project").evaluate(el=>el.closest(".sidebar-toolbar")!==null),true,"Nouveau projet doit être au même niveau qu’Importer");
+  assert.equal(await page.locator("#project-list .project-row").count(),2,"les deux projets doivent être visibles dans la liste");
+  for(const row of await page.locator("#project-list .project-row").all()){assert.equal(await row.locator(".project-row-name").count(),1,"chaque projet doit avoir son nom");assert.equal(await row.locator("[aria-label^=\"Renommer \"]").count(),1,"chaque projet doit avoir sa propre commande Renommer");assert.equal(await row.locator("[aria-label^=\"Télécharger \"]").count(),1,"chaque projet doit avoir sa propre commande Télécharger");}
   assert.equal(await page.locator(".sidebar").evaluate(el=>Math.round(el.getBoundingClientRect().width)),250,"le rail doit s’élargir sans se superposer au dialogue");
   await page.locator("#project-menu-toggle").click();
   assert.equal(await page.locator("body").evaluate(el=>el.classList.contains("project-menu-open")),false,"le hamburger doit replier le volet en conservant le rail");
@@ -185,14 +188,11 @@ try{
   assert.equal(await page.locator("#project-title").textContent(),"Projet navigateur","Annuler ne doit ni enregistrer ni changer de projet");
   assert.equal(await page.locator("#project-select option").count(),2,"Annuler ne doit pas créer de projet");
   const downloadPromise=page.waitForEvent("download");
-  await page.locator("#project-export-button").click();
-  await page.locator("#export-author").fill("Martin");
-  await page.locator("#confirm-export").click();
+  await page.locator("#project-list .project-row").filter({has:page.locator(".project-row-name", {hasText:"Projet navigateur"})}).locator("[aria-label^=\"Télécharger \"]").click();
   const backupDownload=await downloadPromise,backupPath=await backupDownload.path();
   const backup=JSON.parse(await readFile(backupPath,"utf8"));
   assert.equal(backup.format,"icare-project-export","l'export doit être limité au format de sauvegarde d'un projet");
   assert.equal(backup.project.name,"Projet navigateur","l'export doit contenir le projet actif");
-  assert.equal(backup.project.provenance.author,"Martin","le pseudo doit être conservé comme provenance");
   assert.equal(backup.turns.length,0,"les échanges d'un autre projet ne doivent pas être exportés");
   await page.locator("#project-import-file").setInputFiles(backupPath);
   await page.waitForFunction(()=>document.querySelector("#project-select").options.length===3);
