@@ -213,7 +213,9 @@ export function createGatewayServer(config, { localScorer = scoreLocally } = {})
         try { payload = JSON.parse(body.toString("utf8")); } catch { json(res, 400, { error: { message: "Invalid JSON request." } }); return; }
         if (typeof payload.text !== "string" || !payload.text.trim() || payload.text.length > (config.limits?.maxScoringChars || 12000) ||
             payload.multi_label !== true || !Array.isArray(payload.labels) || payload.labels.length !== 5 ||
-            payload.labels.some(item => !item || !/^[ICARE]$/.test(item.code || "") || typeof item.label !== "string" || typeof item.description !== "string")) {
+            payload.labels.some(item => !item || !/^[ICARE]$/.test(item.code || "") || typeof item.label !== "string" || !item.label.trim() || item.label.length > 160 || typeof item.description !== "string" || !item.description.trim() || item.description.length > 1200) ||
+            new Set(payload.labels.map(item => item.code)).size !== 5 ||
+            ["I","C","A","R","E"].some(code => !payload.labels.some(item => item.code === code))) {
           json(res, 400, { error: { message: "A text and exactly five ICARE multilabel dimensions are required." } }); return;
         }
         const model = modelFor(config, payload.model, "scoring", groups);
