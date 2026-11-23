@@ -9,7 +9,47 @@
 </aside></section></main>
 <dialog id="settings-dialog"><form id="settings-form" method="dialog" class="dialog-content"><div class="dialog-heading"><div><p class="eyebrow">PRÉFÉRENCES LOCALES</p><h2>Routage des moteurs d’inférence</h2></div><button id="close-settings-dialog" class="icon-button" type="button" aria-label="Fermer">×</button></div>
 <p class="muted">Choisissez indépendamment où traiter l’audio et où traiter le texte. Un moteur local peut être combiné avec un Gateway distant ; les deux fonctions peuvent aussi utiliser des Gateways différents.</p>
-<section class="model-config routing-selector"><h3>Choix du routage</h3>
+<section class="model-config gateway-matrix" aria-labelledby="gateway-matrix-title">
+<h3 id="gateway-matrix-title">Passerelles et capacités</h3>
+<p class="provider-help">Chaque service peut être utilisé en accès direct ou confié à une passerelle. Une passerelle peut assurer un, deux ou trois services.</p>
+<div class="gateway-routes">
+<label class="route-choice"><span><strong>LLM conversationnel</strong><small>Traitement des messages et dialogue</small></span><select id="route-llm"><option value="direct">Accès direct</option><option value="gateway-1">Gateway 1</option><option value="gateway-2">Gateway 2</option><option value="gateway-3">Gateway 3</option></select></label>
+<label class="route-choice"><span><strong>Transcription audio</strong><small>Conversion de la voix en texte</small></span><select id="route-audio"><option value="direct">Accès direct</option><option value="gateway-1">Gateway 1</option><option value="gateway-2">Gateway 2</option><option value="gateway-3">Gateway 3</option></select></label>
+<label class="route-choice"><span><strong>Scoring ICARE (multilabel)</strong><small>Évaluation indépendante des cinq dimensions I, C, A, R et E</small></span><select id="route-scoring"><option value="direct">Accès direct</option><option value="gateway-1">Gateway 1</option><option value="gateway-2">Gateway 2</option><option value="gateway-3">Gateway 3</option></select></label>
+</div>
+<div id="gateway-cards" class="gateway-cards">
+<fieldset class="gateway-card" id="gateway-card-1" data-gateway="1"><legend>Gateway 1</legend>
+<label>Nom de la passerelle<input id="gateway-1-name" type="text" maxlength="60" placeholder="Gateway 1"></label>
+<label>URL HTTPS<input id="gateway-1-url" type="url" inputmode="url" placeholder="https://gateway1.organisation.fr"></label>
+<p class="provider-help">Services pris en charge :</p>
+<div class="gateway-capabilities">
+<label><input type="checkbox" id="gateway-1-llm"> LLM</label>
+<label><input type="checkbox" id="gateway-1-audio"> Transcription</label>
+<label><input type="checkbox" id="gateway-1-scoring"> Scoring ICARE</label>
+</div><p class="gateway-disabled-reason" id="gateway-1-reason" aria-live="polite"></p>
+</fieldset><fieldset class="gateway-card" id="gateway-card-2" data-gateway="2"><legend>Gateway 2</legend>
+<label>Nom de la passerelle<input id="gateway-2-name" type="text" maxlength="60" placeholder="Gateway 2"></label>
+<label>URL HTTPS<input id="gateway-2-url" type="url" inputmode="url" placeholder="https://gateway2.organisation.fr"></label>
+<p class="provider-help">Services pris en charge :</p>
+<div class="gateway-capabilities">
+<label><input type="checkbox" id="gateway-2-llm"> LLM</label>
+<label><input type="checkbox" id="gateway-2-audio"> Transcription</label>
+<label><input type="checkbox" id="gateway-2-scoring"> Scoring ICARE</label>
+</div><p class="gateway-disabled-reason" id="gateway-2-reason" aria-live="polite"></p>
+</fieldset><fieldset class="gateway-card" id="gateway-card-3" data-gateway="3"><legend>Gateway 3</legend>
+<label>Nom de la passerelle<input id="gateway-3-name" type="text" maxlength="60" placeholder="Gateway 3"></label>
+<label>URL HTTPS<input id="gateway-3-url" type="url" inputmode="url" placeholder="https://gateway3.organisation.fr"></label>
+<p class="provider-help">Services pris en charge :</p>
+<div class="gateway-capabilities">
+<label><input type="checkbox" id="gateway-3-llm"> LLM</label>
+<label><input type="checkbox" id="gateway-3-audio"> Transcription</label>
+<label><input type="checkbox" id="gateway-3-scoring"> Scoring ICARE</label>
+</div><p class="gateway-disabled-reason" id="gateway-3-reason" aria-live="polite"></p>
+</fieldset>
+</div>
+<p id="gateway-matrix-status" class="muted" role="status" aria-live="polite"></p>
+<div class="dialog-actions"><button id="save-gateway-matrix" class="button secondary" type="button">Enregistrer les passerelles</button></div>
+</section>\n<section class="model-config routing-selector" hidden><h3>Choix du routage</h3>
 <label class="route-choice"><span><strong>Transcription audio</strong><small>Où convertir votre voix en texte ?</small></span><select id="audio-route"><option value="local">Local / direct</option><option value="gateway">Gateway</option></select></label>
 <label class="route-choice"><span><strong>Traitement du texte</strong><small>Où envoyer les messages et exécuter le raisonnement ?</small></span><select id="text-route"><option value="local">Inference locale</option><option value="gateway">Gateway</option></select></label>
 <label id="same-gateway-option" class="checkbox-label"><input id="same-gateway" type="checkbox" checked> Utiliser la même Gateway pour la transcription et le texte</label>
