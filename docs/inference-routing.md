@@ -47,3 +47,12 @@ Le troisième service est le **scoring ICARE (multilabel)**. Il évalue les cinq
 Le client appelle directement l'endpoint configuré ou `POST /v1/icare/scoring` sur la Gateway sélectionnée. L'adaptateur Gateway transforme le contrat ICARE en requête de classification zéro-shot Horizon Labs et conserve le jeton fournisseur côté serveur. Le vecteur de cinq scores est enregistré dans le tour correspondant et réutilisé lors de la relecture.
 
 Le endpoint direct par défaut est hébergé par Hugging Face. Pour exécuter le modèle sur l'AMD local, il faut configurer un endpoint local exposant le même contrat de scoring ; la présence d'un endpoint direct ne signifie pas à elle seule que l'inférence est locale.
+
+
+## Scoring ICARE : exécution strictement locale
+
+Le troisième service est le **scoring ICARE (multilabel)**. Il évalue les cinq dimensions indépendamment pour chaque message, sans normalisation à une somme de 1.
+
+Le moteur `Horizon-Labs/multilingual-zeroshot-base` est exécuté localement par la Gateway via Transformers.js et ONNX Runtime CPU. Le mode direct est strictement limité à un endpoint loopback sur la machine courante. Une Gateway sélectionnée exécute elle aussi le modèle localement sur son propre hôte ; elle ne relaie aucune requête vers une API Hugging Face ou un fournisseur d'inférence externe.
+
+Au premier lancement, les poids publics du modèle peuvent être téléchargés et mis en cache sur le disque local. Ce téléchargement initial de fichiers de modèle est distinct de l'inférence : les textes des messages restent sur la machine ICARE qui exécute le moteur. Le mode hors ligne est disponible après préparation du cache, avec `ICARE_MODELS_OFFLINE=1`.
