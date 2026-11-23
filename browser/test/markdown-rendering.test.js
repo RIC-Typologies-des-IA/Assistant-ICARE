@@ -195,6 +195,13 @@ try {
       "  Source B, Cible B, 7",
       "```",
       "",
+      "```mermaid",
+      "flowchart LR",
+      "  A[Style personnalisé] --> B[Style secondaire]",
+      "  style A fill:#ff0000,stroke:#333333,stroke-width:2px",
+      "  style B fill:#00aa00,stroke:#333333,stroke-width:2px",
+      "```",
+      "",
       "<p class=\"note\"><strong>HTML documentaire autorisé</strong></p>",
       "<img src=\"x\" onerror=\"window.__xss = true\">",
       "<svg onload=\"window.__xss = true\"><script>alert(1)</script></svg>",
@@ -246,7 +253,7 @@ try {
     await new Promise(resolve => {
       const started = Date.now();
       const poll = () => {
-        if (!host.querySelector(".mermaid-source") && host.querySelectorAll(".mermaid-diagram svg").length === 16) resolve();
+        if (!host.querySelector(".mermaid-source") && host.querySelectorAll(".mermaid-diagram svg").length === 17) resolve();
         else if (Date.now() - started > 10000) resolve();
         else setTimeout(poll, 50);
       };
@@ -267,6 +274,13 @@ try {
       return false;
     }).length;
     const darkPieColors = [...host.querySelectorAll(".mermaid-diagram .pieCircle")].map(node => getComputedStyle(node).fill);
+    const customStyleSvg = darkSvgs.find(svg => svg.textContent.includes("Style personnalisé") && svg.textContent.includes("Style secondaire"));
+    const customNodeFill = label => {
+      const node = [...(customStyleSvg?.querySelectorAll(".node") || [])].find(item => item.textContent.includes(label));
+      const shape = node?.querySelector("rect,polygon,path");
+      return shape?.getAttribute("style") || shape?.getAttribute("fill") || "";
+    };
+    const darkCustomStyleFills = [customNodeFill("Style personnalisé"), customNodeFill("Style secondaire")];
     const darkMindmap = darkSvgs.find(svg => ["Intention","Contexte","Action","Régulation","Évolution"].every(label => svg.textContent.includes(label)));
     const darkMindmapColors = [...(darkMindmap?.querySelectorAll("rect,circle,ellipse,path,polygon") || [])]
       .map(node => getComputedStyle(node).fill).filter(fill => fill && fill !== "none" && fill !== "rgba(0, 0, 0, 0)");
@@ -292,7 +306,7 @@ try {
     await new Promise(resolve => {
       const started = Date.now();
       const poll = () => {
-        if (!host.querySelector(".mermaid-source") && host.querySelectorAll(".mermaid-diagram svg").length === 16) resolve();
+        if (!host.querySelector(".mermaid-source") && host.querySelectorAll(".mermaid-diagram svg").length === 17) resolve();
         else if (Date.now() - started > 10000) resolve();
         else setTimeout(poll, 50);
       };
@@ -307,6 +321,7 @@ try {
       darkTextFills: [...new Set(darkTexts.map(node => getComputedStyle(node).fill).filter(fill => fill && fill !== "none"))],
  
       darkPieColors,
+      darkCustomStyleFills,
       darkMindmapColors,
       familyChecks,
       lightRestoredCount: host.querySelectorAll(".mermaid-diagram svg").length
@@ -322,7 +337,7 @@ try {
   assert.ok(result.alignedCells >= 2, "l’alignement des colonnes doit survivre à la sanitisation sans style inline");
   assert.equal(result.footnotes, 1, "les notes de bas de page doivent être rendues");
   assert.ok(result.highlighted > 0, "les blocs de code doivent être colorisés");
-  assert.equal(result.mermaid, 16, "toutes les familles Mermaid prises en charge doivent produire un SVG, même lorsqu’un diagramme voisin est invalide");
+  assert.equal(result.mermaid, 17, "toutes les familles Mermaid prises en charge doivent produire un SVG, même lorsqu’un diagramme voisin est invalide");
   assert.equal(result.mermaidErrors, 1, "un diagramme invalide doit afficher sa propre erreur sans bloquer les diagrammes suivants");
   assert.ok(result.mermaidNodeClasses > 0, "les classes SVG Mermaid doivent être conservées pour appliquer le thème accessible");
   assert.ok(result.pieSlices >= 3, "le diagramme circulaire doit conserver ses secteurs colorés");
@@ -332,13 +347,16 @@ try {
   assert.equal(result.remoteImages, 0, "les images distantes doivent être bloquées pour éviter le pistage par requête réseau");
   assert.equal(result.rawHtml, "HTML documentaire autorisé", "un sous-ensemble HTML documentaire doit rester disponible");
   assert.equal(result.safeLink, true, "les liens HTTPS doivent rester accessibles sans opener");
-  assert.equal(result.darkDiagramCount, 16, "les 16 diagrammes doivent être rerendus au changement de thème");
+  assert.equal(result.darkDiagramCount, 17, "les 16 diagrammes doivent être rerendus au changement de thème");
   assert.ok(result.darkTextCount > 0, "les libellés SVG doivent rester présents en mode sombre");
   assert.ok(result.darkTextLabelCount > 0 && result.darkTextFillCount >= Math.ceil(result.darkTextLabelCount * 0.8), "au moins 80 % des libellés SVG doivent porter une couleur explicite ou héritée en mode sombre");
   assert.ok(new Set(result.darkPieColors).size >= 3, "la palette du diagramme circulaire doit rester différenciée en mode sombre");
+  assert.equal(result.darkCustomStyleFills.length, 2, "le diagramme Mermaid personnalisé doit être conservé en mode sombre");
+  assert.ok(/fill:\s*(?:#ff0000|rgb\(255,\s*0,\s*0\))/i.test(result.darkCustomStyleFills[0]), "la couleur rouge explicitement définie doit être conservée");
+  assert.ok(/fill:\s*(?:#00aa00|rgb\(0,\s*170,\s*0\))/i.test(result.darkCustomStyleFills[1]), "la couleur verte explicitement définie doit être conservée");
   assert.ok(new Set(result.darkMindmapColors).size >= 2, "la palette de la carte mentale doit rester différenciée en mode sombre");
   assert.ok(Object.entries(result.familyChecks).every(([, passed]) => passed), "chaque famille de diagrammes doit conserver ses libellés : " + JSON.stringify(result.familyChecks));
-  assert.equal(result.lightRestoredCount, 16, "le retour au mode clair doit rerendre les 16 diagrammes");
+  assert.equal(result.lightRestoredCount, 17, "le retour au mode clair doit rerendre les 16 diagrammes");
   await page.setViewportSize({ width: 390, height: 844 });
   const mobileLayout = await page.evaluate(() => {
     const host = document.querySelector(".mermaid-test-host");
