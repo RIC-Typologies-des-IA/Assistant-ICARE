@@ -75,6 +75,16 @@ try{
   assert.equal(await page.locator("#dimension-statuses .dimension-status-row").count(),5,"les cinq statuts doivent être éditables");
   assert.equal(await page.locator("#project-title").textContent(),"Mon premier projet");
   await page.locator("#settings-button").click();
+  assert.equal(await page.locator("#gateway-card-1").isVisible(),true,"les trois fiches Gateway sont visibles");
+  for(let id=1;id<=3;id++){assert.equal(await page.locator("#gateway-card-"+id).isVisible(),true);assert.equal(await page.locator("#gateway-card-"+id).evaluate(el=>el.classList.contains("is-disabled")),false,"aucune Gateway ne doit être grisée au départ");}
+  await page.locator("#gateway-1-llm").check();
+  await page.locator("#gateway-1-audio").check();
+  assert.equal(await page.locator("#gateway-card-3").evaluate(el=>el.classList.contains("is-disabled")),true,"Gateway 3 devient grisée lorsque Gateway 1 porte deux capacités");
+  assert.equal(await page.locator("#gateway-card-2").evaluate(el=>el.classList.contains("is-disabled")),false,"Gateway 2 reste disponible pour le troisième service");
+  await page.locator("#gateway-1-scoring").check();
+  assert.equal(await page.locator("#gateway-card-2").evaluate(el=>el.classList.contains("is-disabled")),true,"Gateway 2 devient grisée lorsque Gateway 1 porte les trois capacités");
+  for(const service of ["llm","audio","scoring"])await page.locator("#gateway-1-"+service).uncheck();
+  assert.equal(await page.locator("#gateway-card-2").evaluate(el=>el.classList.contains("is-disabled")),false,"les fiches redeviennent disponibles quand les capacités sont décochées");
   assert.equal(await page.locator("#text-route").inputValue(),"local","le traitement du texte doit être local par défaut");
   assert.equal(await page.locator("#audio-route").inputValue(),"local","la transcription doit être locale par défaut");
   await page.locator("#close-settings-dialog").click();
