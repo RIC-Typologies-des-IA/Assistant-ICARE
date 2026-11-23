@@ -229,7 +229,7 @@ $("proposal-form")?.addEventListener("submit",async event=>{event.preventDefault
 $("timeline-slider")?.addEventListener("input",event=>renderTimeline(Number(event.target.value)));
 $("api-preset")?.addEventListener("change",event=>{const preset=event.target.value,presets={openai:"https://api.openai.com/v1",ollama:"http://localhost:11434/v1",lemonade:"http://127.0.0.1:13305/v1"};if(presets[preset])$("api-base").value=presets[preset];const help={openai:"OpenAI : endpoint public HTTPS. Saisissez une clé API et chargez les modèles disponibles.",ollama:"Ollama local : http://localhost:11434/v1. Pour un site HTTPS distant, Ollama doit autoriser l’origine GitHub Pages via OLLAMA_ORIGINS. localhost désigne votre propre ordinateur.",lemonade:"Lemonade local : http://127.0.0.1:13305/v1. Pour un site HTTPS distant, le serveur doit autoriser l’origine GitHub Pages (CORS).", "":"API compatible OpenAI Chat Completions. Saisissez l’URL de base terminée par /v1."};$("provider-help").textContent=help[preset]||help[""];});
 
-await loadOntology();gatewayRoutingConfig=await initGatewayConfiguration({db,get,set,saveLegacy:async({llm,audio,textGateway,audioGateway})=>{
+await loadOntology();gatewayRoutingConfig=await initGatewayConfiguration({db,get,set:put,saveLegacy:async({llm,audio,textGateway,audioGateway})=>{
  const modelCache=new Map();
  async function modelForGateway(url,capability){
   if(!url)return "";
