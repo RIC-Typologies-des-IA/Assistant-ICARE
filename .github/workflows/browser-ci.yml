@@ -24,9 +24,6 @@ jobs:
           npm run build:vendor
           npm run build:components
           npx playwright install --with-deps chromium
-      - name: Install local scoring runtime
-        working-directory: enterprise-gateway
-        run: npm install
       - name: Validate application modules
         run: |
           test -s browser/index.html
@@ -44,7 +41,6 @@ jobs:
           node --check browser/scripts/build-components.mjs
           node --check browser/inference.js
           node --check enterprise-gateway/server.mjs
-          node --check enterprise-gateway/local-scoring.mjs
           node --check browser/scoring.js
           node --check browser/gateway-config.js
           node --check browser/sw.js
