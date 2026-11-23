@@ -7,6 +7,16 @@ function normalise(value){
  d.directScoringUrl=String(value.directScoringUrl||"");
  for(const service of SERVICES){const route=value.routes?.[service];if(route==="direct"||/^gateway-[123]$/.test(route))d.routes[service]=route;}
  for(const g of d.gateways){const old=value.gateways?.find?.(x=>Number(x.id)===g.id);if(old){g.name=String(old.name||g.name).slice(0,60);g.url=String(old.url||"");g.capabilities=Array.isArray(old.capabilities)?old.capabilities.filter(x=>SERVICES.includes(x)):[];}}
+ // Chaque service ne peut appartenir qu’à une seule Gateway. En cas d’ancienne
+ // configuration ambiguë, la première Gateway configurée conserve la capacité.
+ for(const service of SERVICES){
+  let assigned=false;
+  for(const g of d.gateways){
+   if(!g.capabilities.includes(service))continue;
+   if(assigned)g.capabilities=g.capabilities.filter(item=>item!==service);
+   else assigned=true;
+  }
+ }
  if(!d.gateways.some(g=>g.capabilities.length))d.gateways[0].capabilities=[...SERVICES];
  return d;
 }
@@ -29,8 +39,26 @@ export async function initGatewayConfiguration({db,get,set,saveLegacy,loadScorin
  const gateway=id=>config.gateways.find(g=>g.id===id);
  const eligible=(service,id)=>gateway(id)?.capabilities.includes(service)||false;
  function refresh(){
-  const firstCount=gateway(1).capabilities.length;
   for(const g of config.gateways){
+   const card=$("gateway-card-"+g.id);card.hidden=false;
+   $("gateway-"+g.id+"-name").disabled=false;$("gateway-"+g.id+"-url").disabled=false;
+   $("gateway-"+g.id+"-reason").textContent="";
+   for(const service of SERVICES){
+    const input=$("gateway-"+g.id+"-"+service),owner=config.gateways.find(candidate=>candidate.capabilities.includes(service));
+    const label=input.closest("label");
+    const unavailable=!!owner&&owner.id!==g.id;
+    label.hidden=unavailable;input.disabled=unavailable;
+    input.checked=g.capabilities.includes(service);
+   }
+  }
+  for(const service of SERVICES){
+   const select=$(routeIds[service]),previous=config.routes[service]||"direct";
+   select.replaceChildren(new Option("Accès direct","direct"));
+   for(let id=1;id<=3;id++)if(eligible(service,id)){const option=new Option(gateway(id).name||"Gateway "+id,"gateway-"+id);select.add(option);}
+   select.value=[...select.options].some(o=>o.value===previous)?previous:"direct";config.routes[service]=select.value;
+  }
+ }
+ for(const g of config.gateways){
    const visible=g.id===1||(g.id===2&&firstCount<3)||(g.id===3&&firstCount<2);
    const card=$("gateway-card-"+g.id);card.hidden=!visible;
    for(const service of SERVICES){const input=$("gateway-"+g.id+"-"+service);input.disabled=!visible;}
@@ -48,7 +76,17 @@ export async function initGatewayConfiguration({db,get,set,saveLegacy,loadScorin
   $("gateway-"+g.id+"-name").value=g.name;$("gateway-"+g.id+"-url").value=g.url;
   for(const service of SERVICES)$("gateway-"+g.id+"-"+service).checked=g.capabilities.includes(service);
   for(const field of ["name","url"])$("gateway-"+g.id+"-"+field).addEventListener("input",()=>{g[field]=$("gateway-"+g.id+"-"+field).value;refresh();});
-  for(const service of SERVICES)$("gateway-"+g.id+"-"+service).addEventListener("change",()=>{g.capabilities=SERVICES.filter(s=>$("gateway-"+g.id+"-"+s).checked);refresh();});
+  for(const service of SERVICES)$("gateway-"+g.id+"-"+service).addEventListener("change",event=>{
+   if(event.target.checked){
+    for(const other of config.gateways)other.capabilities=other.capabilities.filter(item=>item!==service);
+    if(!g.capabilities.includes(service))g.capabilities.push(service);
+    config.routes[service]="gateway-"+g.id;
+   }else{
+    g.capabilities=g.capabilities.filter(item=>item!==service);
+    if(config.routes[service]==="gateway-"+g.id)config.routes[service]="direct";
+   }
+   refresh();
+  });
  }
  for(const service of SERVICES)$(routeIds[service]).addEventListener("change",e=>{config.routes[service]=e.target.value;});
  refresh();
