@@ -38,3 +38,12 @@ Les réglages sont conservés dans IndexedDB, séparément des projets :
 ## Sécurité
 
 Les Gateways distantes doivent utiliser HTTPS. Le client n’envoie aucune clé API fournisseur aux Gateways et utilise les cookies de session uniquement pour les routes Gateway. Une route audio Gateway transmet nécessairement l’enregistrement vocal au serveur correspondant ; une route audio locale évite cette transmission. Le choix du routage texte ne modifie pas le destinataire de l’audio.
+
+
+## Troisième service : scoring ICARE multilabel
+
+Le troisième service est le **scoring ICARE (multilabel)**. Il évalue les cinq dimensions indépendamment pour chaque message. Il ne remplace ni le LLM conversationnel ni la transcription audio.
+
+Le client appelle directement l'endpoint configuré ou `POST /v1/icare/scoring` sur la Gateway sélectionnée. L'adaptateur Gateway transforme le contrat ICARE en requête de classification zéro-shot Horizon Labs et conserve le jeton fournisseur côté serveur. Le vecteur de cinq scores est enregistré dans le tour correspondant et réutilisé lors de la relecture.
+
+Le endpoint direct par défaut est hébergé par Hugging Face. Pour exécuter le modèle sur l'AMD local, il faut configurer un endpoint local exposant le même contrat de scoring ; la présence d'un endpoint direct ne signifie pas à elle seule que l'inférence est locale.
