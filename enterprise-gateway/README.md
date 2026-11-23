@@ -69,4 +69,4 @@ L'authentification est déléguée à l'IdP d'entreprise placé devant le gatewa
 
 ## Relais du scoring ICARE
 
-La Gateway peut relayer le service de scoring multilabel ICARE vers un endpoint administré indépendamment. Renseigner scoring.endpointUrl dans le fichier de configuration local. L’URL doit utiliser HTTPS, sauf si le service est explicitement hébergé sur loopback HTTP. La Gateway valide le contrat ICARE et relaie la requête/réponse ; elle n’embarque aucun moteur, poids, runtime ou dépendance de scoring.
+La Gateway annonce `capabilities.scoring=true` dans `/v1/icare/config` uniquement si `scoring.endpointUrl` est configuré. ICARE vérifie cette capacité avant d’enregistrer une route scoring vers cette Gateway. Renseigner `scoring.endpointUrl` dans le fichier de configuration local. L’URL doit utiliser HTTPS, sauf si le service est explicitement hébergé sur loopback HTTP. La Gateway valide le contrat de requête, relaie le texte vers l’endpoint administré et contrôle que la réponse contient cinq scores indépendants I/C/A/R/E compris entre 0 et 1. Elle n’embarque aucun moteur, poids, runtime ou dépendance de scoring.
