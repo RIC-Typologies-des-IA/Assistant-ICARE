@@ -159,7 +159,8 @@ try{
   await page.locator("#save-project").click();
   await page.locator("#project-dialog").waitFor({state:"hidden"});
   assert.equal(await page.locator("#project-title").textContent(),"Projet navigateur renommé","le renommage depuis la ligne du projet doit actualiser le titre principal");
-  assert.equal(await page.locator(".sidebar").evaluate(el=>Math.round(el.getBoundingClientRect().width)),250,"le rail doit s’élargir sans se superposer au dialogue");
+  await page.waitForFunction(()=>Math.round(document.querySelector(".sidebar").getBoundingClientRect().width)===250,{timeout:1000});
+  assert.equal(await page.locator(".sidebar").evaluate(el=>Math.round(el.getBoundingClientRect().width)),250,"le rail doit s’élargir sans se superposer au dialogue une fois la transition terminée");
   await page.locator("#project-menu-toggle").click();
   assert.equal(await page.locator("body").evaluate(el=>el.classList.contains("project-menu-open")),false,"le hamburger doit replier le volet en conservant le rail");
   const hamburgerClosedAgain=await page.locator("#project-menu-toggle").boundingBox();
