@@ -37,8 +37,8 @@ export async function initGatewayConfiguration({db,get,set,saveLegacy}) {
   for(const service of SERVICES){
    const select=$(routeIds[service]),previous=config.routes[service]||"direct";
    select.replaceChildren(new Option("Accès direct","direct"));
-   for(let id=1;id<=3;id++)if(eligible(service,id)||previous==="gateway-"+id){const option=new Option(gateway(id).name||"Gateway "+id,"gateway-"+id);option.hidden=$("gateway-card-"+id).hidden;select.add(option);}
-   select.value=[...select.options].some(o=>o.value===previous&&!o.hidden)?previous:"direct";config.routes[service]=select.value;
+   for(let id=1;id<=3;id++)if(eligible(service,id)||previous==="gateway-"+id){const option=new Option(gateway(id).name||"Gateway "+id,"gateway-"+id);select.add(option);}
+   select.value=[...select.options].some(o=>o.value===previous)?previous:"direct";config.routes[service]=select.value;
   }
  }
  for(const g of config.gateways){
