@@ -52,7 +52,7 @@ try{
   assert.ok(railGeometry.chatTop>railGeometry.railTop,"le rail doit commencer sous la bannière avec une marge");
   assert.equal(await page.locator("#project-import-button svg").count(),1,"l’import doit être représenté par une icône accessible");
   assert.equal(await page.locator("#new-project").textContent(),"＋","la création d’un projet doit rester accessible par le bouton plus");
-  assert.equal(await page.locator("#project-list .project-row-action[aria-label^=\"Télécharger \"]").count(),0,"les actions de projet ne doivent pas rester visibles volet fermé");
+  assert.equal(await page.locator(".sidebar .project-list").evaluate(el=>getComputedStyle(el).display),"none","la liste et ses actions doivent être masquées volet fermé");
   await page.setViewportSize({width:900,height:900});
   assert.ok(await page.locator(".insights").evaluate(el=>el.getBoundingClientRect().top>document.querySelector(".chat-panel").getBoundingClientRect().top),"sur tablette, les panneaux doivent passer sous le dialogue");
   await page.setViewportSize({width:1440,height:1000});
