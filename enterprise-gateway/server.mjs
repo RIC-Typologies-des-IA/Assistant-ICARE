@@ -1,7 +1,6 @@
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
-import { scoreLocally } from "./local-scoring.mjs";
 import { resolve } from "node:path";
 
 const DEFAULT_CONFIG = new URL("./config.json", import.meta.url);
@@ -35,33 +34,29 @@ export function validateConfig(config) {
   for (const model of config.models) {
     if (!/^[a-zA-Z0-9._:-]{1,128}$/.test(model.id || "") || ids.has(model.id)) throw new Error("Model IDs must be unique safe identifiers.");
     ids.add(model.id);
-    if (model.runtime === "transformers-js") {
-      if (!model.capabilities.includes("scoring") || !String(model.modelId || "").trim() || model.upstreamBaseUrl || model.apiKeyEnv) {
-        throw new Error("A local Transformers.js model must expose scoring and must not configure a remote URL or API key.");
-      }
-    } else {
-      const upstream = new URL(model.upstreamBaseUrl);
-      if (upstream.protocol !== "https:" || upstream.username || upstream.password || upstream.search || upstream.hash) {
-        throw new Error("Provider upstreamBaseUrl must be a credential-free HTTPS base URL.");
-      }
-      if (!/^ICARE_[A-Z0-9_]+$/.test(model.apiKeyEnv || "")) throw new Error("Each provider requires an ICARE_* apiKeyEnv variable.");
+    const upstream = new URL(model.upstreamBaseUrl);
+    if (upstream.protocol !== "https:" || upstream.username || upstream.password || upstream.search || upstream.hash) {
+      throw new Error("Provider upstreamBaseUrl must be a credential-free HTTPS base URL.");
     }
+    if (!/^ICARE_[A-Z0-9_]+$/.test(model.apiKeyEnv || "")) throw new Error("Each provider requires an ICARE_* apiKeyEnv variable.");
     if (!Array.isArray(model.capabilities) || !model.capabilities.length ||
-        model.capabilities.some(capability => !["chat", "transcription", "scoring"].includes(capability))) {
-      throw new Error("Model capabilities must be chat, transcription and/or scoring.");
+        model.capabilities.some(capability => !["chat", "transcription"].includes(capability))) {
+      throw new Error("Model capabilities must be chat and/or transcription.");
     }
-    if (model.capabilities.includes("scoring") && model.runtime !== "transformers-js") {
-      throw new Error("ICARE scoring models must use the local Transformers.js runtime; remote scoring providers are forbidden.");
-    }
-    if (model.runtime === "transformers-js" && model.capabilities.length !== 1) {
-      throw new Error("The local Transformers.js runtime is reserved for the scoring capability.");
-    }
-    if (model.runtime !== "transformers-js" && !String(model.upstreamModel || "").trim()) throw new Error("upstreamModel is required.");
+    if (!String(model.upstreamModel || "").trim()) throw new Error("upstreamModel is required.");
     if (model.allowedGroups !== undefined && (!Array.isArray(model.allowedGroups) || model.allowedGroups.some(group => typeof group !== "string" || !group.trim()))) throw new Error("allowedGroups must be an array of non-empty group names.");
   }
   if (config.defaults !== undefined && (!config.defaults || typeof config.defaults !== "object" || Array.isArray(config.defaults))) throw new Error("defaults must be an object.");
-  for (const [capability, id] of Object.entries({ chat: config.defaults?.chatModel, transcription: config.defaults?.transcriptionModel, scoring: config.defaults?.scoringModel })) {
+  for (const [capability, id] of Object.entries({ chat: config.defaults?.chatModel, transcription: config.defaults?.transcriptionModel })) {
     if (id && !config.models.some(model => model.id === id && model.capabilities.includes(capability))) throw new Error("Configured default model does not provide capability: " + capability);
+  }
+  if (config.scoring?.endpointUrl) {
+    const scoringUrl = new URL(config.scoring.endpointUrl);
+    const loopback = ["localhost", "127.0.0.1", "::1"].includes(scoringUrl.hostname);
+    if ((scoringUrl.protocol !== "https:" && !(scoringUrl.protocol === "http:" && loopback)) ||
+        scoringUrl.username || scoringUrl.password || scoringUrl.hash) {
+      throw new Error("Scoring endpoint must use HTTPS, except for an explicit local loopback HTTP endpoint.");
+    }
   }
   const limits = config.limits || {};
   if (limits.requestsPerMinute !== undefined && (!Number.isInteger(limits.requestsPerMinute) || limits.requestsPerMinute < 1)) {
@@ -177,7 +172,7 @@ function sanitizeChatPayload(payload, upstreamModel) {
   return clean;
 }
 
-export function createGatewayServer(config, { localScorer = scoreLocally } = {}) {
+export function createGatewayServer(config, { fetchImpl = fetch } = {}) {
   validateConfig(config);
   const allowRequest = createRateLimiter(config.limits?.requestsPerMinute || 60);
   return createServer(async (req, res) => {
@@ -189,15 +184,12 @@ export function createGatewayServer(config, { localScorer = scoreLocally } = {})
         return;
       }
       if (req.method === "OPTIONS") { res.writeHead(204); res.end(); return; }
-      const remoteAddress = String(req.socket.remoteAddress || "");
-      const loopback = remoteAddress === "127.0.0.1" || remoteAddress === "::1" || remoteAddress === "::ffff:127.0.0.1";
-      const localLoopbackAccess = config.auth.allowLoopbackWithoutIdentity === true && loopback && path === "/v1/icare/scoring";
       const user = String(req.headers[String(config.auth.identityHeader).toLowerCase()] || "").trim();
-      if (!localLoopbackAccess && (!user || user.length > 256 || /[\r\n]/.test(user))) {
+      if (!user || user.length > 256 || /[\r\n]/.test(user)) {
         json(res, 401, { error: { message: "An authenticated enterprise identity is required. Configure the trusted authentication reverse proxy." } });
         return;
       }
-      if (!allowRequest(user || "local-loopback")) { json(res, 429, { error: { message: "Enterprise gateway request quota exceeded." } }); return; }
+      if (!allowRequest(user)) { json(res, 429, { error: { message: "Enterprise gateway request quota exceeded." } }); return; }
 
       const groups = requestGroups(req, config);
       if (req.method === "GET" && path === "/v1/icare/config") {
@@ -217,20 +209,23 @@ export function createGatewayServer(config, { localScorer = scoreLocally } = {})
         const body = await readBody(req, config.limits?.maxJsonBytes || 2 * 1024 * 1024);
         let payload;
         try { payload = JSON.parse(body.toString("utf8")); } catch { json(res, 400, { error: { message: "Invalid JSON request." } }); return; }
+        const codes = Array.isArray(payload.dimensions) ? payload.dimensions.map(item => item?.code) : [];
         if (typeof payload.text !== "string" || !payload.text.trim() || payload.text.length > (config.limits?.maxScoringChars || 12000) ||
-            payload.multi_label !== true || !Array.isArray(payload.labels) || payload.labels.length !== 5 ||
-            payload.labels.some(item => !item || !/^[ICARE]$/.test(item.code || "") || typeof item.label !== "string" || !item.label.trim() || item.label.length > 160 || typeof item.description !== "string" || !item.description.trim() || item.description.length > 1200) ||
-            new Set(payload.labels.map(item => item.code)).size !== 5 ||
-            ["I","C","A","R","E"].some(code => !payload.labels.some(item => item.code === code))) {
+            payload.multi_label !== true || codes.length !== 5 || new Set(codes).size !== 5 ||
+            ["I","C","A","R","E"].some(code => !codes.includes(code))) {
           json(res, 400, { error: { message: "A text and exactly five ICARE multilabel dimensions are required." } }); return;
         }
-        const model = modelFor(config, payload.model, "scoring", groups);
-        if (model.runtime !== "transformers-js") {
-          json(res, 503, { error: { message: "Le scoring ICARE est configuré en mode local uniquement ; aucun fournisseur distant n'est autorisé." } });
-          return;
-        }
-        const result = await localScorer({ text: payload.text, labels: payload.labels, modelId: model.modelId });
-        json(res, 200, { scores: result.scores, labels: result.labels });
+        const endpoint = config.scoring?.endpointUrl;
+        if (!endpoint) { json(res, 503, { error: { message: "No scoring endpoint is configured on this Gateway." } }); return; }
+        const upstream = await fetchImpl(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          signal: AbortSignal.timeout(config.limits?.timeoutMs || 90_000)
+        });
+        const responseText = await upstream.text();
+        res.writeHead(upstream.status, { "Content-Type": upstream.headers.get("content-type") || "application/json", "Cache-Control": "no-store" });
+        res.end(responseText);
         return;
       }
 
