@@ -30,6 +30,16 @@
       ]
     },
     {
+      "id": "horizon-multilingual-zeroshot",
+      "provider": "huggingface",
+      "upstreamBaseUrl": "https://router.huggingface.co/hf-inference/models/Horizon-Labs/multilingual-zeroshot-base",
+      "upstreamModel": "Horizon-Labs/multilingual-zeroshot-base",
+      "apiKeyEnv": "ICARE_HF_API_KEY",
+      "capabilities": [
+        "scoring"
+      ]
+    },
+    {
       "id": "whisper-1",
       "provider": "openai",
       "upstreamBaseUrl": "https://api.openai.com/v1",
@@ -42,6 +52,6 @@
   ],
   "defaults": {
     "chatModel": "gpt-4.1-mini",
-    "transcriptionModel": "whisper-1"
+    "transcriptionModel": "whisper-1",\n    "scoringModel": "horizon-multilingual-zeroshot"
   }
 }
