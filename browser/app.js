@@ -229,4 +229,27 @@ $("proposal-form")?.addEventListener("submit",async event=>{event.preventDefault
 $("timeline-slider")?.addEventListener("input",event=>renderTimeline(Number(event.target.value)));
 $("api-preset")?.addEventListener("change",event=>{const preset=event.target.value,presets={openai:"https://api.openai.com/v1",ollama:"http://localhost:11434/v1",lemonade:"http://127.0.0.1:13305/v1"};if(presets[preset])$("api-base").value=presets[preset];const help={openai:"OpenAI : endpoint public HTTPS. Saisissez une clé API et chargez les modèles disponibles.",ollama:"Ollama local : http://localhost:11434/v1. Pour un site HTTPS distant, Ollama doit autoriser l’origine GitHub Pages via OLLAMA_ORIGINS. localhost désigne votre propre ordinateur.",lemonade:"Lemonade local : http://127.0.0.1:13305/v1. Pour un site HTTPS distant, le serveur doit autoriser l’origine GitHub Pages (CORS).", "":"API compatible OpenAI Chat Completions. Saisissez l’URL de base terminée par /v1."};$("provider-help").textContent=help[preset]||help[""];});
 
-await loadOntology();gatewayRoutingConfig=await initGatewayConfiguration({db,get,set,saveLegacy:async({llm,audio,textGateway,audioGateway})=>{state.routing={text:llm==="direct"?"local":"gateway",audio:audio==="direct"?"local":"gateway"};state.gateways={text:textGateway,audio:audioGateway};await put(db,"settings",{id:"inference-routing",...state.routing});await put(db,"settings",{id:"inference-gateways",...state.gateways,sameGateway:false});}});await loadProjects();await loadWorkspace();await loadSettings();registerAppServiceWorker({canReload:()=>!state.busy&&!$("message-input").value.trim()}).catch(error=>console.warn("Service worker ICARE indisponible :",error));
+await loadOntology();gatewayRoutingConfig=await initGatewayConfiguration({db,get,set,saveLegacy:async({llm,audio,textGateway,audioGateway})=>{
+ const modelCache=new Map();
+ async function modelForGateway(url,capability){
+  if(!url)return "";
+  if(!modelCache.has(url)){
+   const base=url.replace(/\\/+$/,""),endpoint=(base.endsWith("/v1")?base:base+"/v1")+"/models";
+   const response=await fetch(endpoint,{credentials:"include",cache:"no-store"});
+   if(!response.ok)throw Error("Impossible de charger les modèles de la Gateway ("+response.status+").");
+   modelCache.set(url,(await response.json()).data||[]);
+  }
+  const model=modelCache.get(url).find(item=>item.labels?.includes(capability));
+  if(!model)throw Error("La Gateway "+url+" ne publie aucun modèle pour "+capability+".");
+  return model.id;
+ }
+ const [textModel,audioModel]=await Promise.all([
+  llm==="direct"?"":modelForGateway(textGateway,"chat"),
+  audio==="direct"?"":modelForGateway(audioGateway,"transcription")
+ ]);
+ state.routing={text:llm==="direct"?"local":"gateway",audio:audio==="direct"?"local":"gateway"};
+ state.gateways={text:textGateway,audio:audioGateway};state.gatewayModels={text:textModel,audio:audioModel};
+ await put(db,"settings",{id:"inference-routing",...state.routing});
+ await put(db,"settings",{id:"inference-gateways",...state.gateways,sameGateway:false});
+ await put(db,"settings",{id:"inference-gateway-models",...state.gatewayModels});
+}});await loadProjects();await loadWorkspace();await loadSettings();registerAppServiceWorker({canReload:()=>!state.busy&&!$("message-input").value.trim()}).catch(error=>console.warn("Service worker ICARE indisponible :",error));
