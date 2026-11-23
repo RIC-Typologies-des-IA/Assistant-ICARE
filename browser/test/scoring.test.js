@@ -10,7 +10,8 @@ test("direct scoring calls the configured endpoint without a model vendor depend
  assert.deepEqual(result.scores,scores);assert.notEqual(Object.values(result.scores).reduce((x,y)=>x+y,0),1);
 });
 test("rejects malformed scoring endpoint URLs",async()=>{
- await assert.rejects(()=>scoreIcareMultilabel({text:"Bonjour",directUrl:"javascript:alert(1)"}),/HTTP\(S\)/);
+ await assert.rejects(()=>scoreIcareMultilabel({text:"Bonjour",directUrl:"javascript:alert(1)"}),/HTTPS/);
+ await assert.rejects(()=>scoreIcareMultilabel({text:"Bonjour",directUrl:"http://scoring.example.org/score"}),/HTTPS/);
 });
 test("routes scoring through a selected HTTPS Gateway",async()=>{
  let request;
