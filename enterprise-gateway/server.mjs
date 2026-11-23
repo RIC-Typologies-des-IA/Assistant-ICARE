@@ -192,7 +192,7 @@ export function createGatewayServer(config, { fetchImpl = fetch } = {}) {
         const available = visibleModels(config, groups);
         const chat = available.find(model => model.id === config.defaults?.chatModel && model.capabilities.includes("chat")) || available.find(model => model.capabilities.includes("chat"));
         const audio = available.find(model => model.id === config.defaults?.transcriptionModel && model.capabilities.includes("transcription")) || available.find(model => model.capabilities.includes("transcription"));
-        json(res, 200, { service: "icare-enterprise-gateway", defaults: { chatModel: chat?.id || "", transcriptionModel: audio?.id || "" } });
+        json(res, 200, { service: "icare-enterprise-gateway", capabilities: { chat: !!chat, transcription: !!audio, scoring: !!config.scoring?.endpointUrl }, defaults: { chatModel: chat?.id || "", transcriptionModel: audio?.id || "" } });
         return;
       }
       if (req.method === "GET" && path === "/v1/models") {
@@ -219,6 +219,13 @@ export function createGatewayServer(config, { fetchImpl = fetch } = {}) {
           signal: AbortSignal.timeout(config.limits?.timeoutMs || 90_000)
         });
         const responseText = await upstream.text();
+        if (upstream.ok) {
+          let result;
+          try { result = JSON.parse(responseText); } catch { json(res, 502, { error: { message: "The scoring provider returned invalid JSON." } }); return; }
+          const scores = result?.scores;
+          const valid = scores && ["I", "C", "A", "R", "E"].every(code => Number.isFinite(scores[code]) && scores[code] >= 0 && scores[code] <= 1);
+          if (!valid) { json(res, 502, { error: { message: "The scoring provider must return five independent ICARE scores between 0 and 1." } }); return; }
+        }
         res.writeHead(upstream.status, { "Content-Type": upstream.headers.get("content-type") || "application/json", "Cache-Control": "no-store" });
         res.end(responseText);
         return;
