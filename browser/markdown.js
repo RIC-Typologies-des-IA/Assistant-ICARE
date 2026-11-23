@@ -250,6 +250,43 @@ function initializeMermaid(engine) {
 
 let mermaidRenderGeneration = 0;
 
+function materializeMermaidStyles(svgRoot) {
+  // Mermaid emits presentation rules in SVG <style> blocks. DOMPurify intentionally
+  // removes style elements, so translate a constrained subset into safe inline
+  // presentation attributes before sanitizing the SVG.
+  for (const styleNode of [...svgRoot.querySelectorAll("style")]) {
+    const parserDocument = document.implementation.createHTMLDocument("");
+    const styleSheetNode = parserDocument.createElement("style");
+    styleSheetNode.textContent = styleNode.textContent || "";
+    parserDocument.head.append(styleSheetNode);
+    const rules = styleSheetNode.sheet?.cssRules || [];
+    for (const rule of rules) {
+      if (rule.type !== 1 || !/^[A-Za-z0-9_.#\\s>:+~,*\\[\\]="'-]+$/.test(rule.selectorText || "")) continue;
+      let matches;
+      try { matches = svgRoot.querySelectorAll(rule.selectorText); }
+      catch { continue; }
+      for (const node of matches) {
+        const declarations = new Map();
+        for (let index = 0; index < rule.style.length; index++) {
+          const property = rule.style[index].toLowerCase();
+          const value = rule.style.getPropertyValue(property).trim();
+          if (!SAFE_SVG_STYLE_PROPERTIES.has(property) || !value || value.length > 160) continue;
+          if (/(?:url\\s*\\(|expression\\s*\\(|javascript:|@import|[<>\\\\])/i.test(value)) continue;
+          if (!/^[A-Za-z0-9#(),.%\\s"'_+-]+$/.test(value)) continue;
+          declarations.set(property, value);
+        }
+        if (!declarations.size) continue;
+        const existing = node.getAttribute("style") || "";
+        for (const [property, value] of declarations) {
+          if (new RegExp("(?:^|;)\\\\s*" + property + "\\\\s*:", "i").test(existing)) continue;
+          node.style.setProperty(property, value);
+        }
+      }
+    }
+    styleNode.remove();
+  }
+}
+
 async function renderMermaid(sources) {
   if (!sources.length) return;
   let engine;
@@ -274,6 +311,7 @@ async function renderMermaid(sources) {
       if (generation !== mermaidRenderGeneration || !source.isConnected) continue;
       const svgDocument = new DOMParser().parseFromString(result.svg, "image/svg+xml");
       if (svgDocument.querySelector("parsererror")) throw new Error("SVG Mermaid invalide");
+      materializeMermaidStyles(svgDocument.documentElement);
       const safe = window.DOMPurify.sanitize(svgDocument.documentElement.outerHTML, SVG_SANITIZE_OPTIONS);
       if (!(safe instanceof DocumentFragment) || !safe.firstElementChild)
         throw new Error("SVG Mermaid rejeté par le filtre de sécurité");
