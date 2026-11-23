@@ -91,6 +91,7 @@ $("settings-tab-direct").addEventListener("click",()=>setSettingsTab("direct"));
 $("settings-tab-gateway").addEventListener("click",()=>setSettingsTab("gateway"));
 $("settings-button").addEventListener("click",()=>{$("settings-dialog").showModal();setSettingsTab(localStorage.getItem("icare-settings-tab")==="gateway"?"gateway":"direct");});
 $("close-settings-dialog").addEventListener("click",()=>$("settings-dialog").close());
+$("load-models").addEventListener("click",async()=>{const status=$("provider-status");status.textContent="Chargement du catalogue…";try{const target={baseUrl:$("api-base").value.trim(),model:$("api-model").value.trim(),apiKey:$("api-key").value.trim(),credentials:"omit"};const models=await listModels(target);const list=$("available-models");list.replaceChildren();for(const model of models){const option=document.createElement("option");option.value=model;list.append(option);}status.textContent=models.length+" modèle(s) trouvé(s). Vous pouvez aussi saisir un identifiant manuellement.";}catch(error){status.textContent=error.message;}});
 async function complete(messages){return chatCompletion({...resolveInferenceTarget("text"),messages});}
 async function completeAgent(messages,tools){return chatCompletionMessage({...resolveInferenceTarget("text"),messages,tools});}
 async function executeIcareTool(name,args){
