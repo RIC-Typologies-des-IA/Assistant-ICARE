@@ -25,7 +25,7 @@ try {
   const result = await page.evaluate(async () => {
     const { renderMarkdown } = await import("./markdown.js");
     const host = document.createElement("div");
-    host.className = "message-content";
+    host.className = "message-content mermaid-test-host";
     document.body.append(host);
     const source = [
       "# Titre",
@@ -254,6 +254,18 @@ try {
     });
     const darkSvgs = [...host.querySelectorAll(".mermaid-diagram svg")];
     const darkTexts = darkSvgs.flatMap(svg => [...svg.querySelectorAll("text,tspan")]);
+    const darkTextLabels = darkTexts.filter(node => (node.textContent || "").trim());
+    const darkTextFillCount = darkTextLabels.filter(node => {
+      let current = node;
+      while (current && current !== host) {
+        const style = current.getAttribute("style") || "";
+        const attrFill = current.getAttribute("fill") || "";
+        if (attrFill && !/^(?:none|transparent)$/i.test(attrFill)) return true;
+        if (/(?:^|;)\\s*fill\\s*:\\s*(?!none(?:;|$)|transparent(?:;|$))/i.test(style)) return true;
+        current = current.parentElement;
+      }
+      return false;
+    }).length;
     const darkPieColors = [...host.querySelectorAll(".mermaid-diagram .pieCircle")].map(node => getComputedStyle(node).fill);
     const darkMindmap = darkSvgs.find(svg => ["Intention","Contexte","Action","Régulation","Évolution"].every(label => svg.textContent.includes(label)));
     const darkMindmapColors = [...(darkMindmap?.querySelectorAll("rect,circle,ellipse,path,polygon") || [])]
@@ -290,8 +302,10 @@ try {
       ...lightSnapshot,
       darkDiagramCount: darkSvgs.length,
       darkTextCount: darkTexts.length,
+      darkTextLabelCount: darkTextLabels.length,
+      darkTextFillCount,
       darkTextFills: [...new Set(darkTexts.map(node => getComputedStyle(node).fill).filter(fill => fill && fill !== "none"))],
-      darkTextSamples: darkTexts.slice(0, 12).map(node => ({ text: node.textContent, fill: getComputedStyle(node).fill, color: getComputedStyle(node).color, style: node.getAttribute("style"), attrFill: node.getAttribute("fill"), parentStyle: node.parentElement?.getAttribute("style"), parentClass: node.parentElement?.getAttribute("class") })),
+ 
       darkPieColors,
       darkMindmapColors,
       familyChecks,
@@ -320,14 +334,14 @@ try {
   assert.equal(result.safeLink, true, "les liens HTTPS doivent rester accessibles sans opener");
   assert.equal(result.darkDiagramCount, 16, "les 16 diagrammes doivent être rerendus au changement de thème");
   assert.ok(result.darkTextCount > 0, "les libellés SVG doivent rester présents en mode sombre");
-  console.log("DARK_TEXT_DEBUG " + JSON.stringify({ fills: result.darkTextFills, samples: result.darkTextSamples }));
+  assert.ok(result.darkTextLabelCount > 0 && result.darkTextFillCount >= Math.ceil(result.darkTextLabelCount * 0.8), "au moins 80 % des libellés SVG doivent porter une couleur explicite ou héritée en mode sombre");
   assert.ok(new Set(result.darkPieColors).size >= 3, "la palette du diagramme circulaire doit rester différenciée en mode sombre");
   assert.ok(new Set(result.darkMindmapColors).size >= 2, "la palette de la carte mentale doit rester différenciée en mode sombre");
   assert.ok(Object.entries(result.familyChecks).every(([, passed]) => passed), "chaque famille de diagrammes doit conserver ses libellés : " + JSON.stringify(result.familyChecks));
   assert.equal(result.lightRestoredCount, 16, "le retour au mode clair doit rerendre les 16 diagrammes");
   await page.setViewportSize({ width: 390, height: 844 });
   const mobileLayout = await page.evaluate(() => {
-    const host = document.querySelector(".message-content");
+    const host = document.querySelector(".mermaid-test-host");
     const wrapper = host?.querySelector(".mermaid-diagram");
     const svg = wrapper?.querySelector("svg");
     if (!host || !wrapper || !svg) return null;
