@@ -19,7 +19,7 @@ try{
   await page.addInitScript(()=>{const original=window.fetch;window.__icareFetchCalls=[];window.fetch=(input,init={})=>{window.__icareFetchCalls.push({url:String(input),credentials:init.credentials||"same-origin",authorization:new Headers(init.headers||{}).get("Authorization"),body:typeof init.body==="string"?init.body:""});return original(input,init);};});
   await page.route("https://mock-provider.example/**",route=>{assert.equal(route.request().headers()["authorization"],"Bearer test-secret","la clé doit être disponible en mémoire de session");const requestBody=route.request().postDataJSON();if(Array.isArray(requestBody?.messages))chatPayloads.push(requestBody);const body=route.request().url().endsWith("/models")?{data:[{id:"test-model"}]}:{choices:[{message:{content:["Réponse locale de test.","","# Niveau 1","","## Niveau 2","","### Votre avis","","#### Auto-évaluation","", "#### Points d’attention / tensions éventuelles","","##### Niveau 5","","###### Niveau 6","","####Titre sans espace","","**Texte en gras**.","","| Étape | Ce qui a été réalisé | Conformité aux principes ICARE & maïeutiques |","|-------|----------------------|----------------------------------------------|","| **1. Capture de l’intention (I)** | - Vous avez exprimé votre **but** : fournir des connaissances. | ✅ Reformulation pour vérification ; ✅ distinction claire. |","| **2. Confirmation de l’intention** | Vous avez confirmé la reformulation (« Oui »). | ✅ Attente d’un accord avant de passer à la suite. |","| **3. Passage à la dimension suivante (C)** | J’ai présenté les cinq axes possibles du **Contexte**. | ✅ Question unique, ouverte. |","","### Synthèse de la dimension I","","| Champ | Valeur |","|-------|--------|","| **id** | `proj-foret-I-001` |","| **text** | *Instruire les politiques publiques de la forêt.* |","","> undefined","","<img src=x onerror=alert(1)>","[lien dangereux](javascript:alert(1))"].join("\n")}}]};return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(body)});});
   let gatewayRequests=[];
-  let gatewayConfigPayload={service:"icare-enterprise-gateway",defaults:{chatModel:"enterprise-chat",transcriptionModel:"enterprise-audio"}};
+  let gatewayConfigPayload={service:"icare-enterprise-gateway",capabilities:{chat:true,transcription:true,scoring:true},defaults:{chatModel:"enterprise-chat",transcriptionModel:"enterprise-audio"}};
   let gatewayConfigStatus=200;
   await page.route("https://gateway.example.org/**",async route=>{
     const request=route.request(),url=new URL(request.url());
@@ -90,6 +90,7 @@ try{
   await page.locator("#transcription-base").fill("https://mock-provider.example/v1");
   await page.locator("#transcription-model").fill("test-audio-model");
   await page.locator("#transcription-key").fill("test-secret");
+  await page.locator("#direct-scoring-key").fill("scoring-secret");
   assert.equal(await page.locator("#local-text-config").isVisible(),true,"la configuration directe du LLM doit être visible dans son onglet");
   assert.equal(await page.locator("#local-audio-config").isVisible(),true,"la configuration directe de la transcription doit être visible dans son onglet");
   assert.equal(await page.locator("#direct-scoring-url").isVisible(),true,"l’URL du scoring direct doit être visible dans son onglet");
@@ -295,6 +296,7 @@ try{
   assert.equal(textGatewayCall?.authorization,null,"aucune clé fournisseur ne doit être envoyée à la Gateway");
   const scoringGatewayCall=await page.evaluate(()=>window.__icareFetchCalls.find(call=>call.url==="https://gateway.example.org/three/v1/icare/scoring"));
   assert.equal(scoringGatewayCall?.credentials,"include","le scoring doit utiliser la Gateway explicitement sélectionnée");
+  assert.equal(scoringGatewayCall?.authorization,null,"la clé de scoring direct ne doit jamais être transmise à une Gateway");
   await page.reload();
   await page.waitForFunction(()=>document.querySelector("#project-select").options.length>=1);
   await page.locator("#settings-button").click();
@@ -312,6 +314,7 @@ try{
   assert.equal(await page.locator("#settings-panel-gateway").isVisible(),false);
   assert.equal(await page.locator("#api-base").inputValue(),"https://mock-provider.example/v1","les paramètres directs doivent rester disponibles et distincts");
   assert.equal(await page.locator("#transcription-base").inputValue(),"https://mock-provider.example/v1");
+  assert.equal(await page.locator("#direct-scoring-key").inputValue(),"scoring-secret","la clé du scoring direct doit persister dans le coffre chiffré");
   await page.locator("#settings-tab-gateway").click();
   await page.locator("#gateway-1-url").fill("http://gateway.example.org/insecure");
   await page.locator("#save-gateway-matrix").click();
