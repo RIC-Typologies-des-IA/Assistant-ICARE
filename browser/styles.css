@@ -894,9 +894,9 @@ body.project-menu-open .sidebar select[hidden]{
   color:#aebfd3;
 }
 :root[data-theme="dark"] #settings-dialog .route-choice select{
-  background:#101e30;
-  color:#f0f5fc;
-  border-color:#506783;
+  background:#101e30 !important;
+  color:#f0f5fc !important;
+  border-color:#506783 !important;
 }
 :root[data-theme="dark"] #settings-dialog .route-choice select:focus-visible{
   outline:2px solid #79a9e8;
