@@ -9,8 +9,5 @@
   "scripts": {
     "start": "node server.mjs",
     "test": "node --test test/*.test.mjs"
-  },
-  "dependencies": {
-    "@huggingface/transformers": "^4.3.2"
   }
 }
