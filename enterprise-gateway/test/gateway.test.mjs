@@ -96,3 +96,24 @@ test("gateway rejects unconfigured models before any provider call", async t => 
   });
   assert.equal(response.status, 403);
 });
+
+test("gateway forwards ICARE multilabel scoring to its configured endpoint without knowing the engine", async t => {
+  const scoringConfig={...config,scoring:{endpointUrl:"https://scoring.example.org/v1/score"}};
+  let forwarded;
+  const server=createGatewayServer(scoringConfig,{fetchImpl:async(url,options)=>{forwarded={url,options};return new Response(JSON.stringify({scores:{I:.8,C:.7,A:.6,R:.5,E:.4}}),{status:200,headers:{"content-type":"application/json"}});}});
+  await new Promise(resolve=>server.listen(0,"127.0.0.1",resolve));t.after(()=>new Promise(resolve=>server.close(resolve)));
+  const origin="https://icare.example.org";
+  const payload={text:"Bonjour, nous révisons notre stratégie.",multi_label:true,dimensions:["I","C","A","R","E"].map(code=>({code,label:"Dimension "+code,description:"Description"}))};
+  const response=await fetch("http://127.0.0.1:"+server.address().port+"/v1/icare/scoring",{method:"POST",headers:{Origin:origin,"X-ICARE-Authenticated-User":"alice","Content-Type":"application/json"},body:JSON.stringify(payload)});
+  assert.equal(response.status,200);assert.deepEqual((await response.json()).scores,{I:.8,C:.7,A:.6,R:.5,E:.4});
+  assert.equal(forwarded.url,"https://scoring.example.org/v1/score");assert.deepEqual(JSON.parse(forwarded.options.body),payload);
+});
+test("gateway rejects malformed scoring requests and unsafe endpoint URLs", async t => {
+  assert.throws(()=>validateConfig({...config,scoring:{endpointUrl:"http://remote.example/score"}}),/HTTPS/);
+  const server=createGatewayServer(config);await new Promise(resolve=>server.listen(0,"127.0.0.1",resolve));t.after(()=>new Promise(resolve=>server.close(resolve)));
+  const headers={Origin:"https://icare.example.org","X-ICARE-Authenticated-User":"alice","Content-Type":"application/json"};
+  const response=await fetch("http://127.0.0.1:"+server.address().port+"/v1/icare/scoring",{method:"POST",headers,body:JSON.stringify({text:"Bonjour",multi_label:false,dimensions:[]})});
+  assert.equal(response.status,400);
+  const noEndpoint=await fetch("http://127.0.0.1:"+server.address().port+"/v1/icare/scoring",{method:"POST",headers,body:JSON.stringify({text:"Bonjour",multi_label:true,dimensions:["I","C","A","R","E"].map(code=>({code}))})});
+  assert.equal(noEndpoint.status,503);
+});

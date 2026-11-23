@@ -63,3 +63,10 @@ Le premier composant de démonstration respecte le contrat `lifecycle` et peut �
 Cette première tranche n'exécute pas encore les mondes WIT qui importent le contexte, le stockage, l'inférence ou la messagerie. Ces interfaces nécessitent leurs liaisons hôte dédiées et des politiques de permissions avant d'être activées. Les composants historiques restent dans l'hôte JavaScript jusqu'à leur migration.
 
 Le composant `ontology-validator` exécute dans le guest WASM la validation déterministe des observations, relations et statuts avant enregistrement. Le composant `context-summary` reçoit la capacité `context-read` via un import WIT lié par l'hôte ; il ne reçoit qu'un instantané JSON du projet, sans accès direct à IndexedDB, au réseau ou à l'inférence. Les validations côté hôte restent en défense en profondeur.
+
+
+## Scoring ICARE multilabel
+
+Le scoring ICARE est un service indépendant du LLM conversationnel et de la transcription. Pour chaque message utilisateur, il reçoit le texte et les cinq dimensions I/C/A/R/E et renvoie cinq scores indépendants compris entre 0 et 1. Les scores ne sont pas normalisés pour totaliser 1.
+
+Dans la configuration ICARE, renseignez simplement l’URL HTTP(S) du service de scoring. ICARE ne fournit, n’installe et ne choisit aucun modèle de scoring : le moteur, son runtime, ses poids et son hébergement sont administrés indépendamment. Le contrat d’échange est un POST JSON contenant le texte, les dimensions et le booléen multi_label, avec une réponse scores indexée par I, C, A, R et E.

@@ -38,3 +38,10 @@ Les réglages sont conservés dans IndexedDB, séparément des projets :
 ## Sécurité
 
 Les Gateways distantes doivent utiliser HTTPS. Le client n’envoie aucune clé API fournisseur aux Gateways et utilise les cookies de session uniquement pour les routes Gateway. Une route audio Gateway transmet nécessairement l’enregistrement vocal au serveur correspondant ; une route audio locale évite cette transmission. Le choix du routage texte ne modifie pas le destinataire de l’audio.
+
+
+## Scoring ICARE multilabel
+
+Le scoring ICARE évalue indépendamment les cinq dimensions I/C/A/R/E pour chaque message, sans normalisation à une somme de 1. Il constitue un troisième service, indépendant du LLM conversationnel et de la transcription.
+
+L’interface accepte une URL HTTP(S) vers le service de scoring. ICARE transmet le texte, les cinq dimensions et multi_label=true ; le service renvoie un objet scores indexé par I, C, A, R et E. Aucun modèle, runtime, fournisseur ou format de poids n’est imposé ou embarqué dans le dépôt. Une Gateway peut relayer le service via scoring.endpointUrl dans sa configuration locale.
