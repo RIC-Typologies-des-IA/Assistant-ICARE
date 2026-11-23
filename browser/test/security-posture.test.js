@@ -105,7 +105,7 @@ test("frontend uses the encrypted vault and never stores API keys in plaintext s
   assert.doesNotMatch(wit, /api-key|authorization/i, "le contrat WIT ne doit jamais exposer de secret fournisseur");
 });
 
-test("brand logo, browser favicon and PWA icon use bundled same-origin assets", async () => {
+test("obsolete browser icons are absent; the RIC logo remains the PWA identity", async () => {
   const [html, manifestText, sw, logo] = await Promise.all([
     read("../index.html"),
     read("../manifest.webmanifest"),
@@ -113,13 +113,14 @@ test("brand logo, browser favicon and PWA icon use bundled same-origin assets", 
     readFile(new URL("../ric-logo.png", import.meta.url))
   ]);
   const manifest = JSON.parse(manifestText);
-  assert.match(html, /class="ric-logo" src="\.\/ric-logo\.png"/);
-  assert.match(html, /rel="icon" type="image\/svg\+xml" href="\.\/favicon\.svg\?v=0\.11\.0"/);
-  assert.match(html, /rel="apple-touch-icon" href="\.\/ric-logo\.png"/);
-  assert.equal(manifest.icons[0].src, "./favicon.svg");
-  assert.equal(manifest.icons[0].type, "image/svg+xml");
-  assert.ok(sw.includes('"./ric-logo.png"'), "le Service Worker doit précacher le logo de la bannière");
-  assert.ok(sw.includes('"./favicon.svg"'), "le Service Worker doit précacher le favicon dédié");
+  assert.match(html, /class="ric-logo" src="\\.\\/ric-logo\\.png"/);
+  assert.doesNotMatch(html, /rel="(?:shortcut )?icon"/i, "aucun favicon ne doit être déclaré pour l’onglet navigateur");
+  assert.doesNotMatch(html, /favicon\\.svg|icon\\.svg/i, "aucune ancienne icône SVG ne doit être référencée");
+  assert.match(html, /rel="apple-touch-icon" href="\\.\\/ric-logo\\.png"/);
+  assert.equal(manifest.icons[0].src, "./ric-logo.png");
+  assert.equal(manifest.icons[0].type, "image/png");
+  assert.ok(sw.includes('"./ric-logo.png"'), "le Service Worker doit précacher le logo RIC pour la PWA");
+  assert.ok(!sw.includes("favicon.svg"), "le Service Worker ne doit plus précacher de favicon");
   assert.ok(!sw.includes('"./icon.svg"'), "l’ancienne icône ne doit plus être précachée");
   assert.ok(logo.byteLength > 1000, "le logo RIC doit être embarqué dans le build navigateur");
 });
