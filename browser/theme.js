@@ -19,6 +19,7 @@
     document.documentElement.style.colorScheme = theme;
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute("content", theme === "dark" ? "#111b2b" : "#172b4d");
+    window.dispatchEvent(new CustomEvent("icare-theme-change", { detail: { theme } }));
 
     const button = document.getElementById("theme-toggle");
     if (button) {
