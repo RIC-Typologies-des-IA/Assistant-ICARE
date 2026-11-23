@@ -331,7 +331,7 @@ try {
  
       darkPieColors,
       darkCustomStyleFills,
- 
+      darkCustomStyleDebug: window.__mermaidStyleDebug || null,
       darkMindmapColors,
       familyChecks,
       lightRestoredCount: host.querySelectorAll(".mermaid-diagram svg").length
