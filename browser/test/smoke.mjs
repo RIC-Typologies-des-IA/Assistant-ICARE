@@ -281,24 +281,47 @@ try{
   assert.equal(await page.locator("#settings-tab-gateway").getAttribute("aria-selected"),"true");
   assert.equal(await page.locator("#settings-panel-gateway").isVisible(),true);
   assert.equal(await page.locator("#settings-panel-direct").isVisible(),false);
-  assert.equal(await page.locator("#gateway-card-1").isVisible(),true,"Gateway 1 doit apparaître par défaut");
-  assert.equal(await page.locator("#gateway-card-2").isVisible(),false,"Gateway 2 doit être masquée avec les trois capacités cochées");
-  assert.equal(await page.locator("#gateway-card-3").isVisible(),false,"Gateway 3 doit être masquée avec les trois capacités cochées");
-  for(const service of ["llm","audio","scoring"])assert.equal(await page.locator("#gateway-1-"+service).isChecked(),true,"Gateway 1 doit prendre en charge "+service+" par défaut");
+  for(let id=1;id<=3;id++)assert.equal(await page.locator("#gateway-card-"+id).isVisible(),true,"les trois Gateway doivent toujours rester visibles");
+  for(const service of ["llm","audio","scoring"]){
+    assert.equal(await page.locator("#gateway-1-"+service).isChecked(),true,"Gateway 1 doit prendre en charge "+service+" par défaut");
+    assert.equal(await page.locator("#gateway-2-"+service).isVisible(),false,service+" doit disparaître de Gateway 2 tant qu’elle est affectée à Gateway 1");
+    assert.equal(await page.locator("#gateway-3-"+service).isVisible(),false,service+" doit disparaître de Gateway 3 tant qu’elle est affectée à Gateway 1");
+  }
   await page.locator("#gateway-1-url").fill("https://gateway.example.org/one");
-  await page.locator("#route-llm").selectOption("gateway-1");
-  await page.locator("#gateway-1-audio").uncheck();
-  assert.equal(await page.locator("#gateway-card-2").isVisible(),true,"Gateway 2 doit apparaître dès qu’une capacité est décochée");
-  assert.equal(await page.locator("#gateway-card-3").isVisible(),false,"Gateway 3 doit rester masquée tant qu’une seule capacité est décochée");
   await page.locator("#gateway-2-url").fill("https://gateway.example.org/two");
-  await page.locator("#gateway-2-audio").check();
-  await page.locator("#route-audio").selectOption("gateway-2");
-  await page.locator("#gateway-1-scoring").uncheck();
-  assert.equal(await page.locator("#gateway-card-3").isVisible(),true,"Gateway 3 doit apparaître dès qu’une deuxième capacité est décochée");
   await page.locator("#gateway-3-url").fill("https://gateway.example.org/three");
+
+  // LLM : transfert vers Gateway 2, puis retour vers Gateway 1.
+  await page.locator("#gateway-1-llm").uncheck();
+  assert.equal(await page.locator("#gateway-2-llm").isVisible(),true,"LLM doit redevenir disponible dans Gateway 2 après décochage");
+  assert.equal(await page.locator("#gateway-3-llm").isVisible(),true,"LLM doit redevenir disponible dans Gateway 3 après décochage");
+  await page.locator("#gateway-2-llm").check();
+  assert.equal(await page.locator("#gateway-1-llm").isVisible(),false,"LLM doit disparaître de Gateway 1 après affectation à Gateway 2");
+  assert.equal(await page.locator("#gateway-3-llm").isVisible(),false,"LLM doit disparaître de Gateway 3 après affectation à Gateway 2");
+  assert.equal(await page.locator("#route-llm").inputValue(),"gateway-2","l’affectation LLM doit définir automatiquement sa route unique");
+  await page.locator("#gateway-2-llm").uncheck();
+  await page.locator("#gateway-1-llm").check();
+  assert.equal(await page.locator("#route-llm").inputValue(),"gateway-1","le déplacement du LLM doit mettre à jour sa route unique");
+
+  // Transcription : une seule Gateway disponible à la fois.
+  await page.locator("#gateway-1-audio").uncheck();
+  assert.equal(await page.locator("#gateway-2-audio").isVisible(),true,"la transcription doit apparaître dans Gateway 2 après libération");
+  assert.equal(await page.locator("#gateway-3-audio").isVisible(),true,"la transcription doit apparaître dans Gateway 3 après libération");
+  await page.locator("#gateway-2-audio").check();
+  assert.equal(await page.locator("#gateway-1-audio").isVisible(),false,"la transcription doit disparaître de Gateway 1");
+  assert.equal(await page.locator("#gateway-3-audio").isVisible(),false,"la transcription doit disparaître de Gateway 3");
+  assert.equal(await page.locator("#route-audio").inputValue(),"gateway-2","la route de transcription doit être unique");
+
+  // Scoring : affectation à Gateway 3, sans doublon dans les deux autres.
+  await page.locator("#gateway-1-scoring").uncheck();
+  assert.equal(await page.locator("#gateway-2-scoring").isVisible(),true,"le scoring doit apparaître dans Gateway 2 après libération");
+  assert.equal(await page.locator("#gateway-3-scoring").isVisible(),true,"le scoring doit apparaître dans Gateway 3 après libération");
   await page.locator("#gateway-3-scoring").check();
-  await page.locator("#route-scoring").selectOption("gateway-3");
-  assert.equal(await page.locator("#route-llm").inputValue(),"gateway-1");
+  assert.equal(await page.locator("#gateway-1-scoring").isVisible(),false,"le scoring doit disparaître de Gateway 1");
+  assert.equal(await page.locator("#gateway-2-scoring").isVisible(),false,"le scoring doit disparaître de Gateway 2");
+  assert.equal(await page.locator("#route-scoring").inputValue(),"gateway-3","la route de scoring doit être unique");
+
+  assert.deepEqual(await page.locator("#route-llm").inputValue(),"gateway-1");
   assert.equal(await page.locator("#route-audio").inputValue(),"gateway-2");
   assert.equal(await page.locator("#route-scoring").inputValue(),"gateway-3");
   await page.locator("#save-gateway-matrix").click();
