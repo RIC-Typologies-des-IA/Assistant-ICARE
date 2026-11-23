@@ -20,3 +20,6 @@ Ce registre est une base de contrôle. Il doit être mis à jour à chaque ajout
 - Vérifier le comportement sans Service Worker.
 - Documenter séparément les flux du fournisseur d'inférence, y compris sa conservation et ses sous-traitants.
 - Refaire l'audit après toute intégration de voix, de modèles, de mises à jour ou de connecteurs.
+
+
+Le scoring ICARE est un flux distinct : le navigateur transmet le texte au service HTTP(S) dont l’URL est renseignée dans les préférences, ou à la Gateway sélectionnée. Le service externe renvoie cinq scores indépendants. Le code client ne contient ni modèle, ni runtime, ni secret ou endpoint propre à un fournisseur de scoring.

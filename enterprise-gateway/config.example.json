@@ -43,5 +43,8 @@
   "defaults": {
     "chatModel": "gpt-4.1-mini",
     "transcriptionModel": "whisper-1"
+  },
+  "scoring": {
+    "endpointUrl": "https://scoring.example.org/v1/icare/scoring"
   }
 }

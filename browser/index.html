@@ -1,4 +1,4 @@
-<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#172b4d"><meta name="description" content="ICARE — assistant méthodologique autonome, exécuté dans votre navigateur."><script>try{const u=new URL(location.href);let changed=false;for(const key of [...u.searchParams.keys()])if(/^utm_/i.test(key)||["gclid","fbclid"].includes(key.toLowerCase())){u.searchParams.delete(key);changed=true;}if(changed)history.replaceState(history.state,"",u.pathname+(u.search?u.search:"")+u.hash);}catch{}</script><title>ICARE — Dialogue méthodologique</title><link rel="manifest" href="./manifest.webmanifest"><link rel="icon" type="image/svg+xml" href="./favicon.svg?v=0.10.7"><link rel="shortcut icon" href="./favicon.svg?v=0.10.7"><link rel="icon" type="image/png" sizes="118x125" href="./ric-logo.png"><link rel="apple-touch-icon" href="./ric-logo.png"><script src="./theme.js"></script><link rel="stylesheet" href="./styles.css"><script src="./version.js"></script></head><body>
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#172b4d"><meta name="description" content="ICARE — assistant méthodologique autonome, exécuté dans votre navigateur."><script>try{const u=new URL(location.href);let changed=false;for(const key of [...u.searchParams.keys()])if(/^utm_/i.test(key)||["gclid","fbclid"].includes(key.toLowerCase())){u.searchParams.delete(key);changed=true;}if(changed)history.replaceState(history.state,"",u.pathname+(u.search?u.search:"")+u.hash);}catch{}</script><title>ICARE — Dialogue méthodologique</title><link rel="manifest" href="./manifest.webmanifest"><link rel="icon" type="image/svg+xml" href="./favicon.svg?v=0.11.0"><link rel="shortcut icon" href="./favicon.svg?v=0.11.0"><link rel="icon" type="image/png" sizes="118x125" href="./ric-logo.png"><link rel="apple-touch-icon" href="./ric-logo.png"><script src="./theme.js"></script><link rel="stylesheet" href="./styles.css"><script src="./version.js"></script></head><body>
 <header class="topbar"><div class="brand"><a class="brand-home" href="./" aria-label="Accueil ICARE"><img class="ric-logo" src="./ric-logo.png" alt="Logo du Réseau Intelligence de la Complexité" width="118" height="125"></a><div class="brand-copy"><div class="brand-title"><strong>ICARE</strong><small id="app-version" class="app-version" aria-label="Version de l’application"></small></div><small class="brand-tagline">Dialogue maïeutique · représentation évolutive d’un système</small><small class="brand-affiliation">Un outil du laboratoire IA du <a href="https://www.intelligence-complexite.org/" target="_blank" rel="noopener noreferrer">Réseau Intelligence de la Complexité</a></small></div></div><div class="top-actions"><span class="state local">Données locales</span><button id="settings-button" class="button secondary">Configuration</button><button id="theme-toggle" class="theme-toggle" type="button" aria-label="Activer le mode sombre" aria-pressed="false" title="Passer en mode sombre"><span aria-hidden="true">☾</span></button></div></header>
 <main class="layout"><button id="project-menu-backdrop" class="project-menu-backdrop" type="button" aria-label="Fermer le menu des projets"></button><aside class="sidebar" aria-label="Navigation des projets"><div class="sidebar-toolbar"><button id="project-menu-toggle" class="menu-toggle" type="button" aria-label="Ouvrir le volet des projets" aria-expanded="false" title="Ouvrir les projets"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18" /></svg></button><div class="sidebar-toolbar-actions"><button id="project-import-button" class="sidebar-toolbar-button" type="button" title="Importer un projet" aria-label="Importer un projet"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3m-4 4 4-4 4 4M4 14v6h16v-6"/></svg></button><button id="new-project" class="icon-button sidebar-new-project" type="button" title="Créer un projet" aria-label="Nouveau projet">＋</button></div></div><div class="section-heading"><h2>Mes projets</h2></div><div id="project-list" class="project-list" role="list" aria-label="Liste des projets"></div><select id="project-select" size="8" aria-label="Sélectionner un projet" hidden></select><p class="sidebar-note">Projets et conversations conservés dans ce navigateur.</p></aside>
 <section class="workspace"><div class="project-heading"><div><p class="eyebrow">ESPACE DE TRAVAIL LOCAL</p><h1 id="project-title">Mon premier projet</h1><p id="project-description" class="muted">Un espace privé pour explorer un système.</p></div><input id="project-import-file" type="file" accept="application/json,.json" hidden></div>
@@ -9,7 +9,47 @@
 </aside></section></main>
 <dialog id="settings-dialog"><form id="settings-form" method="dialog" class="dialog-content"><div class="dialog-heading"><div><p class="eyebrow">PRÉFÉRENCES LOCALES</p><h2>Routage des moteurs d’inférence</h2></div><button id="close-settings-dialog" class="icon-button" type="button" aria-label="Fermer">×</button></div>
 <p class="muted">Choisissez indépendamment où traiter l’audio et où traiter le texte. Un moteur local peut être combiné avec un Gateway distant ; les deux fonctions peuvent aussi utiliser des Gateways différents.</p>
-<section class="model-config routing-selector"><h3>Choix du routage</h3>
+<section class="model-config gateway-matrix" aria-labelledby="gateway-matrix-title">
+<h3 id="gateway-matrix-title">Passerelles et capacités</h3>
+<p class="provider-help">Chaque service peut être utilisé en accès direct ou confié à une passerelle. Une passerelle peut assurer un, deux ou trois services.</p><label>URL du service de scoring ICARE<input id="direct-scoring-url" type="url" inputmode="url" value="" placeholder="https://scoring.organisation.fr/v1/icare/scoring" autocomplete="url"></label><p class="provider-help">Indiquez l’URL du service de scoring choisi et configuré indépendamment. ICARE lui transmet le texte à évaluer et attend cinq scores indépendants (I, C, A, R, E).</p>
+<div class="gateway-routes">
+<label class="route-choice"><span><strong>LLM conversationnel</strong><small>Traitement des messages et dialogue</small></span><select id="route-llm"><option value="direct">Accès direct</option><option value="gateway-1">Gateway 1</option><option value="gateway-2">Gateway 2</option><option value="gateway-3">Gateway 3</option></select></label>
+<label class="route-choice"><span><strong>Transcription audio</strong><small>Conversion de la voix en texte</small></span><select id="route-audio"><option value="direct">Accès direct</option><option value="gateway-1">Gateway 1</option><option value="gateway-2">Gateway 2</option><option value="gateway-3">Gateway 3</option></select></label>
+<label class="route-choice"><span><strong>Scoring ICARE (multilabel)</strong><small>Évaluation indépendante des cinq dimensions I, C, A, R et E</small></span><select id="route-scoring"><option value="direct">Accès direct</option><option value="gateway-1">Gateway 1</option><option value="gateway-2">Gateway 2</option><option value="gateway-3">Gateway 3</option></select></label>
+</div>
+<div id="gateway-cards" class="gateway-cards">
+<fieldset class="gateway-card" id="gateway-card-1" data-gateway="1"><legend>Gateway 1</legend>
+<label>Nom de la passerelle<input id="gateway-1-name" type="text" maxlength="60" placeholder="Gateway 1"></label>
+<label>URL HTTPS<input id="gateway-1-url" type="url" inputmode="url" placeholder="https://gateway1.organisation.fr"></label>
+<p class="provider-help">Services pris en charge :</p>
+<div class="gateway-capabilities">
+<label><input type="checkbox" id="gateway-1-llm"> LLM</label>
+<label><input type="checkbox" id="gateway-1-audio"> Transcription</label>
+<label><input type="checkbox" id="gateway-1-scoring"> Scoring ICARE</label>
+</div><p class="gateway-disabled-reason" id="gateway-1-reason" aria-live="polite"></p>
+</fieldset><fieldset class="gateway-card" id="gateway-card-2" data-gateway="2"><legend>Gateway 2</legend>
+<label>Nom de la passerelle<input id="gateway-2-name" type="text" maxlength="60" placeholder="Gateway 2"></label>
+<label>URL HTTPS<input id="gateway-2-url" type="url" inputmode="url" placeholder="https://gateway2.organisation.fr"></label>
+<p class="provider-help">Services pris en charge :</p>
+<div class="gateway-capabilities">
+<label><input type="checkbox" id="gateway-2-llm"> LLM</label>
+<label><input type="checkbox" id="gateway-2-audio"> Transcription</label>
+<label><input type="checkbox" id="gateway-2-scoring"> Scoring ICARE</label>
+</div><p class="gateway-disabled-reason" id="gateway-2-reason" aria-live="polite"></p>
+</fieldset><fieldset class="gateway-card" id="gateway-card-3" data-gateway="3"><legend>Gateway 3</legend>
+<label>Nom de la passerelle<input id="gateway-3-name" type="text" maxlength="60" placeholder="Gateway 3"></label>
+<label>URL HTTPS<input id="gateway-3-url" type="url" inputmode="url" placeholder="https://gateway3.organisation.fr"></label>
+<p class="provider-help">Services pris en charge :</p>
+<div class="gateway-capabilities">
+<label><input type="checkbox" id="gateway-3-llm"> LLM</label>
+<label><input type="checkbox" id="gateway-3-audio"> Transcription</label>
+<label><input type="checkbox" id="gateway-3-scoring"> Scoring ICARE</label>
+</div><p class="gateway-disabled-reason" id="gateway-3-reason" aria-live="polite"></p>
+</fieldset>
+</div>
+<p id="gateway-matrix-status" class="muted" role="status" aria-live="polite"></p>
+<div class="dialog-actions"><button id="save-gateway-matrix" class="button secondary" type="button">Enregistrer les passerelles</button></div>
+</section>\n<section class="model-config routing-selector"><h3>Choix du routage</h3>
 <label class="route-choice"><span><strong>Transcription audio</strong><small>Où convertir votre voix en texte ?</small></span><select id="audio-route"><option value="local">Local / direct</option><option value="gateway">Gateway</option></select></label>
 <label class="route-choice"><span><strong>Traitement du texte</strong><small>Où envoyer les messages et exécuter le raisonnement ?</small></span><select id="text-route"><option value="local">Inference locale</option><option value="gateway">Gateway</option></select></label>
 <label id="same-gateway-option" class="checkbox-label"><input id="same-gateway" type="checkbox" checked> Utiliser la même Gateway pour la transcription et le texte</label>

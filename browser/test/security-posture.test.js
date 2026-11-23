@@ -88,10 +88,15 @@ test("frontend uses the encrypted vault and never stores API keys in plaintext s
   assert.match(html, /gateway-shared-url/);
   assert.match(html, /gateway-text-url/);
   assert.match(html, /gateway-audio-url/);
+  assert.match(html, /route-scoring/);
+  assert.match(html, /gateway-3-scoring/);
+  assert.ok(app.includes("scoreIcareMultilabel"));
+  assert.ok(!app.includes("scoringApiKey"));
   assert.ok(app.includes("migrateLegacyCredentials(db"));
   assert.ok(app.includes('sessionStorage.removeItem("icare-api-key"'));
   assert.ok(!app.includes('sessionStorage.setItem("icare-api-key"'));
   assert.ok(!html.includes("raw.githubusercontent.com"));
+  assert.ok(!html.includes("router.huggingface.co"), "aucun endpoint d’inférence Hugging Face distant ne doit être proposé");
   assert.ok(html.includes("AES-GCM"));
   assert.ok(wit.includes("world component-base"));
   assert.ok(wit.includes("export lifecycle"));
@@ -108,7 +113,7 @@ test("brand logo, browser favicon and PWA icon use bundled same-origin assets", 
   ]);
   const manifest = JSON.parse(manifestText);
   assert.match(html, /class="ric-logo" src="\.\/ric-logo\.png"/);
-  assert.match(html, /rel="icon" type="image\/svg\+xml" href="\.\/favicon\.svg\?v=0\.10\.7"/);
+  assert.match(html, /rel="icon" type="image\/svg\+xml" href="\.\/favicon\.svg\?v=0\.11\.0"/);
   assert.match(html, /rel="apple-touch-icon" href="\.\/ric-logo\.png"/);
   assert.equal(manifest.icons[0].src, "./favicon.svg");
   assert.equal(manifest.icons[0].type, "image/svg+xml");
