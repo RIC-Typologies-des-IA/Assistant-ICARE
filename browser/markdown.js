@@ -251,6 +251,8 @@ function initializeMermaid(engine) {
 let mermaidRenderGeneration = 0;
 
 function materializeMermaidStyles(svgRoot) {
+  const debugCustom = (svgRoot.textContent || "").includes("Style personnalisé");
+  if (debugCustom) console.log("MERMAID_STYLE_BLOCKS", JSON.stringify([...svgRoot.querySelectorAll("style")].map(node => node.textContent)));
   // Mermaid emits presentation rules in SVG <style> blocks. DOMPurify intentionally
   // removes style elements, so translate a constrained subset into safe inline
   // presentation attributes before sanitizing the SVG.
@@ -266,6 +268,7 @@ function materializeMermaidStyles(svgRoot) {
       try {
         matches = [...(svgRoot.matches(rule.selectorText) ? [svgRoot] : []), ...svgRoot.querySelectorAll(rule.selectorText)];
       } catch { continue; }
+      if (debugCustom) console.log("MERMAID_STYLE_RULE", rule.selectorText, matches.length);
       for (const node of matches) {
         const declarations = new Map();
         for (let index = 0; index < rule.style.length; index++) {
