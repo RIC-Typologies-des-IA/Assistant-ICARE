@@ -144,6 +144,7 @@ try{
   await page.locator("#project-dialog").waitFor({state:"hidden"});
   await page.waitForFunction(()=>document.querySelector("#project-title").textContent==="Projet navigateur");
   assert.equal(await page.locator("#project-select option").count(),2,"la création doit ajouter un deuxième projet");
+  await page.waitForFunction(()=>!document.body.classList.contains("project-menu-open")&&document.querySelector(".sidebar").getBoundingClientRect().width<=45,null,{timeout:1500});
   const hamburgerClosed=await page.locator("#project-menu-toggle").boundingBox();
   const railClosedWidth=await page.locator(".sidebar").evaluate(el=>el.getBoundingClientRect().width);
   await page.locator("#project-menu-toggle").click();
