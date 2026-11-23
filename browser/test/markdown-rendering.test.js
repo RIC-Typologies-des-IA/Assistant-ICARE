@@ -277,8 +277,15 @@ try {
     const customStyleSvg = darkSvgs.find(svg => svg.textContent.includes("Style personnalisé") && svg.textContent.includes("Style secondaire"));
     const customNodeFill = label => {
       const node = [...(customStyleSvg?.querySelectorAll(".node") || [])].find(item => item.textContent.includes(label));
-      const shape = node?.querySelector("rect,polygon,path");
-      return shape?.getAttribute("style") || shape?.getAttribute("fill") || "";
+      if (!node) return "";
+      const fragments = [];
+      let current = node;
+      while (current && current !== customStyleSvg) {
+        fragments.push(current.getAttribute("style") || "", current.getAttribute("fill") || "");
+        current = current.parentElement;
+      }
+      for (const shape of node.querySelectorAll("rect,polygon,path")) fragments.push(shape.getAttribute("style") || "", shape.getAttribute("fill") || "");
+      return fragments.filter(Boolean).join(" | ");
     };
     const darkCustomStyleFills = [customNodeFill("Style personnalisé"), customNodeFill("Style secondaire")];
     const darkMindmap = darkSvgs.find(svg => ["Intention","Contexte","Action","Régulation","Évolution"].every(label => svg.textContent.includes(label)));
@@ -352,7 +359,7 @@ try {
   assert.ok(result.darkTextLabelCount > 0 && result.darkTextFillCount >= Math.ceil(result.darkTextLabelCount * 0.8), "au moins 80 % des libellés SVG doivent porter une couleur explicite ou héritée en mode sombre");
   assert.ok(new Set(result.darkPieColors).size >= 3, "la palette du diagramme circulaire doit rester différenciée en mode sombre");
   assert.equal(result.darkCustomStyleFills.length, 2, "le diagramme Mermaid personnalisé doit être conservé en mode sombre");
-  assert.ok(/fill:\s*(?:#ff0000|rgb\(255,\s*0,\s*0\))/i.test(result.darkCustomStyleFills[0]), "la couleur rouge explicitement définie doit être conservée");
+  assert.ok(/fill:\s*(?:#ff0000|rgb\(255,\s*0,\s*0\))/i.test(result.darkCustomStyleFills[0]), "la couleur rouge explicitement définie doit être conservée : " + JSON.stringify(result.darkCustomStyleFills));
   assert.ok(/fill:\s*(?:#00aa00|rgb\(0,\s*170,\s*0\))/i.test(result.darkCustomStyleFills[1]), "la couleur verte explicitement définie doit être conservée");
   assert.ok(new Set(result.darkMindmapColors).size >= 2, "la palette de la carte mentale doit rester différenciée en mode sombre");
   assert.ok(Object.entries(result.familyChecks).every(([, passed]) => passed), "chaque famille de diagrammes doit conserver ses libellés : " + JSON.stringify(result.familyChecks));
