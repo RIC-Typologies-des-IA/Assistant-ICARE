@@ -729,3 +729,36 @@ body.project-menu-open .sidebar-toolbar{
 html[data-theme="dark"] body.project-menu-open .sidebar{
   box-shadow:inset 0 0 0 1px #3a4b63,0 2px 12px #0003!important;
 }
+
+
+/* Hauteur réellement pilotée par le contenu, sans espacements hérités. */
+body.project-menu-open .sidebar{
+  padding:6px!important;
+  gap:4px!important;
+}
+body.project-menu-open .sidebar-toolbar{
+  flex:0 0 32px!important;
+  min-height:32px!important;
+  height:32px!important;
+}
+body.project-menu-open .sidebar .section-heading{
+  min-height:16px!important;
+}
+body.project-menu-open .sidebar .section-heading h2{
+  line-height:1.2!important;
+}
+body.project-menu-open .sidebar .project-list{
+  gap:2px!important;
+}
+body.project-menu-open .sidebar .project-row{
+  padding:1px 3px!important;
+}
+body.project-menu-open .sidebar .project-row-name{
+  padding:5px 6px!important;
+  line-height:1.2!important;
+}
+body.project-menu-open .sidebar .project-row-action{
+  width:24px!important;
+  height:24px!important;
+  padding:4px!important;
+}
