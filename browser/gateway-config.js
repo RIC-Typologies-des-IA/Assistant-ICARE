@@ -31,6 +31,7 @@ export async function initGatewayConfiguration({db,get,set,saveLegacy,loadScorin
   if(textOn){config.gateways[0].url=textUrl;config.gateways[0].capabilities=["llm","audio","scoring"];config.routes.llm="gateway-1";}
   if(audioOn){const same=textOn&&audioUrl===textUrl,id=same?1:(textOn?2:1),g=config.gateways[id-1];g.url=audioUrl;if(!g.capabilities.includes("audio"))g.capabilities.push("audio");config.routes.audio="gateway-"+id;}
   if(!textOn&&!audioOn)config.gateways[0].capabilities=[...SERVICES];
+  config=normalise(config);
   await set(db,"settings",{id:KEY,...config});
  }
  $("direct-scoring-url").value=config.directScoringUrl;
