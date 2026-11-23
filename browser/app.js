@@ -104,7 +104,7 @@ function renderRoutingConfig(){
  $("same-gateway-option").dataset.both=String(both);
  $("local-text-config").hidden=textGateway;$("local-audio-config").hidden=audioGateway;
  $("gateway-text-config").hidden=!textGateway;$("gateway-audio-config").hidden=!audioGateway;
- $("same-gateway-option").hidden=!both;
+ $("same-gateway-option").hidden=!both;$("same-gateway").disabled=!both;
  const shared=both&&$("same-gateway").checked;
  $("gateway-shared-config").hidden=!shared;
  $("gateway-text-config").hidden= !textGateway||shared;

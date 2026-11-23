@@ -210,6 +210,10 @@ try{
   await page.locator("#settings-button").click();
   assert.equal(await page.locator("#text-route").inputValue(),"local","le traitement du texte doit rester local par défaut");
   assert.equal(await page.locator("#audio-route").inputValue(),"local","la transcription doit rester locale par défaut");
+  assert.equal(await page.locator("#same-gateway-option").isVisible(),false,"le choix de Gateway partagée doit être masqué hors du double routage Gateway");
+  assert.equal(await page.locator("#same-gateway").isDisabled(),true,"le choix de Gateway partagée doit être désactivé hors du double routage Gateway");
+  assert.ok(await page.locator("#api-preset").count(),"le fournisseur de l’inférence locale doit rester indépendant");
+  assert.ok(await page.locator("#transcription-preset").count(),"le fournisseur de la transcription locale doit rester indépendant");
   await page.locator("#text-route").selectOption("gateway");
   await page.locator("#gateway-text-url").fill("https://gateway.example.org");
   await page.locator("#save-inference-config").click();
