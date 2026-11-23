@@ -13,12 +13,14 @@ function normalise(value){
 export async function initGatewayConfiguration({db,get,set,saveLegacy}) {
  const saved=await get(db,"settings",KEY);let config=normalise(saved);
  if(!saved){
+  config.gateways[0].capabilities=[];
   const legacyRouting=await get(db,"settings","inference-routing")||{text:"local",audio:"local"};
   const legacyGateways=await get(db,"settings","inference-gateways")||{};
   const textUrl=legacyGateways.text||"",audioUrl=legacyGateways.audio||"";
   const textOn=legacyRouting.text==="gateway"&&!!textUrl,audioOn=legacyRouting.audio==="gateway"&&!!audioUrl;
   if(textOn){config.gateways[0].url=textUrl;config.gateways[0].capabilities=["llm","audio","scoring"];config.routes.llm="gateway-1";}
   if(audioOn){const same=textOn&&audioUrl===textUrl,id=same?1:(textOn?2:1),g=config.gateways[id-1];g.url=audioUrl;if(!g.capabilities.includes("audio"))g.capabilities.push("audio");config.routes.audio="gateway-"+id;}
+  if(!textOn&&!audioOn)config.gateways[0].capabilities=[...SERVICES];
   await set(db,"settings",{id:KEY,...config});
  }
  $("direct-scoring-url").value=config.directScoringUrl;
