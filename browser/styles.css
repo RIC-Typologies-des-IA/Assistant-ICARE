@@ -712,3 +712,20 @@ body.project-menu-open .sidebar{
 body.project-menu-open .sidebar-toolbar{
   margin:-1px 0 0 -1px!important;
 }
+
+
+/* Le contour du panneau ne doit pas modifier l'origine du contenu :
+   contour dessiné en interne, mêmes coordonnées du hamburger ouvert/fermé. */
+.sidebar,
+body.project-menu-open .sidebar{
+  border:0!important;
+}
+body.project-menu-open .sidebar{
+  box-shadow:inset 0 0 0 1px #e1e6ed,0 2px 12px #172b4d0a!important;
+}
+body.project-menu-open .sidebar-toolbar{
+  margin:0!important;
+}
+html[data-theme="dark"] body.project-menu-open .sidebar{
+  box-shadow:inset 0 0 0 1px #3a4b63,0 2px 12px #0003!important;
+}
