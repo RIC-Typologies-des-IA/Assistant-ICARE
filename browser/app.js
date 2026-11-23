@@ -10,7 +10,7 @@ import { initGatewayConfiguration } from "./gateway-config.js";
 import { scoreIcareMultilabel } from "./scoring.js";
 const $=id=>document.getElementById(id), db=await openDatabase();
 $("app-version").textContent=`— V${window.ICARE_VERSION} Alpha`;
-const state={projectId:null,projects:[],turns:[],settings:{},transcriptionSettings:{},routing:{text:"local",audio:"local"},gateways:{text:"",audio:""},scoringApiKey:"",gatewayModels:{text:"",audio:""},sameGateway:true,workspace:null,busy:false};
+const state={projectId:null,projects:[],turns:[],settings:{},transcriptionSettings:{},routing:{text:"local",audio:"local"},gateways:{text:"",audio:""},gatewayModels:{text:"",audio:""},sameGateway:true,workspace:null,busy:false};
 const componentRuntime=createComponentRuntime({
  grants: { "context-summary": ["context-read"], "storage-probe": ["project-storage-read", "project-storage-write"] },
  storageProvider: () => state.workspace?.componentStorage || {},
@@ -79,11 +79,10 @@ async function loadSettings(){
  const credentials=await migrateLegacyCredentials(db,{
   text:state.settings.apiKey||sessionStorage.getItem("icare-api-key")||"",
   audio:state.transcriptionSettings.apiKey||sessionStorage.getItem("icare-transcription-api-key")||"",
-  scoring:sessionStorage.getItem("icare-scoring-api-key")||"",
   legacy:legacy.apiKey||""
  });
- state.settings.apiKey=credentials.text;state.transcriptionSettings.apiKey=credentials.audio;state.scoringApiKey=credentials.scoring||"";
- sessionStorage.removeItem("icare-api-key");sessionStorage.removeItem("icare-transcription-api-key");sessionStorage.removeItem("icare-scoring-api-key");
+ state.settings.apiKey=credentials.text;state.transcriptionSettings.apiKey=credentials.audio;
+ sessionStorage.removeItem("icare-api-key");sessionStorage.removeItem("icare-transcription-api-key");
  const {apiKey:legacyKey,rememberKey:legacyRemember,...safeLegacy}=legacy;
  const {apiKey:textKey,rememberKey:textRemember,...safeText}=state.settings;
  const {apiKey:audioKey,rememberKey:audioRemember,...safeAudio}=state.transcriptionSettings;
@@ -153,7 +152,7 @@ async function send(text){if(state.busy||!text.trim())return;const user=text.tri
   const route=gatewayRoutingConfig?.routes?.scoring||"direct";
   const gatewayId=route.startsWith("gateway-")?Number(route.slice(-1)):0;
   const gatewayUrl=gatewayRoutingConfig?.gateways?.find(g=>g.id===gatewayId)?.url||"";
-  scoring=await scoreIcareMultilabel({text:user,route,gatewayUrl,gatewayModel:gatewayRoutingConfig?.scoringModel||"",apiKey:state.scoringApiKey,directUrl:gatewayRoutingConfig?.directScoringUrl||""});
+  scoring=await scoreIcareMultilabel({text:user,route,gatewayUrl,gatewayModel:gatewayRoutingConfig?.scoringModel||"",directUrl:gatewayRoutingConfig?.directScoringUrl||""});
  }catch(error){scoringError=error.message;console.warn("Scoring ICARE indisponible :",error);}
  if(scoring){
   const scoreLine=document.createElement("p");scoreLine.className="icare-score-line";
@@ -201,8 +200,8 @@ async function saveInferenceConfiguration(){
    models[kind]=kind==="text"?(config.defaults?.chatModel||""):(config.defaults?.transcriptionModel||"");
    if(!models[kind])throw Error(kind==="text"?"Aucun modèle de conversation n’est attribué par le gateway.":"Aucun modèle de transcription n’est attribué par le gateway.");
   }
-  await saveCredentialVault(db,{text:textSettings.apiKey,audio:audioSettings.apiKey,scoring:scoringApiKey});
-  state.settings=textSettings;state.transcriptionSettings=audioSettings;state.scoringApiKey=scoringApiKey;state.routing=routing;state.gateways=gateways;state.gatewayModels=models;state.sameGateway=sameGateway;
+  await saveCredentialVault(db,{text:textSettings.apiKey,audio:audioSettings.apiKey});
+  state.settings=textSettings;state.transcriptionSettings=audioSettings;state.routing=routing;state.gateways=gateways;state.gatewayModels=models;state.sameGateway=sameGateway;
   const {apiKey:textSecret,...safeText}=textSettings,{apiKey:audioSecret,...safeAudio}=audioSettings;
   await put(db,"settings",safeText);await put(db,"settings",safeAudio);
   await put(db,"settings",{id:"inference-routing",...routing});
