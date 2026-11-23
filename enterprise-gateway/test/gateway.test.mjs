@@ -97,21 +97,22 @@ test("gateway rejects unconfigured models before any provider call", async t => 
   assert.equal(response.status, 403);
 });
 
-test("gateway publishes and proxies an independent multilabel scoring model", async t => {
-  const scoringModel = { id: "horizon", provider: "test", upstreamBaseUrl: "https://hf.example/models/horizon", upstreamModel: "horizon", apiKeyEnv: "ICARE_TEST_HF_KEY", capabilities: ["scoring"], allowedGroups: ["research"] };
-  const scoringConfig = { ...config, defaults: { ...config.defaults, scoringModel: "horizon" }, models: [...config.models, scoringModel] };
-  const server = createGatewayServer(scoringConfig);
+test("gateway runs multilabel scoring locally without provider credentials or network inference", async t => {
+  const scoringModel = { id: "horizon", provider: "local", runtime: "transformers-js", modelId: "Horizon-Labs/multilingual-zeroshot-base", capabilities: ["scoring"] };
+  const scoringConfig = { ...config, auth: { ...config.auth, allowLoopbackWithoutIdentity: true }, defaults: { ...config.defaults, scoringModel: "horizon" }, models: [...config.models, scoringModel] };
+  let received;
+  const server = createGatewayServer(scoringConfig, { localScorer: async args => { received=args; return { scores:{I:.8,C:.7,A:.6,R:.5,E:.4}, labels:["I","C","A","R","E"] }; } });
   await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
   t.after(() => new Promise(resolve => server.close(resolve)));
-  const originalFetch = globalThis.fetch; process.env.ICARE_TEST_HF_KEY = "hf-server-secret"; let captured;
-  globalThis.fetch = async (url, options) => { captured={url:String(url),options,payload:JSON.parse(options.body)}; return new Response(JSON.stringify([{labels:["I","C","A","R","E"],scores:[.8,.7,.6,.5,.4]}]),{status:200,headers:{"Content-Type":"application/json"}}); };
-  try {
-    const url="http://127.0.0.1:"+server.address().port;
-    const configResponse=await originalFetch(url+"/v1/icare/config",{headers:{Origin:"https://icare.example.org","X-ICARE-Authenticated-User":"alice","X-ICARE-Authenticated-Groups":"research"}});
-    assert.equal((await configResponse.json()).defaults.scoringModel,"horizon");
-    const response=await originalFetch(url+"/v1/icare/scoring",{method:"POST",headers:{Origin:"https://icare.example.org","X-ICARE-Authenticated-User":"alice","X-ICARE-Authenticated-Groups":"research","Content-Type":"application/json"},body:JSON.stringify({model:"horizon",text:"Bonjour",multi_label:true,labels:["I","C","A","R","E"].map(code=>({code,label:code,description:"Dimension "+code}))})});
-    assert.equal(response.status,200);assert.equal(captured.url,"https://hf.example/models/horizon");assert.equal(captured.options.headers.Authorization,"Bearer hf-server-secret");assert.equal(captured.payload.parameters.multi_label,true);assert.equal(captured.payload.parameters.candidate_labels.length,5);
-  } finally { globalThis.fetch=originalFetch;delete process.env.ICARE_TEST_HF_KEY; }
+  const url="http://127.0.0.1:"+server.address().port;
+  const origin="https://icare.example.org";
+  const configResponse=await fetch(url+"/v1/icare/config",{headers:{Origin:origin}});
+  assert.equal((await configResponse.json()).defaults.scoringModel,"horizon");
+  const response=await fetch(url+"/v1/icare/scoring",{method:"POST",headers:{Origin,"Content-Type":"application/json"},body:JSON.stringify({model:"horizon",text:"Bonjour, nous révisons notre stratégie.",multi_label:true,labels:["I","C","A","R","E"].map(code=>({code,label:code,description:"Dimension "+code}))})});
+  assert.equal(response.status,200);
+  assert.deepEqual((await response.json()).scores,{I:.8,C:.7,A:.6,R:.5,E:.4});
+  assert.equal(received.text,"Bonjour, nous révisons notre stratégie.");
+  assert.equal(received.modelId,"Horizon-Labs/multilingual-zeroshot-base");
 });
 test("gateway rejects malformed scoring requests", async t => {
   const server=createGatewayServer(config);await new Promise(resolve=>server.listen(0,"127.0.0.1",resolve));t.after(()=>new Promise(resolve=>server.close(resolve)));
