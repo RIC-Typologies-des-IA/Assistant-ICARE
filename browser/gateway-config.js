@@ -4,7 +4,21 @@ const defaults=()=>({version:1,directScoringUrl:"https://router.huggingface.co/h
 const $=id=>document.getElementById(id);
 function normalise(value){const d=defaults();if(!value||typeof value!=="object")return d;d.directScoringUrl=String(value.directScoringUrl||d.directScoringUrl);d.scoringModel=String(value.scoringModel||"");for(const service of SERVICES){const route=value.routes?.[service];if(route==="direct"||/^gateway-[123]$/.test(route))d.routes[service]=route;}for(const g of d.gateways){const old=value.gateways?.find?.(x=>Number(x.id)===g.id);if(old){g.name=String(old.name||g.name).slice(0,60);g.url=String(old.url||"");g.capabilities=Array.isArray(old.capabilities)?old.capabilities.filter(x=>SERVICES.includes(x)):[];}}return d;}
 export async function initGatewayConfiguration({db,get,set,saveLegacy}) {
- let config=normalise(await get(db,"settings",KEY));$("direct-scoring-url").value=config.directScoringUrl;
+ const saved=await get(db,"settings",KEY);
+ let config=normalise(saved);
+ if(!saved){
+  const legacyRouting=await get(db,"settings","inference-routing")||{text:"local",audio:"local"};
+  const legacyGateways=await get(db,"settings","inference-gateways")||{};
+  const textUrl=legacyGateways.text||"",audioUrl=legacyGateways.audio||"";
+  const textOn=legacyRouting.text==="gateway"&&!!textUrl,audioOn=legacyRouting.audio==="gateway"&&!!audioUrl;
+  if(textOn){config.gateways[0].url=textUrl;config.gateways[0].capabilities.push("llm");config.routes.llm="gateway-1";}
+  if(audioOn){
+   const same=textOn&&audioUrl===textUrl,id=same?1:(textOn?2:1),g=config.gateways[id-1];
+   g.url=audioUrl;g.capabilities.push("audio");config.routes.audio="gateway-"+id;
+  }
+  await set(db,"settings",{id:KEY,...config});
+ }
+ $("direct-scoring-url").value=config.directScoringUrl;
  const routeIds={llm:"route-llm",audio:"route-audio",scoring:"route-scoring"};
  function gateway(id){return config.gateways.find(g=>g.id===id);}
  function eligible(service,id){return gateway(id)?.capabilities.includes(service)||false;}
@@ -19,7 +33,10 @@ export async function initGatewayConfiguration({db,get,set,saveLegacy}) {
   }
   for(const service of SERVICES){
    const select=$(routeIds[service]),previous=config.routes[service]||select.value;select.replaceChildren(new Option("Accès direct","direct"));
-   for(let id=1;id<=3;id++)if(eligible(service,id)){const g=gateway(id);select.add(new Option(g.name||"Gateway "+id,"gateway-"+id));}
+   for(let id=1;id<=3;id++){
+    const value="gateway-"+id,blocked=(id===2&&gateway(1).capabilities.length===3)||(id===3&&gateway(1).capabilities.length>=2);
+    if(eligible(service,id)||previous===value){const option=new Option(gateway(id).name||"Gateway "+id,value);option.disabled=blocked&&previous!==value;select.add(option);}
+   }
    select.value=[...select.options].some(o=>o.value===previous)?previous:"direct";
    config.routes[service]=select.value;
   }
