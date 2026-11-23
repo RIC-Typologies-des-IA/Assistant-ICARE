@@ -156,6 +156,12 @@ try{
   assert.equal(await page.locator("#project-import-button").evaluate(el=>el.closest(".sidebar-toolbar")!==null),true,"Importer doit être dans la barre supérieure du volet");
   assert.equal(await page.locator("#new-project").evaluate(el=>el.closest(".sidebar-toolbar")!==null),true,"Nouveau projet doit être au même niveau qu’Importer");
   assert.equal(await page.locator("#project-list .project-row").count(),2,"les deux projets doivent être visibles dans la liste");
+  await page.locator("#project-list .project-row").filter({has:page.locator(".project-row-name",{hasText:"Mon premier projet"})}).locator(".project-row-name").click();
+  await page.waitForFunction(()=>document.querySelector("#project-title").textContent==="Mon premier projet");
+  assert.equal(await page.locator("body").evaluate(el=>el.classList.contains("project-menu-open")),true,"sélectionner un projet ne doit pas fermer le volet");
+  await page.locator("#project-list .project-row").filter({has:page.locator(".project-row-name",{hasText:"Projet navigateur"})}).locator(".project-row-name").click();
+  await page.waitForFunction(()=>document.querySelector("#project-title").textContent==="Projet navigateur");
+  assert.equal(await page.locator("body").evaluate(el=>el.classList.contains("project-menu-open")),true,"changer à nouveau de projet doit conserver le volet ouvert");
   assert.ok(await page.locator("#project-list .project-row-action svg").count()>=4,"les actions Renommer et Télécharger doivent être de vraies icônes");
   const panelMetrics=await page.locator(".sidebar").evaluate(el=>({height:el.getBoundingClientRect().height,scrollHeight:el.scrollHeight,children:[...el.children].map(child=>({className:child.className,height:child.getBoundingClientRect().height,display:getComputedStyle(child).display,margin:getComputedStyle(child).margin,padding:getComputedStyle(child).padding}))}));
   const panelHeight=panelMetrics.height;
