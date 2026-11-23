@@ -6,6 +6,7 @@ env.cacheDir = process.env.ICARE_MODEL_CACHE || resolve(process.cwd(), ".cache",
 env.allowLocalModels = true;
 env.allowRemoteModels = process.env.ICARE_MODELS_OFFLINE !== "1";
 env.useBrowserCache = false;
+env.useFSCache = true;
 env.backends.onnx.wasm.numThreads = Math.max(1, Number(process.env.ICARE_ONNX_THREADS || 4));
 
 const pipelines = new Map();
