@@ -147,7 +147,7 @@ async function send(text){if(state.busy||!text.trim())return;const user=text.tri
   const route=gatewayRoutingConfig?.routes?.scoring||"direct";
   const gatewayId=route.startsWith("gateway-")?Number(route.slice(-1)):0;
   const gatewayUrl=gatewayRoutingConfig?.gateways?.find(g=>g.id===gatewayId)?.url||"";
-  scoring=await scoreIcareMultilabel({text:user,route,gatewayUrl,directUrl:gatewayRoutingConfig?.directScoringUrl||""});
+  scoring=await scoreIcareMultilabel({text:user,route,gatewayUrl,gatewayModel:gatewayRoutingConfig?.scoringModel||"",directUrl:gatewayRoutingConfig?.directScoringUrl||""});
  }catch(error){scoringError=error.message;console.warn("Scoring ICARE indisponible :",error);}
  if(scoring){
   const scoreLine=document.createElement("p");scoreLine.className="icare-score-line";
