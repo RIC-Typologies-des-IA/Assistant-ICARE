@@ -109,7 +109,7 @@ window.DOMPurify.addHook("uponSanitizeAttribute", (node, data) => {
       if (colon < 1) return null;
       const property = part.slice(0, colon).trim().toLowerCase();
       const value = part.slice(colon + 1).trim();
-      if (!SAFE_SVG_STYLE_PROPERTIES.has(property) || !value || value.length > 160) return null;
+      if ((!SAFE_SVG_STYLE_PROPERTIES.has(property) && !/^--mermaid-[a-z0-9-]{1,80}$/.test(property)) || !value || value.length > 160) return null;
       if (/(?:url\s*\(\s*(?!#)|expression\s*\(|javascript:|@import|[<>])/i.test(value) || value.includes("\\")) return null;
       if (!/^[A-Za-z0-9#(),.%\s"'_+-]+$/.test(value)) return null;
       return property + ":" + value;
@@ -263,14 +263,15 @@ function materializeMermaidStyles(svgRoot) {
     for (const rule of rules) {
       if (rule.type !== 1 || !/^[A-Za-z0-9_.#\s>:+~,*\[\]="'-]+$/.test(rule.selectorText || "")) continue;
       let matches;
-      try { matches = svgRoot.querySelectorAll(rule.selectorText); }
-      catch { continue; }
+      try {
+        matches = [...(svgRoot.matches(rule.selectorText) ? [svgRoot] : []), ...svgRoot.querySelectorAll(rule.selectorText)];
+      } catch { continue; }
       for (const node of matches) {
         const declarations = new Map();
         for (let index = 0; index < rule.style.length; index++) {
           const property = rule.style[index].toLowerCase();
           const value = rule.style.getPropertyValue(property).trim();
-          if (!SAFE_SVG_STYLE_PROPERTIES.has(property) || !value || value.length > 160) continue;
+          if ((!SAFE_SVG_STYLE_PROPERTIES.has(property) && !/^--mermaid-[a-z0-9-]{1,80}$/.test(property)) || !value || value.length > 160) continue;
           if (/(?:url\s*\(|expression\s*\(|javascript:|@import|[<>])/i.test(value) || value.includes("\\")) continue;
           if (!/^[A-Za-z0-9#(),.%\s"'_+-]+$/.test(value)) continue;
           declarations.set(property, value);
