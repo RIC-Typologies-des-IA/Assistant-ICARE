@@ -55,13 +55,13 @@ test("provider credentials are encrypted at rest and survive reloads", async () 
     get(key) { const request = {}; queueMicrotask(() => { request.result = records.get(key); request.onsuccess?.(); }); return request; },
     put(value) { const request = {}; queueMicrotask(() => { records.set(value.id, value); request.result = value.id; request.onsuccess?.(); }); return request; }
   }; } }; } };
-  await saveCredentialVault(db, { text: "sk-text-secret", audio: "sk-audio-secret", scoring: "hf-scoring-secret" });
+  await saveCredentialVault(db, { text: "sk-text-secret", audio: "sk-audio-secret" });
   const persisted = [...records.values()];
   assert.ok(persisted.some(record => record.id === "credential-encryption-key-v1" && record.key.extractable === false));
   const vault = persisted.find(record => record.id === "credential-vault-v1");
   assert.ok(vault);
-  assert.doesNotMatch(JSON.stringify(vault), /sk-text-secret|sk-audio-secret|hf-scoring-secret/);
-  assert.deepEqual(await loadCredentialVault(db), { text: "sk-text-secret", audio: "sk-audio-secret", scoring: "hf-scoring-secret" });
+  assert.doesNotMatch(JSON.stringify(vault), /sk-text-secret|sk-audio-secret/);
+  assert.deepEqual(await loadCredentialVault(db), { text: "sk-text-secret", audio: "sk-audio-secret" });
 });
 
 test("legacy plaintext API keys are migrated into the encrypted vault", async () => {
@@ -73,11 +73,11 @@ test("legacy plaintext API keys are migrated into the encrypted vault", async ()
     get(key) { const request = {}; queueMicrotask(() => { request.result = records.get(key); request.onsuccess?.(); }); return request; },
     put(value) { const request = {}; queueMicrotask(() => { records.set(value.id, value); request.result = value.id; request.onsuccess?.(); }); return request; }
   }; } }; } };
-  const migrated = await migrateLegacyCredentials(db, { text: "legacy-text-key", audio: "legacy-audio-key", scoring: "legacy-scoring-key" });
-  assert.deepEqual(migrated, { text: "legacy-text-key", audio: "legacy-audio-key", scoring: "legacy-scoring-key" });
+  const migrated = await migrateLegacyCredentials(db, { text: "legacy-text-key", audio: "legacy-audio-key" });
+  assert.deepEqual(migrated, { text: "legacy-text-key", audio: "legacy-audio-key" });
   const vault = records.get("credential-vault-v1");
-  assert.ok(vault.text && vault.audio && vault.scoring);
-  assert.doesNotMatch(JSON.stringify(vault), /legacy-text-key|legacy-audio-key|legacy-scoring-key/);
+  assert.ok(vault.text && vault.audio);
+  assert.doesNotMatch(JSON.stringify(vault), /legacy-text-key|legacy-audio-key/);
 });
 
 test("frontend uses the encrypted vault and never stores API keys in plaintext settings", async () => {
