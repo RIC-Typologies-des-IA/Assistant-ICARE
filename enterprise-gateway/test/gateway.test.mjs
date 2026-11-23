@@ -106,13 +106,15 @@ test("gateway runs multilabel scoring locally without provider credentials or ne
   t.after(() => new Promise(resolve => server.close(resolve)));
   const url="http://127.0.0.1:"+server.address().port;
   const origin="https://icare.example.org";
-  const configResponse=await fetch(url+"/v1/icare/config",{headers:{Origin:origin}});
+  const configResponse=await fetch(url+"/v1/icare/config",{headers:{Origin:origin,"X-ICARE-Authenticated-User":"alice"}});
   assert.equal((await configResponse.json()).defaults.scoringModel,"horizon");
   const response=await fetch(url+"/v1/icare/scoring",{method:"POST",headers:{Origin,"Content-Type":"application/json"},body:JSON.stringify({model:"horizon",text:"Bonjour, nous révisons notre stratégie.",multi_label:true,labels:["I","C","A","R","E"].map(code=>({code,label:code,description:"Dimension "+code}))})});
   assert.equal(response.status,200);
   assert.deepEqual((await response.json()).scores,{I:.8,C:.7,A:.6,R:.5,E:.4});
   assert.equal(received.text,"Bonjour, nous révisons notre stratégie.");
   assert.equal(received.modelId,"Horizon-Labs/multilingual-zeroshot-base");
+  const unauthenticatedChat=await fetch(url+"/v1/chat/completions",{method:"POST",headers:{Origin,"Content-Type":"application/json"},body:JSON.stringify({messages:[{role:"user",content:"hello"}]})});
+  assert.equal(unauthenticatedChat.status,401,"l’accès loopback anonyme doit rester limité au scoring local");
 });
 test("gateway rejects malformed scoring requests", async t => {
   const server=createGatewayServer(config);await new Promise(resolve=>server.listen(0,"127.0.0.1",resolve));t.after(()=>new Promise(resolve=>server.close(resolve)));
