@@ -16,7 +16,7 @@ export async function scoreIcareMultilabel({text,route="direct",gatewayUrl="",di
  if(route==="direct"){if(!directUrl)throw new Error("Configurez l’URL du service de scoring ICARE.");url=directUrl;}
  else{if(!gatewayUrl)throw new Error("URL de la Gateway de scoring absente.");const base=gatewayUrl.replace(/\/+$/,"");url=(base.endsWith("/v1")?base:base+"/v1")+"/icare/scoring";credentials="include";}
  let endpoint;try{endpoint=new URL(url);}catch{throw new Error("URL du service de scoring ICARE invalide.");}
- if(!["http:","https:"].includes(endpoint.protocol)||endpoint.username||endpoint.password)throw new Error("L’URL du service de scoring doit être une URL HTTP(S) sans identifiants.");
+ const loopback=["localhost","127.0.0.1","[::1]"].includes(endpoint.hostname);if((endpoint.protocol!=="https:"&&!(endpoint.protocol==="http:"&&loopback))||endpoint.username||endpoint.password)throw new Error("Le service de scoring doit utiliser HTTPS, sauf sur loopback local.");
  let response;
  try{response=await fetchImpl(endpoint.href,{method:"POST",credentials,cache:"no-store",headers:{"Content-Type":"application/json"},body:JSON.stringify({text,dimensions:LABELS,multi_label:true})});}
  catch(error){throw new Error("Impossible de joindre le service de scoring ICARE : "+error.message);}
