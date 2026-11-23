@@ -597,3 +597,5 @@ html[data-theme="dark"] .sidebar-project-heading{border-color:#465a74}
 @media(max-width:760px){.gateway-cards{grid-template-columns:1fr}}
 
 .icare-score-line{margin:10px 0 0;padding:7px 10px;border-left:3px solid #4777b8;border-radius:4px;background:#edf4fc;color:#294d78;font-size:12px;font-weight:650}.message.assistant .icare-score-line.muted{color:#69788b;font-weight:500}
+
+.gateway-card[hidden]{display:none!important}
