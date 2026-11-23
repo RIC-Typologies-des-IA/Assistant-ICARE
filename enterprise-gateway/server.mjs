@@ -185,7 +185,7 @@ export function createGatewayServer(config, { localScorer = scoreLocally } = {})
       if (req.method === "OPTIONS") { res.writeHead(204); res.end(); return; }
       const remoteAddress = String(req.socket.remoteAddress || "");
       const loopback = remoteAddress === "127.0.0.1" || remoteAddress === "::1" || remoteAddress === "::ffff:127.0.0.1";
-      const localLoopbackAccess = config.auth.allowLoopbackWithoutIdentity === true && loopback;
+      const localLoopbackAccess = config.auth.allowLoopbackWithoutIdentity === true && loopback && path === "/v1/icare/scoring";
       const user = String(req.headers[String(config.auth.identityHeader).toLowerCase()] || "").trim();
       if (!localLoopbackAccess && (!user || user.length > 256 || /[\r\n]/.test(user))) {
         json(res, 401, { error: { message: "An authenticated enterprise identity is required. Configure the trusted authentication reverse proxy." } });
