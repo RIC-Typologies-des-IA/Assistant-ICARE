@@ -154,6 +154,8 @@ try{
   assert.equal(await page.locator(".sidebar").evaluate(el=>Math.round(el.getBoundingClientRect().width)),250,"le rail doit s’élargir sans se superposer au dialogue");
   await page.locator("#project-menu-toggle").click();
   assert.equal(await page.locator("body").evaluate(el=>el.classList.contains("project-menu-open")),false,"le hamburger doit replier le volet en conservant le rail");
+  const hamburgerClosedAgain=await page.locator("#project-menu-toggle").boundingBox();
+  assert.ok(Math.abs(hamburgerClosedAgain.x-hamburgerClosed.x)<0.5 && Math.abs(hamburgerClosedAgain.y-hamburgerClosed.y)<0.5,"le hamburger doit retrouver exactement la même position après fermeture du volet");
   await page.waitForFunction(()=>{
     const rail=document.querySelector(".sidebar");
     const expected=parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--project-rail-width"));
