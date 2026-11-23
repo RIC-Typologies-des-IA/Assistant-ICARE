@@ -117,3 +117,10 @@ test("gateway rejects malformed scoring requests and unsafe endpoint URLs", asyn
   const noEndpoint=await fetch("http://127.0.0.1:"+server.address().port+"/v1/icare/scoring",{method:"POST",headers,body:JSON.stringify({text:"Bonjour",multi_label:true,dimensions:["I","C","A","R","E"].map(code=>({code}))})});
   assert.equal(noEndpoint.status,503);
 });
+
+test("gateway rejects malformed upstream scoring responses", async t => {
+  const server=createGatewayServer({...config,scoring:{endpointUrl:"https://scoring.example.org/v1/score"}},{fetchImpl:async()=>new Response(JSON.stringify({scores:{I:.8,C:.7,A:2,R:.5,E:.4}}),{status:200,headers:{"content-type":"application/json"}})});
+  await new Promise(resolve=>server.listen(0,"127.0.0.1",resolve));t.after(()=>new Promise(resolve=>server.close(resolve)));
+  const response=await fetch("http://127.0.0.1:"+server.address().port+"/v1/icare/scoring",{method:"POST",headers:{Origin:"https://icare.example.org","X-ICARE-Authenticated-User":"alice","Content-Type":"application/json"},body:JSON.stringify({text:"Bonjour",multi_label:true,dimensions:["I","C","A","R","E"].map(code=>({code}))})});
+  assert.equal(response.status,502);assert.match((await response.json()).error.message,/five independent ICARE scores/);
+});
