@@ -50,10 +50,9 @@ try{
   const railGeometry=await page.evaluate(()=>{const rail=document.querySelector(".sidebar").getBoundingClientRect(),chat=document.querySelector(".chat-panel").getBoundingClientRect();return {railRight:Math.round(rail.right),chatLeft:Math.round(chat.left),railTop:Math.round(rail.top),chatTop:Math.round(chat.top)}});
   assert.ok(railGeometry.railRight<railGeometry.chatLeft,"le rail doit être à gauche du dialogue avec un espace : "+JSON.stringify(railGeometry));
   assert.ok(railGeometry.chatTop>railGeometry.railTop,"le rail doit commencer sous la bannière avec une marge");
-  assert.equal(await page.locator("#project-import-button").textContent(),"Importer","l’action d’import doit être libellée clairement dans la barre du hamburger");
+  assert.equal(await page.locator("#project-import-button svg").count(),1,"l’import doit être représenté par une icône accessible");
   assert.equal(await page.locator("#new-project").textContent(),"＋","la création d’un projet doit rester accessible par le bouton plus");
-  assert.ok(await page.locator("#project-list .project-row-action[aria-label^=\"Télécharger \"]").count()>=1,"chaque projet doit proposer un téléchargement sur sa propre ligne");
-  assert.ok(await page.locator("#project-list .project-row-action[aria-label^=\"Renommer \"]").count()>=1,"chaque projet doit proposer un renommage sur sa propre ligne");
+  assert.equal(await page.locator("#project-list .project-row-action[aria-label^=\"Télécharger \"]").count(),0,"les actions de projet ne doivent pas rester visibles volet fermé");
   await page.setViewportSize({width:900,height:900});
   assert.ok(await page.locator(".insights").evaluate(el=>el.getBoundingClientRect().top>document.querySelector(".chat-panel").getBoundingClientRect().top),"sur tablette, les panneaux doivent passer sous le dialogue");
   await page.setViewportSize({width:1440,height:1000});
@@ -147,6 +146,8 @@ try{
   await page.waitForFunction(()=>!document.body.classList.contains("project-menu-open")&&document.querySelector(".sidebar").getBoundingClientRect().width<=45,null,{timeout:1500});
   const hamburgerClosed=await page.locator("#project-menu-toggle").boundingBox();
   const railClosedWidth=await page.locator(".sidebar").evaluate(el=>el.getBoundingClientRect().width);
+  assert.ok(await page.locator(".sidebar-toolbar-actions").evaluate(el=>getComputedStyle(el).display==="none"),"volet fermé, seul le hamburger doit rester visible");
+  assert.ok(await page.locator(".sidebar").evaluate(el=>el.getBoundingClientRect().height<=42),"volet fermé, aucun bandeau vertical ne doit subsister");
   await page.locator("#project-menu-toggle").click();
   assert.equal(await page.locator("body").evaluate(el=>el.classList.contains("project-menu-open")),true,"le bouton hamburger doit ouvrir le volet projets");
   const hamburgerOpen=await page.locator("#project-menu-toggle").boundingBox();
@@ -155,6 +156,9 @@ try{
   assert.equal(await page.locator("#project-import-button").evaluate(el=>el.closest(".sidebar-toolbar")!==null),true,"Importer doit être dans la barre supérieure du volet");
   assert.equal(await page.locator("#new-project").evaluate(el=>el.closest(".sidebar-toolbar")!==null),true,"Nouveau projet doit être au même niveau qu’Importer");
   assert.equal(await page.locator("#project-list .project-row").count(),2,"les deux projets doivent être visibles dans la liste");
+  assert.ok(await page.locator("#project-list .project-row-action svg").count()>=4,"les actions Renommer et Télécharger doivent être de vraies icônes");
+  const panelHeight=await page.locator(".sidebar").evaluate(el=>el.getBoundingClientRect().height);
+  assert.ok(panelHeight<180,"le panneau ouvert doit épouser la liste de deux projets sans hauteur artificielle");
   for(const row of await page.locator("#project-list .project-row").all()){assert.equal(await row.locator(".project-row-name").count(),1,"chaque projet doit avoir son nom");assert.equal(await row.locator("[aria-label^=\"Renommer \"]").count(),1,"chaque projet doit avoir sa propre commande Renommer");assert.equal(await row.locator("[aria-label^=\"Télécharger \"]").count(),1,"chaque projet doit avoir sa propre commande Télécharger");}
   await page.locator("#project-list .project-row").filter({has:page.locator(".project-row-name",{hasText:"Projet navigateur"})}).locator("[aria-label^=\"Renommer \"]").click();
   await page.locator("#project-name").fill("Projet navigateur renommé");
