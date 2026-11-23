@@ -321,7 +321,7 @@ try{
   assert.equal(await page.locator("#gateway-2-scoring").isVisible(),false,"le scoring doit disparaître de Gateway 2");
   assert.equal(await page.locator("#route-scoring").inputValue(),"gateway-3","la route de scoring doit être unique");
 
-  assert.deepEqual(await page.locator("#route-llm").inputValue(),"gateway-1");
+  assert.equal(await page.locator("#route-llm").inputValue(),"gateway-1");
   assert.equal(await page.locator("#route-audio").inputValue(),"gateway-2");
   assert.equal(await page.locator("#route-scoring").inputValue(),"gateway-3");
   await page.locator("#save-gateway-matrix").click();
