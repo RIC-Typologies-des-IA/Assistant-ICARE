@@ -74,6 +74,7 @@ async function loadSettings(){
  const credentials=await migrateLegacyCredentials(db,{
   text:state.settings.apiKey||sessionStorage.getItem("icare-api-key")||"",
   audio:state.transcriptionSettings.apiKey||sessionStorage.getItem("icare-transcription-api-key")||"",
+  scoring:sessionStorage.getItem("icare-scoring-api-key")||"",
   legacy:legacy.apiKey||""
  });
  state.settings.apiKey=credentials.text;state.transcriptionSettings.apiKey=credentials.audio;state.scoringApiKey=credentials.scoring||"";
@@ -85,7 +86,7 @@ async function loadSettings(){
  await put(db,"settings",{...safeText,id:"inference-text"});
  await put(db,"settings",{...safeAudio,id:"inference-transcription"});
  $("api-base").value=state.settings.baseUrl||"";$("api-model").value=state.settings.model||"";$("api-key").value=state.settings.apiKey||"";$("api-preset").value=detectPreset(state.settings.baseUrl);$("api-preset").dispatchEvent(new Event("change"));
- $("transcription-base").value=state.transcriptionSettings.baseUrl||"";$("transcription-model").value=state.transcriptionSettings.model||"";$("transcription-key").value=state.transcriptionSettings.apiKey||"";$("transcription-preset").value=detectPreset(state.transcriptionSettings.baseUrl);$("transcription-preset").dispatchEvent(new Event("change"));
+ $("transcription-base").value=state.transcriptionSettings.baseUrl||"";$("transcription-model").value=state.transcriptionSettings.model||"";$("transcription-key").value=state.transcriptionSettings.apiKey||"";$("transcription-preset").value=detectPreset(state.transcriptionSettings.baseUrl);$("transcription-preset").dispatchEvent(new Event("change"));$("scoring-api-key").value=state.scoringApiKey;
  $("text-route").value=state.routing.text;$("audio-route").value=state.routing.audio;
  $("gateway-text-url").value=state.gateways.text;$("gateway-audio-url").value=state.gateways.audio;$("gateway-shared-url").value=state.gateways.text||state.gateways.audio;
  $("same-gateway").checked=state.sameGateway;$("same-gateway-option").dataset.both=String(state.routing.text==="gateway"&&state.routing.audio==="gateway");
