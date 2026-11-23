@@ -50,10 +50,10 @@ try{
   const railGeometry=await page.evaluate(()=>{const rail=document.querySelector(".sidebar").getBoundingClientRect(),chat=document.querySelector(".chat-panel").getBoundingClientRect();return {railRight:Math.round(rail.right),chatLeft:Math.round(chat.left),railTop:Math.round(rail.top),chatTop:Math.round(chat.top)}});
   assert.ok(railGeometry.railRight<railGeometry.chatLeft,"le rail doit être à gauche du dialogue avec un espace : "+JSON.stringify(railGeometry));
   assert.ok(railGeometry.chatTop>railGeometry.railTop,"le rail doit commencer sous la bannière avec une marge");
-  assert.equal(await page.locator("#project-export-button svg path").count(),1,"l’export doit utiliser une flèche pleine et un réceptacle SVG");
-  assert.equal(await page.locator("#project-import-button svg path").count(),1,"l’import doit utiliser une flèche pleine et un réceptacle SVG");
-  assert.ok((await page.locator("#project-export-button svg path").getAttribute("d")).includes("M11 2"),"l’export doit avoir une flèche orientée vers le bas");
-  assert.ok((await page.locator("#project-import-button svg path").getAttribute("d")).includes("M11 16V6.83"),"l’import doit avoir une flèche orientée vers le haut");
+  assert.equal(await page.locator("#project-import-button").textContent(),"Importer","l’action d’import doit être libellée clairement dans la barre du hamburger");
+  assert.equal(await page.locator("#new-project").textContent(),"＋","la création d’un projet doit rester accessible par le bouton plus");
+  assert.ok(await page.locator("#project-list .project-row-action[aria-label^=\"Télécharger \"]").count()>=1,"chaque projet doit proposer un téléchargement sur sa propre ligne");
+  assert.ok(await page.locator("#project-list .project-row-action[aria-label^=\"Renommer \"]").count()>=1,"chaque projet doit proposer un renommage sur sa propre ligne");
   await page.setViewportSize({width:900,height:900});
   assert.ok(await page.locator(".insights").evaluate(el=>el.getBoundingClientRect().top>document.querySelector(".chat-panel").getBoundingClientRect().top),"sur tablette, les panneaux doivent passer sous le dialogue");
   await page.setViewportSize({width:1440,height:1000});
