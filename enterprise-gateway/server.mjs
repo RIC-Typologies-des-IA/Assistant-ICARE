@@ -50,7 +50,7 @@ export function validateConfig(config) {
         model.capabilities.some(capability => !["chat", "transcription", "scoring"].includes(capability))) {
       throw new Error("Model capabilities must be chat, transcription and/or scoring.");
     }
-    if (!String(model.upstreamModel || "").trim()) throw new Error("upstreamModel is required.");
+    if (model.runtime !== "transformers-js" && !String(model.upstreamModel || "").trim()) throw new Error("upstreamModel is required.");
     if (model.allowedGroups !== undefined && (!Array.isArray(model.allowedGroups) || model.allowedGroups.some(group => typeof group !== "string" || !group.trim()))) throw new Error("allowedGroups must be an array of non-empty group names.");
   }
   if (config.defaults !== undefined && (!config.defaults || typeof config.defaults !== "object" || Array.isArray(config.defaults))) throw new Error("defaults must be an object.");
