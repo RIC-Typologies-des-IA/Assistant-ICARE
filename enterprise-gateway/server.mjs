@@ -53,10 +53,7 @@ export function validateConfig(config) {
   if (config.scoring?.endpointUrl) {
     const scoringUrl = new URL(config.scoring.endpointUrl);
     const loopback = ["localhost", "127.0.0.1", "::1"].includes(scoringUrl.hostname);
-    if ((scoringUrl.protocol !== "https:" && !(scoringUrl.protocol === "http:" && loopback)) ||
-        scoringUrl.username || scoringUrl.password || scoringUrl.hash) {
-      throw new Error("Scoring endpoint must use HTTPS, except for an explicit local loopback HTTP endpoint.");
-    }
+    if ((scoringUrl.protocol !== "https:" && !(scoringUrl.protocol === "http:" && loopback)) || scoringUrl.username || scoringUrl.password || scoringUrl.hash) throw new Error("Scoring endpoint must use HTTPS, except for an explicit local loopback HTTP endpoint.");
   }
   const limits = config.limits || {};
   if (limits.requestsPerMinute !== undefined && (!Number.isInteger(limits.requestsPerMinute) || limits.requestsPerMinute < 1)) {
@@ -152,7 +149,6 @@ function visibleModels(config, groups) {
 function modelFor(config, id, capability, groups) {
   const model = visibleModels(config, groups).find(candidate => candidate.id === id && candidate.capabilities.includes(capability));
   if (!model) throw Object.assign(new Error("The requested model or capability is not enabled for this enterprise identity."), { status: 403 });
-  if (model.runtime === "transformers-js") return { ...model };
   const apiKey = process.env[model.apiKeyEnv];
   if (!apiKey) throw Object.assign(new Error("The administrator has not configured credentials for this provider."), { status: 503 });
   return { ...model, apiKey };
@@ -228,7 +224,7 @@ export function createGatewayServer(config, { fetchImpl = fetch } = {}) {
         return;
       }
 
-      if (req.method === "POST" && path === "/v1/chat/completions") {
+            if (req.method === "POST" && path === "/v1/chat/completions") {
         const body = await readBody(req, config.limits?.maxJsonBytes || 2 * 1024 * 1024);
         let payload;
         try { payload = JSON.parse(body.toString("utf8")); } catch { json(res, 400, { error: { message: "Invalid JSON request." } }); return; }
