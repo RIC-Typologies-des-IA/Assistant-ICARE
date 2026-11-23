@@ -263,6 +263,7 @@ try{
   assert.equal(darkGatewayPalette.fieldText,"rgb(240, 245, 252)","le texte saisi dans les champs Gateway doit rester très lisible");
   assert.equal(darkGatewayPalette.route,"rgb(29, 45, 66)","les lignes de routage doivent être cohérentes avec les cartes");
   assert.equal(darkGatewayPalette.routeSelect,"rgb(16, 30, 48)","les listes de routage doivent être sombres");
+  await page.locator("#settings-tab-direct").click();
   await page.locator("#close-settings-dialog").click();
   await page.locator("#theme-toggle").click();
   assert.equal(await page.locator("html").getAttribute("data-theme"),"light","le bouton doit permettre de choisir le thème clair");
