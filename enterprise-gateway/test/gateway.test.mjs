@@ -15,6 +15,7 @@ test("gateway configuration rejects unsafe origins and upstream URLs", () => {
   assert.throws(() => validateConfig({ ...config, cors: { allowedOrigins: ["*"] } }));
   assert.throws(() => validateConfig({ ...config, models: [{ ...config.models[0], upstreamBaseUrl: "http://provider.example/v1" }] }));
   assert.throws(() => validateConfig({ ...config, auth: { identityHeader: "authorization" } }));
+  assert.throws(() => validateConfig({ ...config, models: [...config.models, { id:"remote-scoring", provider:"hf", upstreamBaseUrl:"https://provider.example", upstreamModel:"remote", apiKeyEnv:"ICARE_REMOTE_KEY", capabilities:["scoring"] }] }), /remote scoring providers are forbidden/);
 });
 
 test("gateway denies requests without an authenticated reverse-proxy identity", async t => {
