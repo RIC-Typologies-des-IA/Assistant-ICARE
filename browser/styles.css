@@ -567,3 +567,223 @@ body.project-menu-open .layout{
     grid-template-columns:minmax(150px,42vw) minmax(0,1fr) !important;
   }
 }
+
+
+/* Volet projets compact : fermé = hamburger seul ; ouvert = panneau à hauteur du contenu. */
+:root{--project-rail-width:40px}
+.layout{
+  display:grid!important;
+  grid-template-columns:var(--project-rail-width) minmax(0,1fr)!important;
+  align-items:start!important;
+  gap:8px!important;
+  width:100%!important;
+  max-width:none!important;
+  margin:12px 0 24px!important;
+  padding:0 16px 0 0!important;
+}
+.sidebar,
+body.project-menu-open .sidebar{
+  position:relative!important;
+  inset:auto!important;
+  align-self:start!important;
+  box-sizing:border-box!important;
+  width:var(--project-rail-width)!important;
+  min-width:var(--project-rail-width)!important;
+  max-width:none!important;
+  height:40px!important;
+  min-height:0!important;
+  margin:0!important;
+  padding:4px!important;
+  overflow:hidden!important;
+  display:flex!important;
+  flex-direction:column!important;
+  gap:0!important;
+  background:transparent!important;
+  border:0!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+  transform:none!important;
+  transition:none!important;
+}
+.sidebar-toolbar{
+  display:flex!important;
+  align-items:center!important;
+  flex:0 0 32px!important;
+  width:max-content!important;
+  min-height:32px!important;
+  height:32px!important;
+  gap:8px!important;
+  margin:0!important;
+  padding:0!important;
+}
+.sidebar .menu-toggle{
+  flex:0 0 32px!important;
+  width:32px!important;
+  min-width:32px!important;
+  height:32px!important;
+  margin:0!important;
+  padding:6px!important;
+  border:0!important;
+  border-radius:8px!important;
+  background:#edf1f7!important;
+  color:#263b58!important;
+}
+.sidebar-toolbar-actions,
+.sidebar .section-heading,
+.sidebar .project-list,
+.sidebar select,
+.sidebar .sidebar-note,
+.sidebar .sidebar-bottom{display:none!important}
+.sidebar-toolbar-button{
+  display:grid!important;
+  place-items:center!important;
+  width:32px!important;
+  height:32px!important;
+  padding:6px!important;
+  border:0!important;
+  border-radius:8px!important;
+  background:#edf1f7!important;
+  color:#263b58!important;
+}
+.sidebar-toolbar-button svg,
+.project-row-action svg{display:block;width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.sidebar-new-project{width:32px!important;height:32px!important;flex:0 0 32px!important;font-size:21px!important}
+body.project-menu-open .layout{grid-template-columns:280px minmax(0,1fr)!important}
+body.project-menu-open .sidebar{
+  width:280px!important;
+  min-width:280px!important;
+  height:auto!important;
+  min-height:0!important;
+  padding:8px!important;
+  gap:8px!important;
+  overflow:visible!important;
+  background:#fff!important;
+  border:1px solid #e1e6ed!important;
+  border-radius:12px!important;
+  box-shadow:0 2px 12px #172b4d0a!important;
+}
+body.project-menu-open .sidebar-toolbar{width:100%!important;margin:0!important}
+body.project-menu-open .sidebar-toolbar-actions{display:flex!important;align-items:center!important;gap:4px!important}
+body.project-menu-open .sidebar .section-heading{display:flex!important;margin:0!important;padding:0 4px!important}
+body.project-menu-open .sidebar .section-heading h2{font-size:12px!important;color:#728096!important;font-weight:650!important}
+body.project-menu-open .sidebar .project-list{display:flex!important;flex-direction:column!important;gap:3px!important;margin:0!important}
+.project-row{display:flex!important;align-items:center!important;gap:4px!important;min-width:0!important;padding:3px 4px!important;border:1px solid transparent!important;border-radius:8px!important}
+.project-row.is-active{background:#edf3fb!important;border-color:#dce6f3!important}
+.project-row-name{
+  flex:1 1 auto!important;min-width:0!important;
+  padding:7px 8px!important;border:0!important;border-radius:6px!important;
+  background:transparent!important;color:#263b58!important;
+  text-align:left!important;font:500 13px/1.3 Inter,ui-sans-serif,system-ui,sans-serif!important;
+  overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;
+}
+.project-row-actions{display:flex!important;align-items:center!important;gap:2px!important;flex:0 0 auto!important}
+.project-row-action{
+  display:grid!important;place-items:center!important;
+  width:28px!important;height:28px!important;padding:5px!important;
+  border:0!important;border-radius:6px!important;
+  background:transparent!important;color:#687991!important;
+  cursor:pointer!important;
+}
+.project-row-action:hover,.project-row-action:focus-visible{background:#e4ebf4!important;color:#244d83!important}
+html[data-theme="dark"] .sidebar{background:transparent!important;border-color:transparent!important;box-shadow:none!important}
+html[data-theme="dark"] .sidebar .menu-toggle,
+html[data-theme="dark"] .sidebar-toolbar-button{background:#34465e!important;color:#e6eef9!important}
+html[data-theme="dark"] body.project-menu-open .sidebar{background:#1b293b!important;border-color:#3a4b63!important;box-shadow:0 2px 12px #0003!important}
+html[data-theme="dark"] body.project-menu-open .project-row.is-active{background:#293b52!important;border-color:#465a74!important}
+html[data-theme="dark"] .project-row-name{color:#e8eef7!important}
+html[data-theme="dark"] .project-row-action{color:#c0cee0!important}
+@media(max-width:1050px){
+ .layout{grid-template-columns:40px minmax(0,1fr)!important;gap:8px!important;padding-right:10px!important}
+ body.project-menu-open .layout{grid-template-columns:260px minmax(0,1fr)!important}
+ body.project-menu-open .sidebar{width:260px!important;min-width:260px!important}
+}
+@media(max-width:700px){
+ :root{--project-rail-width:40px}
+ .layout{grid-template-columns:40px minmax(0,1fr)!important;gap:6px!important;padding-right:8px!important}
+ body.project-menu-open .layout{grid-template-columns:min(280px,78vw) minmax(0,1fr)!important}
+ body.project-menu-open .sidebar{width:min(280px,78vw)!important;min-width:min(280px,78vw)!important}
+}
+
+
+/* Conserver l'ancrage du hamburger malgré la bordure du panneau ouvert. */
+body.project-menu-open .sidebar{
+  padding:4px!important;
+}
+body.project-menu-open .sidebar-toolbar{
+  margin:-1px 0 0 -1px!important;
+}
+
+
+/* Le contour du panneau ne doit pas modifier l'origine du contenu :
+   contour dessiné en interne, mêmes coordonnées du hamburger ouvert/fermé. */
+.sidebar,
+body.project-menu-open .sidebar{
+  border:0!important;
+}
+body.project-menu-open .sidebar{
+  box-shadow:inset 0 0 0 1px #e1e6ed,0 2px 12px #172b4d0a!important;
+}
+body.project-menu-open .sidebar-toolbar{
+  margin:0!important;
+}
+html[data-theme="dark"] body.project-menu-open .sidebar{
+  box-shadow:inset 0 0 0 1px #3a4b63,0 2px 12px #0003!important;
+}
+
+
+/* Hauteur réellement pilotée par le contenu, sans espacements hérités. */
+body.project-menu-open .sidebar{
+  padding:6px!important;
+  gap:4px!important;
+}
+body.project-menu-open .sidebar-toolbar{
+  flex:0 0 32px!important;
+  min-height:32px!important;
+  height:32px!important;
+}
+body.project-menu-open .sidebar .section-heading{
+  min-height:16px!important;
+}
+body.project-menu-open .sidebar .section-heading h2{
+  line-height:1.2!important;
+}
+body.project-menu-open .sidebar .project-list{
+  gap:2px!important;
+}
+body.project-menu-open .sidebar .project-row{
+  padding:1px 3px!important;
+}
+body.project-menu-open .sidebar .project-row-name{
+  padding:5px 6px!important;
+  line-height:1.2!important;
+}
+body.project-menu-open .sidebar .project-row-action{
+  width:24px!important;
+  height:24px!important;
+  padding:4px!important;
+}
+
+
+/* L'origine du hamburger est identique dans les deux états. */
+body.project-menu-open .sidebar{
+  padding:4px!important;
+}
+
+
+/* Le volet projets ne contient que ses commandes et les projets.
+   Le texte d'aide historique gonflait artificiellement sa hauteur. */
+body.project-menu-open .sidebar .sidebar-note{
+  display:none!important;
+  margin:0!important;
+  padding:0!important;
+}
+body.project-menu-open .sidebar select[hidden]{
+  display:none!important;
+}
+
+
+@media(max-width:700px){
+  :root{--project-rail-width:38px}
+  .layout{grid-template-columns:var(--project-rail-width) minmax(0,1fr)!important}
+  .sidebar{width:var(--project-rail-width)!important;min-width:var(--project-rail-width)!important}
+}
