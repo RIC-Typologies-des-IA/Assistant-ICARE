@@ -540,3 +540,30 @@ body.project-menu-open .sidebar{
     padding:6px 3px !important;
   }
 }
+
+
+/* Le volet occupe exactement sa piste Grid : sa largeur ne doit jamais
+   s'animer indépendamment du déplacement de la zone de travail. */
+.layout{
+  grid-template-columns:var(--project-rail-width) minmax(0,1fr) !important;
+}
+.sidebar,
+body.project-menu-open .sidebar{
+  width:100% !important;
+  min-width:0 !important;
+  max-width:100% !important;
+  transition:none !important;
+}
+body.project-menu-open .layout{
+  grid-template-columns:250px minmax(0,1fr) !important;
+}
+@media(max-width:1050px){
+  body.project-menu-open .layout{
+    grid-template-columns:220px minmax(0,1fr) !important;
+  }
+}
+@media(max-width:700px){
+  body.project-menu-open .layout{
+    grid-template-columns:minmax(150px,42vw) minmax(0,1fr) !important;
+  }
+}
