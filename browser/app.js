@@ -3,14 +3,14 @@ import { renderMarkdown } from "./markdown.js";
 import { chatCompletion, chatCompletionMessage, listModels, transcribeAudio, audioBlobToWav, resolveInferenceRoute } from "./inference.js";
 import { runAgentTurn } from "./agent.js";
 import { createIcareToolExecutor } from "./workspace-tools.js";
-import { saveCredentialVault, migrateLegacyCredentials } from "./credentials.js";
+import { loadCredentialVault, saveCredentialVault, migrateLegacyCredentials } from "./credentials.js";
 import { registerAppServiceWorker } from "./pwa.js";
 import { createComponentRuntime } from "./component-runtime.js";
 import { initGatewayConfiguration } from "./gateway-config.js";
 import { scoreIcareMultilabel } from "./scoring.js";
 const $=id=>document.getElementById(id), db=await openDatabase();
 $("app-version").textContent=`— V${window.ICARE_VERSION} Alpha`;
-const state={projectId:null,projects:[],turns:[],settings:{},transcriptionSettings:{},routing:{text:"local",audio:"local"},gateways:{text:"",audio:""},gatewayModels:{text:"",audio:""},sameGateway:true,workspace:null,busy:false};
+const state={projectId:null,projects:[],turns:[],settings:{},transcriptionSettings:{},routing:{text:"local",audio:"local"},gateways:{text:"",audio:""},gatewayModels:{text:"",audio:""},sameGateway:true,scoringSettings:{apiKey:""},workspace:null,busy:false};
 const componentRuntime=createComponentRuntime({
  grants: { "context-summary": ["context-read"], "storage-probe": ["project-storage-read", "project-storage-write"] },
  storageProvider: () => state.workspace?.componentStorage || {},
@@ -74,9 +74,10 @@ async function loadSettings(){
  const credentials=await migrateLegacyCredentials(db,{
   text:state.settings.apiKey||sessionStorage.getItem("icare-api-key")||"",
   audio:state.transcriptionSettings.apiKey||sessionStorage.getItem("icare-transcription-api-key")||"",
+  scoring:"",
   legacy:legacy.apiKey||""
  });
- state.settings.apiKey=credentials.text;state.transcriptionSettings.apiKey=credentials.audio;
+ state.settings.apiKey=credentials.text;state.transcriptionSettings.apiKey=credentials.audio;state.scoringSettings.apiKey=credentials.scoring;
  sessionStorage.removeItem("icare-api-key");sessionStorage.removeItem("icare-transcription-api-key");
  const {apiKey:legacyKey,rememberKey:legacyRemember,...safeLegacy}=legacy;
  const {apiKey:textKey,rememberKey:textRemember,...safeText}=state.settings;
@@ -147,7 +148,7 @@ async function send(text){if(state.busy||!text.trim())return;const user=text.tri
   const route=gatewayRoutingConfig?.routes?.scoring||"direct";
   const gatewayId=route.startsWith("gateway-")?Number(route.slice(-1)):0;
   const gatewayUrl=gatewayRoutingConfig?.gateways?.find(g=>g.id===gatewayId)?.url||"";
-  scoring=await scoreIcareMultilabel({text:user,route,gatewayUrl,directUrl:gatewayRoutingConfig?.directScoringUrl||""});
+  scoring=await scoreIcareMultilabel({text:user,route,gatewayUrl,directUrl:gatewayRoutingConfig?.directScoringUrl||"",apiKey:route==="direct"?state.scoringSettings.apiKey:""});
  }catch(error){scoringError=error.message;console.warn("Scoring ICARE indisponible :",error);}
  if(scoring){
   const scoreLine=document.createElement("p");scoreLine.className="icare-score-line";
@@ -194,7 +195,9 @@ async function saveInferenceConfiguration(){
    models[kind]=kind==="text"?(config.defaults?.chatModel||""):(config.defaults?.transcriptionModel||"");
    if(!models[kind])throw Error(kind==="text"?"Aucun modèle de conversation n’est attribué par le gateway.":"Aucun modèle de transcription n’est attribué par le gateway.");
   }
-  await saveCredentialVault(db,{text:textSettings.apiKey,audio:audioSettings.apiKey});
+  const scoringApiKey=$("direct-scoring-key").value.trim();
+  await saveCredentialVault(db,{text:textSettings.apiKey,audio:audioSettings.apiKey,scoring:scoringApiKey});
+  state.scoringSettings={apiKey:scoringApiKey};
   state.settings=textSettings;state.transcriptionSettings=audioSettings;state.routing=routing;state.gateways=gateways;state.gatewayModels=models;state.sameGateway=sameGateway;
   const {apiKey:textSecret,...safeText}=textSettings,{apiKey:audioSecret,...safeAudio}=audioSettings;
   await put(db,"settings",safeText);await put(db,"settings",safeAudio);
@@ -229,7 +232,7 @@ $("proposal-form")?.addEventListener("submit",async event=>{event.preventDefault
 $("timeline-slider")?.addEventListener("input",event=>renderTimeline(Number(event.target.value)));
 $("api-preset")?.addEventListener("change",event=>{const preset=event.target.value,presets={openai:"https://api.openai.com/v1",ollama:"http://localhost:11434/v1",lemonade:"http://127.0.0.1:13305/v1"};if(presets[preset])$("api-base").value=presets[preset];const help={openai:"OpenAI : endpoint public HTTPS. Saisissez une clé API et chargez les modèles disponibles.",ollama:"Ollama local : http://localhost:11434/v1. Pour un site HTTPS distant, Ollama doit autoriser l’origine GitHub Pages via OLLAMA_ORIGINS. localhost désigne votre propre ordinateur.",lemonade:"Lemonade local : http://127.0.0.1:13305/v1. Pour un site HTTPS distant, le serveur doit autoriser l’origine GitHub Pages (CORS).", "":"API compatible OpenAI Chat Completions. Saisissez l’URL de base terminée par /v1."};$("provider-help").textContent=help[preset]||help[""];});
 
-await loadOntology();gatewayRoutingConfig=await initGatewayConfiguration({db,get,set:put,saveLegacy:async({llm,audio,textGateway,audioGateway})=>{
+await loadOntology();gatewayRoutingConfig=await initGatewayConfiguration({db,get,set:put,loadScoringKey:async()=>(await loadCredentialVault(db)).scoring,saveLegacy:async({llm,audio,textGateway,audioGateway,scoringRoute,scoringGateway,scoringApiKey})=>{
  const modelCache=new Map();
  async function modelForGateway(url,capability){
   if(!url)return "";
@@ -247,6 +250,16 @@ await loadOntology();gatewayRoutingConfig=await initGatewayConfiguration({db,get
   llm==="direct"?"":modelForGateway(textGateway,"chat"),
   audio==="direct"?"":modelForGateway(audioGateway,"transcription")
  ]);
+ if(scoringRoute!=="direct"){
+  if(!scoringGateway)throw Error("Renseignez l’URL de la Gateway de scoring.");
+  const base=scoringGateway.replace(/\/+$/,""),endpoint=base.endsWith("/v1")?base+"/icare/config":base+"/v1/icare/config";
+  const response=await fetch(endpoint,{credentials:"include",cache:"no-store"});
+  if(!response.ok)throw Error("Impossible de vérifier la capacité de scoring de la Gateway ("+response.status+").");
+  const gatewayInfo=await response.json();
+  if(gatewayInfo.capabilities?.scoring!==true)throw Error("Cette Gateway n’expose pas le scoring ICARE. Configurez scoring.endpointUrl côté serveur.");
+ }
+ await saveCredentialVault(db,{text:state.settings.apiKey||"",audio:state.transcriptionSettings.apiKey||"",scoring:scoringApiKey||""});
+ state.scoringSettings={apiKey:scoringApiKey||""};
  state.routing={text:llm==="direct"?"local":"gateway",audio:audio==="direct"?"local":"gateway"};
  state.gateways={text:textGateway,audio:audioGateway};state.gatewayModels={text:textModel,audio:audioModel};
  await put(db,"settings",{id:"inference-routing",...state.routing});
