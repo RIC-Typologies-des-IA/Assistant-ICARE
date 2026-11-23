@@ -10,9 +10,9 @@
   "theme_color": "#172b4d",
   "icons": [
     {
-      "src": "./favicon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "./ric-logo.png",
+      "sizes": "118x125",
+      "type": "image/png",
       "purpose": "any"
     }
   ]
