@@ -331,6 +331,7 @@ try {
  
       darkPieColors,
       darkCustomStyleFills,
+      darkCustomStyleDebug: window.__mermaidStyleDebug || null,
       darkMindmapColors,
       familyChecks,
       lightRestoredCount: host.querySelectorAll(".mermaid-diagram svg").length
@@ -361,7 +362,7 @@ try {
   assert.ok(result.darkTextLabelCount > 0 && result.darkTextFillCount >= Math.ceil(result.darkTextLabelCount * 0.8), "au moins 80 % des libellés SVG doivent porter une couleur explicite ou héritée en mode sombre");
   assert.ok(new Set(result.darkPieColors).size >= 3, "la palette du diagramme circulaire doit rester différenciée en mode sombre");
   assert.equal(result.darkCustomStyleFills.length, 2, "le diagramme Mermaid personnalisé doit être conservé en mode sombre");
-  assert.ok(/fill:\s*(?:#ff0000|rgb\(255,\s*0,\s*0\))/i.test(result.darkCustomStyleFills[0]), "la couleur rouge explicitement définie doit être conservée : " + JSON.stringify(result.darkCustomStyleFills));
+  assert.ok(/fill:\s*(?:#ff0000|rgb\(255,\s*0,\s*0\))/i.test(result.darkCustomStyleFills[0]), "la couleur rouge explicitement définie doit être conservée : " + JSON.stringify({ fills: result.darkCustomStyleFills, debug: result.darkCustomStyleDebug }));
   assert.ok(/fill:\s*(?:#00aa00|rgb\(0,\s*170,\s*0\))/i.test(result.darkCustomStyleFills[1]), "la couleur verte explicitement définie doit être conservée");
   assert.ok(new Set(result.darkMindmapColors).size >= 2, "la palette de la carte mentale doit rester différenciée en mode sombre");
   assert.ok(Object.entries(result.familyChecks).every(([, passed]) => passed), "chaque famille de diagrammes doit conserver ses libellés : " + JSON.stringify(result.familyChecks));
