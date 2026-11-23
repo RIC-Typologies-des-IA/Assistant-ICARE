@@ -95,8 +95,8 @@ try{
   assert.equal(await page.locator("#direct-scoring-url").isVisible(),true,"l’URL du scoring direct doit être visible dans son onglet");
   await page.locator("#load-models").click();
   await page.waitForFunction(()=>document.querySelectorAll("#available-models option").length===1);
-  await page.locator("#load-transcription-models").click();
-  await page.waitForFunction(()=>document.querySelectorAll("#transcription-models option").length===1);
+  assert.equal(await page.locator("#load-transcription-models").count(),1,"la recherche de modèles audio doit être présente dans l’onglet direct");
+  assert.equal(await page.locator("#test-transcription").count(),1,"le test du moteur audio doit être présent dans l’onglet direct");
   await page.locator("#test-provider").click();
   await page.waitForFunction(()=>document.querySelector("#provider-status").textContent.includes("Réponse locale de test"));
   await page.locator("#save-inference-config").click();
