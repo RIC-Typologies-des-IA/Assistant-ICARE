@@ -493,4 +493,5 @@ html[data-theme="dark"] .sidebar-project-heading{border-color:#465a74}
 .gateway-card:disabled,.gateway-card.is-disabled{opacity:.48;background:#eef1f5}.gateway-card.is-disabled input,.gateway-card.is-disabled label{cursor:not-allowed}
 .gateway-disabled-reason{font-size:11px;color:var(--muted,#64748b);margin:0;min-height:1.2em}
 @media(max-width:760px){.gateway-cards{grid-template-columns:1fr}}
-\n.icare-score-line{margin:10px 0 0;padding:7px 10px;border-left:3px solid #4777b8;border-radius:4px;background:#edf4fc;color:#294d78;font-size:12px;font-weight:650}.message.assistant .icare-score-line.muted{color:#69788b;font-weight:500}\n
+
+.icare-score-line{margin:10px 0 0;padding:7px 10px;border-left:3px solid #4777b8;border-radius:4px;background:#edf4fc;color:#294d78;font-size:12px;font-weight:650}.message.assistant .icare-score-line.muted{color:#69788b;font-weight:500}
