@@ -70,4 +70,4 @@ L'authentification est déléguée à l'IdP d'entreprise placé devant le gatewa
 
 ## Scoring local et cache du modèle
 
-Le scoring utilise Transformers.js et ONNX Runtime sur le CPU de la machine Gateway. Le premier démarrage récupère uniquement les fichiers de poids et de tokenizer du modèle, puis les met en cache dans `.cache/transformers` ou dans le répertoire défini par `ICARE_MODEL_CACHE`. Les appels de scoring eux-mêmes restent intégralement locaux. Pour un environnement isolé, précharger le cache, définir `ICARE_MODELS_OFFLINE=1` et éventuellement configurer `modelId` vers un chemin local.
+Le scoring utilise Transformers.js et ONNX Runtime sur le CPU de la machine Gateway. La première utilisation récupère uniquement les fichiers de poids et de tokenizer du modèle, puis les met en cache dans `.cache/transformers` ou dans le répertoire défini par `ICARE_MODEL_CACHE`. Les appels de scoring eux-mêmes restent intégralement locaux. Pour un environnement isolé, précharger le cache, définir `ICARE_MODELS_OFFLINE=1` et éventuellement configurer `modelId` vers un chemin local.
