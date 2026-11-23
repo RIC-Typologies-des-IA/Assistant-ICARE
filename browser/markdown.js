@@ -271,14 +271,14 @@ function materializeMermaidStyles(svgRoot) {
           const property = rule.style[index].toLowerCase();
           const value = rule.style.getPropertyValue(property).trim();
           if (!SAFE_SVG_STYLE_PROPERTIES.has(property) || !value || value.length > 160) continue;
-          if (/(?:url\\s*\\(|expression\\s*\\(|javascript:|@import|[<>\\\\])/i.test(value)) continue;
+          if (/(?:url\\s*\\(|expression\\s*\\(|javascript:|@import|[<>\\])/i.test(value)) continue;
           if (!/^[A-Za-z0-9#(),.%\\s"'_+-]+$/.test(value)) continue;
           declarations.set(property, value);
         }
         if (!declarations.size) continue;
         const existing = node.getAttribute("style") || "";
         for (const [property, value] of declarations) {
-          if (new RegExp("(?:^|;)\\\\s*" + property + "\\\\s*:", "i").test(existing)) continue;
+          if (new RegExp("(?:^|;)\\s*" + property + "\\s*:", "i").test(existing)) continue;
           node.style.setProperty(property, value);
         }
       }
