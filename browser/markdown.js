@@ -110,7 +110,7 @@ window.DOMPurify.addHook("uponSanitizeAttribute", (node, data) => {
       const property = part.slice(0, colon).trim().toLowerCase();
       const value = part.slice(colon + 1).trim();
       if (!SAFE_SVG_STYLE_PROPERTIES.has(property) || !value || value.length > 160) return null;
-      if (/(?:url\s*\(\s*(?!#)|expression\s*\(|javascript:|@import|[<>\\])/i.test(value)) return null;
+      if (/(?:url\s*\(\s*(?!#)|expression\s*\(|javascript:|@import|[<>\])/i.test(value)) return null;
       if (!/^[A-Za-z0-9#(),.%\s"'_+-]+$/.test(value)) return null;
       return property + ":" + value;
     }).filter(Boolean);
@@ -261,7 +261,7 @@ function materializeMermaidStyles(svgRoot) {
     parserDocument.head.append(styleSheetNode);
     const rules = styleSheetNode.sheet?.cssRules || [];
     for (const rule of rules) {
-      if (rule.type !== 1 || !/^[A-Za-z0-9_.#\\s>:+~,*\\[\\]="'-]+$/.test(rule.selectorText || "")) continue;
+      if (rule.type !== 1 || !/^[A-Za-z0-9_.#\s>:+~,*\[\]="'-]+$/.test(rule.selectorText || "")) continue;
       let matches;
       try { matches = svgRoot.querySelectorAll(rule.selectorText); }
       catch { continue; }
@@ -271,14 +271,14 @@ function materializeMermaidStyles(svgRoot) {
           const property = rule.style[index].toLowerCase();
           const value = rule.style.getPropertyValue(property).trim();
           if (!SAFE_SVG_STYLE_PROPERTIES.has(property) || !value || value.length > 160) continue;
-          if (/(?:url\\s*\\(|expression\\s*\\(|javascript:|@import|[<>\\])/i.test(value)) continue;
-          if (!/^[A-Za-z0-9#(),.%\\s"'_+-]+$/.test(value)) continue;
+          if (/(?:url\s*\\(|expression\s*\\(|javascript:|@import|[<>\])/i.test(value)) continue;
+          if (!/^[A-Za-z0-9#(),.%\s"'_+-]+$/.test(value)) continue;
           declarations.set(property, value);
         }
         if (!declarations.size) continue;
         const existing = node.getAttribute("style") || "";
         for (const [property, value] of declarations) {
-          if (new RegExp("(?:^|;)\\s*" + property + "\\s*:", "i").test(existing)) continue;
+          if (new RegExp("(?:^|;)\s*" + property + "\s*:", "i").test(existing)) continue;
           node.style.setProperty(property, value);
         }
       }
