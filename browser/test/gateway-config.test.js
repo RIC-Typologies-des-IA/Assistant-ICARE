@@ -7,10 +7,14 @@ test("gateway configuration exposes three independent services and three gateway
  assert.match(html,/direct-scoring-key/);
  for(let n=1;n<=3;n++){assert.match(html,new RegExp("gateway-card-"+n));for(const service of ["llm","audio","scoring"])assert.match(html,new RegExp("gateway-"+n+"-"+service));}
 });
-test("gateway cards follow the progressive one-then-two unassigned services rule",async()=>{
+test("three gateway cards stay visible and each inference capability has a single owner",async()=>{
  const module=await readFile(new URL("../gateway-config.js",import.meta.url),"utf8");
- assert.match(module,/id===2&&firstCount<3/);assert.match(module,/id===3&&firstCount<2/);
- assert.match(module,/capabilities:id===1\?\[\.\.\.SERVICES\]:\[\]/);
+ assert.match(module,/card\.hidden=false/);
+ assert.match(module,/config\.gateways\.find\(candidate=>candidate\.capabilities\.includes\(service\)\)/);
+ assert.match(module,/other\.capabilities=other\.capabilities\.filter\(item=>item!==service\)/);
+ assert.match(module,/config\.routes\[service\]="gateway-"\+g\.id/);
+ assert.match(module,/for\(const g of d\.gateways\)if\(g\.capabilities\.includes\(service\)&&g!==owner\)g\.capabilities=g\.capabilities\.filter/);
+ assert.doesNotMatch(module,/firstCount|id===2&&|id===3&&/);
 });
 
 test("settings expose mutually exclusive Direct and Gateway tabs without duplicate legacy controls",async()=>{

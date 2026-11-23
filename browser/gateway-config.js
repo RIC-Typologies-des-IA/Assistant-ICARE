@@ -7,6 +7,15 @@ function normalise(value){
  d.directScoringUrl=String(value.directScoringUrl||"");
  for(const service of SERVICES){const route=value.routes?.[service];if(route==="direct"||/^gateway-[123]$/.test(route))d.routes[service]=route;}
  for(const g of d.gateways){const old=value.gateways?.find?.(x=>Number(x.id)===g.id);if(old){g.name=String(old.name||g.name).slice(0,60);g.url=String(old.url||"");g.capabilities=Array.isArray(old.capabilities)?old.capabilities.filter(x=>SERVICES.includes(x)):[];}}
+ // Chaque service ne peut appartenir qu’à une seule Gateway. En cas d’ancienne
+ // configuration ambiguë, la première Gateway configurée conserve la capacité.
+ for(const service of SERVICES){
+  const route=d.routes[service],preferredId=/^gateway-[123]$/.test(route)?Number(route.slice(-1)):0;
+  const owner=d.gateways.find(g=>g.id===preferredId&&g.capabilities.includes(service))
+   ||d.gateways.find(g=>g.capabilities.includes(service));
+  for(const g of d.gateways)if(g.capabilities.includes(service)&&g!==owner)g.capabilities=g.capabilities.filter(item=>item!==service);
+  if(d.routes[service]!=="direct"&&(!owner||d.routes[service]!=="gateway-"+owner.id))d.routes[service]="direct";
+ }
  if(!d.gateways.some(g=>g.capabilities.length))d.gateways[0].capabilities=[...SERVICES];
  return d;
 }
@@ -21,6 +30,7 @@ export async function initGatewayConfiguration({db,get,set,saveLegacy,loadScorin
   if(textOn){config.gateways[0].url=textUrl;config.gateways[0].capabilities=["llm","audio","scoring"];config.routes.llm="gateway-1";}
   if(audioOn){const same=textOn&&audioUrl===textUrl,id=same?1:(textOn?2:1),g=config.gateways[id-1];g.url=audioUrl;if(!g.capabilities.includes("audio"))g.capabilities.push("audio");config.routes.audio="gateway-"+id;}
   if(!textOn&&!audioOn)config.gateways[0].capabilities=[...SERVICES];
+  config=normalise(config);
   await set(db,"settings",{id:KEY,...config});
  }
  $("direct-scoring-url").value=config.directScoringUrl;
@@ -29,13 +39,17 @@ export async function initGatewayConfiguration({db,get,set,saveLegacy,loadScorin
  const gateway=id=>config.gateways.find(g=>g.id===id);
  const eligible=(service,id)=>gateway(id)?.capabilities.includes(service)||false;
  function refresh(){
-  const firstCount=gateway(1).capabilities.length;
   for(const g of config.gateways){
-   const visible=g.id===1||(g.id===2&&firstCount<3)||(g.id===3&&firstCount<2);
-   const card=$("gateway-card-"+g.id);card.hidden=!visible;
-   for(const service of SERVICES){const input=$("gateway-"+g.id+"-"+service);input.disabled=!visible;}
-   $("gateway-"+g.id+"-name").disabled=!visible;$("gateway-"+g.id+"-url").disabled=!visible;
+   const card=$("gateway-card-"+g.id);card.hidden=false;
+   $("gateway-"+g.id+"-name").disabled=false;$("gateway-"+g.id+"-url").disabled=false;
    $("gateway-"+g.id+"-reason").textContent="";
+   for(const service of SERVICES){
+    const input=$("gateway-"+g.id+"-"+service),owner=config.gateways.find(candidate=>candidate.capabilities.includes(service));
+    const label=input.closest("label");
+    const unavailable=!!owner&&owner.id!==g.id;
+    label.hidden=unavailable;label.style.display=unavailable?"none":"";input.disabled=unavailable;
+    input.checked=g.capabilities.includes(service);
+   }
   }
   for(const service of SERVICES){
    const select=$(routeIds[service]),previous=config.routes[service]||"direct";
@@ -48,7 +62,17 @@ export async function initGatewayConfiguration({db,get,set,saveLegacy,loadScorin
   $("gateway-"+g.id+"-name").value=g.name;$("gateway-"+g.id+"-url").value=g.url;
   for(const service of SERVICES)$("gateway-"+g.id+"-"+service).checked=g.capabilities.includes(service);
   for(const field of ["name","url"])$("gateway-"+g.id+"-"+field).addEventListener("input",()=>{g[field]=$("gateway-"+g.id+"-"+field).value;refresh();});
-  for(const service of SERVICES)$("gateway-"+g.id+"-"+service).addEventListener("change",()=>{g.capabilities=SERVICES.filter(s=>$("gateway-"+g.id+"-"+s).checked);refresh();});
+  for(const service of SERVICES)$("gateway-"+g.id+"-"+service).addEventListener("change",event=>{
+   if(event.target.checked){
+    for(const other of config.gateways)other.capabilities=other.capabilities.filter(item=>item!==service);
+    if(!g.capabilities.includes(service))g.capabilities.push(service);
+    config.routes[service]="gateway-"+g.id;
+   }else{
+    g.capabilities=g.capabilities.filter(item=>item!==service);
+    if(config.routes[service]==="gateway-"+g.id)config.routes[service]="direct";
+   }
+   refresh();
+  });
  }
  for(const service of SERVICES)$(routeIds[service]).addEventListener("change",e=>{config.routes[service]=e.target.value;});
  refresh();
