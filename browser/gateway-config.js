@@ -10,12 +10,12 @@ function normalise(value){
  // Chaque service ne peut appartenir qu’à une seule Gateway. En cas d’ancienne
  // configuration ambiguë, la première Gateway configurée conserve la capacité.
  for(const service of SERVICES){
-  let assigned=false;
-  for(const g of d.gateways){
-   if(!g.capabilities.includes(service))continue;
-   if(assigned)g.capabilities=g.capabilities.filter(item=>item!==service);
-   else assigned=true;
-  }
+  const route=d.routes[service],preferredId=/^gateway-[123]$/.test(route)?Number(route.slice(-1)):0;
+  const owner=d.gateways.find(g=>g.id===preferredId&&g.capabilities.includes(service))
+   ||d.gateways.find(g=>g.capabilities.includes(service));
+  for(const g of d.gateways)if(g.capabilities.includes(service)&&g!==owner)g.capabilities=g.capabilities.filter(item=>item!==service);
+  if(owner)d.routes[service]="gateway-"+owner.id;
+  else d.routes[service]="direct";
  }
  if(!d.gateways.some(g=>g.capabilities.length))d.gateways[0].capabilities=[...SERVICES];
  return d;
