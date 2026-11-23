@@ -7,7 +7,8 @@ Le gateway est un service distant administré par l'organisation. Dans ICARE Bro
 Le gateway expose une façade compatible OpenAI pour le chat et la transcription, ainsi qu’un endpoint ICARE multilabel :
 - `GET /v1/models`
 - `POST /v1/chat/completions`
-- `POST /v1/audio/transcriptions`\n- `POST /v1/icare/scoring` (scoring multilabel ICARE via Horizon Labs)
+- `POST /v1/audio/transcriptions`
+- `POST /v1/icare/scoring` (scoring multilabel ICARE via Horizon Labs)
 - `GET /v1/icare/config` (modèles par défaut visibles pour l'identité authentifiée)
 
 Les identifiants de modèles visibles par le navigateur sont des alias administrés. Chaque alias est associé côté serveur à un fournisseur, un modèle amont, une URL HTTPS fixe et une variable d'environnement contenant la clé API. Le client ne peut jamais choisir une URL amont ni transmettre une clé fournisseur.
