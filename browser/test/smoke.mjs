@@ -30,9 +30,11 @@ try{
     if(url.pathname.endsWith("/icare/config")&&gatewayConfigStatus!==200)return route.fulfill({status:gatewayConfigStatus,contentType:"application/json",body:JSON.stringify({error:"Configuration indisponible"})});
     const body=url.pathname.endsWith("/icare/config")
       ?gatewayConfigPayload
-      :url.pathname.endsWith("/models")
-        ?{data:[{id:"enterprise-chat"},{id:"enterprise-audio"}]}
-        :{choices:[{message:{content:"Réponse entreprise de test."}}]};
+      :url.pathname.endsWith("/icare/scoring")
+        ?{scores:{I:0.81,C:0.72,A:0.63,R:0.54,E:0.45}}
+        :url.pathname.endsWith("/models")
+          ?{data:[{id:"enterprise-chat"},{id:"enterprise-audio"}]}
+          :{choices:[{message:{content:"Réponse entreprise de test."}}]};
     return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(body)});
   });
   await page.goto(url);
