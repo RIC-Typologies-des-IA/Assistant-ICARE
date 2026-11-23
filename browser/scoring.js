@@ -14,7 +14,7 @@ function parseScores(payload){
  if(result?.I!==undefined)return Object.fromEntries(["I","C","A","R","E"].map(k=>[k,Number(result[k]??0)]));
  throw new Error("Réponse du moteur de scoring non reconnue.");
 }
-export async function scoreIcareMultilabel({text,route="direct",gatewayUrl="",gatewayModel="",directUrl="",fetchImpl=fetch}){
+export async function scoreIcareMultilabel({text,route="direct",gatewayUrl="",gatewayModel="",directUrl="",apiKey="",fetchImpl=fetch}){
  if(!text?.trim())throw new Error("Message vide : scoring impossible.");
  const viaGateway=route!=="direct";
  let url,body,credentials;
@@ -29,7 +29,7 @@ export async function scoreIcareMultilabel({text,route="direct",gatewayUrl="",ga
   credentials="omit";
  }
  let response;
- try{response=await fetchImpl(url,{method:"POST",credentials,headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});}
+ try{response=await fetchImpl(url,{method:"POST",credentials,headers:{"Content-Type":"application/json",...(viaGateway||!apiKey?{}:{Authorization:"Bearer "+apiKey})},body:JSON.stringify(body)});}
  catch(error){throw new Error("Échec de connexion au moteur de scoring (CORS ou réseau) : "+error.message);}
  if(!response.ok){let detail="";try{const data=await response.json();detail=data.error||data.message||"";}catch{}throw new Error("Moteur de scoring indisponible ("+response.status+")"+(detail?" : "+detail:""));}
  const payload=await response.json(),scores=parseScores(payload);
