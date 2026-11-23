@@ -50,6 +50,12 @@ export function validateConfig(config) {
         model.capabilities.some(capability => !["chat", "transcription", "scoring"].includes(capability))) {
       throw new Error("Model capabilities must be chat, transcription and/or scoring.");
     }
+    if (model.capabilities.includes("scoring") && model.runtime !== "transformers-js") {
+      throw new Error("ICARE scoring models must use the local Transformers.js runtime; remote scoring providers are forbidden.");
+    }
+    if (model.runtime === "transformers-js" && model.capabilities.length !== 1) {
+      throw new Error("The local Transformers.js runtime is reserved for the scoring capability.");
+    }
     if (model.runtime !== "transformers-js" && !String(model.upstreamModel || "").trim()) throw new Error("upstreamModel is required.");
     if (model.allowedGroups !== undefined && (!Array.isArray(model.allowedGroups) || model.allowedGroups.some(group => typeof group !== "string" || !group.trim()))) throw new Error("allowedGroups must be an array of non-empty group names.");
   }
