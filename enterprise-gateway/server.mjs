@@ -224,7 +224,7 @@ export function createGatewayServer(config, { fetchImpl = fetch } = {}) {
         return;
       }
 
-            if (req.method === "POST" && path === "/v1/chat/completions") {
+                  if (req.method === "POST" && path === "/v1/chat/completions") {
         const body = await readBody(req, config.limits?.maxJsonBytes || 2 * 1024 * 1024);
         let payload;
         try { payload = JSON.parse(body.toString("utf8")); } catch { json(res, 400, { error: { message: "Invalid JSON request." } }); return; }
