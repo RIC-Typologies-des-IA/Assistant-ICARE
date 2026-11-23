@@ -6,6 +6,8 @@ import { createIcareToolExecutor } from "./workspace-tools.js";
 import { saveCredentialVault, migrateLegacyCredentials } from "./credentials.js";
 import { registerAppServiceWorker } from "./pwa.js";
 import { createComponentRuntime } from "./component-runtime.js";
+import { initGatewayConfiguration } from "./gateway-config.js";
+import { scoreIcareMultilabel } from "./scoring.js";
 const $=id=>document.getElementById(id), db=await openDatabase();
 $("app-version").textContent=`— V${window.ICARE_VERSION} Alpha`;
 const state={projectId:null,projects:[],turns:[],settings:{},transcriptionSettings:{},routing:{text:"local",audio:"local"},gateways:{text:"",audio:""},gatewayModels:{text:"",audio:""},sameGateway:true,workspace:null,busy:false};
