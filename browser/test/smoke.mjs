@@ -277,6 +277,7 @@ try{
   assert.equal(await page.locator("#route-scoring").inputValue(),"gateway-3");
   await page.locator("#save-gateway-matrix").click();
   await page.waitForFunction(()=>document.querySelector("#gateway-matrix-status").textContent.includes("Routage Gateway enregistré"));
+  await page.locator("#settings-dialog").waitFor({state:"hidden"});
   assert.ok(gatewayRequests.some(request=>request.url.endsWith("/one/v1/icare/config")),"la configuration Gateway 1 doit être interrogée pour le modèle LLM");
   assert.ok(gatewayRequests.some(request=>request.url.endsWith("/two/v1/icare/config")),"la configuration Gateway 2 doit être interrogée pour le modèle audio");
   await page.locator("#message-input").fill("Bonjour gateway texte");
