@@ -157,7 +157,9 @@ try{
   assert.equal(await page.locator("#new-project").evaluate(el=>el.closest(".sidebar-toolbar")!==null),true,"Nouveau projet doit être au même niveau qu’Importer");
   assert.equal(await page.locator("#project-list .project-row").count(),2,"les deux projets doivent être visibles dans la liste");
   assert.ok(await page.locator("#project-list .project-row-action svg").count()>=4,"les actions Renommer et Télécharger doivent être de vraies icônes");
-  const panelHeight=await page.locator(".sidebar").evaluate(el=>el.getBoundingClientRect().height);
+  const panelMetrics=await page.locator(".sidebar").evaluate(el=>({height:el.getBoundingClientRect().height,scrollHeight:el.scrollHeight,children:[...el.children].map(child=>({className:child.className,height:child.getBoundingClientRect().height,display:getComputedStyle(child).display,margin:getComputedStyle(child).margin,padding:getComputedStyle(child).padding}))}));
+  console.log("PROJECT_PANEL_METRICS",JSON.stringify(panelMetrics));
+  const panelHeight=panelMetrics.height;
   assert.ok(panelHeight<180,"le panneau ouvert doit épouser la liste de deux projets sans hauteur artificielle");
   for(const row of await page.locator("#project-list .project-row").all()){assert.equal(await row.locator(".project-row-name").count(),1,"chaque projet doit avoir son nom");assert.equal(await row.locator("[aria-label^=\"Renommer \"]").count(),1,"chaque projet doit avoir sa propre commande Renommer");assert.equal(await row.locator("[aria-label^=\"Télécharger \"]").count(),1,"chaque projet doit avoir sa propre commande Télécharger");}
   await page.locator("#project-list .project-row").filter({has:page.locator(".project-row-name",{hasText:"Projet navigateur"})}).locator("[aria-label^=\"Renommer \"]").click();
