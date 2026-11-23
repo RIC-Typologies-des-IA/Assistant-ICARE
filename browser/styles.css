@@ -425,8 +425,6 @@ body.project-menu-open .sidebar{
 .message-content .hljs-keyword,.message-content .hljs-selector-tag{font-weight:700}
 
 /* Mermaid owns node and cluster fills so diagram-specific color scales remain visible. */
-.message-content .mermaid-diagram svg .edgePath path{stroke:#536b8a;stroke-width:1.5px;fill:none}
-.message-content .mermaid-diagram svg .marker path{fill:#536b8a;stroke:#536b8a}
 .message-content .mermaid-diagram svg .nodeLabel,
 .message-content .mermaid-diagram svg .edgeLabel{font-family:Inter,ui-sans-serif,system-ui,sans-serif}
 
@@ -452,14 +450,9 @@ body.project-menu-open .sidebar{
 .message-content .mermaid-diagram svg .actor-line{stroke-dasharray:4 4}
 .message-content .mermaid-diagram svg .pieCircle,
 .message-content .mermaid-diagram svg .slice{stroke:#fff;stroke-width:2px}
-.message-content .mermaid-diagram svg .axis path,
-.message-content .mermaid-diagram svg .axis line,
-.message-content .mermaid-diagram svg .grid path{stroke:#aab7c8}
 html[data-theme="dark"] .message-content .mermaid-diagram{
   background:#1b293b;color:#e8eef7;border-color:#465a74
 }
-html[data-theme="dark"] .message-content .mermaid-diagram svg text,
-html[data-theme="dark"] .message-content .mermaid-diagram svg tspan{fill:#e8eef7}
 
 /* Independent inference routing */
 .route-choice{display:flex!important;align-items:center;justify-content:space-between;gap:16px;padding:11px 12px;background:#fff;border:1px solid #dfe6ef;border-radius:9px}
