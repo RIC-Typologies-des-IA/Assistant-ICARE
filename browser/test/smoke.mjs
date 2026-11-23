@@ -144,8 +144,13 @@ try{
   await page.locator("#project-dialog").waitFor({state:"hidden"});
   await page.waitForFunction(()=>document.querySelector("#project-title").textContent==="Projet navigateur");
   assert.equal(await page.locator("#project-select option").count(),2,"la création doit ajouter un deuxième projet");
+  const hamburgerClosed=await page.locator("#project-menu-toggle").boundingBox();
   await page.locator("#project-menu-toggle").click();
   assert.equal(await page.locator("body").evaluate(el=>el.classList.contains("project-menu-open")),true,"le bouton hamburger doit ouvrir le volet projets");
+  const hamburgerOpen=await page.locator("#project-menu-toggle").boundingBox();
+  assert.ok(Math.abs(hamburgerOpen.x-hamburgerClosed.x)<0.5 && Math.abs(hamburgerOpen.y-hamburgerClosed.y)<0.5,"le hamburger doit rester exactement à la même position quand le volet se déploie");
+  assert.equal(await page.locator("#project-title").evaluate(el=>el.closest(".sidebar")!==null),true,"le nom du projet actif doit être dans le volet latéral");
+  for(const id of ["project-export-button","project-import-button","edit-project"]) assert.equal(await page.locator("#"+id).evaluate(el=>el.closest(".sidebar")!==null),true,id+" doit être dans le volet à côté du nom du projet");
   assert.equal(await page.locator(".sidebar").evaluate(el=>Math.round(el.getBoundingClientRect().width)),250,"le rail doit s’élargir sans se superposer au dialogue");
   await page.locator("#project-menu-toggle").click();
   assert.equal(await page.locator("body").evaluate(el=>el.classList.contains("project-menu-open")),false,"le hamburger doit replier le volet en conservant le rail");
