@@ -916,3 +916,9 @@ body.project-menu-open .sidebar select[hidden]{
 @media(max-width:520px){
   .gateway-cards{grid-template-columns:minmax(0,1fr)}
 }
+
+/* Les actions de projet gardent une sémantique visuelle distincte. */
+.project-row-action.is-destructive{color:#c62828}
+.project-row-action.is-destructive:hover,.project-row-action.is-destructive:focus-visible{background:#fde8e7;color:#a71919}
+html[data-theme="dark"] .project-row-action.is-destructive{color:#ff8585}
+html[data-theme="dark"] .project-row-action.is-destructive:hover,html[data-theme="dark"] .project-row-action.is-destructive:focus-visible{background:#512d36;color:#ffaaaa}
