@@ -173,11 +173,11 @@ try{
   await page.locator("#project-list .project-row").filter({has:page.locator(".project-row-name",{hasText:"Projet navigateur"})}).locator(".project-row-name").click();
   await page.waitForFunction(()=>document.querySelector("#project-title").textContent==="Projet navigateur");
   assert.equal(await page.locator("body").evaluate(el=>el.classList.contains("project-menu-open")),true,"changer à nouveau de projet doit conserver le volet ouvert");
-  assert.ok(await page.locator("#project-list .project-row-action svg").count()>=4,"les actions Renommer et Télécharger doivent être de vraies icônes");
+  assert.ok(await page.locator("#project-list .project-row-action svg").count()>=6,"les actions Renommer, Sauvegarder et Supprimer doivent être de vraies icônes");
   const panelMetrics=await page.locator(".sidebar").evaluate(el=>({height:el.getBoundingClientRect().height,scrollHeight:el.scrollHeight,children:[...el.children].map(child=>({className:child.className,height:child.getBoundingClientRect().height,display:getComputedStyle(child).display,margin:getComputedStyle(child).margin,padding:getComputedStyle(child).padding}))}));
   const panelHeight=panelMetrics.height;
   assert.ok(panelHeight<180,"le panneau ouvert doit épouser la liste de deux projets sans hauteur artificielle");
-  for(const row of await page.locator("#project-list .project-row").all()){assert.equal(await row.locator(".project-row-name").count(),1,"chaque projet doit avoir son nom");assert.equal(await row.locator("[aria-label^=\"Renommer \"]").count(),1,"chaque projet doit avoir sa propre commande Renommer");assert.equal(await row.locator("[aria-label^=\"Télécharger \"]").count(),1,"chaque projet doit avoir sa propre commande Télécharger");}
+  for(const row of await page.locator("#project-list .project-row").all()){assert.equal(await row.locator(".project-row-name").count(),1,"chaque projet doit avoir son nom");assert.equal(await row.locator("[aria-label^=\"Renommer \"]").count(),1,"chaque projet doit avoir sa propre commande Renommer");assert.equal(await row.locator("[aria-label^=\"Sauvegarder \"]").count(),1,"chaque projet doit avoir sa propre commande Sauvegarder");assert.equal(await row.locator("[aria-label^=\"Supprimer \"]").count(),1,"chaque projet doit avoir sa propre commande Supprimer");}
   await page.locator("#project-list .project-row").filter({has:page.locator(".project-row-name",{hasText:"Projet navigateur"})}).locator("[aria-label^=\"Renommer \"]").click();
   await page.locator("#project-name").fill("Projet navigateur renommé");
   await page.locator("#save-project").click();
