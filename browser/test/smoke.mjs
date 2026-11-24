@@ -52,7 +52,7 @@ try{
   const railGeometry=await page.evaluate(()=>{const rail=document.querySelector(".sidebar").getBoundingClientRect(),chat=document.querySelector(".chat-panel").getBoundingClientRect();return {railRight:Math.round(rail.right),chatLeft:Math.round(chat.left),railTop:Math.round(rail.top),chatTop:Math.round(chat.top)}});
   assert.ok(railGeometry.railRight<railGeometry.chatLeft,"le rail doit être à gauche du dialogue avec un espace : "+JSON.stringify(railGeometry));
   assert.ok(railGeometry.chatTop>railGeometry.railTop,"le rail doit commencer sous la bannière avec une marge");
-  assert.equal(await page.locator("#project-import-button svg").count(),1,"l’import doit être représenté par une icône accessible");
+  assert.equal(await page.locator("#project-import-button svg").count(),1,"l’import doit être représenté par une icône accessible");assert.match(await page.locator("#project-import-button svg path").getAttribute("d"),/M12 3v12/,"l’import doit utiliser une flèche descendante vers le réceptacle");
   assert.equal(await page.locator("#new-project").textContent(),"＋","la création d’un projet doit rester accessible par le bouton plus");
   assert.equal(await page.locator(".sidebar .project-list").evaluate(el=>getComputedStyle(el).display),"none","la liste et ses actions doivent être masquées volet fermé");
   await page.setViewportSize({width:900,height:900});
@@ -223,19 +223,19 @@ try{
   assert.equal(await page.locator("#project-title").textContent(),"Projet navigateur renommé","Annuler ne doit ni enregistrer ni changer de projet");
   assert.equal(await page.locator("#project-select option").count(),2,"Annuler ne doit pas créer de projet");
   const otherProjectDownload=page.waitForEvent("download");
-  await page.locator("#project-list .project-row").filter({has:page.locator(".project-row-name",{hasText:"Mon premier projet"})}).locator("[aria-label^=\"Télécharger \"]").click();
+  await page.locator("#project-list .project-row").filter({has:page.locator(".project-row-name",{hasText:"Mon premier projet"})}).locator("[aria-label^=\"Sauvegarder \"]").click();
   const otherProjectBackup=JSON.parse(await readFile(await (await otherProjectDownload).path(),"utf8"));
   assert.equal(otherProjectBackup.project.name,"Mon premier projet","le téléchargement doit viser le projet de la ligne cliquée et non le projet actif");
   assert.ok(otherProjectBackup.turns.length>0,"l’export du projet non actif doit contenir son propre historique");
   const downloadPromise=page.waitForEvent("download");
-  await page.locator("#project-list .project-row").filter({has:page.locator(".project-row-name", {hasText:"Projet navigateur renommé"})}).locator("[aria-label^=\"Télécharger \"]").click();
+  await page.locator("#project-list .project-row").filter({has:page.locator(".project-row-name", {hasText:"Projet navigateur renommé"})}).locator("[aria-label^=\"Sauvegarder \"]").click();
   const backupDownload=await downloadPromise,backupPath=await backupDownload.path();
   const backup=JSON.parse(await readFile(backupPath,"utf8"));
   assert.equal(backup.format,"icare-project-export","l'export doit être limité au format de sauvegarde d'un projet");
   assert.equal(backup.project.name,"Projet navigateur renommé","l'export doit contenir le projet actif");
   assert.equal(backup.turns.length,0,"les échanges d'un autre projet ne doivent pas être exportés");
   await page.locator("#project-import-file").setInputFiles(backupPath);
-  await page.waitForFunction(()=>document.querySelector("#project-select").options.length===3);
+  await page.waitForFunction(()=>document.querySelector("#project-select").options.length===2);
   assert.equal(await page.locator("#project-title").textContent(),"Projet navigateur renommé","l'import doit ouvrir le projet nouvellement importé");
 
 
