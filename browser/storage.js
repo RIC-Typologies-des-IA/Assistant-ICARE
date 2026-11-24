@@ -4,3 +4,5 @@ function run(db,store,mode,fn){return new Promise((resolve,reject)=>{const tx=db
 export const get=(db,s,k)=>run(db,s,"readonly",o=>o.get(k));
 export const getAll=(db,s)=>run(db,s,"readonly",o=>o.getAll());
 export const put=(db,s,v)=>run(db,s,"readwrite",o=>o.put(v));
+
+export function deleteProjectData(db,projectId){return new Promise((resolve,reject)=>{const tx=db.transaction(["projects","turns","settings"],"readwrite");tx.objectStore("projects").delete(projectId);const turns=tx.objectStore("turns"),index=turns.index("projectId"),request=index.openKeyCursor(IDBKeyRange.only(projectId));request.onsuccess=()=>{const cursor=request.result;if(cursor){turns.delete(cursor.primaryKey);cursor.continue();}};tx.objectStore("settings").delete("workspace:"+projectId);tx.oncomplete=()=>resolve();tx.onabort=()=>reject(tx.error||new Error("Suppression interrompue."));tx.onerror=()=>reject(tx.error||new Error("Échec de suppression."));});}
