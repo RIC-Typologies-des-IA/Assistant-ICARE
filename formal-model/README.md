@@ -1,6 +1,6 @@
 # ICARE — Modèle formel des systèmes
 
-Ce dossier inaugure un noyau de modélisation formelle destiné à décrire un système, vérifier ses propriétés et explorer ses évolutions **sans dépendre d'un LLM**.
+Ce dossier définit le socle d'un formalisme permettant à chaque utilisateur de décrire le système qu'il souhaite étudier, d'en vérifier les propriétés et d'en explorer les évolutions **sans dépendre d'un LLM**. Il ne décrit pas l'outil ICARE lui-même.
 
 ## Intention
 
@@ -15,13 +15,15 @@ ICARE doit progressivement pouvoir répondre de façon reproductible à des ques
 
 Le LLM pourra aider à proposer des assertions, des objectifs ou des actions. Il ne sera pas la source de vérité ni l'exécuteur de la logique formelle.
 
-## Existing formal work
+## Construction du modèle utilisateur
 
-Le dépôt contient déjà un modèle TLA+ ciblé sur le contrôle d'accès aux projets : [`spec/ICAREProjectAccess.tla`](../spec/ICAREProjectAccess.tla), sa configuration TLC et le workflow [`icare-formal-model.yml`](../.github/workflows/icare-formal-model.yml). Ce modèle vérifie des invariants de sécurité pour un système concret. Le présent dossier vise un niveau complémentaire : définir un vocabulaire générique réutilisable pour décrire différents systèmes ICARE et, à terme, fournir un moteur d'interrogation déterministe. Il ne remplace pas TLA+ ni ce modèle existant.
+Un projet démarre avec un modèle concret vide. Aucun système, domaine métier, entité, relation, invariant ou objectif n'est préchargé. Le modèle émerge progressivement d'une co-construction avec l'utilisateur : les propositions sont structurées, discutées, validées ou rejetées, puis intégrées comme éléments explicites du modèle. Le méta-modèle fournit les catégories ; il ne préjuge jamais du contenu du système à décrire.
+
+La version de travail suit le versionnement sémantique avec suffixe de préversion, actuellement `0.1.0-nightly`.
 
 ## Documents
 
-- [Spécification initiale v0.1](spec-v0.1.md) — vocabulaire, sémantique, état, transition, invariants, objectifs et requêtes.
+- [Spécification `0.1.0-nightly`](spec-v0.1.md) — vocabulaire, sémantique, état, transition, invariants, objectifs et requêtes.
 - [Exemple de système fini](examples/finite-system.json) — petit modèle destiné à servir de fixture de test et d'exemple lisible.
 
 ## Principes de conception
