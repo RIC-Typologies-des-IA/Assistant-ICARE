@@ -173,8 +173,12 @@ try{
   await interactiveNode.waitFor({state:"visible"});
   await interactiveNode.click();
   assert.ok(await page.locator("#trace-steps .trace-step").first().evaluate(el=>el.open),"cliquer sur une case Mermaid doit ouvrir les détails de l’étape correspondante");
+  await page.locator("#trace-dialog").click({position:{x:1,y:1}});
+  await page.locator("#trace-dialog").waitFor({state:"hidden"});
   await page.setViewportSize({width:390,height:844});
+  await page.locator(".message.assistant .trace-button").last().click();
   await page.locator("#trace-dialog").waitFor({state:"visible"});
+  await page.locator("#trace-diagram .mermaid-diagram svg").waitFor({state:"visible"});
   assert.ok(await page.locator("#trace-diagram .mermaid-diagram").evaluate(el=>el.scrollWidth<=el.clientWidth+1),"sur smartphone, le diagramme ne doit pas nécessiter de défilement horizontal");
   assert.ok(await page.locator("#trace-diagram .mermaid-diagram svg").evaluate(svg=>svg.getBoundingClientRect().width<=svg.parentElement.clientWidth+1),"le diagramme mobile doit tenir dans la largeur disponible");
   assert.ok(await page.locator("#trace-diagram .mermaid-diagram svg").evaluate(svg=>svg.getBoundingClientRect().height<=420),"le diagramme mobile simple doit rester compact");
