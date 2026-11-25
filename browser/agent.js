@@ -25,7 +25,7 @@ export async function runAgentTurn({messages,complete,executeTool,maxSteps=8,tra
   return serialized.length>12000?serialized.slice(0,12000)+"… [tronqué, "+serialized.length+" caractères au total]":clean;
  };
  for(let step=0;step<maxSteps;step++){
-  const request={messages:transcript.map(message=>safe(message)),tools:ICARE_TOOLS.map(tool=>tool.function.name),route:safe(traceContext)};
+  const request={messages:transcript.map(message=>({role:message.role,content:safe(message.content),...(message.name?{name:message.name}:{}),...(message.tool_calls?{tool_calls:safe(message.tool_calls)}:{}),...(message.tool_call_id?{tool_call_id:message.tool_call_id}:{})})),tools:safe(ICARE_TOOLS),route:safe(traceContext)};
   const message=await complete(transcript,ICARE_TOOLS);
   if(!message||typeof message!=="object")throw new Error("Réponse agentique invalide.");
   trace.push({type:"model",step:step+1,request,response:safe(message)});
