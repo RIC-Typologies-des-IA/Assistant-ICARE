@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { scoreIcareMultilabel } from "../scoring.js";
+import { scoreIcareMultilabel, listLemonadeScoringModels } from "../scoring.js";
 const scores={I:.8,C:.6,A:.3,R:.7,E:.4};
 test("direct scoring calls the configured endpoint without a model vendor dependency",async()=>{
  let request;
@@ -22,7 +22,6 @@ test("rejects invalid independent scores",async()=>{
  await assert.rejects(()=>scoreIcareMultilabel({text:"Bonjour",directUrl:"http://localhost:8787/score",fetchImpl:async()=>({ok:true,json:async()=>({scores:{I:2,C:.2,A:.3,R:.4,E:.5}})})}),/Score ICARE invalide/);
 });
 
-import { listLemonadeScoringModels } from "../scoring.js";
 
 test("Lemonade discovery only exposes FastFlowLM decision models that support classification and systemone",async()=>{
  let requestedUrl="";
