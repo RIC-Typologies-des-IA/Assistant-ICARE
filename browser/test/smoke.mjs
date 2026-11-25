@@ -15,7 +15,8 @@ try{
   browser=await chromium.launch({headless:true});
   const context=await browser.newContext({serviceWorkers:"block"});
   const page=await context.newPage();
-  const nativeDialogs=[];\n  page.on("dialog",dialog=>{nativeDialogs.push(dialog.type);dialog.accept();});
+  const nativeDialogs=[];
+  page.on("dialog",dialog=>{nativeDialogs.push(dialog.type);dialog.accept();});
   await page.addInitScript(()=>{const original=window.fetch;window.__icareFetchCalls=[];window.fetch=(input,init={})=>{window.__icareFetchCalls.push({url:String(input),credentials:init.credentials||"same-origin",authorization:new Headers(init.headers||{}).get("Authorization"),body:typeof init.body==="string"?init.body:""});return original(input,init);};});
   await page.route("https://mock-provider.example/**",route=>{assert.equal(route.request().headers()["authorization"],"Bearer test-secret","la clé doit être disponible en mémoire de session");const requestBody=route.request().postDataJSON();if(Array.isArray(requestBody?.messages))chatPayloads.push(requestBody);const body=route.request().url().endsWith("/models")?{data:[{id:"test-model"}]}:{choices:[{message:{content:["Réponse locale de test.","","# Niveau 1","","## Niveau 2","","### Votre avis","","#### Auto-évaluation","", "#### Points d’attention / tensions éventuelles","","##### Niveau 5","","###### Niveau 6","","####Titre sans espace","","**Texte en gras**.","","| Étape | Ce qui a été réalisé | Conformité aux principes ICARE & maïeutiques |","|-------|----------------------|----------------------------------------------|","| **1. Capture de l’intention (I)** | - Vous avez exprimé votre **but** : fournir des connaissances. | ✅ Reformulation pour vérification ; ✅ distinction claire. |","| **2. Confirmation de l’intention** | Vous avez confirmé la reformulation (« Oui »). | ✅ Attente d’un accord avant de passer à la suite. |","| **3. Passage à la dimension suivante (C)** | J’ai présenté les cinq axes possibles du **Contexte**. | ✅ Question unique, ouverte. |","","### Synthèse de la dimension I","","| Champ | Valeur |","|-------|--------|","| **id** | `proj-foret-I-001` |","| **text** | *Instruire les politiques publiques de la forêt.* |","","> undefined","","<img src=x onerror=alert(1)>","[lien dangereux](javascript:alert(1))"].join("\n")}}]};return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(body)});});
   let gatewayRequests=[];
@@ -78,7 +79,16 @@ try{
   await page.locator("#settings-button").click();
   assert.equal(await page.locator("#settings-tab-direct").getAttribute("aria-selected"),"true","l’onglet Accès direct doit être sélectionné par défaut");
   assert.equal(await page.locator("#settings-panel-direct").isVisible(),true,"le panneau Accès direct doit être visible");
-  assert.equal(await page.locator("#settings-panel-gateway").isVisible(),false,"le panneau Gateway doit être masqué tant qu’il n’est pas sélectionné");\n  await page.locator("#settings-dialog").click({position:{x:1,y:1}});\n  await page.locator("#settings-dialog").waitFor({state:"hidden"});\n  assert.equal(await page.locator("#settings-dialog").evaluate(dialog=>dialog.open),false,"un dialogue de configuration inchangé doit se fermer au clic extérieur");\n  await page.locator("#settings-button").click();\n  await page.locator("#api-base").fill("https://discard.example/v1");\n  await page.locator("#settings-dialog").click({position:{x:1,y:1}});\n  await page.locator("#settings-dialog").waitFor({state:"hidden"});\n  assert.ok(nativeDialogs.includes("confirm"),"la fermeture extérieure d’une configuration modifiée doit demander confirmation");\n  await page.locator("#settings-button").click();
+  assert.equal(await page.locator("#settings-panel-gateway").isVisible(),false,"le panneau Gateway doit être masqué tant qu’il n’est pas sélectionné");
+  await page.locator("#settings-dialog").click({position:{x:1,y:1}});
+  await page.locator("#settings-dialog").waitFor({state:"hidden"});
+  assert.equal(await page.locator("#settings-dialog").evaluate(dialog=>dialog.open),false,"un dialogue de configuration inchangé doit se fermer au clic extérieur");
+  await page.locator("#settings-button").click();
+  await page.locator("#api-base").fill("https://discard.example/v1");
+  await page.locator("#settings-dialog").click({position:{x:1,y:1}});
+  await page.locator("#settings-dialog").waitFor({state:"hidden"});
+  assert.ok(nativeDialogs.includes("confirm"),"la fermeture extérieure d’une configuration modifiée doit demander confirmation");
+  await page.locator("#settings-button").click();
   assert.equal(await page.locator("#route-llm").count(),1,"un seul sélecteur de routage LLM doit exister");
   assert.equal(await page.locator("#text-route").count(),0,"l’ancien sélecteur de routage ne doit plus exister");
   await page.locator("#close-settings-dialog").click();
