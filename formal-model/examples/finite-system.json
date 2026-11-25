@@ -1,0 +1,118 @@
+{
+  "modelVersion": "0.1",
+  "id": "example.replaceable-service",
+  "title": "Remplacer un service par une alternative",
+  "description": "Modèle fini de démonstration pour les états, transitions, invariant et objectif.",
+  "types": {
+    "Service": {
+      "values": ["legacy", "replacement"]
+    }
+  },
+  "stateVariables": {
+    "activeService": {
+      "type": "Service",
+      "initial": "legacy"
+    },
+    "replacementValidated": {
+      "type": "Boolean",
+      "initial": true
+    }
+  },
+  "predicates": {
+    "ServiceActive": {
+      "args": ["Service"]
+    },
+    "ReplacementValidated": {
+      "args": []
+    }
+  },
+  "invariants": [
+    {
+      "id": "inv.active-service-exists",
+      "description": "Le service actif appartient au domaine déclaré.",
+      "expression": {
+        "op": "in",
+        "value": {
+          "op": "state",
+          "name": "activeService"
+        },
+        "domain": ["legacy", "replacement"]
+      }
+    },
+    {
+      "id": "inv.no-unvalidated-replacement",
+      "description": "Le service de remplacement ne peut être actif que s'il est validé.",
+      "expression": {
+        "op": "implies",
+        "left": {
+          "op": "equals",
+          "left": {
+            "op": "state",
+            "name": "activeService"
+          },
+          "right": "replacement"
+        },
+        "right": {
+          "op": "state",
+          "name": "replacementValidated"
+        }
+      }
+    }
+  ],
+  "actions": [
+    {
+      "id": "action.activate-replacement",
+      "parameters": [],
+      "preconditions": [
+        {
+          "op": "equals",
+          "left": {
+            "op": "state",
+            "name": "replacementValidated"
+          },
+          "right": true
+        }
+      ],
+      "effects": [
+        {
+          "op": "set",
+          "name": "activeService",
+          "value": "replacement"
+        }
+      ]
+    },
+    {
+      "id": "action.rollback-to-legacy",
+      "parameters": [],
+      "preconditions": [],
+      "effects": [
+        {
+          "op": "set",
+          "name": "activeService",
+          "value": "legacy"
+        }
+      ]
+    }
+  ],
+  "goal": {
+    "id": "goal.use-replacement",
+    "desirable": true,
+    "expression": {
+      "op": "equals",
+      "left": {
+        "op": "state",
+        "name": "activeService"
+      },
+      "right": "replacement"
+    }
+  },
+  "expected": {
+    "initialInvariantCheck": "PASS",
+    "replacementGoalReachable": true,
+    "replacementWitness": [
+      "action.activate-replacement"
+    ],
+    "rollbackReachable": true,
+    "unvalidatedReplacementAllowed": false
+  }
+}
