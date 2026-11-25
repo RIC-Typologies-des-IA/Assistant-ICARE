@@ -76,6 +76,8 @@ try{
 
   assert.equal(await page.locator("#dimension-statuses .dimension-status-row").count(),5,"les cinq statuts doivent être éditables");
   assert.equal(await page.locator("#project-title").textContent(),"Mon premier projet");
+  await page.locator("#project-menu-toggle").click();
+  await page.locator("#new-project").waitFor({state:"visible"});
   await page.locator("#new-project").click();
   await page.locator("#project-dialog").waitFor({state:"visible"});
   await page.locator("#project-dialog").click({position:{x:1,y:1}});
@@ -112,7 +114,11 @@ try{
   await page.locator("#direct-scoring-key").fill("scoring-secret");
   assert.equal(await page.locator("#local-text-config").isVisible(),true,"la configuration directe du LLM doit être visible dans son onglet");
   assert.equal(await page.locator("#local-audio-config").isVisible(),true,"la configuration directe de la transcription doit être visible dans son onglet");
-  assert.equal(await page.locator("#direct-scoring-url").isVisible(),true,"l’URL du scoring direct doit être visible dans son onglet");
+  assert.equal(await page.locator("#direct-scoring-provider").inputValue(),"lemonade","Lemonade NPU doit être le moteur de scoring direct par défaut");
+  assert.equal(await page.locator("#direct-scoring-base").isVisible(),true,"l’adresse locale Lemonade doit être visible");
+  assert.equal(await page.locator("#direct-scoring-url").isVisible(),false,"le service externe doit rester masqué lorsque Lemonade est sélectionné");
+  await page.locator("#direct-scoring-provider").selectOption("custom");
+  assert.equal(await page.locator("#direct-scoring-url").isVisible(),true,"le mode service externe doit rester accessible");
   await page.locator("#load-models").click();
   await page.waitForFunction(()=>document.querySelectorAll("#available-models option").length===1);
   assert.equal(await page.locator("#load-transcription-models").count(),1,"la recherche de modèles audio doit être présente dans l’onglet direct");
