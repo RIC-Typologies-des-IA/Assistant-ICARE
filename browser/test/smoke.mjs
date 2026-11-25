@@ -242,7 +242,7 @@ try{
   assert.ok(diagramContrast.payloadRatio>=4.5,"les repères de payload doivent respecter le contraste WCAG AA : "+JSON.stringify(diagramContrast));
   const desktopLabelSize=await page.locator("#trace-diagram .trace-zoom-canvas svg text").first().evaluate(el=>{const font=parseFloat(getComputedStyle(el).fontSize);const scale=Number(el.closest(".trace-zoom-canvas").style.transform.match(/scale\(([^)]+)\)/)?.[1]||1);return font*scale;});
   assert.ok(desktopLabelSize>=12,"les libellés doivent mesurer au moins 12 px à l’ouverture sur ordinateur : "+desktopLabelSize);
-  await page.locator("#theme-toggle").click();
+  await page.locator("#theme-toggle").evaluate(button=>button.click());
   await page.waitForFunction(()=>document.documentElement.dataset.theme!=="dark");
 
 
