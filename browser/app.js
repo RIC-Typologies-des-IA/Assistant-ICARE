@@ -82,84 +82,41 @@ function showTraceDialog(trace){
  diagram.append(zoomToolbar,zoomPanel);
  setupTraceZoom(zoomPanel,diagram.closest(".trace-diagram-panel"),zoomToolbar);
  const records=Array.isArray(trace.steps)?trace.steps:[];
- const esc=value=>String(value??"").replace(/[^\p{L}\p{N} _.-]/gu," ").replace(/\s+/g," ").trim();
- const short=(value,max=150)=>{const text=typeof value==="string"?value:JSON.stringify(value);return esc(text.length>max?text.slice(0,max)+"…":text)||"—";};
- const jsonBytes=value=>{try{return new TextEncoder().encode(JSON.stringify(value)).length;}catch{return 0;}};
- const lines=[
-  "sequenceDiagram",
-  "autonumber",
-  "actor User as Utilisateur",
-  "participant Browser as Navigateur ICARE",
-  "participant Audio as Service de transcription",
-  "participant Agent as Orchestrateur agentique",
-  "participant LLM as Service d’inférence LLM",
-  "participant Tools as Outils ICARE",
-  "participant Wasi as Runtime WASI",
-  "participant Comp as Composant WebAssembly",
-  "participant Score as Service de scoring",
-  "participant DB as IndexedDB local",
-  "opt Entrée vocale préalable · hors trace de ce tour",
-  "User->>Browser: Enregistrement audio · Blob",
-  "Browser->>Audio: POST multipart · audio + modèle",
-  "Audio-->>Browser: Transcription · texte",
-  "end",
-  "User->>Browser: Message utilisateur · payload texte",
-  "Browser->>Agent: Construire le contexte · prompt système, guide, ontologie, projet, historique",
-  "Note over Browser,LLM: role=system est un message du payload Chat Completions, pas un acteur/service autonome.",
-  "Agent->>LLM: Chat Completions · messages + schémas d’outils",
-  "LLM-->>Agent: Message assistant · contenu ou tool_calls"
- ];
- let modelIndex=0,toolIndex=0;
- for(const item of records){
+ const esc=value=>String(value??"").replace(/[^\\p{L}\\p{N} _.-]/gu," ").replace(/\\s+/g," ").trim();
+ const short=(value,max=110)=>{const text=typeof value==="string"?value:JSON.stringify(value);return esc(text.length>max?text.slice(0,max)+"…":text)||"—";};
+ const bytes=value=>{try{return new TextEncoder().encode(JSON.stringify(value)).length;}catch{return 0;}};
+ const lines=["sequenceDiagram","autonumber","actor User as Utilisateur","participant Browser as Navigateur ICARE","participant Agent as Orchestrateur","participant LLM as Service d’inférence","participant Tools as Outils ICARE","participant Score as Scoring ICARE","participant DB as IndexedDB local"];
+ const payloadLinks=[];
+ const addPayload=(recordIndex,label,description)=>{const token="P"+(payloadLinks.length+1);payloadLinks.push({token,recordIndex});return token+" · "+description;};
+ lines.push("User->>Browser: Message utilisateur · "+addPayload(0,"message","texte utilisateur"));
+ const promptIndex=records.findIndex(item=>item.type==="prompt");
+ if(promptIndex>=0)lines.push("rect rgb(232, 243, 255)","Browser->>Agent: Contexte système · "+addPayload(promptIndex,"prompt","prompt + contexte projet"),"end");
+ lines.push("Browser->>Agent: Démarrer le tour");
+ let modelNo=0,toolNo=0;
+ for(const [index,item] of records.entries()){
   if(item.type==="model"){
-   modelIndex++;
-   const request=item.request||{};
-   lines.push("Agent->>LLM: Étape modèle "+modelIndex+" · messages "+(Array.isArray(request.messages)?request.messages.length:"?")+" · payload "+jsonBytes(request)+" octets");
-   lines.push("LLM-->>Agent: Réponse modèle · "+(item.response?.content?"contenu textuel":"tool_calls / réponse"));
+   modelNo++;const request=item.request||{};
+   lines.push("rect rgb(232, 243, 255)","Agent->>LLM: Requête modèle "+modelNo+" · "+addPayload(index,"request","messages + configuration"),"end");
+   lines.push("LLM-->>Agent: Réponse modèle "+modelNo+" · "+addPayload(index,"response",item.response?.tool_calls?.length?"tool_calls":"contenu"));
   }else if(item.type==="tool"){
-   toolIndex++;
-   const name=item.call?.name||"outil";
-   lines.push("Agent->>Tools: "+short(name,60)+" · arguments JSON "+jsonBytes(item.call?.arguments||{})+" octets");
-   if(name==="invoke_wasi_component"){
-    const args=item.call?.arguments||{};
-    lines.push("Tools->>Wasi: "+short(args.component_id)+" · "+short(args.operation)+" · payload "+jsonBytes(args.payload||{})+" octets");
-    lines.push("Wasi->>Comp: WIT invoke · correlationId + operation + payloadJson");
-    lines.push("Comp-->>Wasi: WIT result · correlationId + payloadJson");
-    if(args.component_id==="context-summary"){lines.push("Wasi->>Browser: contextProvider() · contexte projet JSON");lines.push("Browser-->>Wasi: contexte ICARE autorisé");}
-    if(args.component_id==="storage-probe"){lines.push("Wasi->>Browser: storageCommit() · componentStorage");lines.push("Browser->>DB: put(settings) · workspace.componentStorage");lines.push("DB-->>Browser: Transaction IndexedDB terminée");lines.push("Browser-->>Wasi: Commit du stockage composant confirmé");}
-    lines.push("Wasi-->>Tools: Résultat JSON du composant");
-   }else if(["propose_observation","propose_relation","update_exploration_status"].includes(name)){
-    lines.push("Tools->>Wasi: Validation ontologique · composant ontology-validator");
-    lines.push("Wasi->>Comp: WIT invoke · validation + vocabulaire ICARE");
-    lines.push("Comp-->>Wasi: Résultat de validation JSON");
-    lines.push("Wasi-->>Tools: Validé ou erreurs de validation");
-   }else if(name==="list_wasi_components"){
-    lines.push("Tools->>Wasi: Charger le registre et décrire les composants");
-    lines.push("Wasi-->>Tools: Manifestes · capacités déclarées");
-   }
-   if(["propose_observation","propose_relation","update_exploration_status","create_reference_document","update_reference_document"].includes(name)){lines.push("Tools->>DB: Persist workspace projet · settings workspace:<projectId>");lines.push("DB-->>Tools: Transaction IndexedDB terminée");}
-   lines.push("Tools-->>Agent: Résultat outil · "+short(item.result?.ok===false?item.result.error:"JSON résultat",100));
+   toolNo++;const name=item.call?.name||"outil";
+   lines.push("rect rgb(255, 244, 220)","Agent->>Tools: "+short(name,55)+" · "+addPayload(index,"arguments","arguments JSON"),"Tools-->>Agent: Résultat · "+addPayload(index,"result","résultat JSON"),"end");
+  }else if(item.type==="scoring"){
+   lines.push("rect rgb(232, 243, 255)","Browser->>Score: Évaluer le message · "+addPayload(index,"scoring","requête et résultat de scoring"),"Score-->>Browser: Scores ou erreur","end");
+  }else if(item.type==="final){
+   lines.push("rect rgb(232, 243, 255)","Agent-->>Browser: Réponse finale · "+addPayload(index,"final","texte de réponse"),"end");
   }
  }
- const score=records.find(item=>item.type==="scoring");
- if(score){
-  lines.push("Browser->>Score: POST scoring · texte utilisateur + dimensions I C A R E");
-  lines.push("Score-->>Browser: Scores multilabel I C A R E · "+(score.error?"erreur":"JSON scores"));
- }
- const finalRecord=records.find(item=>item.type==="final");
- lines.push("Agent-->>Browser: Réponse finale · "+short(finalRecord?.content||"contenu assistant",90));
- lines.push("Browser->>DB: put(turns) · user, assistant, trace, scores, createdAt");
- lines.push("DB-->>Browser: Transaction IndexedDB terminée");
- lines.push("Browser-)DB: put(settings) · snapshot temporel asynchrone");
- lines.push("Browser->>DB: put(projects) · updatedAt du projet");
- lines.push("DB-->>Browser: Projet mis à jour");
- lines.push("Note over DB: Base navigateur icare-browser · object stores projects, turns, settings. Aucun serveur de mémoire n’est impliqué.");
- const source=lines.join("\n");
- zoomPanel.append(renderMarkdown("```mermaid\n"+source+"\n```"));
- const note=document.createElement("p");note.className="trace-sequence-caption";note.textContent="Les payloads complets capturés sont détaillés ci-dessous. Les flèches représentent les échanges ; les informations de routage et les résultats résumés sont explicitement distingués.";diagram.append(note);
+ lines.push("Browser->>DB: Enregistrer le tour et sa trace","DB-->>Browser: Transaction terminée","Browser->>DB: Mettre à jour le projet","DB-->>Browser: Projet mis à jour");
+ const source=lines.join("\\n");
+ zoomPanel.append(renderMarkdown("```mermaid\\n"+source+"\\n```"));
+ const activatePayload=token=>{const link=payloadLinks.find(item=>item.token===token);if(!link)return;const detail=steps.querySelector('[data-trace-index="'+link.recordIndex+'"]');if(detail){detail.open=true;detail.scrollIntoView({behavior:"smooth",block:"center"});detail.classList.add("trace-payload-highlight");setTimeout(()=>detail.classList.remove("trace-payload-highlight"),1800);}};
+ const diagramObserver=new MutationObserver(()=>{const svg=zoomPanel.querySelector("svg");if(!svg)return;diagramObserver.disconnect();for(const textNode of svg.querySelectorAll("text")){const match=textNode.textContent.match(/\\bP[0-9]+\\b/);if(!match)continue;const group=textNode.closest("g");if(group){group.classList.add("trace-payload-link");group.setAttribute("role","button");group.setAttribute("tabindex","0");group.setAttribute("aria-label","Ouvrir le payload "+match[0]);group.addEventListener("click",()=>activatePayload(match[0]));group.addEventListener("keydown",event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();activatePayload(match[0]);}});}}});
+ diagramObserver.observe(zoomPanel,{childList:true,subtree:true});
+ const note=document.createElement("p");note.className="trace-sequence-caption";note.textContent="Séquence reconstruite à partir des échanges réellement enregistrés pour ce tour : les appels d’outils n’apparaissent que s’ils ont eu lieu. Les repères P1, P2… sont cliquables et ouvrent le payload correspondant ci-dessous.";diagram.append(note);
  let documentViewer=null;
  for(const [index,item] of records.entries()){
-  const details=document.createElement("details");details.className="trace-step";
+  const details=document.createElement("details");details.className="trace-step";details.dataset.traceIndex=String(index);
   const summary=document.createElement("summary");
   summary.textContent=(index+1)+". "+(item.type==="tool"?"Outil · "+(item.call?.name||""):item.type==="scoring"?"Scoring ICARE":item.type==="final"?"Réponse finale":item.type==="prompt"?"Prompt système et contexte":"Appel modèle · étape "+(item.step||""));
   details.append(summary);
