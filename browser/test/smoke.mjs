@@ -169,9 +169,16 @@ try{
   await page.setViewportSize({width:1280,height:900});
   assert.ok(await page.locator("#trace-diagram .mermaid-diagram").evaluate(el=>el.querySelector("svg")!==null),"la trace doit être rendue comme diagramme Mermaid");
   assert.ok((await page.locator("#trace-diagram .mermaid-diagram").innerText()).includes("Navigateur ICARE"),"la séquence doit nommer le navigateur comme participant");
+  const diagramText=await page.locator("#trace-diagram .mermaid-diagram").innerText();
+  assert.ok(!diagramText.includes("WASI")&&!diagramText.includes("WebAssembly"),"la séquence ne doit pas afficher les composants WASI/WebAssembly hors sujet");
+  assert.ok(await page.locator("#trace-diagram .trace-payload-link").count()>0,"les repères de payload doivent être identifiables et cliquables");
+  const payloadLink=page.locator("#trace-diagram .trace-payload-link").first();
+  await payloadLink.click();
+  assert.ok(await page.locator("#trace-steps .trace-step").first().evaluate(el=>el.open),"cliquer un payload du diagramme doit ouvrir sa trace détaillée");
+
   assert.ok((await page.locator("#trace-diagram .mermaid-diagram").innerText()).includes("IndexedDB local"),"la séquence doit montrer la persistance locale");
   assert.ok((await page.locator("#trace-diagram .mermaid-diagram").innerText()).includes("role=system"),"le prompt système doit être identifié comme payload, pas comme service autonome");
-  assert.ok((await page.locator("#trace-diagram .mermaid-diagram").innerText()).includes("snapshot temporel"),"la persistance de l’instantané doit être explicitée");
+  assert.ok((await page.locator("#trace-diagram .mermaid-diagram").innerText()).includes("Snapshot temporel"),"la persistance de l’instantané doit être explicitée");
   assert.equal(await page.locator("#trace-diagram g.node[role=button]").count(),0,"un diagramme de séquence ne doit pas présenter les messages comme des cases de flowchart");
   const zoomPercent=page.locator("#trace-diagram .trace-zoom-percent");
   const zoomIn=page.locator('#trace-diagram button[aria-label="Augmenter le zoom"]');
