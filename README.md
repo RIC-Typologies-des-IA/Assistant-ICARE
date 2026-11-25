@@ -82,6 +82,10 @@ Aucun identifiant de modèle n'est imposé dans le dépôt. Pi interroge le cata
 
 Les détails techniques, la réplication CRDT et l’intégration Discord sont décrits dans [pi-runtime/README.md](pi-runtime/README.md), [docs/crdt-operation-journal.md](docs/crdt-operation-journal.md), [docs/discord-integration.md](docs/discord-integration.md), [docs/project-access-control.md](docs/project-access-control.md) et [nixos/icare-vm.nix](nixos/icare-vm.nix). Les [références et documentations externes](REFERENCES.md) recensent les sources primaires des composants et des cadres conceptuels cités.
 
+## Modèle formel exécutable
+
+ICARE commence à formaliser un modèle de système indépendant du LLM : assertions typées, états, invariants, transitions et objectifs, avec une sémantique de possible et de souhaitable. La spécification initiale et un exemple de système fini sont dans [formal-model/](formal-model/README.md). Le noyau évoluera par versions et tests de référence afin que ses réponses soient déterministes et explicables.
+
 ## Références
 
 Consulter la [bibliographie technique et conceptuelle](REFERENCES.md), qui distingue les logiciels réellement employés des inspirations théoriques de l'ontologie complémentaire.
