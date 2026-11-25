@@ -170,6 +170,8 @@ try{
   assert.ok(await page.locator("#trace-diagram .mermaid-diagram").evaluate(el=>el.querySelector("svg")!==null),"la trace doit être rendue comme diagramme Mermaid");
   assert.ok((await page.locator("#trace-diagram .mermaid-diagram").innerText()).includes("Navigateur ICARE"),"la séquence doit nommer le navigateur comme participant");
   assert.ok((await page.locator("#trace-diagram .mermaid-diagram").innerText()).includes("IndexedDB local"),"la séquence doit montrer la persistance locale");
+  assert.ok((await page.locator("#trace-diagram .mermaid-diagram").innerText()).includes("role=system"),"le prompt système doit être identifié comme payload, pas comme service autonome");
+  assert.ok((await page.locator("#trace-diagram .mermaid-diagram").innerText()).includes("snapshot temporel"),"la persistance de l’instantané doit être explicitée");
   assert.equal(await page.locator("#trace-diagram g.node[role=button]").count(),0,"un diagramme de séquence ne doit pas présenter les messages comme des cases de flowchart");
   const traceSummary=page.locator("#trace-steps .trace-step summary").first();
   await traceSummary.click();
