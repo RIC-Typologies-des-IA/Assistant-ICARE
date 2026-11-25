@@ -103,7 +103,7 @@ function showTraceDialog(trace){
    lines.push("rect rgb(255, 244, 220)","Agent->>Tools: "+short(name,55)+" · "+addPayload(index,"arguments","arguments JSON"),"Tools-->>Agent: Résultat · "+addPayload(index,"result","résultat JSON"),"end");
   }else if(item.type==="scoring"){
    lines.push("rect rgb(232, 243, 255)","Browser->>Score: Évaluer le message · "+addPayload(index,"scoring","requête et résultat de scoring"),"Score-->>Browser: Scores ou erreur","end");
-  }else if(item.type==="final){
+  }else if(item.type==="final"){
    lines.push("rect rgb(232, 243, 255)","Agent-->>Browser: Réponse finale · "+addPayload(index,"final","texte de réponse"),"end");
   }
  }
