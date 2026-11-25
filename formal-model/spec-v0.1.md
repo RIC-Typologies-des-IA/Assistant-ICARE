@@ -5,6 +5,8 @@ Statut : expérimental, à valider par des modèles et des tests
 
 ## 1. Objet et périmètre
 
+Le dépôt possède déjà un modèle TLA+ spécialisé pour le contrôle d'accès aux projets (`spec/ICAREProjectAccess.tla`) vérifié par TLC en CI. La présente proposition ne le remplace pas : elle vise une couche de vocabulaire et de modèle de système plus générale, dont les exemples pourront être traduits vers TLA+ ou d'autres moteurs de vérification.
+
 Le modèle formel représente un système par :
 
 - un vocabulaire typé ;
