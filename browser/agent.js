@@ -25,7 +25,7 @@ export async function runAgentTurn({messages,complete,executeTool,maxSteps=8,tra
   return serialized.length>12000?serialized.slice(0,12000)+"… [tronqué, "+serialized.length+" caractères au total]":clean;
  };
  for(let step=0;step<maxSteps;step++){
-  const request={messages:safe(transcript),tools:ICARE_TOOLS.map(tool=>tool.function.name),route:safe(traceContext)};
+  const request={messages:transcript.map(message=>safe(message)),tools:ICARE_TOOLS.map(tool=>tool.function.name),route:safe(traceContext)};
   const message=await complete(transcript,ICARE_TOOLS);
   if(!message||typeof message!=="object")throw new Error("Réponse agentique invalide.");
   trace.push({type:"model",step:step+1,request,response:safe(message)});
@@ -36,7 +36,7 @@ export async function runAgentTurn({messages,complete,executeTool,maxSteps=8,tra
    let result,args={};
    try{args=JSON.parse(call.function?.arguments||"{}");result=await executeTool(name,args);executed.push({name,result});}
    catch(error){result={ok:false,error:error.message};}
-   const traceResult=name==="search_reference_documents"&&Array.isArray(result?.results)?{ok:result.ok,results:result.results.map(({id,title,excerpt})=>({id,title,excerptLength:String(excerpt||"").length,excerpt:String(excerpt||"").slice(0,500)+(String(excerpt||"").length>500?"… [extrait abrégé]":"")}))}:result;
+   const traceResult=name==="search_reference_documents"&&Array.isArray(result?.results)?{ok:result.ok,results:result.results.slice(0,8).map(({id,title,excerpt})=>({id,title,excerptLength:String(excerpt||"").length,excerpt:String(excerpt||"").slice(0,300)+(String(excerpt||"").length>300?"… [extrait abrégé]":"")})),additionalResults:Math.max(0,result.results.length-8)}:result;
    const record={type:"tool",step:step+1,call:{id,name,arguments:safe(args)},result:safe(traceResult)};
    trace.push(record);
    transcript.push({role:"tool",tool_call_id:id,name,content:JSON.stringify(result)});
