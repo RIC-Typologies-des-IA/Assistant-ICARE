@@ -48,6 +48,12 @@ Les opérations agentiques sont couvertes par des tests de comportement : consul
 Cette livraison restaure un premier socle d'écriture agentique, mais ne prétend pas encore à la parité complète : la réplication CRDT, la migration SQLite et l'intégralité des métadonnées/projections du runtime historique restent des étapes distinctes.
 
 
+### Transcription Lemonade sur NPU FastFlowLM
+
+Pour partager le NPU avec le scoring ICARE, ne sélectionnez pas les modèles Lemonade `Whisper-*` utilisant la recette `whispercpp`. Dans Configuration → Transcription locale → Fournisseur Lemonade, le bouton de découverte interroge `GET /v1/models?show_all=true` et ne propose que les modèles `recipe=flm` portant le label `transcription`. Le candidat recommandé est `whisper-v3-turbo-FLM` (tag FastFlowLM `whisper-v3:turbo`). Il est présélectionné lorsqu’il est présent dans le catalogue. Le statut distingue les modèles installés de ceux à installer.
+
+La documentation Lemonade décrit la prise en charge simultanée d’un ASR, d’un LLM et d’un modèle d’embeddings FastFlowLM sur le NPU. Cela rend cette architecture adaptée à l’objectif ICARE, mais ne remplace pas un test sur la version exacte de Lemonade, FastFlowLM et le matériel : après installation, exécuter successivement le test du scoring D3, le test de transcription, puis à nouveau le test du scoring D3. La CI vérifie la découverte et le filtrage du catalogue simulé ; elle ne certifie pas la coexistence matérielle avec D3.
+
 ## Sécurité entreprise
 
 La posture de sécurité local-first, les invariants machine-readable, le modèle TLA+ et le registre des flux réseau sont décrits dans [security/README.md](security/README.md), [security-policy.json](security-policy.json) et [security/NETWORK_FLOWS.md](security/NETWORK_FLOWS.md). Les tests de contrat sont exécutés avec `npm test`.
