@@ -132,6 +132,7 @@ try{
   assert.match(await page.locator("#scoring-test-status").textContent(),/I 91 %.*C 72 %.*A 84 %.*R 63 %.*E 58 %/,"le test doit afficher les cinq scores renvoyés par Lemonade");
   await page.locator("#direct-scoring-provider").selectOption("custom");
   assert.equal(await page.locator("#direct-scoring-url").isVisible(),true,"le mode service externe doit rester accessible");
+  await page.locator("#direct-scoring-provider").selectOption("lemonade");
   await page.locator("#load-models").click();
   await page.waitForFunction(()=>document.querySelectorAll("#available-models option").length===1);
   assert.equal(await page.locator("#load-transcription-models").count(),1,"la recherche de modèles audio doit être présente dans l’onglet direct");
