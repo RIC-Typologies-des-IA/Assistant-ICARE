@@ -947,11 +947,16 @@ html[data-theme="dark"] .trace-step pre{background:#101e30;color:#dce6f2}
 /* Parcours effectif : bandeau horizontal compact, sans perte de lisibilité. */
 .trace-diagram-panel{padding:8px 10px}
 .trace-diagram-panel .mermaid-diagram{max-width:100%;overflow-x:auto;overflow-y:hidden;margin:0;padding:4px;background:transparent;border:0}
-.trace-diagram-panel .mermaid-diagram{width:100%;max-width:100%;overflow-x:auto;overflow-y:hidden;margin:0;padding:2px;background:transparent;border:0}\n.trace-diagram-panel .mermaid-diagram svg{display:block;width:auto;max-width:none;height:auto;max-height:none;margin:0}\n.trace-diagram-panel .mermaid-diagram g.node:focus{outline:none}\n.trace-diagram-panel .mermaid-diagram g.node:focus .label-container,.trace-diagram-panel .mermaid-diagram g.node:focus rect{stroke:var(--accent,#4777b8);stroke-width:3px}
+.trace-diagram-panel .mermaid-diagram{width:100%;max-width:100%;overflow-x:auto;overflow-y:hidden;margin:0;padding:2px;background:transparent;border:0}
+.trace-diagram-panel .mermaid-diagram svg{display:block;width:auto;max-width:none;height:auto;max-height:none;margin:0}
+.trace-diagram-panel .mermaid-diagram g.node:focus{outline:none}
+.trace-diagram-panel .mermaid-diagram g.node:focus .label-container,.trace-diagram-panel .mermaid-diagram g.node:focus rect{stroke:var(--accent,#4777b8);stroke-width:3px}
 .trace-diagram-panel .mermaid-diagram .node rect,.trace-diagram-panel .mermaid-diagram .node polygon{rx:5px}
 .trace-document-viewer{grid-column:1/-1}
 .trace-document-open[aria-expanded="true"]{border-color:var(--accent,#4777b8);background:var(--soft,#edf4fc)}
 html[data-theme="dark"] .trace-document-open[aria-expanded="true"]{background:#263b54;border-color:#79a9e8;color:#f0f5fc}
-\n@media(max-width:600px){.trace-dialog{width:calc(100vw - 12px);max-width:calc(100vw - 12px);max-height:94dvh;padding:8px}.trace-diagram-panel{padding:6px}.trace-diagram-panel .mermaid-diagram svg{width:auto;max-width:none;height:auto;max-height:none}.trace-diagram-panel .mermaid-diagram{overflow-x:auto;overflow-y:hidden}.trace-steps-panel{padding:6px}.trace-step summary{padding:9px;font-size:12px}}\n
+
+@media(max-width:600px){.trace-dialog{width:calc(100vw - 12px);max-width:calc(100vw - 12px);max-height:94dvh;padding:8px}.trace-diagram-panel{padding:6px}.trace-diagram-panel .mermaid-diagram svg{width:auto;max-width:none;height:auto;max-height:none}.trace-diagram-panel .mermaid-diagram{overflow-x:auto;overflow-y:hidden}.trace-steps-panel{padding:6px}.trace-step summary{padding:9px;font-size:12px}}
+
 .trace-sequence-caption{margin:8px 2px 2px;font-size:11px;line-height:1.45;color:#65758a}
 html[data-theme="dark"] .trace-sequence-caption{color:#aebfd3}
