@@ -196,6 +196,11 @@ try{
   await page.locator("#trace-panel").waitFor({state:"visible"});
   assert.equal(await page.locator("#trace-panel").evaluate(el=>el.tagName.toLowerCase()),"section","la séquence doit être intégrée à la page et non modale");
   await page.locator("#trace-diagram .trace-zoom-canvas svg").waitFor({state:"visible"});
+  await page.waitForFunction(()=>document.querySelectorAll("#trace-steps .trace-step").length>0);
+  const scoringTraceDetails=await page.locator("#trace-steps .trace-step").filter({hasText:"Scoring ICARE"}).count();
+  assert.equal(scoringTraceDetails,2,"la trace doit distinguer le scoring du message utilisateur et celui de la réponse ICAR");
+  const scoringTracePayloads=await page.locator("#trace-steps .trace-step").filter({hasText:"Scoring ICARE"}).allTextContents();
+  assert.ok(scoringTracePayloads.some(value=>value.includes('"side": "user"'))&&scoringTracePayloads.some(value=>value.includes('"side": "assistant"')),"les deux scores doivent être tracés séparément");
   const noToolDiagram=await page.locator("#trace-diagram .trace-zoom-canvas svg").evaluate(svg=>svg.textContent);
   assert.ok(noToolDiagram.includes("Outils ICARE"),"les acteurs stables doivent rester visibles même sans appel d’outil");
   assert.ok(!noToolDiagram.includes("search_reference_documents")&&!noToolDiagram.includes("propose_observation"),"un tour sans appel d’outil ne doit montrer aucun échange avec les outils");
