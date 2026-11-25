@@ -76,6 +76,15 @@ try{
 
   assert.equal(await page.locator("#dimension-statuses .dimension-status-row").count(),5,"les cinq statuts doivent être éditables");
   assert.equal(await page.locator("#project-title").textContent(),"Mon premier projet");
+  await page.locator("#new-project").click();
+  await page.locator("#project-dialog").waitFor({state:"visible"});
+  await page.locator("#project-dialog").click({position:{x:1,y:1}});
+  await page.locator("#project-dialog").waitFor({state:"hidden"});
+  await page.locator("#new-project").click();
+  await page.locator("#project-name").fill("Projet à abandonner");
+  await page.locator("#project-dialog").click({position:{x:1,y:1}});
+  await page.locator("#project-dialog").waitFor({state:"hidden"});
+  assert.ok(nativeDialogs.includes("confirm"),"un projet modifié doit demander confirmation avant fermeture extérieure");
   await page.locator("#settings-button").click();
   assert.equal(await page.locator("#settings-tab-direct").getAttribute("aria-selected"),"true","l’onglet Accès direct doit être sélectionné par défaut");
   assert.equal(await page.locator("#settings-panel-direct").isVisible(),true,"le panneau Accès direct doit être visible");
