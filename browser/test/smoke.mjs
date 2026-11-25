@@ -208,9 +208,12 @@ try{
   assert.ok(!noToolDiagram.includes("search_reference_documents")&&!noToolDiagram.includes("propose_observation"),"un tour sans appel d’outil ne doit montrer aucun échange avec les outils");
   await page.locator("#close-trace-dialog").click();
 
+  await page.waitForFunction(()=>document.querySelector("#send-button")?.disabled===false);
   await page.locator("#message-input").fill("Tester les documents consultés");
   await page.locator("#composer").evaluate(form=>form.requestSubmit());
-  await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Documents consultés."));
+  await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Documents consultés.")||[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent.startsWith("Réponse impossible :")));
+  const secondAnswerText=await page.locator(".message.assistant").last().innerText();
+  assert.ok(secondAnswerText.includes("Documents consultés."),"le second tour doit se terminer après l’appel d’outil : "+secondAnswerText);
   await page.locator(".message.assistant .trace-button").last().click();
   await page.waitForFunction(()=>document.querySelector("#trace-panel")?.hidden===false);
   await page.locator("#trace-diagram .trace-zoom-canvas svg").waitFor({state:"visible"});
