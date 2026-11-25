@@ -47,7 +47,7 @@ function showTraceDialog(trace){
  const dialog=$("trace-dialog"),diagram=$("trace-diagram"),steps=$("trace-steps");
  diagram.replaceChildren();steps.replaceChildren();
  const records=Array.isArray(trace.steps)?trace.steps:[];
- const esc=value=>String(value??"").replace(/[^\\p{L}\\p{N} _.-]/gu," ").replace(/\s+/g," ").trim();
+ const esc=value=>String(value??"").replace(/[^\p{L}\p{N} _.-]/gu," ").replace(/\s+/g," ").trim();
  const short=(value,max=150)=>{const text=typeof value==="string"?value:JSON.stringify(value);return esc(text.length>max?text.slice(0,max)+"…":text)||"—";};
  const jsonBytes=value=>{try{return new TextEncoder().encode(JSON.stringify(value)).length;}catch{return 0;}};
  const lines=[
