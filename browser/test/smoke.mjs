@@ -85,7 +85,7 @@ try{
   await page.locator("#project-dialog").waitFor({state:"hidden"});
   await page.locator("#new-project").click();
   await page.locator("#project-name").fill("Projet à abandonner");
-  await page.locator("#project-dialog").click({position:{x:1,y:1}});
+  await clickBackdrop("#project-dialog");
   await page.locator("#project-dialog").waitFor({state:"hidden"});
   assert.ok(nativeDialogs.includes("confirm"),"un projet modifié doit demander confirmation avant fermeture extérieure");
   await page.locator("#settings-button").click();
@@ -97,7 +97,7 @@ try{
   assert.equal(await page.locator("#settings-dialog").evaluate(dialog=>dialog.open),false,"un dialogue de configuration inchangé doit se fermer au clic extérieur");
   await page.locator("#settings-button").click();
   await page.locator("#api-base").fill("https://discard.example/v1");
-  await page.locator("#settings-dialog").click({position:{x:1,y:1}});
+  await clickBackdrop("#settings-dialog");
   await page.locator("#settings-dialog").waitFor({state:"hidden"});
   assert.ok(nativeDialogs.includes("confirm"),"la fermeture extérieure d’une configuration modifiée doit demander confirmation");
   await page.locator("#settings-button").click();
