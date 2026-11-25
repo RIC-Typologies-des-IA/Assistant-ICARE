@@ -8,7 +8,7 @@ import { registerAppServiceWorker } from "./pwa.js";
 import { createComponentRuntime } from "./component-runtime.js";
 import { initGatewayConfiguration } from "./gateway-config.js";
 import { scoreIcareMultilabel, listLemonadeScoringModels } from "./scoring.js";
-import { calculateScoreRadar, SCORE_DIMENSIONS } from "./scoring-radar.js";
+import { calculateScoreRadar, SCORE_DIMENSIONS, backfillConversationScores } from "./scoring-radar.js";
 const $=id=>document.getElementById(id), db=await openDatabase();
 $("app-version").textContent=`— V${window.ICARE_VERSION} Alpha`;
 const state={projectId:null,projects:[],turns:[],settings:{},transcriptionSettings:{},routing:{text:"local",audio:"local"},gateways:{text:"",audio:""},gatewayModels:{text:"",audio:""},sameGateway:true,scoringSettings:{apiKey:""},workspace:null,busy:false};
@@ -224,7 +224,7 @@ async function send(text){
   const userScore=await scoreText("user",user),assistantScore=await scoreText("assistant",answer);trace.steps.push({type:"final",content:answer});
   const scoreLine=(label,scores,error)=>{const line=document.createElement("p");line.className="icare-score-line"+(scores?"":" muted");line.textContent=label+" · "+(scores?SCORE_DIMENSIONS.map(code=>code+" "+Math.round(scores[code]*100)+" %").join(" · "):"indisponible"+(error?" : "+error:""));pending.querySelector(".message-content").append(line);};
   scoreLine("Votre message",userScore.scores,userScore.error);scoreLine("Réponse ICAR",assistantScore.scores,assistantScore.error);attachTraceButton(pending,trace);
-  const turn={id:uid(),projectId:state.projectId,user,assistant:answer,trace,scores:userScore.scores,userScores:userScore.scores,assistantScores:assistantScore.scores,scoringError:userScore.error||assistantScore.error,createdAt:now()};
+  const turn={id:uid(),projectId:state.projectId,user,assistant:answer,trace,scores:userScore.scores,userScores:userScore.scores,assistantScores:assistantScore.scores,scoringError:userScore.error||assistantScore.error,scoreBackfillVersion:userScore.scores&&assistantScore.scores?1:0,createdAt:now()};
   await put(db,"turns",turn);state.turns.push(turn);renderScoringRadar();captureSnapshot("Échange");project.updatedAt=now();await put(db,"projects",project);state.projects.sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));renderProjects();
  }catch(error){pending.classList.add("error");pending.replaceChildren(Object.assign(document.createElement("p"),{textContent:"Réponse impossible : "+error.message}));}
  finally{state.busy=false;$("send-button").disabled=false;$("send-button").textContent="Envoyer";$("message-input").focus();}
@@ -288,7 +288,16 @@ $("project-import-button").onclick=()=>$("project-import-file").click();$("proje
 
 const defaultWorkspace=()=>({dimensions:{I:"unexplored",C:"unexplored",A:"unexplored",R:"unexplored",E:"unexplored"},proposals:[],relations:[],referenceDocuments:[],dimensionJustifications:{},snapshots:[]});
 function normaliseWorkspace(value){const d=defaultWorkspace();if(!value||typeof value!=="object")return d;for(const code of ["I","C","A","R","E"])if(["unexplored","insufficient","sufficient","not_applicable"].includes(value.dimensions?.[code]))d.dimensions[code]=value.dimensions[code];d.proposals=Array.isArray(value.proposals)?value.proposals:[];d.relations=Array.isArray(value.relations)?value.relations:[];d.referenceDocuments=Array.isArray(value.referenceDocuments)?value.referenceDocuments:[];d.dimensionJustifications=value.dimensionJustifications||{};d.componentStorage=value.componentStorage&&typeof value.componentStorage==="object"&&!Array.isArray(value.componentStorage)?value.componentStorage:{};d.snapshots=Array.isArray(value.snapshots)?value.snapshots:[];return d;}
-async function loadWorkspace(){state.workspace=normaliseWorkspace(await get(db,"settings","workspace:"+state.projectId));if(!state.workspace.referenceDocuments.length){state.workspace.referenceDocuments=[{id:"guide-icare",title:"Guide de la démarche ICARE",content:await (await fetch("./guide-icare.md")).text(),createdAt:now()},{id:"ontology-icare",title:"Ontologie ICARE (JSON)",content:JSON.stringify(ontology,null,2),createdAt:now()}];await saveWorkspace();}if(!state.workspace.snapshots.length)captureSnapshot("Initialisation",false);renderWorkspace();}
+async function scoreHistoricalTurnText(side,text){
+ const route=gatewayRoutingConfig?.routes?.scoring||"direct",gatewayId=route.startsWith("gateway-")?Number(route.slice(-1)):0,gatewayUrl=gatewayRoutingConfig?.gateways?.find(g=>g.id===gatewayId)?.url||"";
+ const result=await scoreIcareMultilabel({text,route,gatewayUrl,directUrl:gatewayRoutingConfig?.directScoringUrl||"",provider:gatewayRoutingConfig?.directScoringProvider||"custom",lemonadeBaseUrl:gatewayRoutingConfig?.directScoringBaseUrl||"http://127.0.0.1:13305",model:gatewayRoutingConfig?.directScoringModel||"",apiKey:route==="direct"?state.scoringSettings.apiKey:""});
+ return Object.fromEntries(SCORE_DIMENSIONS.map(code=>[code,Number.isFinite(Number(result.scores?.[code]))?Math.max(0,Math.min(1,Number(result.scores[code]))):0]));
+}
+async function backfillHistoricalScores(){
+ const updated=await backfillConversationScores(state.turns,scoreHistoricalTurnText,turn=>put(db,"turns",turn),1);
+ if(updated.length)console.info("Scoring ICARE historique complété :",updated.length,"tour(s).");
+}
+async function loadWorkspace(){state.workspace=normaliseWorkspace(await get(db,"settings","workspace:"+state.projectId));if(!state.workspace.referenceDocuments.length){state.workspace.referenceDocuments=[{id:"guide-icare",title:"Guide de la démarche ICARE",content:await (await fetch("./guide-icare.md")).text(),createdAt:now()},{id:"ontology-icare",title:"Ontologie ICARE (JSON)",content:JSON.stringify(ontology,null,2),createdAt:now()}];await saveWorkspace();}if(!state.workspace.snapshots.length)captureSnapshot("Initialisation",false);await backfillHistoricalScores();renderWorkspace();}
 async function saveWorkspace(){await put(db,"settings",{id:"workspace:"+state.projectId,...state.workspace});}
 function renderScoringRadar(){
  const order=SCORE_DIMENSIONS,names={I:"Intention",C:"Contexte",A:"Action",R:"Régulation",E:"Évolution"},cx=160,cy=128,r=94,grid=$("radar-grid"),labels=$("radar-labels");if(!grid||!labels)return;
@@ -325,4 +334,4 @@ await loadOntology();gatewayRoutingConfig=await initGatewayConfiguration({db,get
  state.routing={text:config.routes.llm==="direct"?"local":"gateway",audio:config.routes.audio==="direct"?"local":"gateway"};
  state.gateways={text:urlFor("llm"),audio:urlFor("audio")};state.gatewayModels={text:textModel,audio:audioModel};state.sameGateway=!!state.gateways.text&&state.gateways.text===state.gateways.audio;
  await put(db,"settings",{id:"inference-routing",...state.routing});await put(db,"settings",{id:"inference-gateways",...state.gateways,sameGateway:state.sameGateway});await put(db,"settings",{id:"inference-gateway-models",...state.gatewayModels});modelLabel();
-}});await loadProjects();await loadWorkspace();await loadSettings();registerAppServiceWorker({canReload:()=>!state.busy&&!$("message-input").value.trim()}).catch(error=>console.warn("Service worker ICARE indisponible :",error));
+}});await loadProjects();await loadSettings();await loadWorkspace();registerAppServiceWorker({canReload:()=>!state.busy&&!$("message-input").value.trim()}).catch(error=>console.warn("Service worker ICARE indisponible :",error));
