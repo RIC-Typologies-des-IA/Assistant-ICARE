@@ -975,3 +975,5 @@ html[data-theme="dark"] .trace-sequence-caption{color:#aebfd3}
 html[data-theme="dark"] .trace-zoom-viewport{background:#121c29}
 html[data-theme="dark"] .trace-zoom-percent{color:#b4c3d6}
 @media(max-width:600px){.trace-zoom-toolbar{justify-content:center;gap:4px}.trace-zoom-toolbar .trace-zoom-control{padding:5px 8px;font-size:11px}.trace-zoom-viewport{height:360px}.trace-diagram-expanded .trace-zoom-viewport{height:72dvh}}
+
+.trace-payload-link{cursor:pointer;outline:none}.trace-payload-link text{fill:#1769aa!important;font-weight:750!important;text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:3px}.trace-payload-link:hover text,.trace-payload-link:focus text{fill:#b45309!important}.trace-payload-highlight{outline:2px solid #d97706;outline-offset:2px;border-radius:8px;transition:outline-color .2s}html[data-theme="dark"] .trace-payload-link text{fill:#8dc8ff!important}.trace-payload-link:focus{outline:2px solid #d97706;outline-offset:3px}
