@@ -1,11 +1,19 @@
-# Spécification initiale du modèle formel ICARE
+# Spécification du modèle formel des systèmes — ICARE
 
-Version : 0.1 — proposition fondatrice  
-Statut : expérimental, à valider par des modèles et des tests
+Version sémantique : `0.1.0-nightly`  
+Statut : expérimental ; spécification en co-construction
 
 ## 1. Objet et périmètre
 
-Le dépôt possède déjà un modèle TLA+ spécialisé pour le contrôle d'accès aux projets (`spec/ICAREProjectAccess.tla`) vérifié par TLC en CI. La présente proposition ne le remplace pas : elle vise une couche de vocabulaire et de modèle de système plus générale, dont les exemples pourront être traduits vers TLA+ ou d'autres moteurs de vérification.
+Cette spécification définit un formalisme générique permettant de représenter **le système que l'utilisateur souhaite étudier ou modéliser**. Elle ne décrit ni le fonctionnement interne d'ICARE, ni son interface, ni ses mécanismes d'accès, ni son architecture logicielle. Ces éléments relèvent d'une autre modélisation, indépendante.
+
+### 1.1 Un modèle utilisateur n'existe pas au démarrage
+
+À la création d'un projet de modélisation, aucun modèle du système étudié n'est présupposé. Le modèle commence comme une structure vide : pas d'entités métier, pas de relations, pas de faits, pas d'invariants, pas d'objectifs et pas de transitions, hormis le méta-vocabulaire nécessaire à sa construction.
+
+Le modèle est ensuite **co-construit avec l'utilisateur**, progressivement : l'utilisateur apporte des descriptions, observations, hypothèses, intentions et corrections ; ICARE aide à les structurer en objets formels ; les éléments proposés ne deviennent des prémisses acceptées qu'après validation selon les règles de gouvernance du modèle. Le LLM peut assister cette construction, mais il ne crée pas silencieusement des vérités du modèle.
+
+Le système étudié, son vocabulaire et ses règles émergent donc du travail de modélisation. Il ne faut pas confondre le méta-modèle (les catégories formelles disponibles) avec le modèle concret (la description particulière construite pour un utilisateur).
 
 Le modèle formel représente un système par :
 
@@ -17,7 +25,7 @@ Le modèle formel représente un système par :
 - des actions et une relation de transition ;
 - des objectifs et des scénarios.
 
-Le noyau doit pouvoir être exécuté indépendamment de tout modèle de langage. La présente version fixe le vocabulaire et les engagements sémantiques minimaux. Elle ne définit pas encore un langage complet de programmation ni un solveur général.
+Le noyau doit pouvoir être exécuté indépendamment de tout modèle de langage. Cette version fixe le vocabulaire et les engagements sémantiques minimaux. Elle ne définit pas encore un langage complet de programmation ni un solveur général.
 
 ## 2. Trois axes distincts d'une assertion
 
