@@ -289,7 +289,7 @@ async function saveInferenceConfiguration(){
  }else if(config.routes.scoring==="direct"&&scoringProvider==="custom"&&scoringUrl){try{const endpoint=new URL(scoringUrl),loopback=["localhost","127.0.0.1","[::1]"].includes(endpoint.hostname);if((endpoint.protocol!=="https:"&&!(endpoint.protocol==="http:"&&loopback))||endpoint.username||endpoint.password)throw Error();}catch{status.textContent="Utilisez HTTPS pour le scoring distant, ou HTTP uniquement sur loopback local.";return;}}
  button.disabled=true;status.textContent="Enregistrement des moteurs en accès direct…";
  try{
-  await saveCredentialVault(db,{text:textSettings.apiKey,audio:audioSettings.apiKey});state.settings=textSettings;state.transcriptionSettings=audioSettings;
+  await saveCredentialVault(db,{text:textSettings.apiKey,audio:audioSettings.apiKey,scoring:scoringApiKey});state.scoringSettings={apiKey:scoringApiKey};state.settings=textSettings;state.transcriptionSettings=audioSettings;
   const {apiKey:textSecret,...safeText}=textSettings,{apiKey:audioSecret,...safeAudio}=audioSettings;
   await put(db,"settings",safeText);await put(db,"settings",safeAudio);
   config.directScoringProvider=scoringProvider;config.directScoringBaseUrl=scoringBaseUrl||"http://127.0.0.1:13305";config.directScoringModel=scoringModel;config.directScoringUrl=scoringProvider==="custom"?scoringUrl:"";gatewayRoutingConfig=config;await put(db,"settings",{id:"inference-gateway-config",...config});
