@@ -76,6 +76,8 @@ try{
 
   assert.equal(await page.locator("#dimension-statuses .dimension-status-row").count(),5,"les cinq statuts doivent être éditables");
   assert.equal(await page.locator("#project-title").textContent(),"Mon premier projet");
+  await page.locator("#project-menu-toggle").click();
+  await page.locator("#new-project").waitFor({state:"visible"});
   await page.locator("#new-project").click();
   await page.locator("#project-dialog").waitFor({state:"visible"});
   await page.locator("#project-dialog").click({position:{x:1,y:1}});
