@@ -60,7 +60,7 @@ function setupTraceZoom(diagram,panel,toolbar){
  function center(){const size=dimensions();x=(size.width-baseWidth*scale)/2;y=(size.height-baseHeight*scale)/2;draw();}
  function setZoom(next,cx,cy){next=clamp(next);const size=dimensions();cx=cx??size.width/2;cy=cy??size.height/2;const ratio=next/scale;x=cx-(cx-x)*ratio;y=cy-(cy-y)*ratio;scale=next;draw();}
  function fitAll(){if(!svg||!baseWidth||!baseHeight)return;const size=dimensions();fitScale=Math.min(size.width/baseWidth,size.height/baseHeight,1);scale=fitScale;center();}
- function fitWidth(){if(!svg||!baseWidth)return;const size=dimensions();scale=Math.max(.78,Math.min(size.width/baseWidth,1));x=12;y=12;draw();}
+ function fitWidth(){if(!svg||!baseWidth)return;const size=dimensions();scale=Math.max(.88,Math.min(size.width/baseWidth,1));x=12;y=12;draw();}
  function reset100(){scale=1;center();}
  function toggleExpand(){panel.classList.toggle("trace-diagram-expanded");expandButton.textContent=panel.classList.contains("trace-diagram-expanded")?"Réduire":"Agrandir";requestAnimationFrame(()=>{if(ready)fitWidth();});}
  zoomIn.addEventListener("click",()=>setZoom(scale*1.25));zoomOut.addEventListener("click",()=>setZoom(scale/1.25));fitBtn.addEventListener("click",fitAll);reset.addEventListener("click",reset100);expandButton.addEventListener("click",toggleExpand);
