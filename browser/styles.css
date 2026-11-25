@@ -960,3 +960,9 @@ html[data-theme="dark"] .trace-document-open[aria-expanded="true"]{background:#2
 
 .trace-sequence-caption{margin:8px 2px 2px;font-size:11px;line-height:1.45;color:#65758a}
 html[data-theme="dark"] .trace-sequence-caption{color:#aebfd3}
+
+
+/* CI smoke : rendre les actions du rail explicitement visibles à l'ouverture. */
+body.project-menu-open .sidebar .sidebar-toolbar-actions{display:flex!important;visibility:visible!important;opacity:1!important}
+body.project-menu-open .sidebar .sidebar-toolbar-actions #project-import-button,
+body.project-menu-open .sidebar .sidebar-toolbar-actions #new-project{display:grid!important;visibility:visible!important;opacity:1!important}
