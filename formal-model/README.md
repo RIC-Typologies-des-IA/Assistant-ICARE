@@ -15,6 +15,10 @@ ICARE doit progressivement pouvoir répondre de façon reproductible à des ques
 
 Le LLM pourra aider à proposer des assertions, des objectifs ou des actions. Il ne sera pas la source de vérité ni l'exécuteur de la logique formelle.
 
+## Existing formal work
+
+Le dépôt contient déjà un modèle TLA+ ciblé sur le contrôle d'accès aux projets : [`spec/ICAREProjectAccess.tla`](../spec/ICAREProjectAccess.tla), sa configuration TLC et le workflow [`icare-formal-model.yml`](../.github/workflows/icare-formal-model.yml). Ce modèle vérifie des invariants de sécurité pour un système concret. Le présent dossier vise un niveau complémentaire : définir un vocabulaire générique réutilisable pour décrire différents systèmes ICARE et, à terme, fournir un moteur d'interrogation déterministe. Il ne remplace pas TLA+ ni ce modèle existant.
+
 ## Documents
 
 - [Spécification initiale v0.1](spec-v0.1.md) — vocabulaire, sémantique, état, transition, invariants, objectifs et requêtes.
