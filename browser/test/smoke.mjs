@@ -156,6 +156,8 @@ try{
   await page.locator("#message-input").fill("Bonjour ICARE");
   await page.locator("#composer").evaluate(form=>form.requestSubmit());
   await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Réponse locale de test."));
+  assert.equal(await page.locator("#radar-observation-count").textContent(),"1 échange(s) pris en compte","un échange doit alimenter les moyennes cumulées");
+  const scoringTrace=await page.locator(".message.assistant .trace-button").last().count();assert.equal(scoringTrace,1,"la réponse doit conserver sa séquence de communication");
   for (const [level,title] of [[1,"Niveau 1"],[2,"Niveau 2"],[3,"Votre avis"],[4,"Auto-évaluation"],[5,"Niveau 5"],[6,"Niveau 6"]]) {
     assert.equal(await page.locator(".message.assistant h"+level).first().textContent(),title,"le titre Markdown de niveau "+level+" doit être rendu sans dièses visibles");
   }
@@ -205,7 +207,7 @@ try{
   await page.locator("#composer").evaluate(form=>form.requestSubmit());
   await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Documents consultés."));
   await page.locator(".message.assistant .trace-button").last().click();
-  await page.waitForFunction(()=>document.querySelector("#trace-panel")?.open===true);
+  await page.waitForFunction(()=>document.querySelector("#trace-panel")?.hidden===false);
   await page.locator("#trace-diagram .trace-zoom-canvas svg").waitFor({state:"visible"});
   await page.setViewportSize({width:1280,height:900});
   assert.ok(await page.locator("#trace-diagram .trace-zoom-canvas").evaluate(el=>el.querySelector("svg")!==null),"la trace doit être rendue comme diagramme Mermaid dans le canevas de zoom");
@@ -235,10 +237,10 @@ try{
   assert.equal(await page.locator("#trace-steps .trace-payload-highlight").count(),1,"la sélection depuis la liste doit remplacer le surlignage précédent");
   const fullscreen=page.locator("#trace-panel .trace-fullscreen-toggle");
   await fullscreen.click();
-  assert.ok(await page.locator("#trace-panel").evaluate(el=>el.classList.contains("trace-dialog-fullscreen")),"le schéma doit pouvoir occuper tout l’écran");
+  assert.ok(await page.locator("#trace-panel").evaluate(el=>el.classList.contains("trace-panel-fullscreen")),"le schéma doit pouvoir occuper tout l’écran");
   assert.equal(await fullscreen.textContent(),"Quitter le plein écran");
   await fullscreen.click();
-  assert.ok(!(await page.locator("#trace-panel").evaluate(el=>el.classList.contains("trace-dialog-fullscreen"))),"le mode plein écran doit pouvoir être quitté");
+  assert.ok(!(await page.locator("#trace-panel").evaluate(el=>el.classList.contains("trace-panel-fullscreen"))),"le mode plein écran doit pouvoir être quitté");
   await page.locator("#theme-toggle").evaluate(button=>button.click());
   await page.waitForFunction(()=>document.documentElement.dataset.theme==="dark");
   const darkTraceContrast=await page.locator("#trace-panel").evaluate(el=>({background:getComputedStyle(el).backgroundColor,foreground:getComputedStyle(el).color,summary:getComputedStyle(el.querySelector(".trace-step summary")).color,details:getComputedStyle(el.querySelector(".trace-step pre")).color}));
@@ -287,7 +289,7 @@ try{
   const traceSummary=page.locator("#trace-steps .trace-step summary").first();
   await traceSummary.click();
   assert.ok(await page.locator("#trace-steps .trace-step").first().evaluate(el=>el.open),"les payloads détaillés doivent rester accessibles dans la liste de trace");
-  await page.locator("#trace-panel").click({position:{x:1,y:1}});
+  await page.locator("#close-trace-dialog").click();
   await page.locator("#trace-panel").waitFor({state:"hidden"});
   await page.setViewportSize({width:390,height:844});
   await page.locator(".message.assistant .trace-button").last().click();
@@ -311,7 +313,7 @@ try{
   assert.equal(await page.locator("#trace-steps .trace-document-viewer").count(),0,"un second clic sur le document ouvert doit le refermer");
   await documentButtons.nth(1).click();
   assert.equal(await page.locator("#trace-steps .trace-document-viewer").count(),1,"ouvrir un autre document doit remplacer le précédent, sans empilement");
-  await page.locator("#trace-panel").click({position:{x:1,y:1}});
+  await page.locator("#close-trace-dialog").click();
   await page.locator("#trace-panel").waitFor({state:"hidden"});
   await page.setViewportSize({width:1440,height:1000});
   assert.equal(await page.locator("#proposal-list").count(),0,"le registre des propositions ne doit plus être présent");
