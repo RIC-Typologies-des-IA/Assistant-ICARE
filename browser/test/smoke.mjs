@@ -166,7 +166,8 @@ try{
   await page.locator(".message.assistant .trace-button").last().click();
   await page.waitForFunction(()=>document.querySelector("#trace-dialog")?.open===true);
   await page.waitForFunction(()=>document.querySelector("#trace-diagram .mermaid-diagram svg")||document.querySelector("#trace-diagram .mermaid-error"),null,{timeout:10000}).catch(()=>{});
-  assert.ok(document.querySelector("#trace-diagram .mermaid-diagram svg")||document.querySelector("#trace-diagram .mermaid-error"),"le diagramme doit apparaître après ouverture ; dialogue="+await page.locator("#trace-dialog").evaluate(el=>el.open)+" ; contenu="+await page.locator("#trace-diagram").innerText()+" ; erreurs="+JSON.stringify(tracePageErrors));
+  const traceRenderState=await page.evaluate(()=>({svg:!!document.querySelector("#trace-diagram .mermaid-diagram svg"),error:document.querySelector("#trace-diagram .mermaid-error")?.textContent||"",open:document.querySelector("#trace-dialog")?.open,content:document.querySelector("#trace-diagram")?.innerText||""}));
+  assert.ok(traceRenderState.svg||traceRenderState.error,"le diagramme doit apparaître après ouverture ; état="+JSON.stringify(traceRenderState)+" ; erreurs="+JSON.stringify(tracePageErrors));
   assert.equal(await page.locator("#trace-diagram .mermaid-error").count(),0,"le diagramme sans outil doit être rendu : "+await page.locator("#trace-diagram .mermaid-error").textContent().catch(()=> ""));
   const noToolDiagram=await page.locator("#trace-diagram .mermaid-diagram").innerText();
   assert.ok(noToolDiagram.includes("Outils ICARE"),"les acteurs stables doivent rester visibles même sans appel d’outil");
