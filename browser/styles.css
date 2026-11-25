@@ -943,3 +943,9 @@ html[data-theme="dark"] .trace-diagram-panel h3,html[data-theme="dark"] .trace-s
 html[data-theme="dark"] .trace-step summary{background:#1d2d42;color:#e5edf7}
 html[data-theme="dark"] .trace-step pre{background:#101e30;color:#dce6f2}
 @media(max-width:600px){.trace-dialog .dialog-content{padding:14px}.trace-diagram-panel,.trace-steps-panel{padding:8px}.trace-button{margin-top:5px}}
+
+
+/* CI smoke : rendre les actions du rail explicitement visibles à l'ouverture. */
+body.project-menu-open .sidebar .sidebar-toolbar-actions{display:flex!important;visibility:visible!important;opacity:1!important}
+body.project-menu-open .sidebar .sidebar-toolbar-actions #project-import-button,
+body.project-menu-open .sidebar .sidebar-toolbar-actions #new-project{display:grid!important;visibility:visible!important;opacity:1!important}
