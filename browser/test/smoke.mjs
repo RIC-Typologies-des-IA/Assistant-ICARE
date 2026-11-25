@@ -161,15 +161,10 @@ try{
   await page.waitForFunction(async()=>{const request=indexedDB.open("icare-browser");return await new Promise(resolve=>{request.onerror=()=>resolve(false);request.onsuccess=()=>{const db=request.result,tx=db.transaction("turns","readonly"),read=tx.objectStore("turns").getAll();read.onsuccess=()=>{const found=read.result.some(turn=>turn.user==="Bonjour ICARE"&&turn.assistant.startsWith("Réponse locale de test."));db.close();resolve(found);};read.onerror=()=>{db.close();resolve(false);};};});});
   const persistedTurns=await page.evaluate(readPersistedTurns);
   assert.ok(persistedTurns.some(turn=>turn.user==="Bonjour ICARE"&&turn.assistant.startsWith("Réponse locale de test.")),"le dialogue doit être effectivement persisté dans IndexedDB : "+JSON.stringify(persistedTurns));
-  const tracePageErrors=[];
-  page.on("pageerror",error=>tracePageErrors.push(error.message));
   await page.locator(".message.assistant .trace-button").last().click();
-  await page.waitForFunction(()=>document.querySelector("#trace-dialog")?.open===true);
-  await page.waitForFunction(()=>document.querySelector("#trace-diagram .mermaid-diagram svg")||document.querySelector("#trace-diagram .mermaid-error"),null,{timeout:10000}).catch(()=>{});
-  const traceRenderState=await page.evaluate(()=>({svg:!!document.querySelector("#trace-diagram .mermaid-diagram svg"),error:document.querySelector("#trace-diagram .mermaid-error")?.textContent||"",open:document.querySelector("#trace-dialog")?.open,content:document.querySelector("#trace-diagram")?.innerText||""}));
-  assert.ok(traceRenderState.svg||traceRenderState.error,"le diagramme doit apparaître après ouverture ; état="+JSON.stringify(traceRenderState)+" ; erreurs="+JSON.stringify(tracePageErrors));
-  assert.equal(await page.locator("#trace-diagram .mermaid-error").count(),0,"le diagramme sans outil doit être rendu : "+await page.locator("#trace-diagram .mermaid-error").textContent().catch(()=> ""));
-  const noToolDiagram=await page.locator("#trace-diagram .mermaid-diagram").innerText();
+  await page.locator("#trace-dialog").waitFor({state:"visible"});
+  await page.locator("#trace-diagram .trace-zoom-canvas svg").waitFor({state:"visible"});
+  const noToolDiagram=await page.locator("#trace-diagram .trace-zoom-canvas").innerText();
   assert.ok(noToolDiagram.includes("Outils ICARE"),"les acteurs stables doivent rester visibles même sans appel d’outil");
   assert.ok(!noToolDiagram.includes("search_reference_documents")&&!noToolDiagram.includes("propose_observation"),"un tour sans appel d’outil ne doit montrer aucun échange avec les outils");
   await page.locator("#close-trace-dialog").click();
@@ -179,11 +174,11 @@ try{
   await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Documents consultés."));
   await page.locator(".message.assistant .trace-button").last().click();
   await page.waitForFunction(()=>document.querySelector("#trace-dialog")?.open===true);
-  await page.locator("#trace-diagram .mermaid-diagram svg").waitFor({state:"visible"});
+  await page.locator("#trace-diagram .trace-zoom-canvas svg").waitFor({state:"visible"});
   await page.setViewportSize({width:1280,height:900});
-  assert.ok(await page.locator("#trace-diagram .mermaid-diagram").evaluate(el=>el.querySelector("svg")!==null),"la trace doit être rendue comme diagramme Mermaid");
-  assert.ok((await page.locator("#trace-diagram .mermaid-diagram").innerText()).includes("Navigateur ICARE"),"la séquence doit nommer le navigateur comme participant");
-  const diagramText=await page.locator("#trace-diagram .mermaid-diagram").innerText();
+  assert.ok(await page.locator("#trace-diagram .trace-zoom-canvas").evaluate(el=>el.querySelector("svg")!==null),"la trace doit être rendue comme diagramme Mermaid");
+  assert.ok((await page.locator("#trace-diagram .trace-zoom-canvas").innerText()).includes("Navigateur ICARE"),"la séquence doit nommer le navigateur comme participant");
+  const diagramText=await page.locator("#trace-diagram .trace-zoom-canvas").innerText();
   assert.ok(!diagramText.includes("WASI")&&!diagramText.includes("WebAssembly"),"la séquence ne doit pas afficher les composants WASI/WebAssembly hors sujet");
   assert.ok(await page.locator("#trace-diagram .trace-payload-link").count()>0,"les repères de payload doivent être identifiables et cliquables");
   const payloadLink=page.locator("#trace-diagram .trace-payload-link").first();
@@ -238,9 +233,9 @@ try{
   await page.waitForFunction(()=>document.documentElement.dataset.theme!=="dark");
 
 
-  assert.ok((await page.locator("#trace-diagram .mermaid-diagram").innerText()).includes("IndexedDB local"),"la séquence doit montrer la persistance locale");
-  assert.ok((await page.locator("#trace-diagram .mermaid-diagram").innerText()).includes("role=system"),"le prompt système doit être identifié comme payload, pas comme service autonome");
-  assert.ok((await page.locator("#trace-diagram .mermaid-diagram").innerText()).includes("Snapshot temporel"),"la persistance de l’instantané doit être explicitée");
+  assert.ok((await page.locator("#trace-diagram .trace-zoom-canvas").innerText()).includes("IndexedDB local"),"la séquence doit montrer la persistance locale");
+  assert.ok((await page.locator("#trace-diagram .trace-zoom-canvas").innerText()).includes("role=system"),"le prompt système doit être identifié comme payload, pas comme service autonome");
+  assert.ok((await page.locator("#trace-diagram .trace-zoom-canvas").innerText()).includes("Snapshot temporel"),"la persistance de l’instantané doit être explicitée");
   assert.equal(await page.locator("#trace-diagram g.node[role=button]").count(),0,"un diagramme de séquence ne doit pas présenter les messages comme des cases de flowchart");
   const zoomPercent=page.locator("#trace-diagram .trace-zoom-percent");
   const zoomIn=page.locator('#trace-diagram button[aria-label="Augmenter le zoom"]');
@@ -265,12 +260,12 @@ try{
   await page.setViewportSize({width:390,height:844});
   await page.locator(".message.assistant .trace-button").last().click();
   await page.locator("#trace-dialog").waitFor({state:"visible"});
-  await page.locator("#trace-diagram .mermaid-diagram svg").waitFor({state:"visible"});
+  await page.locator("#trace-diagram .trace-zoom-canvas svg").waitFor({state:"visible"});
   await page.locator("#trace-diagram .trace-zoom-canvas svg text").first().waitFor({state:"visible"});
-  assert.ok(await page.locator("#trace-diagram .mermaid-diagram svg").evaluate(svg=>svg.getBoundingClientRect().width>0&&svg.getBoundingClientRect().height>0),"la séquence mobile doit être rendue avec une géométrie valide");
+  assert.ok(await page.locator("#trace-diagram .trace-zoom-canvas svg").evaluate(svg=>svg.getBoundingClientRect().width>0&&svg.getBoundingClientRect().height>0),"la séquence mobile doit être rendue avec une géométrie valide");
   const mobileLabelSize=await page.locator("#trace-diagram .trace-zoom-canvas svg text").first().evaluate(el=>{const font=parseFloat(getComputedStyle(el).fontSize);const scale=Number(el.closest(".trace-zoom-canvas").style.transform.match(/scale\(([^)]+)\)/)?.[1]||1);return font*scale;});
   assert.ok(mobileLabelSize>=12,"les libellés doivent mesurer au moins 12 px à l’ouverture sur smartphone : "+mobileLabelSize);
-  assert.ok((await page.locator("#trace-diagram .mermaid-diagram").innerText()).includes("Service de scoring"),"la séquence doit inclure le service de scoring");
+  assert.ok((await page.locator("#trace-diagram .trace-zoom-canvas").innerText()).includes("Service de scoring"),"la séquence doit inclure le service de scoring");
   const documentButtons=page.locator("#trace-steps .trace-document-open");
   await documentButtons.first().waitFor({state:"visible"});
   assert.ok(await documentButtons.count()>=2,"la trace doit proposer les documents de référence consultés");
