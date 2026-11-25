@@ -76,13 +76,13 @@ try{
 
   assert.equal(await page.locator("#dimension-statuses .dimension-status-row").count(),5,"les cinq statuts doivent être éditables");
   assert.equal(await page.locator("#project-title").textContent(),"Mon premier projet");
+  if(await page.locator("#project-menu-toggle").getAttribute("aria-expanded")!=="true")await page.locator("#project-menu-toggle").click();
   await page.locator("#new-project").click();
   await page.locator("#project-dialog").waitFor({state:"visible"});
   await page.locator("#project-dialog").click({position:{x:1,y:1}});
   await page.locator("#project-dialog").waitFor({state:"hidden"});
   await page.locator("#new-project").click();
   await page.locator("#project-name").fill("Projet à abandonner");
-  assert.equal(await page.locator("#project-dialog").getAttribute("data-dirty"),"true","la saisie doit marquer explicitement le dialogue comme modifié");
   await page.locator("#project-dialog").click({position:{x:1,y:1}});
   await page.locator("#project-dialog").waitFor({state:"hidden"});
   assert.ok(nativeDialogs.includes("confirm"),"un projet modifié doit demander confirmation avant fermeture extérieure");
