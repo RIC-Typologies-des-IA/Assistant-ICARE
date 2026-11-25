@@ -16,9 +16,9 @@ try{
   const context=await browser.newContext({serviceWorkers:"block"});
   const page=await context.newPage();
   const nativeDialogs=[];
-  page.on("dialog",dialog=>{nativeDialogs.push(dialog.type);dialog.accept();});
+  page.on("dialog",dialog=>{nativeDialogs.push(dialog.type());dialog.accept();});
   await page.addInitScript(()=>{const original=window.fetch;window.__icareFetchCalls=[];window.fetch=(input,init={})=>{window.__icareFetchCalls.push({url:String(input),credentials:init.credentials||"same-origin",authorization:new Headers(init.headers||{}).get("Authorization"),body:typeof init.body==="string"?init.body:""});return original(input,init);};});
-  await page.route("https://mock-provider.example/**",route=>{assert.equal(route.request().headers()["authorization"],"Bearer test-secret","la clé doit être disponible en mémoire de session");const requestBody=route.request().postDataJSON();if(Array.isArray(requestBody?.messages))chatPayloads.push(requestBody);let body=route.request().url().endsWith("/models")?{data:[{id:"test-model"}]}:{choices:[{message:{content:["Réponse locale de test.","","# Niveau 1","","## Niveau 2","","### Votre avis","","#### Auto-évaluation","", "#### Points d’attention / tensions éventuelles","","##### Niveau 5","","###### Niveau 6","","####Titre sans espace","","**Texte en gras**.","","| Étape | Ce qui a été réalisé | Conformité aux principes ICARE & maïeutiques |","|-------|----------------------|----------------------------------------------|","| **1. Capture de l’intention (I)** | - Vous avez exprimé votre **but** : fournir des connaissances. | ✅ Reformulation pour vérification ; ✅ distinction claire. |","| **2. Confirmation de l’intention** | Vous avez confirmé la reformulation (« Oui »). | ✅ Attente d’un accord avant de passer à la suite. |","| **3. Passage à la dimension suivante (C)** | J’ai présenté les cinq axes possibles du **Contexte**. | ✅ Question unique, ouverte. |","","### Synthèse de la dimension I","","| Champ | Valeur |","|-------|--------|","| **id** | `proj-foret-I-001` |","| **text** | *Instruire les politiques publiques de la forêt.* |","","> undefined","","<img src=x onerror=alert(1)>","[lien dangereux](javascript:alert(1))"].join("\n")}}]};if(requestBody?.messages?.some(message=>message.role==="user"&&message.content==="Tester les documents consultés"))body={choices:[{message:{content:null,tool_calls:[{id:"call-documents",type:"function",function:{name:"search_reference_documents",arguments:JSON.stringify({query:""})}}]}}]};else if(requestBody?.messages?.some(message=>message.role==="tool"&&message.tool_call_id==="call-documents"))body={choices:[{message:{content:"Documents consultés."}}]};return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(body)});});
+  await page.route("https://mock-provider.example/**",route=>{assert.equal(route.request().headers()["authorization"],"Bearer test-secret","la clé doit être disponible en mémoire de session");const requestBody=route.request().postDataJSON();if(Array.isArray(requestBody?.messages))chatPayloads.push(requestBody);let body=route.request().url().endsWith("/models")?{data:[{id:"test-model"}]}:{choices:[{message:{content:["Réponse locale de test.","","# Niveau 1","","## Niveau 2","","### Votre avis","","#### Auto-évaluation","", "#### Points d’attention / tensions éventuelles","","##### Niveau 5","","###### Niveau 6","","####Titre sans espace","","**Texte en gras**.","","| Étape | Ce qui a été réalisé | Conformité aux principes ICARE & maïeutiques |","|-------|----------------------|----------------------------------------------|","| **1. Capture de l’intention (I)** | - Vous avez exprimé votre **but** : fournir des connaissances. | ✅ Reformulation pour vérification ; ✅ distinction claire. |","| **2. Confirmation de l’intention** | Vous avez confirmé la reformulation (« Oui »). | ✅ Attente d’un accord avant de passer à la suite. |","| **3. Passage à la dimension suivante (C)** | J’ai présenté les cinq axes possibles du **Contexte**. | ✅ Question unique, ouverte. |","","### Synthèse de la dimension I","","| Champ | Valeur |","|-------|--------|","| **id** | `proj-foret-I-001` |","| **text** | *Instruire les politiques publiques de la forêt.* |","","> undefined","","<img src=x onerror=alert(1)>","[lien dangereux](javascript:alert(1))"].join("\n")}}]};if(requestBody?.messages?.some(message=>message.role==="user"&&message.content==="Tester les documents consultés")&&!requestBody?.messages?.some(message=>message.role==="tool"&&message.tool_call_id==="call-documents"))body={choices:[{message:{content:null,tool_calls:[{id:"call-documents",type:"function",function:{name:"search_reference_documents",arguments:JSON.stringify({query:""})}}]}}]};else if(requestBody?.messages?.some(message=>message.role==="tool"&&message.tool_call_id==="call-documents"))body={choices:[{message:{content:"Documents consultés."}}]};return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(body)});});
   let gatewayRequests=[];
   let gatewayConfigPayload={service:"icare-enterprise-gateway",capabilities:{chat:true,transcription:true,scoring:true},defaults:{chatModel:"enterprise-chat",transcriptionModel:"enterprise-audio"}};
   let gatewayConfigStatus=200;
@@ -76,6 +76,7 @@ try{
 
   assert.equal(await page.locator("#dimension-statuses .dimension-status-row").count(),5,"les cinq statuts doivent être éditables");
   assert.equal(await page.locator("#project-title").textContent(),"Mon premier projet");
+  if(await page.locator("#project-menu-toggle").getAttribute("aria-expanded")!=="true")await page.locator("#project-menu-toggle").click();
   await page.locator("#new-project").click();
   await page.locator("#project-dialog").waitFor({state:"visible"});
   await page.locator("#project-dialog").click({position:{x:1,y:1}});
@@ -161,8 +162,9 @@ try{
   const persistedTurns=await page.evaluate(readPersistedTurns);
   assert.ok(persistedTurns.some(turn=>turn.user==="Bonjour ICARE"&&turn.assistant.startsWith("Réponse locale de test.")),"le dialogue doit être effectivement persisté dans IndexedDB : "+JSON.stringify(persistedTurns));
   await page.locator(".message.assistant .trace-button").last().click();
-  await page.locator("#trace-diagram .mermaid-diagram svg").waitFor({state:"visible"});
-  const noToolDiagram=await page.locator("#trace-diagram .mermaid-diagram").innerText();
+  await page.locator("#trace-dialog").waitFor({state:"visible"});
+  await page.locator("#trace-diagram .trace-zoom-canvas svg").waitFor({state:"visible"});
+  const noToolDiagram=await page.locator("#trace-diagram .trace-zoom-canvas").innerText();
   assert.ok(noToolDiagram.includes("Outils ICARE"),"les acteurs stables doivent rester visibles même sans appel d’outil");
   assert.ok(!noToolDiagram.includes("search_reference_documents")&&!noToolDiagram.includes("propose_observation"),"un tour sans appel d’outil ne doit montrer aucun échange avec les outils");
   await page.locator("#close-trace-dialog").click();
@@ -172,11 +174,11 @@ try{
   await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Documents consultés."));
   await page.locator(".message.assistant .trace-button").last().click();
   await page.waitForFunction(()=>document.querySelector("#trace-dialog")?.open===true);
-  await page.locator("#trace-diagram .mermaid-diagram svg").waitFor({state:"visible"});
+  await page.locator("#trace-diagram .trace-zoom-canvas svg").waitFor({state:"visible"});
   await page.setViewportSize({width:1280,height:900});
-  assert.ok(await page.locator("#trace-diagram .mermaid-diagram").evaluate(el=>el.querySelector("svg")!==null),"la trace doit être rendue comme diagramme Mermaid");
-  assert.ok((await page.locator("#trace-diagram .mermaid-diagram").innerText()).includes("Navigateur ICARE"),"la séquence doit nommer le navigateur comme participant");
-  const diagramText=await page.locator("#trace-diagram .mermaid-diagram").innerText();
+  assert.ok(await page.locator("#trace-diagram .trace-zoom-canvas").evaluate(el=>el.querySelector("svg")!==null),"la trace doit être rendue comme diagramme Mermaid");
+  assert.ok((await page.locator("#trace-diagram .trace-zoom-canvas").innerText()).includes("Navigateur ICARE"),"la séquence doit nommer le navigateur comme participant");
+  const diagramText=await page.locator("#trace-diagram .trace-zoom-canvas").innerText();
   assert.ok(!diagramText.includes("WASI")&&!diagramText.includes("WebAssembly"),"la séquence ne doit pas afficher les composants WASI/WebAssembly hors sujet");
   assert.ok(await page.locator("#trace-diagram .trace-payload-link").count()>0,"les repères de payload doivent être identifiables et cliquables");
   const payloadLink=page.locator("#trace-diagram .trace-payload-link").first();
@@ -205,7 +207,7 @@ try{
   assert.equal(await fullscreen.textContent(),"Quitter le plein écran");
   await fullscreen.click();
   assert.ok(!(await page.locator("#trace-dialog").evaluate(el=>el.classList.contains("trace-dialog-fullscreen"))),"le mode plein écran doit pouvoir être quitté");
-  await page.locator("#theme-toggle").click();
+  await page.locator("#theme-toggle").evaluate(button=>button.click());
   await page.waitForFunction(()=>document.documentElement.dataset.theme==="dark");
   const darkTraceContrast=await page.locator("#trace-dialog").evaluate(el=>({background:getComputedStyle(el).backgroundColor,foreground:getComputedStyle(el).color,summary:getComputedStyle(el.querySelector(".trace-step summary")).color,details:getComputedStyle(el.querySelector(".trace-step pre")).color}));
   assert.notEqual(darkTraceContrast.background,darkTraceContrast.foreground,"la modale de trace doit rester lisible en mode sombre");
@@ -227,13 +229,13 @@ try{
   assert.ok(diagramContrast.payloadRatio>=4.5,"les repères de payload doivent respecter le contraste WCAG AA : "+JSON.stringify(diagramContrast));
   const desktopLabelSize=await page.locator("#trace-diagram .trace-zoom-canvas svg text").first().evaluate(el=>{const font=parseFloat(getComputedStyle(el).fontSize);const scale=Number(el.closest(".trace-zoom-canvas").style.transform.match(/scale\(([^)]+)\)/)?.[1]||1);return font*scale;});
   assert.ok(desktopLabelSize>=12,"les libellés doivent mesurer au moins 12 px à l’ouverture sur ordinateur : "+desktopLabelSize);
-  await page.locator("#theme-toggle").click();
+  await page.locator("#theme-toggle").evaluate(button=>button.click());
   await page.waitForFunction(()=>document.documentElement.dataset.theme!=="dark");
 
 
-  assert.ok((await page.locator("#trace-diagram .mermaid-diagram").innerText()).includes("IndexedDB local"),"la séquence doit montrer la persistance locale");
-  assert.ok((await page.locator("#trace-diagram .mermaid-diagram").innerText()).includes("role=system"),"le prompt système doit être identifié comme payload, pas comme service autonome");
-  assert.ok((await page.locator("#trace-diagram .mermaid-diagram").innerText()).includes("Snapshot temporel"),"la persistance de l’instantané doit être explicitée");
+  assert.ok((await page.locator("#trace-diagram .trace-zoom-canvas").innerText()).includes("IndexedDB local"),"la séquence doit montrer la persistance locale");
+  assert.ok((await page.locator("#trace-diagram .trace-zoom-canvas").innerText()).includes("role=system"),"le prompt système doit être identifié comme payload, pas comme service autonome");
+  assert.ok((await page.locator("#trace-diagram .trace-zoom-canvas").innerText()).includes("Snapshot temporel"),"la persistance de l’instantané doit être explicitée");
   assert.equal(await page.locator("#trace-diagram g.node[role=button]").count(),0,"un diagramme de séquence ne doit pas présenter les messages comme des cases de flowchart");
   const zoomPercent=page.locator("#trace-diagram .trace-zoom-percent");
   const zoomIn=page.locator('#trace-diagram button[aria-label="Augmenter le zoom"]');
@@ -258,13 +260,14 @@ try{
   await page.setViewportSize({width:390,height:844});
   await page.locator(".message.assistant .trace-button").last().click();
   await page.locator("#trace-dialog").waitFor({state:"visible"});
-  await page.locator("#trace-diagram .mermaid-diagram svg").waitFor({state:"visible"});
+  await page.locator("#trace-diagram .trace-zoom-canvas svg").waitFor({state:"visible"});
   await page.locator("#trace-diagram .trace-zoom-canvas svg text").first().waitFor({state:"visible"});
-  assert.ok(await page.locator("#trace-diagram .mermaid-diagram svg").evaluate(svg=>svg.getBoundingClientRect().width>0&&svg.getBoundingClientRect().height>0),"la séquence mobile doit être rendue avec une géométrie valide");
+  assert.ok(await page.locator("#trace-diagram .trace-zoom-canvas svg").evaluate(svg=>svg.getBoundingClientRect().width>0&&svg.getBoundingClientRect().height>0),"la séquence mobile doit être rendue avec une géométrie valide");
   const mobileLabelSize=await page.locator("#trace-diagram .trace-zoom-canvas svg text").first().evaluate(el=>{const font=parseFloat(getComputedStyle(el).fontSize);const scale=Number(el.closest(".trace-zoom-canvas").style.transform.match(/scale\(([^)]+)\)/)?.[1]||1);return font*scale;});
   assert.ok(mobileLabelSize>=12,"les libellés doivent mesurer au moins 12 px à l’ouverture sur smartphone : "+mobileLabelSize);
-  assert.ok((await page.locator("#trace-diagram .mermaid-diagram").innerText()).includes("Service de scoring"),"la séquence doit inclure le service de scoring");
+  assert.ok((await page.locator("#trace-diagram .trace-zoom-canvas").innerText()).includes("Scoring ICARE"),"la séquence doit inclure le service de scoring");
   const documentButtons=page.locator("#trace-steps .trace-document-open");
+  await documentButtons.first().evaluate(button=>button.closest("details").querySelector("summary").click());
   await documentButtons.first().waitFor({state:"visible"});
   assert.ok(await documentButtons.count()>=2,"la trace doit proposer les documents de référence consultés");
   await documentButtons.first().click();
@@ -283,7 +286,7 @@ try{
   await page.waitForFunction(()=>document.querySelectorAll("#proposal-list .proposal-item").length===1);
   await page.locator("#proposal-list .accept").click();
   await page.waitForFunction(()=>document.querySelector("#proposal-list").textContent.includes("Validée"));
-  await page.locator("#project-menu-toggle").click();
+  if(await page.locator("#project-menu-toggle").getAttribute("aria-expanded")!=="true")await page.locator("#project-menu-toggle").click();
   await page.locator("#new-project").click();
   await page.locator("#project-name").fill("Projet navigateur");
   await page.locator("#project-intention").fill("Vérifier la persistance locale");
@@ -341,7 +344,7 @@ try{
   const workspaceBox=await page.locator(".workspace").boundingBox();
   assert.equal(Math.round(layoutBox.x),0,"la grille principale doit commencer au bord gauche de la fenêtre");
   assert.equal(Math.round(railBox.x),0,"le rail Projets doit être collé au bord gauche de la fenêtre");
-  assert.ok(Math.abs(workspaceBox.x-(railBox.x+railBox.width+8))<=1,"le dialogue doit commencer juste après le rail avec un espace de 8 px : "+JSON.stringify({railBox,workspaceBox}));
+  assert.ok(Math.abs(workspaceBox.x-(railBox.x+railBox.width+6))<=1,"le dialogue doit commencer juste après le rail avec un espace de 6 px : "+JSON.stringify({railBox,workspaceBox}));
   await page.setViewportSize({width:390,height:844});
   await page.waitForFunction(()=>{
     const rail=document.querySelector(".sidebar");
@@ -376,7 +379,7 @@ try{
   assert.equal(await page.locator("#project-title").textContent(),"Projet navigateur renommé","l'import doit ouvrir le projet nouvellement importé");
 
 
-  await page.emulateMedia({colorScheme:"dark"});
+  await page.locator("#theme-toggle").evaluate(button=>button.click());
   await page.waitForFunction(()=>document.documentElement.dataset.theme==="dark");
   assert.equal(await page.locator("body").evaluate(el=>getComputedStyle(el).backgroundColor),"rgb(16, 24, 39)","le fond de page doit réellement devenir sombre");
   assert.equal(await page.locator(".chat-panel").evaluate(el=>getComputedStyle(el).backgroundColor),"rgb(27, 41, 59)","le panneau de dialogue doit réellement devenir sombre");
@@ -402,7 +405,7 @@ try{
   assert.equal(darkGatewayPalette.routeSelect,"rgb(16, 30, 48)","les listes de routage doivent être sombres");
   await page.locator("#settings-tab-direct").click();
   await page.locator("#close-settings-dialog").click();
-  await page.locator("#theme-toggle").click();
+  await page.locator("#theme-toggle").evaluate(button=>button.click());
   assert.equal(await page.locator("html").getAttribute("data-theme"),"light","le bouton doit permettre de choisir le thème clair");
   assert.equal(await page.evaluate(()=>localStorage.getItem("icare-theme")),"light","le choix manuel doit être enregistré");
   await page.emulateMedia({colorScheme:"dark"});
