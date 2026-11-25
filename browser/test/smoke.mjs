@@ -174,10 +174,10 @@ try{
   assert.ok((await page.locator("#trace-diagram .mermaid-diagram").innerText()).includes("snapshot temporel"),"la persistance de l’instantané doit être explicitée");
   assert.equal(await page.locator("#trace-diagram g.node[role=button]").count(),0,"un diagramme de séquence ne doit pas présenter les messages comme des cases de flowchart");
   const zoomPercent=page.locator("#trace-diagram .trace-zoom-percent");
-  const zoomIn=page.locator("#trace-diagram button[aria-label="Augmenter le zoom"]");
-  const zoomOut=page.locator("#trace-diagram button[aria-label="Réduire le zoom"]");
-  const resetZoom=page.locator("#trace-diagram button[aria-label="Revenir à l’échelle réelle"]");
-  const expandDiagram=page.locator("#trace-diagram button[aria-label="Agrandir ou réduire la zone du schéma"]");
+  const zoomIn=page.locator('#trace-diagram button[aria-label="Augmenter le zoom"]');
+  const zoomOut=page.locator('#trace-diagram button[aria-label="Réduire le zoom"]');
+  const resetZoom=page.locator('#trace-diagram button[aria-label="Revenir à l’échelle réelle"]');
+  const expandDiagram=page.locator('#trace-diagram button[aria-label="Agrandir ou réduire la zone du schéma"]');
   const initialZoom=await zoomPercent.textContent();
   await zoomIn.click();
   assert.notEqual(await zoomPercent.textContent(),initialZoom,"le bouton + doit augmenter le zoom");
