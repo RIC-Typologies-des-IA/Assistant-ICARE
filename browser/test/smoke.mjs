@@ -15,10 +15,8 @@ try{
   browser=await chromium.launch({headless:true});
   const context=await browser.newContext({serviceWorkers:"block"});
   const page=await context.newPage();
-  const nativeDialogs=[];
-  page.on("dialog",dialog=>{nativeDialogs.push(dialog.type);dialog.accept();});
   const clickBackdrop=async selector=>page.locator(selector).evaluate(el=>el.dispatchEvent(new MouseEvent("click",{bubbles:true})));
-  await page.addInitScript(()=>{const original=window.fetch;window.__icareFetchCalls=[];window.fetch=(input,init={})=>{window.__icareFetchCalls.push({url:String(input),credentials:init.credentials||"same-origin",authorization:new Headers(init.headers||{}).get("Authorization"),body:typeof init.body==="string"?init.body:""});return original(input,init);};});
+  await page.addInitScript(()=>{const original=window.fetch;window.__icareFetchCalls=[];window.__confirmCalls=[];window.confirm=message=>{window.__confirmCalls.push(String(message));return true;};window.fetch=(input,init={})=>{window.__icareFetchCalls.push({url:String(input),credentials:init.credentials||"same-origin",authorization:new Headers(init.headers||{}).get("Authorization"),body:typeof init.body==="string"?init.body:""});return original(input,init);};});
   await page.route("https://mock-provider.example/**",route=>{assert.equal(route.request().headers()["authorization"],"Bearer test-secret","la clé doit être disponible en mémoire de session");const requestBody=route.request().postDataJSON();if(Array.isArray(requestBody?.messages))chatPayloads.push(requestBody);let body=route.request().url().endsWith("/models")?{data:[{id:"test-model"}]}:{choices:[{message:{content:["Réponse locale de test.","","# Niveau 1","","## Niveau 2","","### Votre avis","","#### Auto-évaluation","", "#### Points d’attention / tensions éventuelles","","##### Niveau 5","","###### Niveau 6","","####Titre sans espace","","**Texte en gras**.","","| Étape | Ce qui a été réalisé | Conformité aux principes ICARE & maïeutiques |","|-------|----------------------|----------------------------------------------|","| **1. Capture de l’intention (I)** | - Vous avez exprimé votre **but** : fournir des connaissances. | ✅ Reformulation pour vérification ; ✅ distinction claire. |","| **2. Confirmation de l’intention** | Vous avez confirmé la reformulation (« Oui »). | ✅ Attente d’un accord avant de passer à la suite. |","| **3. Passage à la dimension suivante (C)** | J’ai présenté les cinq axes possibles du **Contexte**. | ✅ Question unique, ouverte. |","","### Synthèse de la dimension I","","| Champ | Valeur |","|-------|--------|","| **id** | `proj-foret-I-001` |","| **text** | *Instruire les politiques publiques de la forêt.* |","","> undefined","","<img src=x onerror=alert(1)>","[lien dangereux](javascript:alert(1))"].join("\n")}}]};if(requestBody?.messages?.some(message=>message.role==="user"&&message.content==="Tester les documents consultés"))body={choices:[{message:{content:null,tool_calls:[{id:"call-documents",type:"function",function:{name:"search_reference_documents",arguments:JSON.stringify({query:""})}}]}}]};else if(requestBody?.messages?.some(message=>message.role==="tool"&&message.tool_call_id==="call-documents"))body={choices:[{message:{content:"Documents consultés."}}]};return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(body)});});
   let gatewayRequests=[];
   let gatewayConfigPayload={service:"icare-enterprise-gateway",capabilities:{chat:true,transcription:true,scoring:true},defaults:{chatModel:"enterprise-chat",transcriptionModel:"enterprise-audio"}};
@@ -84,11 +82,12 @@ try{
   await clickBackdrop("#project-dialog");
   await page.locator("#project-dialog").waitFor({state:"hidden"});
   await page.locator("#new-project").click();
+  const projectConfirmCount=await page.evaluate(()=>window.__confirmCalls.length);
   await page.locator("#project-name").fill("Projet à abandonner");
   assert.equal(await page.locator("#project-dialog").getAttribute("data-dirty"),"true","la saisie doit marquer le dialogue comme modifié");
   await clickBackdrop("#project-dialog");
   await page.locator("#project-dialog").waitFor({state:"hidden"});
-  assert.ok(nativeDialogs.includes("confirm"),"un projet modifié doit demander confirmation avant fermeture extérieure");
+  assert.ok(await page.evaluate(count=>window.__confirmCalls.length>count,projectConfirmCount),"un projet modifié doit demander confirmation avant fermeture extérieure");
   await page.locator("#settings-button").click();
   assert.equal(await page.locator("#settings-tab-direct").getAttribute("aria-selected"),"true","l’onglet Accès direct doit être sélectionné par défaut");
   assert.equal(await page.locator("#settings-panel-direct").isVisible(),true,"le panneau Accès direct doit être visible");
@@ -97,10 +96,11 @@ try{
   await page.locator("#settings-dialog").waitFor({state:"hidden"});
   assert.equal(await page.locator("#settings-dialog").evaluate(dialog=>dialog.open),false,"un dialogue de configuration inchangé doit se fermer au clic extérieur");
   await page.locator("#settings-button").click();
+  const settingsConfirmCount=await page.evaluate(()=>window.__confirmCalls.length);
   await page.locator("#api-base").fill("https://discard.example/v1");
   await clickBackdrop("#settings-dialog");
   await page.locator("#settings-dialog").waitFor({state:"hidden"});
-  assert.ok(nativeDialogs.includes("confirm"),"la fermeture extérieure d’une configuration modifiée doit demander confirmation");
+  assert.ok(await page.evaluate(count=>window.__confirmCalls.length>count,settingsConfirmCount),"la fermeture extérieure d’une configuration modifiée doit demander confirmation");
   await page.locator("#settings-button").click();
   assert.equal(await page.locator("#route-llm").count(),1,"un seul sélecteur de routage LLM doit exister");
   assert.equal(await page.locator("#text-route").count(),0,"l’ancien sélecteur de routage ne doit plus exister");
