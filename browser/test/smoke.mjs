@@ -265,7 +265,7 @@ try{
   assert.ok(await page.locator("#trace-diagram .trace-zoom-canvas svg").evaluate(svg=>svg.getBoundingClientRect().width>0&&svg.getBoundingClientRect().height>0),"la séquence mobile doit être rendue avec une géométrie valide");
   const mobileLabelSize=await page.locator("#trace-diagram .trace-zoom-canvas svg text").first().evaluate(el=>{const font=parseFloat(getComputedStyle(el).fontSize);const scale=Number(el.closest(".trace-zoom-canvas").style.transform.match(/scale\(([^)]+)\)/)?.[1]||1);return font*scale;});
   assert.ok(mobileLabelSize>=12,"les libellés doivent mesurer au moins 12 px à l’ouverture sur smartphone : "+mobileLabelSize);
-  assert.ok((await page.locator("#trace-diagram .trace-zoom-canvas").innerText()).includes("Service de scoring"),"la séquence doit inclure le service de scoring");
+  assert.ok((await page.locator("#trace-diagram .trace-zoom-canvas").innerText()).includes("Scoring ICARE"),"la séquence doit inclure le service de scoring");
   const documentButtons=page.locator("#trace-steps .trace-document-open");
   await documentButtons.first().waitFor({state:"visible"});
   assert.ok(await documentButtons.count()>=2,"la trace doit proposer les documents de référence consultés");
