@@ -39,6 +39,7 @@ export async function initGatewayConfiguration({db,get,set,saveLegacy,loadScorin
  $("direct-scoring-url").value=config.directScoringUrl;
  $("direct-scoring-provider").value=config.directScoringProvider;
  $("direct-scoring-base").value=config.directScoringBaseUrl;
+ if(config.directScoringModel)$("direct-scoring-model").add(new Option(config.directScoringModel,config.directScoringModel));
  $("direct-scoring-model").value=config.directScoringModel;
  $("custom-scoring-config").hidden=config.directScoringProvider!=="custom";
  $("lemonade-scoring-config").hidden=config.directScoringProvider!=="lemonade";
