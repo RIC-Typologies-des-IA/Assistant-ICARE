@@ -102,7 +102,7 @@ function showTraceDialog(trace){
    const name=item.call?.name||"outil";
    lines.push("rect rgb(255, 244, 220)","Agent->>Tools: "+short(name,55)+" · "+addPayload(index,"arguments","arguments JSON"),"Tools-->>Agent: Résultat · "+addPayload(index,"result","résultat JSON"),"end");
   }else if(item.type==="scoring"){
-   lines.push("rect rgb(232, 243, 255)","Browser->>Score: POST scoring · "+addPayload(index,"scoringRequest","texte + dimensions + multi_label"),"Score-->>Browser: Résultat · "+addPayload(index,"scoringResult","scores ou erreur"),"end");
+   lines.push("rect rgb(232, 243, 255)","Browser->>Score: POST scoring · "+(item.side==="assistant"?"réponse ICAR":"message utilisateur")+" · "+addPayload(index,"scoringRequest","texte + dimensions + multi_label"),"Score-->>Browser: Résultat · "+addPayload(index,"scoringResult","scores ou erreur"),"end");
   }else if(item.type==="final"){
    lines.push("rect rgb(232, 243, 255)","Agent-->>Browser: Réponse finale · "+addPayload(index,"final","texte de réponse"),"end");
   }
@@ -121,7 +121,7 @@ function showTraceDialog(trace){
  for(const [index,item] of records.entries()){
   const details=document.createElement("details");details.className="trace-step";details.dataset.traceIndex=String(index);
   const summary=document.createElement("summary");
-  summary.textContent=(index+1)+". "+(item.type==="user"?"Message utilisateur":item.type==="tool"?"Outil · "+(item.call?.name||""):item.type==="scoring"?"Scoring ICARE":item.type==="final"?"Réponse finale":item.type==="prompt"?"Prompt système et contexte":"Appel modèle · étape "+(item.step||""));
+  summary.textContent=(index+1)+". "+(item.type==="user"?"Message utilisateur":item.type==="tool"?"Outil · "+(item.call?.name||""):item.type==="scoring"?"Scoring ICARE · "+(item.side==="assistant"?"réponse ICAR":"message utilisateur"):item.type==="final"?"Réponse finale":item.type==="prompt"?"Prompt système et contexte":"Appel modèle · étape "+(item.step||""));
   details.append(summary);
   const payload=document.createElement("pre");payload.textContent=traceText(item);details.append(payload);details.addEventListener("click",event=>{if(event.target.closest("summary"))highlightRecord(index);});details.addEventListener("toggle",()=>{if(details.open)highlightRecord(index);});
   const documents=item.result?.results;
