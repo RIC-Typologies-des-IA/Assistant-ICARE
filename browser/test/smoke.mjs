@@ -379,9 +379,7 @@ try{
   assert.equal(await page.locator("#project-title").textContent(),"Projet navigateur renommé","l'import doit ouvrir le projet nouvellement importé");
 
 
-  await page.emulateMedia({colorScheme:"dark"});
-  await page.evaluate(()=>localStorage.removeItem("icare-theme"));
-  await page.reload();
+  await page.locator("#theme-toggle").evaluate(button=>button.click());
   await page.waitForFunction(()=>document.documentElement.dataset.theme==="dark");
   assert.equal(await page.locator("body").evaluate(el=>getComputedStyle(el).backgroundColor),"rgb(16, 24, 39)","le fond de page doit réellement devenir sombre");
   assert.equal(await page.locator(".chat-panel").evaluate(el=>getComputedStyle(el).backgroundColor),"rgb(27, 41, 59)","le panneau de dialogue doit réellement devenir sombre");
