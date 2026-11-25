@@ -1157,3 +1157,50 @@ html[data-theme="dark"] .trace-document-viewer{margin-left:12px}
   .trace-dialog-fullscreen .trace-zoom-viewport{height:62dvh}
   .trace-fullscreen-toggle{padding:6px 8px;font-size:11px}
 }
+
+
+/* Contraste strict du diagramme en thème sombre : aucune zone crème/blanche. */
+html[data-theme="dark"] .trace-zoom-canvas svg rect,
+html[data-theme="dark"] .trace-zoom-canvas svg polygon,
+html[data-theme="dark"] .trace-zoom-canvas svg .note,
+html[data-theme="dark"] .trace-zoom-canvas svg .labelBox{
+  fill:#24364c!important;
+  stroke:#91a9c5!important;
+}
+html[data-theme="dark"] .trace-zoom-canvas svg text,
+html[data-theme="dark"] .trace-zoom-canvas svg tspan{
+  fill:#f1f5f9!important;
+  stroke:none!important;
+  font-size:14px!important;
+  font-weight:500;
+}
+html[data-theme="dark"] .trace-zoom-canvas svg text.trace-payload-link,
+html[data-theme="dark"] .trace-zoom-canvas svg text.trace-payload-link tspan{
+  fill:#67e8f9!important;
+  stroke:none!important;
+  filter:none!important;
+  font-size:14px!important;
+  font-weight:800!important;
+}
+html[data-theme="dark"] .trace-zoom-canvas svg text.trace-payload-link:hover,
+html[data-theme="dark"] .trace-zoom-canvas svg text.trace-payload-link:focus,
+html[data-theme="dark"] .trace-zoom-canvas svg text.trace-payload-link.is-current{
+  fill:#6ee7b7!important;
+  stroke:none!important;
+  filter:none!important;
+}
+html[data-theme="dark"] .trace-zoom-canvas svg .actor-line,
+html[data-theme="dark"] .trace-zoom-canvas svg .messageLine0,
+html[data-theme="dark"] .trace-zoom-canvas svg .messageLine1,
+html[data-theme="dark"] .trace-zoom-canvas svg .loopLine{
+  stroke:#a9bfd8!important;
+}
+html[data-theme="dark"] .trace-zoom-canvas svg .activation0,
+html[data-theme="dark"] .trace-zoom-canvas svg .activation1{
+  fill:#38516d!important;
+  stroke:#a9bfd8!important;
+}
+.trace-zoom-canvas svg text.trace-payload-link.is-current{
+  filter:none!important;
+  text-decoration-thickness:2px;
+}
