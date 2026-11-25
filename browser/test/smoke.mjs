@@ -85,6 +85,7 @@ try{
   await page.locator("#project-dialog").waitFor({state:"hidden"});
   await page.locator("#new-project").click();
   await page.locator("#project-name").fill("Projet à abandonner");
+  assert.equal(await page.locator("#project-dialog").getAttribute("data-dirty"),"true","la saisie doit marquer le dialogue comme modifié");
   await clickBackdrop("#project-dialog");
   await page.locator("#project-dialog").waitFor({state:"hidden"});
   assert.ok(nativeDialogs.includes("confirm"),"un projet modifié doit demander confirmation avant fermeture extérieure");
