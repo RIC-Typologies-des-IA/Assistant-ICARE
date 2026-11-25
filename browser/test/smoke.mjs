@@ -211,6 +211,9 @@ try{
   await page.waitForFunction(()=>document.querySelector("#send-button")?.disabled===false);
   await page.locator("#message-input").fill("Tester les documents consultés");
   await page.locator("#composer").evaluate(form=>form.requestSubmit());
+  await page.waitForTimeout(1500);
+  const secondTurnDebug=await page.evaluate(()=>({sendDisabled:document.querySelector("#send-button").disabled,assistant:[...document.querySelectorAll(".message.assistant")].map(el=>el.innerText),requests:window.__icareFetchCalls.map(call=>({url:call.url,body:call.body.slice(-700)}))}));
+  console.log("second-turn-debug",JSON.stringify(secondTurnDebug));
   await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Documents consultés.")||[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent.startsWith("Réponse impossible :")));
   const secondAnswerText=await page.locator(".message.assistant").last().innerText();
   assert.ok(secondAnswerText.includes("Documents consultés."),"le second tour doit se terminer après l’appel d’outil : "+secondAnswerText);
