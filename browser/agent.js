@@ -12,18 +12,32 @@ export const ICARE_TOOLS = [
 {type:"function",function:{name:"list_wasi_components",description:"Lister les composants WebAssembly ICARE chargés dans le runtime navigateur et leurs capacités déclarées.",parameters:{type:"object",properties:{},additionalProperties:false}}},
 {type:"function",function:{name:"invoke_wasi_component",description:"Invoquer un composant WASI explicitement enregistré. Les capacités non accordées par l'hôte sont refusées.",parameters:{type:"object",properties:{component_id:{type:"string",enum:["ontology-validator","context-summary","storage-probe"]},operation:{type:"string"},payload:{type:"object",additionalProperties:true}},required:["component_id","operation","payload"],additionalProperties:false}}}
 ];
-export async function runAgentTurn({messages,complete,executeTool,maxSteps=8}) {
- const transcript=[...messages],executed=[];
+export async function runAgentTurn({messages,complete,executeTool,maxSteps=8,traceContext={}}) {
+ const transcript=[...messages],executed=[],trace=[];
+ const safe=value=>{
+  const redact=(item,key="")=>{
+   if(/api.?key|authorization|token|secret|password|credential|cookie/i.test(key))return "[REDACTED]";
+   if(Array.isArray(item))return item.map(value=>redact(value));
+   if(item&&typeof item==="object")return Object.fromEntries(Object.entries(item).map(([name,value])=>[name,redact(value,name)]));
+   return item;
+  };
+  const clean=redact(value),serialized=typeof clean==="string"?clean:JSON.stringify(clean);
+  return serialized.length>12000?serialized.slice(0,12000)+"… [tronqué, "+serialized.length+" caractères au total]":clean;
+ };
  for(let step=0;step<maxSteps;step++){
+  const request={messages:safe(transcript),tools:ICARE_TOOLS.map(tool=>tool.function.name),route:safe(traceContext)};
   const message=await complete(transcript,ICARE_TOOLS);
   if(!message||typeof message!=="object")throw new Error("Réponse agentique invalide.");
-  if(!Array.isArray(message.tool_calls)||!message.tool_calls.length){return {content:typeof message.content==="string"?message.content:"",executed};}
+  trace.push({type:"model",step:step+1,request,response:safe(message)});
+  if(!Array.isArray(message.tool_calls)||!message.tool_calls.length){return {content:typeof message.content==="string"?message.content:"",executed,trace};}
   transcript.push({role:"assistant",content:message.content||null,tool_calls:message.tool_calls});
   for(const call of message.tool_calls){
    const name=call.function?.name||"",id=call.id||"";
-   let result;
-   try{const args=JSON.parse(call.function?.arguments||"{}");result=await executeTool(name,args);executed.push({name,result});}
+   let result,args={};
+   try{args=JSON.parse(call.function?.arguments||"{}");result=await executeTool(name,args);executed.push({name,result});}
    catch(error){result={ok:false,error:error.message};}
+   const record={type:"tool",step:step+1,call:{id,name,arguments:safe(args)},result:safe(result)};
+   trace.push(record);
    transcript.push({role:"tool",tool_call_id:id,name,content:JSON.stringify(result)});
   }
  }
