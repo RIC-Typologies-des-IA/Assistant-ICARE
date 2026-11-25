@@ -1016,3 +1016,10 @@ html[data-theme="dark"] .trace-zoom-canvas svg .actor-line,html[data-theme="dark
 html[data-theme="dark"] .trace-zoom-canvas svg .note rect{fill:#34465e!important;stroke:#9ab0ca!important}
 html[data-theme="dark"] .trace-zoom-canvas svg .sequenceNumber{fill:#fff!important}
 @media(max-width:600px){.trace-dialog-fullscreen .dialog-content{padding:10px}.trace-dialog-fullscreen .trace-zoom-viewport{height:62dvh}.trace-fullscreen-toggle{padding:6px 8px;font-size:11px}}
+
+/* Les repères sont des éléments SVG <text> directement interactifs. */
+.trace-zoom-canvas svg text.trace-payload-link{fill:#1769aa!important;font-weight:800!important;text-decoration:underline;text-decoration-thickness:1.5px;cursor:pointer!important;pointer-events:all!important}
+.trace-zoom-canvas svg text.trace-payload-link:hover,.trace-zoom-canvas svg text.trace-payload-link:focus{fill:#a65300!important}
+.trace-zoom-canvas svg text.trace-payload-link.is-current{fill:#a65300!important;filter:drop-shadow(0 0 3px #f59e0b)}
+html[data-theme="dark"] .trace-zoom-canvas svg text.trace-payload-link{fill:#9bd2ff!important;stroke:#101a28;stroke-width:.2px}
+html[data-theme="dark"] .trace-zoom-canvas svg text.trace-payload-link:hover,html[data-theme="dark"] .trace-zoom-canvas svg text.trace-payload-link:focus,html[data-theme="dark"] .trace-zoom-canvas svg text.trace-payload-link.is-current{fill:#ffd27a!important}
