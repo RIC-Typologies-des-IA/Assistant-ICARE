@@ -267,6 +267,7 @@ try{
   assert.ok(mobileLabelSize>=12,"les libellés doivent mesurer au moins 12 px à l’ouverture sur smartphone : "+mobileLabelSize);
   assert.ok((await page.locator("#trace-diagram .trace-zoom-canvas").innerText()).includes("Scoring ICARE"),"la séquence doit inclure le service de scoring");
   const documentButtons=page.locator("#trace-steps .trace-document-open");
+  await documentButtons.first().evaluate(button=>button.closest("details").querySelector("summary").click());
   await documentButtons.first().waitFor({state:"visible"});
   assert.ok(await documentButtons.count()>=2,"la trace doit proposer les documents de référence consultés");
   await documentButtons.first().click();
