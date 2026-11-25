@@ -29,7 +29,9 @@
     "application-origin-service-worker-update",
     "user-initiated-text-inference",
     "user-initiated-audio-transcription",
-    "user-initiated-enterprise-gateway-inference"
+    "user-initiated-enterprise-gateway-inference",
+    "local-lemonade-model-discovery",
+    "user-initiated-local-lemonade-scoring"
   ],
   "deploymentControls": {
     "allowedInferenceOrigins": "deployment-managed",

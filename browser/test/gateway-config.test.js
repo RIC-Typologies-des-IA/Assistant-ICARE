@@ -31,3 +31,5 @@ test("gateway route choices only include gateways that declare the selected capa
  assert.match(module,/if\(eligible\(service,id\)\)/);
  assert.doesNotMatch(module,/eligible\(service,id\)\|\|previous/);
 });
+
+test("direct scoring settings expose Lemonade NPU model discovery and external scoring fallback",async()=>{const html=await readFile(new URL("../index.html",import.meta.url),"utf8");const module=await readFile(new URL("../gateway-config.js",import.meta.url),"utf8");for(const id of ["direct-scoring-provider","direct-scoring-base","direct-scoring-model","load-scoring-models","scoring-model-status","direct-scoring-url","direct-scoring-key"])assert.match(html,new RegExp('id="'+id+'"'));assert.match(html,/Lemonade local · NPU FastFlowLM/);assert.match(module,/directScoringProvider/);assert.match(module,/directScoringBaseUrl/);assert.match(module,/directScoringModel/);});

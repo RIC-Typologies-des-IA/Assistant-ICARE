@@ -1,10 +1,13 @@
 const SERVICES=["llm","audio","scoring"];
 const KEY="inference-gateway-config";
-const defaults=()=>({version:2,directScoringUrl:"",gateways:[1,2,3].map(id=>({id,name:"Gateway "+id,url:"",capabilities:id===1?[...SERVICES]:[]})),routes:{llm:"direct",audio:"direct",scoring:"direct"}});
+const defaults=()=>({version:3,directScoringUrl:"",directScoringProvider:"lemonade",directScoringBaseUrl:"http://127.0.0.1:13305",directScoringModel:"",gateways:[1,2,3].map(id=>({id,name:"Gateway "+id,url:"",capabilities:id===1?[...SERVICES]:[]})),routes:{llm:"direct",audio:"direct",scoring:"direct"}});
 const $=id=>document.getElementById(id);
 function normalise(value){
  const d=defaults();if(!value||typeof value!=="object")return d;
  d.directScoringUrl=String(value.directScoringUrl||"");
+ d.directScoringProvider=["lemonade","custom"].includes(value.directScoringProvider)?value.directScoringProvider:(d.directScoringUrl?"custom":"lemonade");
+ d.directScoringBaseUrl=String(value.directScoringBaseUrl||d.directScoringBaseUrl);
+ d.directScoringModel=String(value.directScoringModel||"");
  for(const service of SERVICES){const route=value.routes?.[service];if(route==="direct"||/^gateway-[123]$/.test(route))d.routes[service]=route;}
  for(const g of d.gateways){const old=value.gateways?.find?.(x=>Number(x.id)===g.id);if(old){g.name=String(old.name||g.name).slice(0,60);g.url=String(old.url||"");g.capabilities=Array.isArray(old.capabilities)?old.capabilities.filter(x=>SERVICES.includes(x)):[];}}
  // Chaque service ne peut appartenir qu’à une seule Gateway. En cas d’ancienne
@@ -34,6 +37,13 @@ export async function initGatewayConfiguration({db,get,set,saveLegacy,loadScorin
   await set(db,"settings",{id:KEY,...config});
  }
  $("direct-scoring-url").value=config.directScoringUrl;
+ $("direct-scoring-provider").value=config.directScoringProvider;
+ $("direct-scoring-base").value=config.directScoringBaseUrl;
+ if(config.directScoringModel)$("direct-scoring-model").add(new Option(config.directScoringModel,config.directScoringModel));
+ $("direct-scoring-model").value=config.directScoringModel;
+ $("custom-scoring-config").hidden=config.directScoringProvider!=="custom";
+ $("lemonade-scoring-config").hidden=config.directScoringProvider!=="lemonade";
+ $("direct-scoring-provider").addEventListener("change",()=>{const lemonade=$("direct-scoring-provider").value==="lemonade";$("lemonade-scoring-config").hidden=!lemonade;$("custom-scoring-config").hidden=lemonade;});
  $("direct-scoring-key").value=await loadScoringKey();
  const routeIds={llm:"route-llm",audio:"route-audio",scoring:"route-scoring"};
  const gateway=id=>config.gateways.find(g=>g.id===id);
@@ -80,8 +90,8 @@ export async function initGatewayConfiguration({db,get,set,saveLegacy,loadScorin
  $("save-gateway-matrix").addEventListener("click",async()=>{
   const status=$("gateway-matrix-status");
   try{
-   Object.assign(config,normalise({...config,directScoringUrl:$("direct-scoring-url").value.trim(),gateways:config.gateways.map(g=>({...g,name:$("gateway-"+g.id+"-name").value.trim()||"Gateway "+g.id,url:$("gateway-"+g.id+"-url").value.trim(),capabilities:SERVICES.filter(s=>$("gateway-"+g.id+"-"+s).checked)})),routes:Object.fromEntries(SERVICES.map(s=>[s,$(routeIds[s]).value]))}));
-   if(config.directScoringUrl){let endpoint;try{endpoint=new URL(config.directScoringUrl);}catch{throw Error("URL du moteur de scoring ICARE invalide.");}const loopback=["localhost","127.0.0.1","[::1]"].includes(endpoint.hostname);if((endpoint.protocol!=="https:"&&!(endpoint.protocol==="http:"&&loopback))||endpoint.username||endpoint.password)throw Error("Utilisez HTTPS pour le scoring distant, ou HTTP uniquement sur loopback local.");}
+   Object.assign(config,normalise({...config,directScoringUrl:$("direct-scoring-url").value.trim(),directScoringProvider:$("direct-scoring-provider").value,directScoringBaseUrl:$("direct-scoring-base").value.trim(),directScoringModel:$("direct-scoring-model").value,gateways:config.gateways.map(g=>({...g,name:$("gateway-"+g.id+"-name").value.trim()||"Gateway "+g.id,url:$("gateway-"+g.id+"-url").value.trim(),capabilities:SERVICES.filter(s=>$("gateway-"+g.id+"-"+s).checked)})),routes:Object.fromEntries(SERVICES.map(s=>[s,$(routeIds[s]).value]))}));
+   if(config.directScoringProvider==="lemonade"){let endpoint;try{endpoint=new URL(config.directScoringBaseUrl);}catch{throw Error("Adresse Lemonade invalide.");}if(endpoint.protocol!=="http:"||!["localhost","127.0.0.1","[::1]"].includes(endpoint.hostname)||endpoint.username||endpoint.password)throw Error("Le scoring Lemonade doit rester sur HTTP loopback (localhost ou 127.0.0.1).");}else if(config.directScoringUrl){let endpoint;try{endpoint=new URL(config.directScoringUrl);}catch{throw Error("URL du moteur de scoring ICARE invalide.");}const loopback=["localhost","127.0.0.1","[::1]"].includes(endpoint.hostname);if((endpoint.protocol!=="https:"&&!(endpoint.protocol==="http:"&&loopback))||endpoint.username||endpoint.password)throw Error("Utilisez HTTPS pour le scoring distant, ou HTTP uniquement sur loopback local.");}
    for(const service of SERVICES){const route=config.routes[service];if(route!=="direct"){const id=Number(route.slice(-1)),g=gateway(id);if(!g?.capabilities.includes(service))throw Error("La passerelle sélectionnée ne déclare pas la capacité "+service+".");if(!/^https:\/\//i.test(g.url))throw Error("L’URL de Gateway "+id+" doit commencer par HTTPS.");const u=new URL(g.url);if(u.username||u.password)throw Error("Ne placez pas d’identifiants dans l’URL d’une Gateway.");}}
    await saveLegacy({config,scoringApiKey:$("direct-scoring-key").value.trim()});
    await set(db,"settings",{id:KEY,...config});
