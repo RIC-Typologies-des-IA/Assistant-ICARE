@@ -161,8 +161,12 @@ try{
   await page.waitForFunction(async()=>{const request=indexedDB.open("icare-browser");return await new Promise(resolve=>{request.onerror=()=>resolve(false);request.onsuccess=()=>{const db=request.result,tx=db.transaction("turns","readonly"),read=tx.objectStore("turns").getAll();read.onsuccess=()=>{const found=read.result.some(turn=>turn.user==="Bonjour ICARE"&&turn.assistant.startsWith("Réponse locale de test."));db.close();resolve(found);};read.onerror=()=>{db.close();resolve(false);};};});});
   const persistedTurns=await page.evaluate(readPersistedTurns);
   assert.ok(persistedTurns.some(turn=>turn.user==="Bonjour ICARE"&&turn.assistant.startsWith("Réponse locale de test.")),"le dialogue doit être effectivement persisté dans IndexedDB : "+JSON.stringify(persistedTurns));
+  const tracePageErrors=[];
+  page.on("pageerror",error=>tracePageErrors.push(error.message));
   await page.locator(".message.assistant .trace-button").last().click();
-  await page.waitForFunction(()=>document.querySelector("#trace-diagram .mermaid-diagram svg")||document.querySelector("#trace-diagram .mermaid-error"));
+  await page.waitForFunction(()=>document.querySelector("#trace-dialog")?.open===true);
+  await page.waitForFunction(()=>document.querySelector("#trace-diagram .mermaid-diagram svg")||document.querySelector("#trace-diagram .mermaid-error"),null,{timeout:10000}).catch(()=>{});
+  assert.ok(document.querySelector("#trace-diagram .mermaid-diagram svg")||document.querySelector("#trace-diagram .mermaid-error"),"le diagramme doit apparaître après ouverture ; dialogue="+await page.locator("#trace-dialog").evaluate(el=>el.open)+" ; contenu="+await page.locator("#trace-diagram").innerText()+" ; erreurs="+JSON.stringify(tracePageErrors));
   assert.equal(await page.locator("#trace-diagram .mermaid-error").count(),0,"le diagramme sans outil doit être rendu : "+await page.locator("#trace-diagram .mermaid-error").textContent().catch(()=> ""));
   const noToolDiagram=await page.locator("#trace-diagram .mermaid-diagram").innerText();
   assert.ok(noToolDiagram.includes("Outils ICARE"),"les acteurs stables doivent rester visibles même sans appel d’outil");
