@@ -162,7 +162,8 @@ try{
   const persistedTurns=await page.evaluate(readPersistedTurns);
   assert.ok(persistedTurns.some(turn=>turn.user==="Bonjour ICARE"&&turn.assistant.startsWith("Réponse locale de test.")),"le dialogue doit être effectivement persisté dans IndexedDB : "+JSON.stringify(persistedTurns));
   await page.locator(".message.assistant .trace-button").last().click();
-  await page.locator("#trace-diagram .mermaid-diagram svg").waitFor({state:"visible"});
+  await page.waitForFunction(()=>document.querySelector("#trace-diagram .mermaid-diagram svg")||document.querySelector("#trace-diagram .mermaid-error"));
+  assert.equal(await page.locator("#trace-diagram .mermaid-error").count(),0,"le diagramme sans outil doit être rendu : "+await page.locator("#trace-diagram .mermaid-error").textContent().catch(()=> ""));
   const noToolDiagram=await page.locator("#trace-diagram .mermaid-diagram").innerText();
   assert.ok(noToolDiagram.includes("Outils ICARE"),"les acteurs stables doivent rester visibles même sans appel d’outil");
   assert.ok(!noToolDiagram.includes("search_reference_documents")&&!noToolDiagram.includes("propose_observation"),"un tour sans appel d’outil ne doit montrer aucun échange avec les outils");
