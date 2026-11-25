@@ -344,7 +344,7 @@ try{
   const workspaceBox=await page.locator(".workspace").boundingBox();
   assert.equal(Math.round(layoutBox.x),0,"la grille principale doit commencer au bord gauche de la fenêtre");
   assert.equal(Math.round(railBox.x),0,"le rail Projets doit être collé au bord gauche de la fenêtre");
-  assert.ok(Math.abs(workspaceBox.x-(railBox.x+railBox.width+8))<=1,"le dialogue doit commencer juste après le rail avec un espace de 8 px : "+JSON.stringify({railBox,workspaceBox}));
+  assert.ok(Math.abs(workspaceBox.x-(railBox.x+railBox.width+6))<=1,"le dialogue doit commencer juste après le rail avec un espace de 6 px : "+JSON.stringify({railBox,workspaceBox}));
   await page.setViewportSize({width:390,height:844});
   await page.waitForFunction(()=>{
     const rail=document.querySelector(".sidebar");
