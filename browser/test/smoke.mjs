@@ -193,7 +193,7 @@ try{
   assert.ok((await page.locator("#trace-diagram .mermaid-diagram").innerText()).includes("Service de scoring"),"la séquence doit inclure le service de scoring");
   const documentButtons=page.locator("#trace-steps .trace-document-open");
   assert.ok(await documentButtons.count()>=2,"la trace doit proposer les documents de référence consultés");
-  await page.locator("#trace-steps .trace-step").filter({has:documentButtons.first()}).locator("summary").click();
+  await documentButtons.first().evaluate(button=>button.closest("details").querySelector("summary").click());
   await documentButtons.first().waitFor({state:"visible"});
   await documentButtons.first().click();
   assert.equal(await page.locator("#trace-steps .trace-document-viewer").count(),1,"un seul document doit être ouvert dans le panneau de trace");
