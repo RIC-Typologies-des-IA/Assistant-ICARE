@@ -294,6 +294,7 @@ try{
   assert.equal(await page.locator("#trace-steps .trace-document-viewer").count(),1,"ouvrir un autre document doit remplacer le précédent, sans empilement");
   await page.locator("#trace-dialog").click({position:{x:1,y:1}});
   await page.locator("#trace-dialog").waitFor({state:"hidden"});
+  await page.setViewportSize({width:1440,height:1000});
   await page.locator("#proposal-text").fill("Le système doit conserver son identité visuelle.");
   await page.locator("#proposal-form").evaluate(form=>form.requestSubmit());
   await page.waitForFunction(()=>document.querySelectorAll("#proposal-list .proposal-item").length===1);
