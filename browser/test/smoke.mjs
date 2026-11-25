@@ -144,6 +144,9 @@ try{
   await page.locator("#save-inference-config").click();
   assert.match(await page.locator("#routing-status").textContent(),/modèle ASR FastFlowLM du catalogue/,"un modèle whisper.cpp ne doit pas pouvoir être enregistré pour Lemonade NPU");
   await page.locator("#transcription-model").fill("whisper-v3-turbo-FLM");
+  await page.locator("#transcription-preset").selectOption("");
+  await page.locator("#transcription-base").fill("https://mock-provider.example/v1");
+  await page.locator("#transcription-model").fill("test-audio-model");
   await page.locator("#test-provider").click();
   await page.waitForFunction(()=>document.querySelector("#provider-status").textContent.includes("Réponse locale de test"));
   await page.locator("#save-inference-config").click();
