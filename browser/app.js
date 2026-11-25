@@ -239,6 +239,7 @@ async function saveInferenceConfiguration(){
  const config=gatewayRoutingConfig||{routes:{llm:"direct",audio:"direct",scoring:"direct"},gateways:[],directScoringUrl:""};
  if(config.routes.llm==="direct"&&(!textSettings.baseUrl||!textSettings.model)){status.textContent="Configurez l’adresse et le modèle du moteur direct de traitement du texte.";return;}
  if(config.routes.audio==="direct"&&(!audioSettings.baseUrl||!audioSettings.model)){status.textContent="Configurez l’adresse et le modèle du moteur direct de transcription.";return;}
+ if(config.routes.audio==="direct"&&$("transcription-preset").value==="lemonade"&&!/-FLM$/i.test(audioSettings.model)){status.textContent="Pour partager le NPU avec le scoring, choisissez un modèle ASR FastFlowLM du catalogue Lemonade (identifiant se terminant par -FLM), pas un modèle whisper.cpp.";return;}
  const scoringProvider=$("direct-scoring-provider").value;
  const scoringBaseUrl=$("direct-scoring-base").value.trim();
  const scoringModel=$("direct-scoring-model").value.trim();

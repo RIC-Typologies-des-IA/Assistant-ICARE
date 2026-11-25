@@ -140,6 +140,10 @@ try{
   assert.equal(await page.locator("#transcription-model").inputValue(),"whisper-v3-turbo-FLM","Whisper v3 Turbo FastFlowLM doit être présélectionné");
   assert.deepEqual(await page.locator("#transcription-models option").evaluateAll(options=>options.map(option=>option.value)),["whisper-v3-turbo-FLM"],"les modèles whisper.cpp doivent être exclus du choix Lemonade NPU");
   assert.match(await page.locator("#transcription-status").textContent(),/vérifiez le couple ASR \\+ D3 sur votre installation/,"l’interface doit distinguer la coexistence documentée et la validation matérielle D3");
+  await page.locator("#transcription-model").fill("Whisper-Large-v3-Turbo");
+  await page.locator("#save-inference-config").click();
+  assert.match(await page.locator("#routing-status").textContent(),/modèle ASR FastFlowLM du catalogue/,"un modèle whisper.cpp ne doit pas pouvoir être enregistré pour Lemonade NPU");
+  await page.locator("#transcription-model").fill("whisper-v3-turbo-FLM");
   await page.locator("#test-provider").click();
   await page.waitForFunction(()=>document.querySelector("#provider-status").textContent.includes("Réponse locale de test"));
   await page.locator("#save-inference-config").click();
