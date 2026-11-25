@@ -43,7 +43,89 @@ function attachTraceButton(article,trace){trace=trace||{steps:[{type:"unavailabl
 function bubble(role,text,error=false,trace=null){const el=document.createElement("article");el.className="message "+role+(error?" error":"");if(role==="assistant"&&!error){const content=document.createElement("div");content.className="message-content";content.append(renderMarkdown(text));el.append(content);attachTraceButton(el,trace);}else{const p=document.createElement("p");p.textContent=text;el.append(p);}$("messages").append(el);$("messages").scrollTop=$("messages").scrollHeight;return el;}
 function traceEndpoint(value){try{const endpoint=new URL(String(value||""));return endpoint.origin+endpoint.pathname;}catch{return value?"[endpoint configuré]":"";}}
 function traceText(value){const text=typeof value==="string"?value:JSON.stringify(value,null,2);const limit=12000;return text.length>limit?text.slice(0,limit)+"\n\n[Affichage tronqué — "+text.length+" caractères au total]":text;}
-function showTraceDialog(trace){const dialog=$("trace-dialog"),diagram=$("trace-diagram"),steps=$("trace-steps");diagram.replaceChildren();steps.replaceChildren();const nodes=["A[Message utilisateur]","B[Prompt et contexte]","C[Requête modèle]"];let edges=["A --> B","B --> C"];let previous="C";let next=4;for(const item of trace.steps||[]){const id="N"+next++;const label=item.type==="tool"?"Outil : "+(item.call?.name||"outil"):item.type==="scoring"?"Scoring ICARE":item.type==="final"?"Réponse finale":item.type==="unavailable"?"Trace historique indisponible":"Modèle · étape "+(item.step||"");nodes.push(id+"[\""+label.replace(/[\[\]{}<>|\"]/g," ").slice(0,65)+"\"]");edges.push(previous+" --> "+id);previous=id;}nodes.push("Z[Tour enregistré]");edges.push(previous+" --> Z");const mobile=window.matchMedia("(max-width: 600px)").matches;const source="flowchart "+(mobile?"TB":"LR")+"\n"+nodes.join("\n")+"\n"+edges.join("\n");diagram.append(renderMarkdown("```mermaid\n"+source+"\n```"));const stepElements=[];let documentViewer=null;for(const [index,item] of (trace.steps||[]).entries()){const details=document.createElement("details");details.className="trace-step";const summary=document.createElement("summary");summary.textContent=(index+1)+". "+(item.type==="tool"?"Outil · "+(item.call?.name||""):item.type==="scoring"?"Scoring ICARE":item.type==="final"?"Réponse finale":"Appel modèle · étape "+(item.step||""));details.append(summary);stepElements.push(details);const payload=document.createElement("pre");payload.textContent=traceText(item);details.append(payload);const documents=item.result?.results;if(Array.isArray(documents)){for(const docRef of documents){if(!docRef?.id)continue;const open=document.createElement("button");open.type="button";open.className="button secondary trace-document-open";open.textContent="Consulter le document : "+(docRef.title||docRef.id);open.setAttribute("aria-expanded","false");open.addEventListener("click",()=>{if(documentViewer?.dataset.documentId===docRef.id){documentViewer.remove();documentViewer=null;for(const button of steps.querySelectorAll(".trace-document-open"))button.setAttribute("aria-expanded","false");return;}if(documentViewer)documentViewer.remove();for(const button of steps.querySelectorAll(".trace-document-open"))button.setAttribute("aria-expanded","false");const local=state.workspace?.referenceDocuments?.find(entry=>entry.id===docRef.id);documentViewer=document.createElement("details");documentViewer.className="trace-step trace-document-viewer";documentViewer.dataset.documentId=docRef.id;const heading=document.createElement("summary");heading.textContent=local?.title||docRef.title||docRef.id;const content=document.createElement("pre");content.textContent=local?.content||"Ce document n’est plus présent dans le corpus local de ce projet.";documentViewer.append(heading,content);steps.append(documentViewer);documentViewer.open=true;open.setAttribute("aria-expanded","true");});details.append(open);}}steps.append(details);}const bindDiagramNodes=()=>{const svg=diagram.querySelector("svg");if(!svg||svg.dataset.icareInteractive==="true")return;svg.dataset.icareInteractive="true";for(const node of svg.querySelectorAll("g.node")){const match=node.id?.match(/flowchart-(N\d+)-/);if(!match)continue;const index=Number(match[1].slice(1))-4;if(!Number.isInteger(index)||!stepElements[index])continue;node.setAttribute("tabindex","0");node.setAttribute("role","button");node.setAttribute("aria-label","Afficher les détails de "+(stepElements[index].querySelector("summary")?.textContent||"cette étape"));node.style.cursor="pointer";const activate=()=>{for(const element of stepElements)element.open=false;stepElements[index].open=true;stepElements[index].scrollIntoView({behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"nearest"});};node.addEventListener("click",activate);node.addEventListener("keydown",event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();activate();}});}};const observer=new MutationObserver(()=>{bindDiagramNodes();if(diagram.querySelector("svg"))observer.disconnect();});observer.observe(diagram,{childList:true,subtree:true});bindDiagramNodes();if(!trace.steps?.length){const p=document.createElement("p");p.textContent="Aucune trace détaillée n’a été enregistrée pour ce tour.";steps.append(p);}if(!dialog.open)dialog.showModal();}
+function showTraceDialog(trace){
+ const dialog=$("trace-dialog"),diagram=$("trace-diagram"),steps=$("trace-steps");
+ diagram.replaceChildren();steps.replaceChildren();
+ const records=Array.isArray(trace.steps)?trace.steps:[];
+ const esc=value=>String(value??"").replace(/[\\\n\r]/g," ").replace(/[;#]/g," ").replace(/\s+/g," ").trim();
+ const short=(value,max=150)=>{const text=typeof value==="string"?value:JSON.stringify(value);return esc(text.length>max?text.slice(0,max)+"…":text)||"—";};
+ const jsonBytes=value=>{try{return new TextEncoder().encode(JSON.stringify(value)).length;}catch{return 0;}};
+ const lines=[
+  "sequenceDiagram",
+  "autonumber",
+  "actor User as Utilisateur",
+  "participant Browser as Navigateur ICARE",
+  "participant Agent as Orchestrateur agentique",
+  "participant LLM as Service d’inférence LLM",
+  "participant Tools as Outils ICARE",
+  "participant Wasi as Runtime WASI",
+  "participant Comp as Composant WebAssembly",
+  "participant Score as Service de scoring",
+  "participant DB as IndexedDB local",
+  "User->>Browser: Message utilisateur · payload texte",
+  "Browser->>Agent: Construire le contexte · prompt système, guide, ontologie, projet, historique",
+  "Agent->>LLM: Chat Completions · messages + schémas d’outils",
+  "LLM-->>Agent: Message assistant · contenu ou tool_calls"
+ ];
+ let modelIndex=0,toolIndex=0;
+ for(const item of records){
+  if(item.type==="model"){
+   modelIndex++;
+   const request=item.request||{};
+   lines.push("Agent->>LLM: Étape modèle "+modelIndex+" · messages "+(Array.isArray(request.messages)?request.messages.length:"?")+" · payload "+jsonBytes(request)+" octets");
+   lines.push("LLM-->>Agent: Réponse modèle · "+short(item.response?.content||"tool_calls / réponse",100));
+  }else if(item.type==="tool"){
+   toolIndex++;
+   const name=item.call?.name||"outil";
+   lines.push("Agent->>Tools: "+short(name,60)+" · arguments JSON "+jsonBytes(item.call?.arguments||{})+" octets");
+   if(name==="invoke_wasi_component"){
+    const args=item.call?.arguments||{};
+    lines.push("Tools->>Wasi: "+short(args.component_id)+" · "+short(args.operation)+" · payload "+jsonBytes(args.payload||{})+" octets");
+    lines.push("Wasi->>Comp: WIT invoke · correlationId + operation + payloadJson");
+    lines.push("Comp-->>Wasi: WIT result · correlationId + payloadJson");
+    if(args.component_id==="storage-probe")lines.push("Wasi->>DB: Commit stockage composant · workspace projet");
+    lines.push("Wasi-->>Tools: Résultat JSON du composant");
+   }else if(["propose_observation","propose_relation","update_exploration_status"].includes(name)){
+    lines.push("Tools->>Wasi: Validation ontologique · composant ontology-validator");
+    lines.push("Wasi->>Comp: WIT invoke · validation + vocabulaire ICARE");
+    lines.push("Comp-->>Wasi: Résultat de validation JSON");
+    lines.push("Wasi-->>Tools: Validé ou erreurs de validation");
+   }else if(name==="list_wasi_components"){
+    lines.push("Tools->>Wasi: Charger le registre et décrire les composants");
+    lines.push("Wasi-->>Tools: Manifestes · capacités déclarées");
+   }
+   lines.push("Tools-->>Agent: Résultat outil · "+short(item.result?.ok===false?item.result.error:"JSON résultat",100));
+  }
+ }
+ const score=records.find(item=>item.type==="scoring");
+ if(score){
+  lines.push("Browser->>Score: POST scoring · texte utilisateur + dimensions I C A R E");
+  lines.push("Score-->>Browser: Scores multilabel I C A R E · "+(score.error?"erreur":"JSON scores"));
+ }
+ const finalRecord=records.find(item=>item.type==="final");
+ lines.push("Agent-->>Browser: Réponse finale · "+short(finalRecord?.content||"contenu assistant",90));
+ lines.push("Browser->>DB: put(turns) · user, assistant, trace, scores, createdAt");
+ lines.push("DB-->>Browser: Transaction IndexedDB terminée");
+ lines.push("Browser->>DB: put(projects) · updatedAt du projet");
+ lines.push("DB-->>Browser: Projet mis à jour");
+ lines.push("Note over DB: Base navigateur icare-browser · object stores projects, turns, settings. Aucun serveur de mémoire n’est impliqué.");
+ const source=lines.join("\n");
+ diagram.append(renderMarkdown("```mermaid\n"+source+"\n```"));
+ const note=document.createElement("p");note.className="trace-sequence-caption";note.textContent="Les payloads complets capturés sont détaillés ci-dessous. Les flèches représentent les échanges ; les informations de routage et les résultats résumés sont explicitement distingués.";diagram.append(note);
+ let documentViewer=null;
+ for(const [index,item] of records.entries()){
+  const details=document.createElement("details");details.className="trace-step";
+  const summary=document.createElement("summary");
+  summary.textContent=(index+1)+". "+(item.type==="tool"?"Outil · "+(item.call?.name||""):item.type==="scoring"?"Scoring ICARE":item.type==="final"?"Réponse finale":item.type==="prompt"?"Prompt système et contexte":"Appel modèle · étape "+(item.step||""));
+  details.append(summary);
+  const payload=document.createElement("pre");payload.textContent=traceText(item);details.append(payload);
+  const documents=item.result?.results;
+  if(Array.isArray(documents)){for(const docRef of documents){if(!docRef?.id)continue;const open=document.createElement("button");open.type="button";open.className="button secondary trace-document-open";open.textContent="Consulter le document : "+(docRef.title||docRef.id);open.setAttribute("aria-expanded","false");open.addEventListener("click",()=>{if(documentViewer?.dataset.documentId===docRef.id){documentViewer.remove();documentViewer=null;for(const button of steps.querySelectorAll(".trace-document-open"))button.setAttribute("aria-expanded","false");return;}if(documentViewer)documentViewer.remove();for(const button of steps.querySelectorAll(".trace-document-open"))button.setAttribute("aria-expanded","false");const local=state.workspace?.referenceDocuments?.find(entry=>entry.id===docRef.id);documentViewer=document.createElement("details");documentViewer.className="trace-step trace-document-viewer";documentViewer.dataset.documentId=docRef.id;const heading=document.createElement("summary");heading.textContent=local?.title||docRef.title||docRef.id;const content=document.createElement("pre");content.textContent=local?.content||"Ce document n’est plus présent dans le corpus local de ce projet.";documentViewer.append(heading,content);steps.append(documentViewer);documentViewer.open=true;open.setAttribute("aria-expanded","true");});details.append(open);}}
+  steps.append(details);
+ }
+ if(!records.length){const p=document.createElement("p");p.textContent="Aucune trace détaillée n’a été enregistrée pour ce tour.";steps.append(p);}
+ if(!dialog.open)dialog.showModal();
+}
 function renderProjects(){const s=$("project-select"),list=$("project-list");s.replaceChildren();list.replaceChildren();for(const p of state.projects){const o=document.createElement("option");o.value=p.id;o.textContent=p.name;o.selected=p.id===state.projectId;s.append(o);const row=document.createElement("div");row.className="project-row"+(p.id===state.projectId?" is-active":"");row.dataset.projectId=p.id;row.setAttribute("role","listitem");const select=document.createElement("button");select.type="button";select.className="project-row-name";select.textContent=p.name;select.title=p.name;select.setAttribute("aria-current",p.id===state.projectId?"page":"false");select.addEventListener("click",async()=>{state.projectId=p.id;renderProjects();await loadTurns();await loadWorkspace();});const actions=document.createElement("div");actions.className="project-row-actions";const rename=document.createElement("button");rename.type="button";rename.className="project-row-action";rename.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 16.5-.8 4.3 4.3-.8L19.8 7.7a2.1 2.1 0 0 0-3-3L4 16.5Z"/><path d="m14.8 6.7 3 3"/></svg>';rename.title="Renommer "+p.name;rename.setAttribute("aria-label","Renommer "+p.name);rename.addEventListener("click",()=>projectDialog(p));const saveButton=document.createElement("button");saveButton.type="button";saveButton.className="project-row-action";saveButton.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h12l4 4v14H3V3h2Z"/><path d="M7 3v6h10V3M7 21v-8h10v8"/></svg>';saveButton.title="Sauvegarder le projet "+p.name;saveButton.setAttribute("aria-label","Sauvegarder "+p.name);saveButton.addEventListener("click",async()=>{try{await exportProject(p.id);}catch(error){alert(error.message);}});const remove=document.createElement("button");remove.type="button";remove.className="project-row-action is-destructive";remove.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6m0-6-6 6"/></svg>';remove.title="Supprimer le projet "+p.name;remove.setAttribute("aria-label","Supprimer "+p.name);remove.addEventListener("click",async()=>{try{await deleteProject(p.id);}catch(error){alert("Impossible de supprimer le projet : "+error.message);}});actions.append(rename,saveButton,remove);row.append(select,actions);list.append(row);}const active=state.projects.find(x=>x.id===state.projectId);if(active){$("project-title").textContent=active.name;$("project-description").textContent=active.intention||"Un espace privé pour explorer un système.";}}
 function renderConversation(turnCount=state.turns.length){const turns=state.turns.slice(0,Math.max(0,Math.min(state.turns.length,Number(turnCount)||0)));$("messages").replaceChildren();if(!turns.length){bubble("assistant","Bienvenue dans votre espace ICARE. Vos données restent dans ce navigateur. Décrivez le système que vous souhaitez explorer.");return;}for(const t of turns){bubble("user",t.user);bubble("assistant",t.assistant,false,t.trace);}}
 async function loadTurns(){state.turns=(await getAll(db,"turns")).filter(t=>t.projectId===state.projectId).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));renderConversation(state.turns.length);}
