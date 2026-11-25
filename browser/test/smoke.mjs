@@ -176,7 +176,7 @@ try{
   const persistedTurns=await page.evaluate(readPersistedTurns);
   assert.ok(persistedTurns.some(turn=>turn.user==="Bonjour ICARE"&&turn.assistant.startsWith("Réponse locale de test.")),"le dialogue doit être effectivement persisté dans IndexedDB : "+JSON.stringify(persistedTurns));
   await page.locator(".message.assistant .trace-button").last().click();
-  await page.locator("#trace-diagram .mermaid-diagram svg").waitFor({state:"visible"});
+  await page.locator("#trace-diagram .trace-zoom-canvas svg").waitFor({state:"visible"});
   const noToolDiagram=await page.locator("#trace-diagram .mermaid-diagram").innerText();
   assert.ok(noToolDiagram.includes("Outils ICARE"),"les acteurs stables doivent rester visibles même sans appel d’outil");
   assert.ok(!noToolDiagram.includes("search_reference_documents")&&!noToolDiagram.includes("propose_observation"),"un tour sans appel d’outil ne doit montrer aucun échange avec les outils");
@@ -187,9 +187,9 @@ try{
   await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Documents consultés."));
   await page.locator(".message.assistant .trace-button").last().click();
   await page.waitForFunction(()=>document.querySelector("#trace-dialog")?.open===true);
-  await page.locator("#trace-diagram .mermaid-diagram svg").waitFor({state:"visible"});
+  await page.locator("#trace-diagram .trace-zoom-canvas svg").waitFor({state:"visible"});
   await page.setViewportSize({width:1280,height:900});
-  assert.ok(await page.locator("#trace-diagram .mermaid-diagram").evaluate(el=>el.querySelector("svg")!==null),"la trace doit être rendue comme diagramme Mermaid");
+  assert.ok(await page.locator("#trace-diagram .trace-zoom-canvas").evaluate(el=>el.querySelector("svg")!==null),"la trace doit être rendue comme diagramme Mermaid dans le canevas de zoom");
   assert.ok((await page.locator("#trace-diagram .mermaid-diagram").innerText()).includes("Navigateur ICARE"),"la séquence doit nommer le navigateur comme participant");
   const diagramText=await page.locator("#trace-diagram .mermaid-diagram").innerText();
   assert.ok(!diagramText.includes("WASI")&&!diagramText.includes("WebAssembly"),"la séquence ne doit pas afficher les composants WASI/WebAssembly hors sujet");
@@ -248,8 +248,8 @@ try{
   await page.setViewportSize({width:390,height:844});
   await page.locator(".message.assistant .trace-button").last().click();
   await page.locator("#trace-dialog").waitFor({state:"visible"});
-  await page.locator("#trace-diagram .mermaid-diagram svg").waitFor({state:"visible"});
-  assert.ok(await page.locator("#trace-diagram .mermaid-diagram svg").evaluate(svg=>svg.getBoundingClientRect().width>0&&svg.getBoundingClientRect().height>0),"la séquence mobile doit être rendue avec une géométrie valide");
+  await page.locator("#trace-diagram .trace-zoom-canvas svg").waitFor({state:"visible"});
+  assert.ok(await page.locator("#trace-diagram .trace-zoom-canvas svg").evaluate(svg=>svg.getBoundingClientRect().width>0&&svg.getBoundingClientRect().height>0),"la séquence mobile doit être rendue avec une géométrie valide");
   assert.ok((await page.locator("#trace-diagram .mermaid-diagram").innerText()).includes("Service de scoring"),"la séquence doit inclure le service de scoring");
   const documentButtons=page.locator("#trace-steps .trace-document-open");
   await documentButtons.first().waitFor({state:"visible"});
