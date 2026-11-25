@@ -6,13 +6,18 @@ const QUESTIONS={
  E:"Ce texte décrit-il une évolution, une transformation, un apprentissage, une émergence, une dynamique temporelle ou une nouveauté ?"
 };
 function apiBase(value){
- let base=String(value||"").trim().replace(/\\/+$/,"");
+ let base=String(value||"").trim();
+ while(base.endsWith("/"))base=base.slice(0,-1);
  if(!base)throw new Error("Renseignez l’adresse de Lemonade.");
  let parsed;try{parsed=new URL(base);}catch{throw new Error("Adresse Lemonade invalide.");}
  if(parsed.protocol!=="http:"||!["localhost","127.0.0.1","[::1]"].includes(parsed.hostname)||parsed.username||parsed.password)throw new Error("Le scoring Lemonade doit rester local : HTTP sur localhost ou 127.0.0.1 uniquement.");
  return base;
 }
-function endpoint(base,path){const clean=apiBase(base).replace(/\\/v1$/i,"");return clean+"/v1/"+path;}
+function endpoint(base,path){
+ let clean=apiBase(base);
+ if(clean.toLowerCase().endsWith("/v1"))clean=clean.slice(0,-3);
+ return clean+"/v1/"+path;
+}
 export async function listLemonadeScoringModels({baseUrl="http://127.0.0.1:13305",apiKey="",fetchImpl=fetch}={}){
  const headers={};if(apiKey)headers.Authorization="Bearer "+apiKey;
  let response;try{response=await fetchImpl(endpoint(baseUrl,"models?show_all=true"),{headers,cache:"no-store"});}catch(error){throw new Error("Impossible de joindre Lemonade local : "+(error?.message||String(error)));}
@@ -54,7 +59,7 @@ export async function scoreIcareMultilabel({text,route="direct",gatewayUrl="",di
   return {method:"lemonade-fastflowlm-systemone-multilabel",model,scores,createdAt:new Date().toISOString()};
  }
  if(route==="direct"){if(!directUrl)throw new Error("Configurez l’URL du service de scoring ICARE.");url=directUrl;}
- else{if(!gatewayUrl)throw new Error("URL de la Gateway de scoring absente.");const base=gatewayUrl.replace(/\\/+$/,"");url=(base.endsWith("/v1")?base:base+"/v1")+"/icare/scoring";credentials="include";}
+ else{if(!gatewayUrl)throw new Error("URL de la Gateway de scoring absente.");const base=gatewayUrl.replace(/\/+$/,"");url=(base.endsWith("/v1")?base:base+"/v1")+"/icare/scoring";credentials="include";}
  let parsed;try{parsed=new URL(url);}catch{throw new Error("URL du service de scoring ICARE invalide.");}
  const loopback=["localhost","127.0.0.1","[::1]"].includes(parsed.hostname);if((parsed.protocol!=="https:"&&!(parsed.protocol==="http:"&&loopback))||parsed.username||parsed.password)throw new Error("Le service de scoring doit utiliser HTTPS, sauf sur loopback local.");
  const headers={"Content-Type":"application/json"};if(route==="direct"&&apiKey)headers.Authorization="Bearer "+apiKey;
