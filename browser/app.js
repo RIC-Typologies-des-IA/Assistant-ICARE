@@ -55,6 +55,7 @@ function showTraceDialog(trace){
   "autonumber",
   "actor User as Utilisateur",
   "participant Browser as Navigateur ICARE",
+  "participant Audio as Service de transcription",
   "participant Agent as Orchestrateur agentique",
   "participant LLM as Service d’inférence LLM",
   "participant Tools as Outils ICARE",
@@ -62,8 +63,14 @@ function showTraceDialog(trace){
   "participant Comp as Composant WebAssembly",
   "participant Score as Service de scoring",
   "participant DB as IndexedDB local",
+  "opt Entrée vocale préalable · hors trace de ce tour",
+  "User->>Browser: Enregistrement audio · Blob",
+  "Browser->>Audio: POST multipart · audio + modèle",
+  "Audio-->>Browser: Transcription · texte",
+  "end",
   "User->>Browser: Message utilisateur · payload texte",
   "Browser->>Agent: Construire le contexte · prompt système, guide, ontologie, projet, historique",
+  "Note over Browser,LLM: role=system est un message du payload Chat Completions, pas un acteur/service autonome.",
   "Agent->>LLM: Chat Completions · messages + schémas d’outils",
   "LLM-->>Agent: Message assistant · contenu ou tool_calls"
  ];
