@@ -184,7 +184,7 @@ try{
 
   await page.locator("#message-input").fill("Tester les documents consultés");
   await page.locator("#composer").evaluate(form=>form.requestSubmit());
-  await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Documents consultés."));
+  await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Documents consultés."),{timeout:30000}).catch(async error=>{const diagnostic=await page.evaluate(()=>({messages:document.querySelector("#messages")?.innerText||"",requests:window.__icareFetchCalls.filter(call=>call.url.includes("mock-provider")).map(call=>({messages:JSON.parse(call.body||"{}").messages?.slice(-3)}))}));throw new Error(error.message+"; diagnostic="+JSON.stringify(diagnostic));});
   await page.locator(".message.assistant .trace-button").last().click();
   await page.waitForFunction(()=>document.querySelector("#trace-dialog")?.open===true);
   await page.locator("#trace-diagram .trace-zoom-canvas svg").waitFor({state:"visible"});
