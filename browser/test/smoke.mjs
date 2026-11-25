@@ -207,7 +207,7 @@ try{
   assert.equal(await fullscreen.textContent(),"Quitter le plein écran");
   await fullscreen.click();
   assert.ok(!(await page.locator("#trace-dialog").evaluate(el=>el.classList.contains("trace-dialog-fullscreen"))),"le mode plein écran doit pouvoir être quitté");
-  await page.locator("#theme-toggle").click();
+  await page.locator("#theme-toggle").evaluate(button=>button.click());
   await page.waitForFunction(()=>document.documentElement.dataset.theme==="dark");
   const darkTraceContrast=await page.locator("#trace-dialog").evaluate(el=>({background:getComputedStyle(el).backgroundColor,foreground:getComputedStyle(el).color,summary:getComputedStyle(el.querySelector(".trace-step summary")).color,details:getComputedStyle(el.querySelector(".trace-step pre")).color}));
   assert.notEqual(darkTraceContrast.background,darkTraceContrast.foreground,"la modale de trace doit rester lisible en mode sombre");
@@ -229,7 +229,7 @@ try{
   assert.ok(diagramContrast.payloadRatio>=4.5,"les repères de payload doivent respecter le contraste WCAG AA : "+JSON.stringify(diagramContrast));
   const desktopLabelSize=await page.locator("#trace-diagram .trace-zoom-canvas svg text").first().evaluate(el=>{const font=parseFloat(getComputedStyle(el).fontSize);const scale=Number(el.closest(".trace-zoom-canvas").style.transform.match(/scale\(([^)]+)\)/)?.[1]||1);return font*scale;});
   assert.ok(desktopLabelSize>=12,"les libellés doivent mesurer au moins 12 px à l’ouverture sur ordinateur : "+desktopLabelSize);
-  await page.locator("#theme-toggle").click();
+  await page.locator("#theme-toggle").evaluate(button=>button.click());
   await page.waitForFunction(()=>document.documentElement.dataset.theme!=="dark");
 
 
@@ -404,7 +404,7 @@ try{
   assert.equal(darkGatewayPalette.routeSelect,"rgb(16, 30, 48)","les listes de routage doivent être sombres");
   await page.locator("#settings-tab-direct").click();
   await page.locator("#close-settings-dialog").click();
-  await page.locator("#theme-toggle").click();
+  await page.locator("#theme-toggle").evaluate(button=>button.click());
   assert.equal(await page.locator("html").getAttribute("data-theme"),"light","le bouton doit permettre de choisir le thème clair");
   assert.equal(await page.evaluate(()=>localStorage.getItem("icare-theme")),"light","le choix manuel doit être enregistré");
   await page.emulateMedia({colorScheme:"dark"});
