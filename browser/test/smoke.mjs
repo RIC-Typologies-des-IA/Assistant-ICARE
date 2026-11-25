@@ -380,6 +380,8 @@ try{
 
 
   await page.emulateMedia({colorScheme:"dark"});
+  await page.evaluate(()=>localStorage.removeItem("icare-theme"));
+  await page.reload();
   await page.waitForFunction(()=>document.documentElement.dataset.theme==="dark");
   assert.equal(await page.locator("body").evaluate(el=>getComputedStyle(el).backgroundColor),"rgb(16, 24, 39)","le fond de page doit réellement devenir sombre");
   assert.equal(await page.locator(".chat-panel").evaluate(el=>getComputedStyle(el).backgroundColor),"rgb(27, 41, 59)","le panneau de dialogue doit réellement devenir sombre");
