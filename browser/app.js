@@ -84,7 +84,7 @@ function showTraceDialog(trace){
  const records=[...(trace.userMessage!==undefined?[{type:"user",content:trace.userMessage}]:[]),...(Array.isArray(trace.steps)?trace.steps:[])];
  const esc=value=>String(value??"").replace(/[^\p{L}\p{N} _.-]/gu," ").replace(/\s+/g," ").trim();
  const short=(value,max=110)=>{const text=typeof value==="string"?value:JSON.stringify(value);return esc(text.length>max?text.slice(0,max)+"…":text)||"—";};
- const lines=["sequenceDiagram","autonumber","actor User as Utilisateur","participant Browser as Navigateur ICARE","participant Agent as Orchestrateur","participant LLM as Service d’inférence","participant Tools as Outils ICARE","participant Score as Scoring ICARE","participant DB as IndexedDB local"];
+ const lines=["sequenceDiagram","autonumber","actor User as Utilisateur","participant Browser as Navigateur ICARE","participant Agent as Orchestrateur","participant LLM as Service d’inférence","participant Tools as Outils ICARE","participant Score as Service de scoring ICARE","participant DB as IndexedDB local"];
  const payloadLinks=[];
  const addPayload=(recordIndex,label,description)=>{const token="P"+(payloadLinks.length+1);payloadLinks.push({token,recordIndex});return token+" · "+description;};
  lines.push("User->>Browser: Message utilisateur · "+addPayload(0,"message","texte utilisateur"),"Note over Browser,Agent: role=system est transmis dans le payload, pas comme un acteur autonome.");
