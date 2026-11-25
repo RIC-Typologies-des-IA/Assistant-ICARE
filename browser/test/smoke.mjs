@@ -198,6 +198,10 @@ try{
   const darkTraceContrast=await page.locator("#trace-dialog").evaluate(el=>({background:getComputedStyle(el).backgroundColor,foreground:getComputedStyle(el).color,summary:getComputedStyle(el.querySelector(".trace-step summary")).color,details:getComputedStyle(el.querySelector(".trace-step pre")).color}));
   assert.notEqual(darkTraceContrast.background,darkTraceContrast.foreground,"la modale de trace doit rester lisible en mode sombre");
   assert.notEqual(darkTraceContrast.summary,"rgb(255, 255, 255)","le résumé ne doit pas être blanc sur fond clair en mode sombre");
+  const darkPayloadStyle=await page.locator("#trace-diagram .trace-payload-link").first().evaluate(el=>({fill:getComputedStyle(el).fill,filter:getComputedStyle(el).filter,stroke:getComputedStyle(el).stroke}));
+  assert.equal(darkPayloadStyle.fill,"rgb(139, 213, 245)","les repères du schéma doivent utiliser un cyan net en mode sombre");
+  assert.equal(darkPayloadStyle.filter,"none","les repères du schéma ne doivent avoir aucun effet d’ombre flouté");
+  assert.equal(darkPayloadStyle.stroke,"none","les repères du schéma ne doivent pas être épaissis par un contour sombre");
   await page.locator("#theme-toggle").click();
   await page.waitForFunction(()=>document.documentElement.dataset.theme!=="dark");
 
@@ -237,6 +241,9 @@ try{
   assert.ok(await documentButtons.count()>=2,"la trace doit proposer les documents de référence consultés");
   await documentButtons.first().click();
   assert.equal(await page.locator("#trace-steps .trace-document-viewer").count(),1,"un seul document doit être ouvert dans le panneau de trace");
+  const firstDocumentOwner=documentButtons.first().locator("xpath=..");
+  assert.equal(await page.locator("#trace-steps .trace-document-viewer").evaluate(el=>el.previousElementSibling?.classList.contains("trace-step")&&el.previousElementSibling.querySelector(".trace-document-open")!==null),true,"le document doit être inséré immédiatement après l’événement outil qui l’a fourni, pas à la fin de la pile");
+  assert.equal(await page.locator("#trace-steps .trace-document-viewer").evaluate(el=>el.previousElementSibling===document.querySelector("#trace-steps .trace-document-open")?.parentElement),true,"le document doit rester attaché à son appel d’outil source");
   await documentButtons.first().click();
   assert.equal(await page.locator("#trace-steps .trace-document-viewer").count(),0,"un second clic sur le document ouvert doit le refermer");
   await documentButtons.nth(1).click();
