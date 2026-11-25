@@ -977,3 +977,42 @@ html[data-theme="dark"] .trace-zoom-percent{color:#b4c3d6}
 @media(max-width:600px){.trace-zoom-toolbar{justify-content:center;gap:4px}.trace-zoom-toolbar .trace-zoom-control{padding:5px 8px;font-size:11px}.trace-zoom-viewport{height:360px}.trace-diagram-expanded .trace-zoom-viewport{height:72dvh}}
 
 .trace-payload-link{cursor:pointer;outline:none}.trace-payload-link text{fill:#1769aa!important;font-weight:750!important;text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:3px}.trace-payload-link:hover text,.trace-payload-link:focus text{fill:#b45309!important}.trace-payload-highlight{outline:2px solid #d97706;outline-offset:2px;border-radius:8px;transition:outline-color .2s}html[data-theme="dark"] .trace-payload-link text{fill:#8dc8ff!important}.trace-payload-link:focus{outline:2px solid #d97706;outline-offset:3px}
+
+/* Ergonomie et contraste du parcours de trace. */
+.trace-dialog-fullscreen{position:fixed!important;inset:0!important;margin:0!important;width:100vw!important;max-width:none!important;height:100dvh!important;max-height:none!important;border:0!important;border-radius:0!important;overflow:auto!important}
+.trace-dialog-fullscreen .dialog-content{min-height:100%;padding:clamp(12px,2vw,28px);gap:14px}
+.trace-dialog-fullscreen .trace-zoom-viewport{height:min(68dvh,900px)}
+.trace-fullscreen-toggle{white-space:nowrap}
+.trace-payload-link{cursor:pointer!important;pointer-events:all!important}
+.trace-payload-link,.trace-payload-link *{pointer-events:all!important}
+.trace-payload-link:focus{outline:none}
+.trace-payload-link.is-current{filter:drop-shadow(0 0 4px #f59e0b);text-decoration:underline}
+.trace-payload-highlight{outline:3px solid #d97706!important;outline-offset:2px;background:rgba(217,119,6,.12)!important}
+.trace-step[open]>summary{background:#e5effb;color:#173b65}
+.trace-step[open] pre{background:#f8fbff;color:#172b45}
+.trace-sequence-caption{font-size:12px;line-height:1.5;color:var(--text-muted,#65758a)}
+html[data-theme="dark"] .trace-dialog{background:#111b2b;color:#e5edf7;border-color:#40516a}
+html[data-theme="dark"] .trace-dialog .dialog-content{background:#111b2b;color:#e5edf7}
+html[data-theme="dark"] .trace-diagram-panel,html[data-theme="dark"] .trace-steps-panel{background:#1b293b;border-color:#52657e}
+html[data-theme="dark"] .trace-diagram-panel h3,html[data-theme="dark"] .trace-steps-panel h3{color:#d4e5fa}
+html[data-theme="dark"] .trace-sequence-caption{color:#b9c8da}
+html[data-theme="dark"] .trace-step{background:#1b293b;border-color:#52657e}
+html[data-theme="dark"] .trace-step summary,html[data-theme="dark"] .trace-step[open]>summary{background:#293c54;color:#f0f5fc}
+html[data-theme="dark"] .trace-step pre,html[data-theme="dark"] .trace-step[open] pre{background:#111d2d;color:#e5edf7}
+html[data-theme="dark"] .trace-zoom-toolbar .button{background:#263b55;border-color:#607894;color:#f1f6fd}
+html[data-theme="dark"] .trace-zoom-toolbar .button:disabled{background:#202d3e;color:#8293a9}
+html[data-theme="dark"] .trace-zoom-percent{color:#d2deec}
+html[data-theme="dark"] .trace-zoom-viewport{background:#101a28;border:1px solid #40516a}
+html[data-theme="dark"] .trace-payload-link text,html[data-theme="dark"] .trace-payload-link tspan{fill:#9bd2ff!important;stroke:#101a28;stroke-width:.25px}
+html[data-theme="dark"] .trace-payload-link:hover text,html[data-theme="dark"] .trace-payload-link:focus text,html[data-theme="dark"] .trace-payload-link.is-current text{fill:#ffd27a!important}
+html[data-theme="dark"] .trace-payload-highlight{background:rgba(245,158,11,.18)!important;outline-color:#fbbf24!important}
+html[data-theme="dark"] .trace-dialog .dialog-heading h2{color:#f0f5fc}
+html[data-theme="dark"] .trace-dialog .dialog-heading .eyebrow{color:#a9c9ef}
+html[data-theme="dark"] .trace-dialog .icon-button{background:#263b55;color:#f0f5fc;border-color:#607894}
+html[data-theme="dark"] .trace-dialog .muted{color:#c1cede}
+html[data-theme="dark"] .trace-zoom-canvas svg .actor rect,html[data-theme="dark"] .trace-zoom-canvas svg .labelBox{fill:#263b55!important;stroke:#91a9c5!important}
+html[data-theme="dark"] .trace-zoom-canvas svg .actor text,html[data-theme="dark"] .trace-zoom-canvas svg .labelText,html[data-theme="dark"] .trace-zoom-canvas svg .messageText,html[data-theme="dark"] .trace-zoom-canvas svg .noteText,html[data-theme="dark"] .trace-zoom-canvas svg .loopText{fill:#f0f5fc!important}
+html[data-theme="dark"] .trace-zoom-canvas svg .actor-line,html[data-theme="dark"] .trace-zoom-canvas svg .messageLine0,html[data-theme="dark"] .trace-zoom-canvas svg .messageLine1,html[data-theme="dark"] .trace-zoom-canvas svg .loopLine{stroke:#a8bdd6!important}
+html[data-theme="dark"] .trace-zoom-canvas svg .note rect{fill:#34465e!important;stroke:#9ab0ca!important}
+html[data-theme="dark"] .trace-zoom-canvas svg .sequenceNumber{fill:#fff!important}
+@media(max-width:600px){.trace-dialog-fullscreen .dialog-content{padding:10px}.trace-dialog-fullscreen .trace-zoom-viewport{height:62dvh}.trace-fullscreen-toggle{padding:6px 8px;font-size:11px}}
