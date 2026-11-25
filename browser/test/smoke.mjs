@@ -89,6 +89,7 @@ try{
   await clickBackdrop("#project-dialog");
   await page.locator("#project-dialog").waitFor({state:"hidden"});
   assert.ok(await page.evaluate(count=>window.__confirmCalls.length>count,projectConfirmCount),"un projet modifié doit demander confirmation avant fermeture extérieure");
+  await page.locator("#project-menu-toggle").click();
   await page.locator("#settings-button").click();
   assert.equal(await page.locator("#settings-tab-direct").getAttribute("aria-selected"),"true","l’onglet Accès direct doit être sélectionné par défaut");
   assert.equal(await page.locator("#settings-panel-direct").isVisible(),true,"le panneau Accès direct doit être visible");
