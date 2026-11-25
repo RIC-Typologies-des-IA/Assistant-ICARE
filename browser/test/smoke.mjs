@@ -17,6 +17,7 @@ try{
   const page=await context.newPage();
   const nativeDialogs=[];
   page.on("dialog",dialog=>{nativeDialogs.push(dialog.type);dialog.accept();});
+  const clickBackdrop=async selector=>{const point=await page.locator(selector).evaluate(el=>{const rect=el.getBoundingClientRect();return {x:rect.left>12?rect.left-8:rect.right+8,y:rect.top+Math.min(20,rect.height/2)};});await page.mouse.click(point.x,point.y);};
   await page.addInitScript(()=>{const original=window.fetch;window.__icareFetchCalls=[];window.fetch=(input,init={})=>{window.__icareFetchCalls.push({url:String(input),credentials:init.credentials||"same-origin",authorization:new Headers(init.headers||{}).get("Authorization"),body:typeof init.body==="string"?init.body:""});return original(input,init);};});
   await page.route("https://mock-provider.example/**",route=>{assert.equal(route.request().headers()["authorization"],"Bearer test-secret","la clé doit être disponible en mémoire de session");const requestBody=route.request().postDataJSON();if(Array.isArray(requestBody?.messages))chatPayloads.push(requestBody);let body=route.request().url().endsWith("/models")?{data:[{id:"test-model"}]}:{choices:[{message:{content:["Réponse locale de test.","","# Niveau 1","","## Niveau 2","","### Votre avis","","#### Auto-évaluation","", "#### Points d’attention / tensions éventuelles","","##### Niveau 5","","###### Niveau 6","","####Titre sans espace","","**Texte en gras**.","","| Étape | Ce qui a été réalisé | Conformité aux principes ICARE & maïeutiques |","|-------|----------------------|----------------------------------------------|","| **1. Capture de l’intention (I)** | - Vous avez exprimé votre **but** : fournir des connaissances. | ✅ Reformulation pour vérification ; ✅ distinction claire. |","| **2. Confirmation de l’intention** | Vous avez confirmé la reformulation (« Oui »). | ✅ Attente d’un accord avant de passer à la suite. |","| **3. Passage à la dimension suivante (C)** | J’ai présenté les cinq axes possibles du **Contexte**. | ✅ Question unique, ouverte. |","","### Synthèse de la dimension I","","| Champ | Valeur |","|-------|--------|","| **id** | `proj-foret-I-001` |","| **text** | *Instruire les politiques publiques de la forêt.* |","","> undefined","","<img src=x onerror=alert(1)>","[lien dangereux](javascript:alert(1))"].join("\n")}}]};if(requestBody?.messages?.some(message=>message.role==="user"&&message.content==="Tester les documents consultés"))body={choices:[{message:{content:null,tool_calls:[{id:"call-documents",type:"function",function:{name:"search_reference_documents",arguments:JSON.stringify({query:""})}}]}}]};else if(requestBody?.messages?.some(message=>message.role==="tool"&&message.tool_call_id==="call-documents"))body={choices:[{message:{content:"Documents consultés."}}]};return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(body)});});
   let gatewayRequests=[];
@@ -80,7 +81,7 @@ try{
   await page.locator("#new-project").waitFor({state:"visible"});
   await page.locator("#new-project").click();
   await page.locator("#project-dialog").waitFor({state:"visible"});
-  await page.locator("#project-dialog").click({position:{x:1,y:1}});
+  await clickBackdrop("#project-dialog");
   await page.locator("#project-dialog").waitFor({state:"hidden"});
   await page.locator("#new-project").click();
   await page.locator("#project-name").fill("Projet à abandonner");
@@ -91,7 +92,7 @@ try{
   assert.equal(await page.locator("#settings-tab-direct").getAttribute("aria-selected"),"true","l’onglet Accès direct doit être sélectionné par défaut");
   assert.equal(await page.locator("#settings-panel-direct").isVisible(),true,"le panneau Accès direct doit être visible");
   assert.equal(await page.locator("#settings-panel-gateway").isVisible(),false,"le panneau Gateway doit être masqué tant qu’il n’est pas sélectionné");
-  await page.locator("#settings-dialog").click({position:{x:1,y:1}});
+  await clickBackdrop("#settings-dialog");
   await page.locator("#settings-dialog").waitFor({state:"hidden"});
   assert.equal(await page.locator("#settings-dialog").evaluate(dialog=>dialog.open),false,"un dialogue de configuration inchangé doit se fermer au clic extérieur");
   await page.locator("#settings-button").click();
