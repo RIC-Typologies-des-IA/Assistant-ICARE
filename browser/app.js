@@ -46,12 +46,12 @@ function traceText(value){const text=typeof value==="string"?value:JSON.stringif
 function setupTraceZoom(diagram,panel,toolbar){
  const viewport=document.createElement("div");viewport.className="trace-zoom-viewport";viewport.setAttribute("role","region");viewport.setAttribute("aria-label","Schéma de séquence zoomable");
  const canvas=document.createElement("div");canvas.className="trace-zoom-canvas";
- const zoomOut=document.createElement("button"),zoomIn=document.createElement("button"),fit=document.createElement("button"),reset=document.createElement("button"),expand=document.createElement("button"),percent=document.createElement("span");
- for(const [button,label,title] of [[zoomOut,"−","Réduire le zoom"],[zoomIn,"+","Augmenter le zoom"],[fit,"Ajuster","Adapter le schéma à la zone"],[reset,"100 %","Revenir à l’échelle réelle"],[expand,"Agrandir","Agrandir ou réduire la zone du schéma"]]){
+ const zoomOut=document.createElement("button"),zoomIn=document.createElement("button"),fitBtn=document.createElement("button"),reset=document.createElement("button"),expand=document.createElement("button"),percent=document.createElement("span");
+ for(const [button,label,title] of [[zoomOut,"−","Réduire le zoom"],[zoomIn,"+","Augmenter le zoom"],[fitBtn,"Ajuster","Adapter tout le schéma à la zone"],[reset,"100 %","Revenir à l’échelle réelle"],[expand,"Agrandir","Agrandir ou réduire la zone du schéma"]]){
   button.type="button";button.className="button secondary trace-zoom-control";button.textContent=label;button.title=title;button.setAttribute("aria-label",title);toolbar.append(button);
  }
  percent.className="trace-zoom-percent";percent.setAttribute("aria-live","polite");toolbar.append(percent);
- const expandButton=toolbar.querySelector('button[aria-label="Agrandir la zone du schéma"]');
+ const expandButton=toolbar.querySelector('button[aria-label="Agrandir ou réduire la zone du schéma"]');
  viewport.append(canvas);diagram.append(viewport);
  let svg=null,baseWidth=0,baseHeight=0,scale=1,x=0,y=0,fitScale=1,drag=null,ready=false;
  const clamp=value=>Math.max(.15,Math.min(4,value));
@@ -59,19 +59,20 @@ function setupTraceZoom(diagram,panel,toolbar){
  function draw(){canvas.style.transform="translate("+x+"px,"+y+"px) scale("+scale+")";percent.textContent=Math.round(scale*100)+" %";percent.title="Zoom actuel";zoomOut.disabled=scale<=.151;zoomIn.disabled=scale>=3.99;}
  function center(){const size=dimensions();x=(size.width-baseWidth*scale)/2;y=(size.height-baseHeight*scale)/2;draw();}
  function setZoom(next,cx,cy){next=clamp(next);const size=dimensions();cx=cx??size.width/2;cy=cy??size.height/2;const ratio=next/scale;x=cx-(cx-x)*ratio;y=cy-(cy-y)*ratio;scale=next;draw();}
- function fit(){if(!svg||!baseWidth||!baseHeight)return;const size=dimensions();fitScale=Math.min(size.width/baseWidth,size.height/baseHeight,1);scale=fitScale;center();}
+ function fitAll(){if(!svg||!baseWidth||!baseHeight)return;const size=dimensions();fitScale=Math.min(size.width/baseWidth,size.height/baseHeight,1);scale=fitScale;center();}
+ function fitWidth(){if(!svg||!baseWidth)return;const size=dimensions();scale=Math.min(size.width/baseWidth,1);x=(size.width-baseWidth*scale)/2;y=12;draw();}
  function reset100(){scale=1;center();}
- function toggleExpand(){panel.classList.toggle("trace-diagram-expanded");expandButton.textContent=panel.classList.contains("trace-diagram-expanded")?"Réduire":"Agrandir";requestAnimationFrame(()=>{if(ready)fit();});}
- zoomIn.addEventListener("click",()=>setZoom(scale*1.25));zoomOut.addEventListener("click",()=>setZoom(scale/1.25));fit.addEventListener("click",()=>{const size=dimensions();fitScale=Math.min(size.width/baseWidth,size.height/baseHeight,1);setZoom(fitScale);center();});reset.addEventListener("click",reset100);expandButton.addEventListener("click",toggleExpand);
+ function toggleExpand(){panel.classList.toggle("trace-diagram-expanded");expandButton.textContent=panel.classList.contains("trace-diagram-expanded")?"Réduire":"Agrandir";requestAnimationFrame(()=>{if(ready)fitWidth();});}
+ zoomIn.addEventListener("click",()=>setZoom(scale*1.25));zoomOut.addEventListener("click",()=>setZoom(scale/1.25));fitBtn.addEventListener("click",fitAll);reset.addEventListener("click",reset100);expandButton.addEventListener("click",toggleExpand);
  viewport.addEventListener("wheel",event=>{event.preventDefault();const rect=viewport.getBoundingClientRect();setZoom(scale*(event.deltaY<0?1.12:1/1.12),event.clientX-rect.left,event.clientY-rect.top);},{passive:false});
  viewport.addEventListener("pointerdown",event=>{if(event.button!==0)return;drag={pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,x,y};viewport.setPointerCapture(event.pointerId);viewport.classList.add("is-panning");});
  viewport.addEventListener("pointermove",event=>{if(!drag||drag.pointerId!==event.pointerId)return;x=drag.x+event.clientX-drag.startX;y=drag.y+event.clientY-drag.startY;draw();});
  const endDrag=event=>{if(drag?.pointerId===event.pointerId){drag=null;viewport.classList.remove("is-panning");}};
  viewport.addEventListener("pointerup",endDrag);viewport.addEventListener("pointercancel",endDrag);
  viewport.addEventListener("click",event=>{if(event.detail===0)return;const target=event.target.closest("g");if(!target||!svg.contains(target))return;const box=target.getBBox(),size=dimensions();const targetScale=Math.max(scale,Math.min(1.5,Math.max(size.width/(baseWidth||1),size.height/(baseHeight||1))));setZoom(targetScale);const centerX=box.x+box.width/2,centerY=box.y+box.height/2;x=size.width/2-centerX*scale;y=size.height/2-centerY*scale;draw();});
- const observer=new MutationObserver(()=>{if(ready)return;const found=diagram.querySelector("svg");if(!found)return;svg=found;svg.removeAttribute("width");svg.removeAttribute("height");svg.style.width="";svg.style.maxWidth="none";svg.style.height="";canvas.append(svg);const box=svg.getBBox();baseWidth=Math.max(1,box.width+30);baseHeight=Math.max(1,box.height+30);svg.style.width=baseWidth+"px";svg.style.height=baseHeight+"px";canvas.style.width=baseWidth+"px";canvas.style.height=baseHeight+"px";ready=true;fit();observer.disconnect();});
+ const observer=new MutationObserver(()=>{if(ready)return;const found=diagram.querySelector("svg");if(!found)return;svg=found;svg.removeAttribute("width");svg.removeAttribute("height");svg.style.width="";svg.style.maxWidth="none";svg.style.height="";canvas.append(svg);const box=svg.getBBox();baseWidth=Math.max(1,box.width+30);baseHeight=Math.max(1,box.height+30);svg.style.width=baseWidth+"px";svg.style.height=baseHeight+"px";canvas.style.width=baseWidth+"px";canvas.style.height=baseHeight+"px";ready=true;fitWidth();observer.disconnect();});
  observer.observe(diagram,{childList:true,subtree:true});
- return {fit,reset100};
+ return {fit:fitAll,reset100};
 }
 function showTraceDialog(trace){
  const dialog=$("trace-dialog"),diagram=$("trace-diagram"),steps=$("trace-steps");
