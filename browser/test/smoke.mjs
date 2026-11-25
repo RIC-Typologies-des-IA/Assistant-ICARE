@@ -167,7 +167,8 @@ try{
   assert.ok(persistedTurns.some(turn=>turn.user==="Bonjour ICARE"&&turn.assistant.startsWith("Réponse locale de test.")),"le dialogue doit être effectivement persisté dans IndexedDB : "+JSON.stringify(persistedTurns));
   await page.locator("#message-input").fill("Tester les documents consultés");
   await page.locator("#composer").evaluate(form=>form.requestSubmit());
-  await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Documents consultés."));
+  await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Documents consultés.")||document.querySelector(".message.error"));
+  assert.ok([...await page.locator(".message.assistant p").allTextContents()].includes("Documents consultés."),"le tour de consultation doit aboutir : "+await page.locator(".message.error").allTextContents().then(values=>values.join(" | ")));
   await page.locator(".message.assistant .trace-button").last().click();
   await page.waitForFunction(()=>document.querySelector("#trace-dialog")?.open===true);
   await page.waitForFunction(()=>document.querySelector("#trace-diagram .mermaid-diagram svg")||document.querySelector("#trace-diagram .mermaid-error"));
