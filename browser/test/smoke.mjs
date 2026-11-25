@@ -192,8 +192,9 @@ try{
   assert.ok(await page.locator("#trace-diagram .mermaid-diagram svg").evaluate(svg=>svg.getBoundingClientRect().width>0&&svg.getBoundingClientRect().height>0),"la séquence mobile doit être rendue avec une géométrie valide");
   assert.ok((await page.locator("#trace-diagram .mermaid-diagram").innerText()).includes("Service de scoring"),"la séquence doit inclure le service de scoring");
   const documentButtons=page.locator("#trace-steps .trace-document-open");
-  await documentButtons.first().waitFor({state:"visible"});
   assert.ok(await documentButtons.count()>=2,"la trace doit proposer les documents de référence consultés");
+  await page.locator("#trace-steps .trace-step").filter({has:documentButtons.first()}).locator("summary").click();
+  await documentButtons.first().waitFor({state:"visible"});
   await documentButtons.first().click();
   assert.equal(await page.locator("#trace-steps .trace-document-viewer").count(),1,"un seul document doit être ouvert dans le panneau de trace");
   await documentButtons.first().click();
