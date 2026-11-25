@@ -170,7 +170,8 @@ try{
   await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Documents consultés."));
   await page.locator(".message.assistant .trace-button").last().click();
   await page.waitForFunction(()=>document.querySelector("#trace-dialog")?.open===true);
-  await page.locator("#trace-diagram .mermaid-diagram svg").waitFor({state:"visible"});
+  await page.waitForFunction(()=>document.querySelector("#trace-diagram .mermaid-diagram svg")||document.querySelector("#trace-diagram .mermaid-error"));
+  assert.equal(await page.locator("#trace-diagram .mermaid-error").count(),0,"le diagramme de séquence doit être rendu : "+await page.locator("#trace-diagram .mermaid-error").textContent().catch(()=> ""));
   await page.setViewportSize({width:1280,height:900});
   assert.ok(await page.locator("#trace-diagram .mermaid-diagram").evaluate(el=>el.querySelector("svg")!==null),"la trace doit être rendue comme diagramme Mermaid");
   assert.ok((await page.locator("#trace-diagram .mermaid-diagram").innerText()).includes("Navigateur ICARE"),"la séquence doit nommer le navigateur comme participant");
