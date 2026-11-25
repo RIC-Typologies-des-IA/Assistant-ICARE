@@ -182,6 +182,23 @@ try{
   const payloadLink=page.locator("#trace-diagram .trace-payload-link").first();
   await payloadLink.click();
   assert.ok(await page.locator("#trace-steps .trace-step").first().evaluate(el=>el.open),"cliquer un payload du diagramme doit ouvrir sa trace détaillée");
+  assert.ok(await payloadLink.evaluate(el=>getComputedStyle(el).pointerEvents==="all"),"les repères de payload doivent recevoir les clics");
+  await page.locator("#trace-steps .trace-step").nth(1).locator("summary").click();
+  assert.ok(await page.locator("#trace-diagram .trace-payload-link.is-current").count()>0,"sélectionner un payload dans la liste doit surligner sa position dans le diagramme");
+  const fullscreen=page.locator("#trace-dialog .trace-fullscreen-toggle");
+  await fullscreen.click();
+  assert.ok(await page.locator("#trace-dialog").evaluate(el=>el.classList.contains("trace-dialog-fullscreen")),"le schéma doit pouvoir occuper tout l’écran");
+  assert.equal(await fullscreen.textContent(),"Quitter le plein écran");
+  await fullscreen.click();
+  assert.ok(!(await page.locator("#trace-dialog").evaluate(el=>el.classList.contains("trace-dialog-fullscreen"))),"le mode plein écran doit pouvoir être quitté");
+  await page.locator("#theme-toggle").click();
+  await page.waitForFunction(()=>document.documentElement.dataset.theme==="dark");
+  const darkTraceContrast=await page.locator("#trace-dialog").evaluate(el=>({background:getComputedStyle(el).backgroundColor,foreground:getComputedStyle(el).color,summary:getComputedStyle(el.querySelector(".trace-step summary")).color,details:getComputedStyle(el.querySelector(".trace-step pre")).color}));
+  assert.notEqual(darkTraceContrast.background,darkTraceContrast.foreground,"la modale de trace doit rester lisible en mode sombre");
+  assert.notEqual(darkTraceContrast.summary,"rgb(255, 255, 255)","le résumé ne doit pas être blanc sur fond clair en mode sombre");
+  await page.locator("#theme-toggle").click();
+  await page.waitForFunction(()=>document.documentElement.dataset.theme!=="dark");
+
 
   assert.ok((await page.locator("#trace-diagram .mermaid-diagram").innerText()).includes("IndexedDB local"),"la séquence doit montrer la persistance locale");
   assert.ok((await page.locator("#trace-diagram .mermaid-diagram").innerText()).includes("role=system"),"le prompt système doit être identifié comme payload, pas comme service autonome");
