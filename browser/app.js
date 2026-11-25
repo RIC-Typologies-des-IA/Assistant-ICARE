@@ -90,7 +90,8 @@ function showTraceDialog(trace){
     lines.push("Tools->>Wasi: "+short(args.component_id)+" · "+short(args.operation)+" · payload "+jsonBytes(args.payload||{})+" octets");
     lines.push("Wasi->>Comp: WIT invoke · correlationId + operation + payloadJson");
     lines.push("Comp-->>Wasi: WIT result · correlationId + payloadJson");
-    if(args.component_id==="storage-probe")lines.push("Wasi->>DB: Commit stockage composant · workspace projet");
+    if(args.component_id==="context-summary"){lines.push("Wasi->>Browser: contextProvider() · contexte projet JSON");lines.push("Browser-->>Wasi: contexte ICARE autorisé");}
+    if(args.component_id==="storage-probe"){lines.push("Wasi->>Browser: storageCommit() · componentStorage");lines.push("Browser->>DB: put(settings) · workspace.componentStorage");lines.push("DB-->>Browser: Transaction IndexedDB terminée");lines.push("Browser-->>Wasi: Commit du stockage composant confirmé");}
     lines.push("Wasi-->>Tools: Résultat JSON du composant");
    }else if(["propose_observation","propose_relation","update_exploration_status"].includes(name)){
     lines.push("Tools->>Wasi: Validation ontologique · composant ontology-validator");
