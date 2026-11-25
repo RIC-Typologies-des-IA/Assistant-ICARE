@@ -64,6 +64,7 @@ try{
 
   await page.waitForFunction(()=>document.querySelectorAll("#radar-labels text").length===5);
   assert.equal(await page.locator("#radar").count(),1,"le radar ICARE doit être présent");
+  for(const id of ["#radar-user-latest","#radar-user-average","#radar-assistant-latest","#radar-assistant-average"])assert.equal(await page.locator(id).count(),1,"le radar doit afficher les deux couches de chaque acteur : "+id);
   assert.deepEqual(await page.locator("#radar-labels text").allTextContents(),["Intention","Contexte","Action","Régulation","Évolution"],"le radar doit afficher les noms complets des cinq dimensions");
   assert.equal(await page.locator("#dimensions").count(),0,"la rangée de dimensions au-dessus du dialogue ne doit plus être affichée");
   assert.equal(await page.locator(".brand-affiliation a").count(),1,"le lien institutionnel doit rester dans la ligne d’affiliation");
@@ -76,7 +77,8 @@ try{
   assert.equal(new URL(page.url()).searchParams.has("utm_source"),false,"les paramètres de suivi ajoutés aux liens doivent être neutralisés sans recharger l’application");
   await page.waitForFunction(()=>document.querySelector(".brand-affiliation a"));
 
-  assert.equal(await page.locator("#dimension-statuses .dimension-status-row").count(),5,"les cinq statuts doivent être éditables");
+  assert.equal(await page.locator("#dimension-statuses").count(),0,"les statuts d’exploration manuels ne doivent plus être affichés");
+  assert.equal(await page.locator("#proposal-form").count(),0,"le registre manuel des propositions doit être retiré de l’interface");
   assert.equal(await page.locator("#project-title").textContent(),"Mon premier projet");
   if(await page.locator("#project-menu-toggle").getAttribute("aria-expanded")!=="true")await page.locator("#project-menu-toggle").click();
   await page.locator("#new-project").click();
@@ -191,7 +193,8 @@ try{
   const persistedTurns=await page.evaluate(readPersistedTurns);
   assert.ok(persistedTurns.some(turn=>turn.user==="Bonjour ICARE"&&turn.assistant.startsWith("Réponse locale de test.")),"le dialogue doit être effectivement persisté dans IndexedDB : "+JSON.stringify(persistedTurns));
   await page.locator(".message.assistant .trace-button").last().click();
-  await page.locator("#trace-dialog").waitFor({state:"visible"});
+  await page.locator("#trace-panel").waitFor({state:"visible"});
+  assert.equal(await page.locator("#trace-panel").evaluate(el=>el.tagName.toLowerCase()),"section","la séquence doit être intégrée à la page et non modale");
   await page.locator("#trace-diagram .trace-zoom-canvas svg").waitFor({state:"visible"});
   const noToolDiagram=await page.locator("#trace-diagram .trace-zoom-canvas svg").evaluate(svg=>svg.textContent);
   assert.ok(noToolDiagram.includes("Outils ICARE"),"les acteurs stables doivent rester visibles même sans appel d’outil");
@@ -202,7 +205,7 @@ try{
   await page.locator("#composer").evaluate(form=>form.requestSubmit());
   await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Documents consultés."));
   await page.locator(".message.assistant .trace-button").last().click();
-  await page.waitForFunction(()=>document.querySelector("#trace-dialog")?.open===true);
+  await page.waitForFunction(()=>document.querySelector("#trace-panel")?.open===true);
   await page.locator("#trace-diagram .trace-zoom-canvas svg").waitFor({state:"visible"});
   await page.setViewportSize({width:1280,height:900});
   assert.ok(await page.locator("#trace-diagram .trace-zoom-canvas").evaluate(el=>el.querySelector("svg")!==null),"la trace doit être rendue comme diagramme Mermaid dans le canevas de zoom");
@@ -230,15 +233,15 @@ try{
   const listSelection=await page.locator("#trace-diagram .trace-payload-link.is-current").evaluateAll(nodes=>[...new Set(nodes.map(node=>node.dataset.traceIndex))]);
   assert.deepEqual(listSelection,[listTargetIndex],"sélectionner un payload dans la liste doit déplacer le surlignage du diagramme");
   assert.equal(await page.locator("#trace-steps .trace-payload-highlight").count(),1,"la sélection depuis la liste doit remplacer le surlignage précédent");
-  const fullscreen=page.locator("#trace-dialog .trace-fullscreen-toggle");
+  const fullscreen=page.locator("#trace-panel .trace-fullscreen-toggle");
   await fullscreen.click();
-  assert.ok(await page.locator("#trace-dialog").evaluate(el=>el.classList.contains("trace-dialog-fullscreen")),"le schéma doit pouvoir occuper tout l’écran");
+  assert.ok(await page.locator("#trace-panel").evaluate(el=>el.classList.contains("trace-dialog-fullscreen")),"le schéma doit pouvoir occuper tout l’écran");
   assert.equal(await fullscreen.textContent(),"Quitter le plein écran");
   await fullscreen.click();
-  assert.ok(!(await page.locator("#trace-dialog").evaluate(el=>el.classList.contains("trace-dialog-fullscreen"))),"le mode plein écran doit pouvoir être quitté");
+  assert.ok(!(await page.locator("#trace-panel").evaluate(el=>el.classList.contains("trace-dialog-fullscreen"))),"le mode plein écran doit pouvoir être quitté");
   await page.locator("#theme-toggle").evaluate(button=>button.click());
   await page.waitForFunction(()=>document.documentElement.dataset.theme==="dark");
-  const darkTraceContrast=await page.locator("#trace-dialog").evaluate(el=>({background:getComputedStyle(el).backgroundColor,foreground:getComputedStyle(el).color,summary:getComputedStyle(el.querySelector(".trace-step summary")).color,details:getComputedStyle(el.querySelector(".trace-step pre")).color}));
+  const darkTraceContrast=await page.locator("#trace-panel").evaluate(el=>({background:getComputedStyle(el).backgroundColor,foreground:getComputedStyle(el).color,summary:getComputedStyle(el.querySelector(".trace-step summary")).color,details:getComputedStyle(el.querySelector(".trace-step pre")).color}));
   assert.notEqual(darkTraceContrast.background,darkTraceContrast.foreground,"la modale de trace doit rester lisible en mode sombre");
   assert.notEqual(darkTraceContrast.summary,"rgb(255, 255, 255)","le résumé ne doit pas être blanc sur fond clair en mode sombre");
   const darkPayloadStyle=await page.locator("#trace-diagram .trace-payload-link").first().evaluate(el=>({fill:getComputedStyle(el).fill,filter:getComputedStyle(el).filter,stroke:getComputedStyle(el).stroke}));
@@ -284,11 +287,11 @@ try{
   const traceSummary=page.locator("#trace-steps .trace-step summary").first();
   await traceSummary.click();
   assert.ok(await page.locator("#trace-steps .trace-step").first().evaluate(el=>el.open),"les payloads détaillés doivent rester accessibles dans la liste de trace");
-  await page.locator("#trace-dialog").click({position:{x:1,y:1}});
-  await page.locator("#trace-dialog").waitFor({state:"hidden"});
+  await page.locator("#trace-panel").click({position:{x:1,y:1}});
+  await page.locator("#trace-panel").waitFor({state:"hidden"});
   await page.setViewportSize({width:390,height:844});
   await page.locator(".message.assistant .trace-button").last().click();
-  await page.locator("#trace-dialog").waitFor({state:"visible"});
+  await page.locator("#trace-panel").waitFor({state:"visible"});
   await page.locator("#trace-diagram .trace-zoom-canvas svg").waitFor({state:"visible"});
   await page.locator("#trace-diagram .trace-zoom-canvas svg text").first().waitFor({state:"visible"});
   assert.ok(await page.locator("#trace-diagram .trace-zoom-canvas svg").evaluate(svg=>svg.getBoundingClientRect().width>0&&svg.getBoundingClientRect().height>0),"la séquence mobile doit être rendue avec une géométrie valide");
@@ -308,14 +311,10 @@ try{
   assert.equal(await page.locator("#trace-steps .trace-document-viewer").count(),0,"un second clic sur le document ouvert doit le refermer");
   await documentButtons.nth(1).click();
   assert.equal(await page.locator("#trace-steps .trace-document-viewer").count(),1,"ouvrir un autre document doit remplacer le précédent, sans empilement");
-  await page.locator("#trace-dialog").click({position:{x:1,y:1}});
-  await page.locator("#trace-dialog").waitFor({state:"hidden"});
+  await page.locator("#trace-panel").click({position:{x:1,y:1}});
+  await page.locator("#trace-panel").waitFor({state:"hidden"});
   await page.setViewportSize({width:1440,height:1000});
-  await page.locator("#proposal-text").fill("Le système doit conserver son identité visuelle.");
-  await page.locator("#proposal-form").evaluate(form=>form.requestSubmit());
-  await page.waitForFunction(()=>document.querySelectorAll("#proposal-list .proposal-item").length===1);
-  await page.locator("#proposal-list .accept").click();
-  await page.waitForFunction(()=>document.querySelector("#proposal-list").textContent.includes("Validée"));
+  assert.equal(await page.locator("#proposal-list").count(),0,"le registre des propositions ne doit plus être présent");
   if(await page.locator("#project-menu-toggle").getAttribute("aria-expanded")!=="true")await page.locator("#project-menu-toggle").click();
   await page.locator("#new-project").click();
   await page.locator("#project-name").fill("Projet navigateur");
