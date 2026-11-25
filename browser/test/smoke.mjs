@@ -183,6 +183,7 @@ try{
   await payloadLink.click();
   assert.ok(await page.locator("#trace-steps .trace-step").first().evaluate(el=>el.open),"cliquer un payload du diagramme doit ouvrir sa trace détaillée");
   assert.ok(await payloadLink.evaluate(el=>getComputedStyle(el).pointerEvents==="all"),"les repères de payload doivent recevoir les clics");
+  assert.notEqual(await payloadLink.evaluate(el=>getComputedStyle(el).fill),"rgb(255, 255, 255)","les repères doivent rester visibles en thème clair");
   await page.locator("#trace-steps .trace-step").nth(1).locator("summary").click();
   await page.waitForFunction(()=>document.querySelectorAll("#trace-diagram .trace-payload-link.is-current").length>0);
   assert.ok(await page.locator("#trace-diagram .trace-payload-link.is-current").count()>0,"sélectionner un payload dans la liste doit surligner sa position dans le diagramme");
