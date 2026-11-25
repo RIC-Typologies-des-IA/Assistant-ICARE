@@ -114,6 +114,7 @@ function showTraceDialog(trace){
  lines.push("Agent-->>Browser: Réponse finale · "+short(finalRecord?.content||"contenu assistant",90));
  lines.push("Browser->>DB: put(turns) · user, assistant, trace, scores, createdAt");
  lines.push("DB-->>Browser: Transaction IndexedDB terminée");
+ lines.push("Browser-)DB: put(settings) · snapshot temporel asynchrone");
  lines.push("Browser->>DB: put(projects) · updatedAt du projet");
  lines.push("DB-->>Browser: Projet mis à jour");
  lines.push("Note over DB: Base navigateur icare-browser · object stores projects, turns, settings. Aucun serveur de mémoire n’est impliqué.");
