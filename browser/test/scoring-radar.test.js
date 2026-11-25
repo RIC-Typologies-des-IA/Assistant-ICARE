@@ -3,3 +3,38 @@ test("les moyennes cumulées incluent les dimensions à zéro à chaque échange
 test("un historique vide repart de cinq zéros",()=>{const radar=calculateScoreRadar([]);assert.deepEqual(radar.userLatest,{I:0,C:0,A:0,R:0,E:0});assert.deepEqual(radar.userAverage,{I:0,C:0,A:0,R:0,E:0});assert.deepEqual(radar.assistantAverage,{I:0,C:0,A:0,R:0,E:0});});
 test("les anciens tours utilisent scores comme compatibilité utilisateur et les absences valent zéro",()=>{const radar=calculateScoreRadar([{scores:{I:.8,C:.4}},{userScores:{A:.6},assistantScores:null}]);assert.deepEqual(radar.userAverage,{I:.4,C:.2,A:.3,R:0,E:0});assert.deepEqual(radar.assistantAverage,{I:0,C:0,A:0,R:0,E:0});});
 test("les scores sont bornés entre zéro et un",()=>{assert.deepEqual(normaliseScoreVector({I:2,C:-1,A:"0.5",R:NaN}),{I:1,C:0,A:.5,R:0,E:0});});
+
+test("recalcule les scores ICAR manquants des conversations historiques sans écraser le score utilisateur existant",async()=>{
+ const turn={user:"Ancien message",assistant:"Ancienne réponse",scores:{I:.8,C:.4}};
+ const calls=[],saved=[];
+ const updated=await (await import("../scoring-radar.js")).backfillConversationScores([turn],async(side,text)=>{calls.push({side,text});return side==="assistant"?{I:.2,C:.6,A:.4,R:.8,E:0}:null;},async value=>saved.push({...value}));
+ assert.deepEqual(calls,[{side:"assistant",text:"Ancienne réponse"}]);
+ assert.deepEqual(turn.userScores,{I:.8,C:.4,A:0,R:0,E:0});
+ assert.deepEqual(turn.assistantScores,{I:.2,C:.6,A:.4,R:.8,E:0});
+ assert.equal(turn.scoreBackfillVersion,1);
+ assert.equal(saved.length,1);
+ assert.deepEqual(updated,[turn]);
+});
+test("complète les deux côtés d'un tour ancien lorsque les deux scores sont absents",async()=>{
+ const turn={user:"Question",assistant:"Réponse"};
+ const calls=[];
+ await (await import("../scoring-radar.js")).backfillConversationScores([turn],async(side)=>{calls.push(side);return side==="user"?{I:1}:{E:1};},async()=>{});
+ assert.deepEqual(calls,["user","assistant"]);
+ assert.deepEqual(turn.userScores,{I:1,C:0,A:0,R:0,E:0});
+ assert.deepEqual(turn.assistantScores,{I:0,C:0,A:0,R:0,E:1});
+});
+test("un échec de scoring reste réessayable au prochain chargement",async()=>{
+ const turn={user:"Question",assistant:"Réponse",scores:{I:.7}};
+ let calls=0;
+ await (await import("../scoring-radar.js")).backfillConversationScores([turn],async()=>{calls++;throw Error("indisponible");},async()=>{});
+ assert.equal(calls,1);
+ assert.equal(turn.scoreBackfillVersion,undefined);
+ assert.equal(turn.assistantScores,undefined);
+});
+test("ne recalcule pas un tour déjà migré",async()=>{
+ const turn={user:"Question",assistant:"Réponse",userScores:{I:1},assistantScores:{E:1},scoreBackfillVersion:1};
+ let calls=0;
+ const updated=await (await import("../scoring-radar.js")).backfillConversationScores([turn],async()=>{calls++;return {};},async()=>{});
+ assert.equal(calls,0);
+ assert.deepEqual(updated,[]);
+});
