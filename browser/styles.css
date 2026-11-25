@@ -922,3 +922,24 @@ body.project-menu-open .sidebar select[hidden]{
 .project-row-action.is-destructive:hover,.project-row-action.is-destructive:focus-visible{background:#fde8e7;color:#a71919}
 html[data-theme="dark"] .project-row-action.is-destructive{color:#ff8585}
 html[data-theme="dark"] .project-row-action.is-destructive:hover,html[data-theme="dark"] .project-row-action.is-destructive:focus-visible{background:#512d36;color:#ffaaaa}
+
+/* Traçabilité du dialogue : commande discrète et fenêtre de consultation. */
+.trace-button{display:inline-flex;align-items:center;gap:5px;margin:8px 0 0;padding:5px 8px;border:1px solid transparent;border-radius:7px;background:transparent;color:#718096;font:inherit;font-size:11px;cursor:pointer}
+.trace-button:hover,.trace-button:focus-visible{background:#eaf0f8;border-color:#cbd8e8;color:#244d83;outline-offset:2px}
+.trace-button svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.trace-dialog{width:min(900px,calc(100vw - 24px));max-height:min(88vh,900px);overflow:auto}
+.trace-dialog .dialog-content{gap:12px}
+.trace-diagram-panel,.trace-steps-panel{border:1px solid #e1e6ed;border-radius:10px;padding:12px;min-width:0}
+.trace-diagram-panel h3,.trace-steps-panel h3{font-size:13px;margin:0 0 10px;color:#244d83}
+.trace-diagram-panel .mermaid-diagram{overflow:auto}
+.trace-steps-panel{display:grid;gap:8px}
+.trace-step{border:1px solid #e1e6ed;border-radius:8px;overflow:hidden}
+.trace-step summary{padding:10px 12px;font-size:12px;font-weight:650;cursor:pointer;background:#f5f7fa}
+.trace-step pre{margin:0;padding:12px;max-height:340px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font:11px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;background:#fbfcfe;color:#28384d}
+html[data-theme="dark"] .trace-button{color:#aebfd3}
+html[data-theme="dark"] .trace-button:hover,html[data-theme="dark"] .trace-button:focus-visible{background:#1d2d42;border-color:#405670;color:#d7e8ff}
+html[data-theme="dark"] .trace-diagram-panel,html[data-theme="dark"] .trace-steps-panel,html[data-theme="dark"] .trace-step{border-color:#405670}
+html[data-theme="dark"] .trace-diagram-panel h3,html[data-theme="dark"] .trace-steps-panel h3{color:#b9d7ff}
+html[data-theme="dark"] .trace-step summary{background:#1d2d42;color:#e5edf7}
+html[data-theme="dark"] .trace-step pre{background:#101e30;color:#dce6f2}
+@media(max-width:600px){.trace-dialog .dialog-content{padding:14px}.trace-diagram-panel,.trace-steps-panel{padding:8px}.trace-button{margin-top:5px}}
