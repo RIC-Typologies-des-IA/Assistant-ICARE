@@ -36,7 +36,7 @@ export async function runAgentTurn({messages,complete,executeTool,maxSteps=8,tra
    let result,args={};
    try{args=JSON.parse(call.function?.arguments||"{}");result=await executeTool(name,args);executed.push({name,result});}
    catch(error){result={ok:false,error:error.message};}
-   const record={type:"tool",step:step+1,call:{id,name,arguments:safe(args)},result:safe(result)};
+   const traceResult=name==="search_reference_documents"&&Array.isArray(result?.results)?{ok:result.ok,results:result.results.map(({id,title,excerpt})=>({id,title,excerptLength:String(excerpt||"").length,excerpt:String(excerpt||"").slice(0,500)+(String(excerpt||"").length>500?"… [extrait abrégé]":"")}))}:result;\n   const record={type:"tool",step:step+1,call:{id,name,arguments:safe(args)},result:safe(traceResult)};
    trace.push(record);
    transcript.push({role:"tool",tool_call_id:id,name,content:JSON.stringify(result)});
   }
