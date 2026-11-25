@@ -84,9 +84,9 @@ try{
   await page.locator("#project-dialog").waitFor({state:"hidden"});
   await page.locator("#new-project").click();
   await page.locator("#project-name").fill("Projet à abandonner");
-  await page.keyboard.press("Escape");
+  await page.locator("#close-project-dialog").click();
   await page.locator("#project-dialog").waitFor({state:"hidden"});
-  assert.ok(nativeDialogs.includes("confirm"),"un projet modifié doit demander confirmation avant fermeture extérieure");
+  assert.ok(nativeDialogs.includes("confirm"),"la fermeture d’un projet modifié doit demander confirmation avant abandon");
   await page.locator("#settings-button").click();
   assert.equal(await page.locator("#settings-tab-direct").getAttribute("aria-selected"),"true","l’onglet Accès direct doit être sélectionné par défaut");
   assert.equal(await page.locator("#settings-panel-direct").isVisible(),true,"le panneau Accès direct doit être visible");
