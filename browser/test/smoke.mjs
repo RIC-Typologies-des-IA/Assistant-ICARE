@@ -84,7 +84,7 @@ try{
   await page.locator("#project-dialog").waitFor({state:"hidden"});
   await page.locator("#new-project").click();
   await page.locator("#project-name").fill("Projet à abandonner");
-  await page.locator("#project-dialog").click({position:{x:1,y:1}});
+  await page.keyboard.press("Escape");
   await page.locator("#project-dialog").waitFor({state:"hidden"});
   assert.ok(nativeDialogs.includes("confirm"),"un projet modifié doit demander confirmation avant fermeture extérieure");
   await page.locator("#settings-button").click();
