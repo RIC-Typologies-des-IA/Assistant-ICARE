@@ -43,9 +43,43 @@ function attachTraceButton(article,trace){trace=trace||{steps:[{type:"unavailabl
 function bubble(role,text,error=false,trace=null){const el=document.createElement("article");el.className="message "+role+(error?" error":"");if(role==="assistant"&&!error){const content=document.createElement("div");content.className="message-content";content.append(renderMarkdown(text));el.append(content);attachTraceButton(el,trace);}else{const p=document.createElement("p");p.textContent=text;el.append(p);}$("messages").append(el);$("messages").scrollTop=$("messages").scrollHeight;return el;}
 function traceEndpoint(value){try{const endpoint=new URL(String(value||""));return endpoint.origin+endpoint.pathname;}catch{return value?"[endpoint configuré]":"";}}
 function traceText(value){const text=typeof value==="string"?value:JSON.stringify(value,null,2);const limit=12000;return text.length>limit?text.slice(0,limit)+"\n\n[Affichage tronqué — "+text.length+" caractères au total]":text;}
+function setupTraceZoom(diagram,panel,toolbar){
+ const viewport=document.createElement("div");viewport.className="trace-zoom-viewport";viewport.setAttribute("role","region");viewport.setAttribute("aria-label","Schéma de séquence zoomable");
+ const canvas=document.createElement("div");canvas.className="trace-zoom-canvas";
+ const zoomOut=document.createElement("button"),zoomIn=document.createElement("button"),fit=document.createElement("button"),reset=document.createElement("button"),expand=document.createElement("button"),percent=document.createElement("span");
+ for(const [button,label,title] of [[zoomOut,"−","Réduire le zoom"],[zoomIn,"+","Augmenter le zoom"],[fit,"Ajuster","Adapter le schéma à la zone"],[reset,"100 %","Revenir à l’échelle réelle"],[expand,"Agrandir","Agrandir ou réduire la zone du schéma"]]){
+  button.type="button";button.className="button secondary trace-zoom-control";button.textContent=label;button.title=title;button.setAttribute("aria-label",title);toolbar.append(button);
+ }
+ percent.className="trace-zoom-percent";percent.setAttribute("aria-live","polite");toolbar.append(percent);
+ const expandButton=toolbar.querySelector('button[aria-label="Agrandir la zone du schéma"]');
+ viewport.append(canvas);diagram.append(viewport);
+ let svg=null,baseWidth=0,baseHeight=0,scale=1,x=0,y=0,fitScale=1,drag=null,ready=false;
+ const clamp=value=>Math.max(.15,Math.min(4,value));
+ function dimensions(){const rect=viewport.getBoundingClientRect();return {width:rect.width,height:rect.height};}
+ function draw(){canvas.style.transform="translate("+x+"px,"+y+"px) scale("+scale+")";percent.textContent=Math.round(scale*100)+" %";percent.title="Zoom actuel";zoomOut.disabled=scale<=.151;zoomIn.disabled=scale>=3.99;}
+ function center(){const size=dimensions();x=(size.width-baseWidth*scale)/2;y=(size.height-baseHeight*scale)/2;draw();}
+ function setZoom(next,cx,cy){next=clamp(next);const size=dimensions();cx=cx??size.width/2;cy=cy??size.height/2;const ratio=next/scale;x=cx-(cx-x)*ratio;y=cy-(cy-y)*ratio;scale=next;draw();}
+ function fit(){if(!svg||!baseWidth||!baseHeight)return;const size=dimensions();fitScale=Math.min(size.width/baseWidth,size.height/baseHeight,1);scale=fitScale;center();}
+ function reset100(){scale=1;center();}
+ function toggleExpand(){panel.classList.toggle("trace-diagram-expanded");expandButton.textContent=panel.classList.contains("trace-diagram-expanded")?"Réduire":"Agrandir";requestAnimationFrame(()=>{if(ready)fit();});}
+ zoomIn.addEventListener("click",()=>setZoom(scale*1.25));zoomOut.addEventListener("click",()=>setZoom(scale/1.25));fit.addEventListener("click",()=>{const size=dimensions();fitScale=Math.min(size.width/baseWidth,size.height/baseHeight,1);setZoom(fitScale);center();});reset.addEventListener("click",reset100);expandButton.addEventListener("click",toggleExpand);
+ viewport.addEventListener("wheel",event=>{event.preventDefault();const rect=viewport.getBoundingClientRect();setZoom(scale*(event.deltaY<0?1.12:1/1.12),event.clientX-rect.left,event.clientY-rect.top);},{passive:false});
+ viewport.addEventListener("pointerdown",event=>{if(event.button!==0)return;drag={pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,x,y};viewport.setPointerCapture(event.pointerId);viewport.classList.add("is-panning");});
+ viewport.addEventListener("pointermove",event=>{if(!drag||drag.pointerId!==event.pointerId)return;x=drag.x+event.clientX-drag.startX;y=drag.y+event.clientY-drag.startY;draw();});
+ const endDrag=event=>{if(drag?.pointerId===event.pointerId){drag=null;viewport.classList.remove("is-panning");}};
+ viewport.addEventListener("pointerup",endDrag);viewport.addEventListener("pointercancel",endDrag);
+ viewport.addEventListener("click",event=>{if(event.detail===0)return;const target=event.target.closest("g");if(!target||!svg.contains(target))return;const box=target.getBBox(),size=dimensions();const targetScale=Math.max(scale,Math.min(1.5,Math.max(size.width/(baseWidth||1),size.height/(baseHeight||1))));setZoom(targetScale);const centerX=box.x+box.width/2,centerY=box.y+box.height/2;x=size.width/2-centerX*scale;y=size.height/2-centerY*scale;draw();});
+ const observer=new MutationObserver(()=>{if(ready)return;const found=diagram.querySelector("svg");if(!found)return;svg=found;svg.removeAttribute("width");svg.removeAttribute("height");svg.style.width="";svg.style.maxWidth="none";svg.style.height="";canvas.append(svg);const box=svg.getBBox();baseWidth=Math.max(1,box.width+30);baseHeight=Math.max(1,box.height+30);svg.style.width=baseWidth+"px";svg.style.height=baseHeight+"px";canvas.style.width=baseWidth+"px";canvas.style.height=baseHeight+"px";ready=true;fit();observer.disconnect();});
+ observer.observe(diagram,{childList:true,subtree:true});
+ return {fit,reset100};
+}
 function showTraceDialog(trace){
  const dialog=$("trace-dialog"),diagram=$("trace-diagram"),steps=$("trace-steps");
  diagram.replaceChildren();steps.replaceChildren();
+ const zoomToolbar=document.createElement("div");zoomToolbar.className="trace-zoom-toolbar";
+ const zoomPanel=document.createElement("div");zoomPanel.className="trace-zoom-panel";
+ diagram.append(zoomToolbar,zoomPanel);
+ setupTraceZoom(zoomPanel,diagram.closest(".trace-diagram-panel"),zoomToolbar);
  const records=Array.isArray(trace.steps)?trace.steps:[];
  const esc=value=>String(value??"").replace(/[^\p{L}\p{N} _.-]/gu," ").replace(/\s+/g," ").trim();
  const short=(value,max=150)=>{const text=typeof value==="string"?value:JSON.stringify(value);return esc(text.length>max?text.slice(0,max)+"…":text)||"—";};
@@ -120,7 +154,7 @@ function showTraceDialog(trace){
  lines.push("DB-->>Browser: Projet mis à jour");
  lines.push("Note over DB: Base navigateur icare-browser · object stores projects, turns, settings. Aucun serveur de mémoire n’est impliqué.");
  const source=lines.join("\n");
- diagram.append(renderMarkdown("```mermaid\n"+source+"\n```"));
+ zoomPanel.append(renderMarkdown("```mermaid\n"+source+"\n```"));
  const note=document.createElement("p");note.className="trace-sequence-caption";note.textContent="Les payloads complets capturés sont détaillés ci-dessous. Les flèches représentent les échanges ; les informations de routage et les résultats résumés sont explicitement distingués.";diagram.append(note);
  let documentViewer=null;
  for(const [index,item] of records.entries()){
