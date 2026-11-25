@@ -157,6 +157,7 @@ try{
   await page.locator("#message-input").fill("Bonjour ICARE");
   await page.locator("#composer").evaluate(form=>form.requestSubmit());
   await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Réponse locale de test."));
+  await page.waitForFunction(()=>document.querySelector("#radar-observation-count")?.textContent==="1 échange(s) pris en compte");
   assert.equal(await page.locator("#radar-observation-count").textContent(),"1 échange(s) pris en compte","un échange doit alimenter les moyennes cumulées");
   const scoringTrace=await page.locator(".message.assistant .trace-button").last().count();assert.equal(scoringTrace,1,"la réponse doit conserver sa séquence de communication");
   for (const [level,title] of [[1,"Niveau 1"],[2,"Niveau 2"],[3,"Votre avis"],[4,"Auto-évaluation"],[5,"Niveau 5"],[6,"Niveau 6"]]) {
