@@ -47,7 +47,7 @@ function showTraceDialog(trace){
  const dialog=$("trace-dialog"),diagram=$("trace-diagram"),steps=$("trace-steps");
  diagram.replaceChildren();steps.replaceChildren();
  const records=Array.isArray(trace.steps)?trace.steps:[];
- const esc=value=>String(value??"").replace(/[\\\n\r]/g," ").replace(/[;#]/g," ").replace(/\s+/g," ").trim();
+ const esc=value=>String(value??"").replace(/[^\\p{L}\\p{N} _.-]/gu," ").replace(/\s+/g," ").trim();
  const short=(value,max=150)=>{const text=typeof value==="string"?value:JSON.stringify(value);return esc(text.length>max?text.slice(0,max)+"…":text)||"—";};
  const jsonBytes=value=>{try{return new TextEncoder().encode(JSON.stringify(value)).length;}catch{return 0;}};
  const lines=[
@@ -80,7 +80,7 @@ function showTraceDialog(trace){
    modelIndex++;
    const request=item.request||{};
    lines.push("Agent->>LLM: Étape modèle "+modelIndex+" · messages "+(Array.isArray(request.messages)?request.messages.length:"?")+" · payload "+jsonBytes(request)+" octets");
-   lines.push("LLM-->>Agent: Réponse modèle · "+short(item.response?.content||"tool_calls / réponse",100));
+   lines.push("LLM-->>Agent: Réponse modèle · "+(item.response?.content?"contenu textuel":"tool_calls / réponse"));
   }else if(item.type==="tool"){
    toolIndex++;
    const name=item.call?.name||"outil";
@@ -101,6 +101,7 @@ function showTraceDialog(trace){
     lines.push("Tools->>Wasi: Charger le registre et décrire les composants");
     lines.push("Wasi-->>Tools: Manifestes · capacités déclarées");
    }
+   if(["propose_observation","propose_relation","update_exploration_status","create_reference_document","update_reference_document"].includes(name)){lines.push("Tools->>DB: Persist workspace projet · settings workspace:<projectId>");lines.push("DB-->>Tools: Transaction IndexedDB terminée");}
    lines.push("Tools-->>Agent: Résultat outil · "+short(item.result?.ok===false?item.result.error:"JSON résultat",100));
   }
  }
