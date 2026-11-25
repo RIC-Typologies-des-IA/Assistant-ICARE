@@ -215,7 +215,7 @@ try{
   assert.equal(darkPayloadStyle.filter,"none","les repères du schéma ne doivent avoir aucun effet d’ombre flouté");
   assert.equal(darkPayloadStyle.stroke,"none","les repères du schéma ne doivent pas être épaissis par un contour sombre");
   const diagramContrast=await page.locator("#trace-diagram .trace-zoom-canvas svg").evaluate(svg=>{
-    const rgb=value=>{const m=value.match(/[\\d.]+/g)||[];return m.slice(0,3).map(Number);};
+    const rgb=value=>{const m=value.match(/[\d.]+/g)||[];return m.slice(0,3).map(Number);};
     const luminance=value=>{const c=rgb(value).map(v=>v/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4);return .2126*c[0]+.7152*c[1]+.0722*c[2];};
     const ratio=(a,b)=>{const x=luminance(a),y=luminance(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05);};
     const text=svg.querySelector("text.messageText, text.noteText, text.labelText, text");
@@ -225,7 +225,7 @@ try{
   });
   assert.ok(diagramContrast.textRatio>=4.5,"le texte du schéma doit respecter le contraste WCAG AA : "+JSON.stringify(diagramContrast));
   assert.ok(diagramContrast.payloadRatio>=4.5,"les repères de payload doivent respecter le contraste WCAG AA : "+JSON.stringify(diagramContrast));
-  const desktopLabelSize=await page.locator("#trace-diagram .trace-zoom-canvas svg text").first().evaluate(el=>{const font=parseFloat(getComputedStyle(el).fontSize);const scale=Number(el.closest(".trace-zoom-canvas").style.transform.match(/scale\\(([^)]+)\\)/)?.[1]||1);return font*scale;});
+  const desktopLabelSize=await page.locator("#trace-diagram .trace-zoom-canvas svg text").first().evaluate(el=>{const font=parseFloat(getComputedStyle(el).fontSize);const scale=Number(el.closest(".trace-zoom-canvas").style.transform.match(/scale\(([^)]+)\)/)?.[1]||1);return font*scale;});
   assert.ok(desktopLabelSize>=12,"les libellés doivent mesurer au moins 12 px à l’ouverture sur ordinateur : "+desktopLabelSize);
   await page.locator("#theme-toggle").click();
   await page.waitForFunction(()=>document.documentElement.dataset.theme!=="dark");
@@ -260,7 +260,7 @@ try{
   await page.locator("#trace-dialog").waitFor({state:"visible"});
   await page.locator("#trace-diagram .mermaid-diagram svg").waitFor({state:"visible"});
   assert.ok(await page.locator("#trace-diagram .mermaid-diagram svg").evaluate(svg=>svg.getBoundingClientRect().width>0&&svg.getBoundingClientRect().height>0),"la séquence mobile doit être rendue avec une géométrie valide");
-  const mobileLabelSize=await page.locator("#trace-diagram .trace-zoom-canvas svg text").first().evaluate(el=>{const font=parseFloat(getComputedStyle(el).fontSize);const scale=Number(el.closest(".trace-zoom-canvas").style.transform.match(/scale\\(([^)]+)\\)/)?.[1]||1);return font*scale;});
+  const mobileLabelSize=await page.locator("#trace-diagram .trace-zoom-canvas svg text").first().evaluate(el=>{const font=parseFloat(getComputedStyle(el).fontSize);const scale=Number(el.closest(".trace-zoom-canvas").style.transform.match(/scale\(([^)]+)\)/)?.[1]||1);return font*scale;});
   assert.ok(mobileLabelSize>=12,"les libellés doivent mesurer au moins 12 px à l’ouverture sur smartphone : "+mobileLabelSize);
   assert.ok((await page.locator("#trace-diagram .mermaid-diagram").innerText()).includes("Service de scoring"),"la séquence doit inclure le service de scoring");
   const documentButtons=page.locator("#trace-steps .trace-document-open");
