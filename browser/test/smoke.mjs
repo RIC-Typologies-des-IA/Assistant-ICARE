@@ -160,6 +160,13 @@ try{
   await page.waitForFunction(async()=>{const request=indexedDB.open("icare-browser");return await new Promise(resolve=>{request.onerror=()=>resolve(false);request.onsuccess=()=>{const db=request.result,tx=db.transaction("turns","readonly"),read=tx.objectStore("turns").getAll();read.onsuccess=()=>{const found=read.result.some(turn=>turn.user==="Bonjour ICARE"&&turn.assistant.startsWith("Réponse locale de test."));db.close();resolve(found);};read.onerror=()=>{db.close();resolve(false);};};});});
   const persistedTurns=await page.evaluate(readPersistedTurns);
   assert.ok(persistedTurns.some(turn=>turn.user==="Bonjour ICARE"&&turn.assistant.startsWith("Réponse locale de test.")),"le dialogue doit être effectivement persisté dans IndexedDB : "+JSON.stringify(persistedTurns));
+  await page.locator(".message.assistant .trace-button").last().click();
+  await page.locator("#trace-diagram .mermaid-diagram svg").waitFor({state:"visible"});
+  const noToolDiagram=await page.locator("#trace-diagram .mermaid-diagram").innerText();
+  assert.ok(noToolDiagram.includes("Outils ICARE"),"les acteurs stables doivent rester visibles même sans appel d’outil");
+  assert.ok(!noToolDiagram.includes("search_reference_documents")&&!noToolDiagram.includes("propose_observation"),"un tour sans appel d’outil ne doit montrer aucun échange avec les outils");
+  await page.locator("#close-trace-dialog").click();
+
   await page.locator("#message-input").fill("Tester les documents consultés");
   await page.locator("#composer").evaluate(form=>form.requestSubmit());
   await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Documents consultés."));
