@@ -943,3 +943,12 @@ html[data-theme="dark"] .trace-diagram-panel h3,html[data-theme="dark"] .trace-s
 html[data-theme="dark"] .trace-step summary{background:#1d2d42;color:#e5edf7}
 html[data-theme="dark"] .trace-step pre{background:#101e30;color:#dce6f2}
 @media(max-width:600px){.trace-dialog .dialog-content{padding:14px}.trace-diagram-panel,.trace-steps-panel{padding:8px}.trace-button{margin-top:5px}}
+
+/* Parcours effectif : bandeau horizontal compact, sans perte de lisibilité. */
+.trace-diagram-panel{padding:8px 10px}
+.trace-diagram-panel .mermaid-diagram{max-width:100%;overflow-x:auto;overflow-y:hidden;margin:0;padding:4px;background:transparent;border:0}
+.trace-diagram-panel .mermaid-diagram svg{display:block;width:auto;max-width:100%;max-height:150px;height:auto;margin:0 auto}
+.trace-diagram-panel .mermaid-diagram .node rect,.trace-diagram-panel .mermaid-diagram .node polygon{rx:5px}
+.trace-document-viewer{grid-column:1/-1}
+.trace-document-open[aria-expanded="true"]{border-color:var(--accent,#4777b8);background:var(--soft,#edf4fc)}
+html[data-theme="dark"] .trace-document-open[aria-expanded="true"]{background:#263b54;border-color:#79a9e8;color:#f0f5fc}
