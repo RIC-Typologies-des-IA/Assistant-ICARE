@@ -280,11 +280,12 @@ try{
   const mobileLabelSize=await page.locator("#trace-diagram .trace-zoom-canvas svg text").first().evaluate(el=>{const font=parseFloat(getComputedStyle(el).fontSize);const scale=Number(el.closest(".trace-zoom-canvas").style.transform.match(/scale\(([^)]+)\)/)?.[1]||1);return font*scale;});
   assert.ok(mobileLabelSize>=12,"les libellés doivent mesurer au moins 12 px à l’ouverture sur smartphone : "+mobileLabelSize);
   const documentButtons=page.locator("#trace-steps .trace-document-open");
+  const firstDocumentOwner=documentButtons.first().locator("xpath=..");
+  await firstDocumentOwner.locator("summary").click();
   await documentButtons.first().waitFor({state:"visible"});
   assert.ok(await documentButtons.count()>=2,"la trace doit proposer les documents de référence consultés");
   await documentButtons.first().click();
   assert.equal(await page.locator("#trace-steps .trace-document-viewer").count(),1,"un seul document doit être ouvert dans le panneau de trace");
-  const firstDocumentOwner=documentButtons.first().locator("xpath=..");
   assert.equal(await page.locator("#trace-steps .trace-document-viewer").evaluate(el=>el.previousElementSibling?.classList.contains("trace-step")&&el.previousElementSibling.querySelector(".trace-document-open")!==null),true,"le document doit être inséré immédiatement après l’événement outil qui l’a fourni, pas à la fin de la pile");
   assert.equal(await page.locator("#trace-steps .trace-document-viewer").evaluate(el=>el.previousElementSibling===document.querySelector("#trace-steps .trace-document-open")?.parentElement),true,"le document doit rester attaché à son appel d’outil source");
   await documentButtons.first().click();
