@@ -803,7 +803,7 @@ body.project-menu-open .sidebar select[hidden]{
 .gateway-capabilities{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .gateway-capabilities label{display:flex;align-items:center;gap:6px}
 .gateway-disabled-reason{margin:0;font-size:12px;color:var(--muted,#64748b)}
-.icare-score-line{margin:10px 0 0;padding:7px 10px;border-left:3px solid #4777b8;border-radius:4px;background:#edf4fc;color:#294d78;font-size:12px;font-weight:650}
+.icare-score-line{margin:10px 0 0;padding:8px 11px;border-left:3px solid #4777b8;border-radius:5px;background:#edf4fc;color:#294d78;font-size:12px;font-weight:650;line-height:1.5;font-variant-numeric:tabular-nums}.icare-score-line.icare-score-user{border-left-color:#258da5;background:#eaf6f8;color:#20515c}.icare-score-line.icare-score-assistant{border-left-color:#d66b4d;background:#fff1ec;color:#75402f}.icare-score-line.muted{border-left-color:#8a96a6;background:#f1f3f6;color:#586579}:root[data-theme="dark"] .icare-score-line.icare-score-user{border-left-color:#55b7c9;background:#173744;color:#d8f5f8}:root[data-theme="dark"] .icare-score-line.icare-score-assistant{border-left-color:#ed987c;background:#432b29;color:#ffe2d7}:root[data-theme="dark"] .icare-score-line.muted{border-left-color:#8492a6;background:#263448;color:#d2dbe7}
 @media(max-width:760px){.gateway-cards{grid-template-columns:1fr}}
 
 
