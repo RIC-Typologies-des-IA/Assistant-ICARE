@@ -323,7 +323,7 @@ function renderScoringRadar(turnCount=state.turns.length){
   const svg=$(svgId);if(!svg)return;
   const grid=svg.querySelector(".radar-grid"),labels=svg.querySelector(".radar-labels");
   // Un rendu remplace les séries précédentes : ne jamais empiler les polygones ni dupliquer leurs IDs.
-  svg.querySelectorAll("[data-radar-series]").forEach(polygon=>polygon.remove());
+  svg.querySelectorAll("[data-radar-series],[data-overlap-hatch],#radar-accumulation-overlap-defs").forEach(element=>element.remove());
   grid.replaceChildren();labels.replaceChildren();
   const cx=160,cy=128,r=91,angles=order.map((_,i)=>-Math.PI/2+i*2*Math.PI/5);
   const make=(tag,attrs,text)=>{const el=document.createElementNS(ns,tag);for(const [k,v] of Object.entries(attrs))el.setAttribute(k,String(v));if(text)el.textContent=text;return el;};
@@ -342,10 +342,26 @@ function renderScoringRadar(turnCount=state.turns.length){
    ["radar-user-average",scores.userAverage,"#258da5",true],
    ["radar-assistant-average",scores.assistantAverage,"#d66b4d",true]
   ];
+  const seriesPoints={};
   for(const [id,values,color,filled] of series){
    const points=order.map((code,i)=>{const value=Math.max(0,Math.min(1,Number(values?.[code])||0));return (cx+Math.cos(angles[i])*r*value)+","+(cy+Math.sin(angles[i])*r*value);}).join(" ");
+   seriesPoints[id]=points;
    const polygon=make("polygon",{points,fill:filled?color:"none","fill-opacity":filled?".58":"0",stroke:color,"stroke-width":filled?2.8:3,"stroke-linejoin":"round","stroke-linecap":"round"});
    polygon.id=svgId+"-"+id;polygon.dataset.radarSeries=id;polygon.style.display=visibility[id]?"":"none";svg.append(polygon);
+  }
+  // Hachures limitées à l’intersection géométrique des deux moyennes cumulées.
+  if(kind==="average"){
+   const defs=make("defs",{id:"radar-accumulation-overlap-defs"});
+   const pattern=make("pattern",{id:"radar-accumulation-overlap-hatch",patternUnits:"userSpaceOnUse",width:8,height:8,patternTransform:"rotate(0)"});
+   pattern.append(make("path",{d:"M-2 2L2 -2M0 8L8 0M6 10L10 6",fill:"none",stroke:"#26384f","stroke-width":1.5}));
+   defs.append(pattern);
+   const clip=make("clipPath",{id:"radar-accumulation-overlap-clip",clipPathUnits:"userSpaceOnUse"});
+   clip.append(make("polygon",{points:seriesPoints["radar-assistant-average"]||""}));
+   defs.append(clip);svg.append(defs);
+   const hatch=make("polygon",{points:seriesPoints["radar-user-average"]||"",fill:"url(#radar-accumulation-overlap-hatch)","clip-path":"url(#radar-accumulation-overlap-clip)","pointer-events":"none"});
+   hatch.dataset.overlapHatch="true";
+   hatch.style.display=visibility["radar-user-average"]&&visibility["radar-assistant-average"]?"":"none";
+   svg.append(hatch);
   }
  };
  draw("radar-latest","latest");draw("radar-accumulation","average");
