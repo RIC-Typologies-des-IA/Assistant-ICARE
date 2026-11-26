@@ -1278,3 +1278,34 @@ html[data-theme="dark"] .project-history-labels,html[data-theme="dark"] .project
 .icare-document-content h1,.icare-document-content h2,.icare-document-content h3{margin-top:1.2em}
 .project-document-text{white-space:pre-wrap;overflow-wrap:anywhere;max-height:65vh;overflow:auto;padding:14px;border-radius:8px;background:var(--surface,#f3f5f8);font:12px/1.6 ui-monospace,monospace}
 @media(max-width:700px){.project-reference,.project-documents-heading,.project-document-item{align-items:flex-start;flex-direction:column}.project-document-actions{width:100%}.project-document-actions .button{flex:1}.project-reference>.button{width:100%}}
+
+/* Mode sombre : documentation ICARE et pièces jointes de projet. */
+html[data-theme="dark"] .project-reference,
+html[data-theme="dark"] .project-documents {
+  background:#1b293b!important;color:#e8eef7!important;border-color:#3a4b63!important;box-shadow:0 2px 12px #0003;
+}
+html[data-theme="dark"] .project-reference h2,html[data-theme="dark"] .project-documents h2,
+html[data-theme="dark"] .icare-document-content,html[data-theme="dark"] .icare-document-content p,
+html[data-theme="dark"] .icare-document-content li,html[data-theme="dark"] .icare-document-content td {color:#e8eef7!important}
+html[data-theme="dark"] .project-reference .eyebrow,html[data-theme="dark"] .project-documents .eyebrow,
+html[data-theme="dark"] .icare-document-content h1,html[data-theme="dark"] .icare-document-content h2,
+html[data-theme="dark"] .icare-document-content h3,html[data-theme="dark"] .icare-document-content h4,
+html[data-theme="dark"] .icare-document-content h5,html[data-theme="dark"] .icare-document-content h6 {color:#b9d5f5!important}
+html[data-theme="dark"] .project-reference .muted,html[data-theme="dark"] .project-documents .muted,
+html[data-theme="dark"] .project-document-info small,html[data-theme="dark"] #project-document-status {color:#b9c8da!important}
+html[data-theme="dark"] .project-document-item {border-color:#40536b!important}
+html[data-theme="dark"] .project-document-remove {color:#ffb4ad!important}
+html[data-theme="dark"] .reference-dialog {background:#1b293b!important;color:#e8eef7!important;border-color:#40536b!important}
+html[data-theme="dark"] .reference-dialog .dialog-content {background:#1b293b!important;color:#e8eef7!important}
+html[data-theme="dark"] .reference-dialog .dialog-heading {border-color:#40536b!important}
+html[data-theme="dark"] .reference-dialog .dialog-heading h2 {color:#f0f5fc!important}
+html[data-theme="dark"] .reference-dialog .eyebrow {color:#a9c9ef!important}
+html[data-theme="dark"] .reference-dialog .icon-button {background:#34465e!important;color:#f0f5fc!important}
+html[data-theme="dark"] .icare-document-content a {color:#8bd5f5!important}
+html[data-theme="dark"] .icare-document-content blockquote {background:#263b55!important;color:#d5e2f1!important;border-color:#83a6ca!important}
+html[data-theme="dark"] .icare-document-content pre,html[data-theme="dark"] .icare-document-content code,
+html[data-theme="dark"] .project-document-text {background:#101a28!important;color:#e8eef7!important;border-color:#40536b!important}
+html[data-theme="dark"] .icare-document-content table,html[data-theme="dark"] .icare-document-content th,
+html[data-theme="dark"] .icare-document-content td {border-color:#40536b!important}
+html[data-theme="dark"] .icare-document-content th {background:#2c4059!important;color:#f0f5fc!important}
+html[data-theme="dark"] .icare-document-content tbody tr:nth-child(even) {background:#223247!important}

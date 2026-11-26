@@ -532,6 +532,28 @@ try{
   assert.equal(await page.locator(".chat-panel").evaluate(el=>getComputedStyle(el).backgroundColor),"rgb(27, 41, 59)","le panneau de dialogue doit réellement devenir sombre");
   assert.equal(await page.locator("#theme-toggle").evaluate(el=>getComputedStyle(el).width),"34px","le sélecteur de thème doit rester une petite icône");
   assert.ok(await page.locator("#settings-button").evaluate(el=>el.nextElementSibling?.id==="theme-toggle"),"l’icône de thème doit être immédiatement à droite de Configuration");
+  const darkProjectSurfaces=await page.evaluate(()=>({reference:getComputedStyle(document.querySelector(".project-reference")).backgroundColor,documents:getComputedStyle(document.querySelector(".project-documents")).backgroundColor,referenceText:getComputedStyle(document.querySelector("#icare-reference-heading")).color,documentsText:getComputedStyle(document.querySelector("#project-documents-heading")).color,muted:getComputedStyle(document.querySelector(".project-documents .muted")).color}));
+  assert.equal(darkProjectSurfaces.reference,"rgb(27, 41, 59)","le panneau de documentation doit adopter le fond sombre");
+  assert.equal(darkProjectSurfaces.documents,"rgb(27, 41, 59)","le panneau des pièces jointes doit adopter le fond sombre");
+  assert.equal(darkProjectSurfaces.referenceText,"rgb(232, 238, 247)","le titre de la documentation doit rester lisible");
+  assert.equal(darkProjectSurfaces.documentsText,"rgb(232, 238, 247)","le titre des pièces jointes doit rester lisible");
+  assert.equal(darkProjectSurfaces.muted,"rgb(185, 200, 218)","les textes secondaires doivent rester lisibles");
+  await page.locator("#icare-doc-open").click();
+  const darkReferenceDialog=await page.evaluate(()=>({background:getComputedStyle(document.querySelector("#icare-doc-dialog")).backgroundColor,foreground:getComputedStyle(document.querySelector("#icare-doc-content")).color,heading:getComputedStyle(document.querySelector("#icare-doc-content h1")).color,paragraph:getComputedStyle(document.querySelector("#icare-doc-content p")).color}));
+  assert.equal(darkReferenceDialog.background,"rgb(27, 41, 59)");
+  assert.equal(darkReferenceDialog.foreground,"rgb(232, 238, 247)");
+  assert.equal(darkReferenceDialog.heading,"rgb(185, 213, 245)");
+  assert.equal(darkReferenceDialog.paragraph,"rgb(232, 238, 247)");
+  await page.locator("#close-icare-doc").click();
+  await page.locator("#project-document-files").setInputFiles({name:"contraste-sombre.txt",mimeType:"text/plain",buffer:Buffer.from("Vérification du contraste en mode sombre.")});
+  await page.locator("#project-document-add").click();
+  await page.waitForFunction(()=>document.querySelectorAll("#project-document-list .project-document-item").length===1);
+  await page.locator("#project-document-list .project-document-item").first().locator("button").filter({hasText:"Lire"}).click();
+  const darkDocumentDialog=await page.evaluate(()=>({background:getComputedStyle(document.querySelector("#project-document-dialog")).backgroundColor,textBackground:getComputedStyle(document.querySelector("#project-document-content")).backgroundColor,textColor:getComputedStyle(document.querySelector("#project-document-content")).color}));
+  assert.equal(darkDocumentDialog.background,"rgb(27, 41, 59)");
+  assert.equal(darkDocumentDialog.textBackground,"rgb(16, 26, 40)");
+  assert.equal(darkDocumentDialog.textColor,"rgb(232, 238, 247)");
+  await page.locator("#close-project-document").click();
 
   // La configuration Gateway doit rester lisible et cohérente en mode sombre.
   await page.locator("#settings-button").click();
