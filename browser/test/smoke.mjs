@@ -64,7 +64,7 @@ try{
 
   await page.waitForFunction(()=>document.querySelectorAll("#radar-labels text").length===5);
   assert.equal(await page.locator("#radar").count(),1,"le radar ICARE doit être présent");
-  assert.equal(await page.locator("#radar-observation-count").textContent(),"0 échange(s) pris en compte","le radar doit être dessiné avant le premier échange");
+  assert.equal(await page.locator("#radar-accumulation-count").textContent(),"0 échange(s) pris en compte","le radar doit être dessiné avant le premier échange");
   assert.equal(await page.locator("#radar-grid polygon").count(),4,"la grille du radar doit être visible dès l’ouverture");
   assert.equal(await page.locator("#radar-labels text").count(),5,"les cinq dimensions ICARE doivent rester visibles à zéro");
   for(const id of ["#radar-user-latest","#radar-assistant-latest"])assert.equal(await page.locator(id).getAttribute("fill"),"none","le dernier message doit être représenté uniquement par un contour : "+id);
@@ -188,7 +188,7 @@ try{
   await page.locator("#message-input").fill("Bonjour ICARE");
   await page.locator("#composer").evaluate(form=>form.requestSubmit());
   await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Réponse locale de test."));
-  await page.waitForFunction(()=>document.querySelector("#radar-observation-count")?.textContent==="1 échange(s) pris en compte");
+  await page.waitForFunction(()=>document.querySelector("#radar-accumulation-count")?.textContent==="1 échange(s) pris en compte");
   assert.equal(await page.locator("#radar-accumulation-count").textContent(),"1 échange(s) pris en compte","un échange doit alimenter les moyennes cumulées");
   assert.equal(await page.locator("#radar-latest").count(),1,"le radar du dernier échange doit être distinct");
   assert.equal(await page.locator("#radar-accumulation").count(),1,"le radar d’accumulation doit être distinct");
@@ -198,11 +198,11 @@ try{
   assert.equal(await historySlider.getAttribute("max"),"1","un échange doit créer un deuxième point de navigation temporelle");
   await historySlider.evaluate(el=>{el.value="0";el.dispatchEvent(new Event("input",{bubbles:true}));});
   assert.equal(await page.locator(".message.user").count(),0,"revenir au snapshot initial doit masquer les échanges futurs sans les supprimer");
-  assert.equal(await page.locator("#radar-observation-count").textContent(),"0 échange(s) pris en compte","le radar doit recalculer les scores au point historique sélectionné");
+  assert.equal(await page.locator("#radar-accumulation-count").textContent(),"0 échange(s) pris en compte","le radar doit recalculer les scores au point historique sélectionné");
   assert.match(await page.locator("#project-history-summary").textContent(),/consultation historique/,"le curseur doit signaler la consultation d’un état passé");
   await historySlider.evaluate(el=>{el.value="1";el.dispatchEvent(new Event("input",{bubbles:true}));});
   assert.equal(await page.locator(".message.user").count(),1,"revenir au dernier snapshot doit restaurer la conversation complète");
-  assert.equal(await page.locator("#radar-observation-count").textContent(),"1 échange(s) pris en compte","le radar doit retrouver le scoring courant après le rejeu");
+  assert.equal(await page.locator("#radar-accumulation-count").textContent(),"1 échange(s) pris en compte","le radar doit retrouver le scoring courant après le rejeu");
   const scoringTrace=await page.locator(".message.assistant .trace-button").last().count();assert.equal(scoringTrace,1,"la réponse doit conserver sa séquence de communication");
   for (const [level,title] of [[1,"Niveau 1"],[2,"Niveau 2"],[3,"Votre avis"],[4,"Auto-évaluation"],[5,"Niveau 5"],[6,"Niveau 6"]]) {
     assert.equal(await page.locator(".message.assistant h"+level).first().textContent(),title,"le titre Markdown de niveau "+level+" doit être rendu sans dièses visibles");
@@ -244,7 +244,7 @@ try{
   assert.ok(systemMessage.includes('"I": "unexplored"'),"les statuts des dimensions doivent être présents dans le contexte");
   assert.ok(systemMessage.includes("utilise réellement les outils pour enregistrer les observations substantielles"),"les capacités d’action agentique doivent être transmises au modèle local");
   assert.equal(await page.locator("#timeline-slider").count(),0,"l’ancien curseur de progression documentaire doit être supprimé");
-  assert.equal(await page.locator("#radar-observation-count").textContent(),"1 échange(s) pris en compte","le radar doit se baser sur l’historique de conversation chargé");
+  assert.equal(await page.locator("#radar-accumulation-count").textContent(),"1 échange(s) pris en compte","le radar doit se baser sur l’historique de conversation chargé");
   assert.ok(await page.locator("#radar-user-latest").getAttribute("points"),"le score utilisateur doit alimenter le radar");
   const readPersistedTurns=()=>new Promise((resolve,reject)=>{const request=indexedDB.open("icare-browser");request.onerror=()=>reject(request.error);request.onsuccess=()=>{const db=request.result,tx=db.transaction("turns","readonly"),read=tx.objectStore("turns").getAll();read.onsuccess=()=>{const turns=read.result;db.close();resolve(turns);};read.onerror=()=>reject(read.error);};});
   await page.waitForFunction(async()=>{const request=indexedDB.open("icare-browser");return await new Promise(resolve=>{request.onerror=()=>resolve(false);request.onsuccess=()=>{const db=request.result,tx=db.transaction("turns","readonly"),read=tx.objectStore("turns").getAll();read.onsuccess=()=>{const found=read.result.some(turn=>turn.user==="Bonjour ICARE"&&turn.assistant.startsWith("Réponse locale de test."));db.close();resolve(found);};read.onerror=()=>{db.close();resolve(false);};};});});
