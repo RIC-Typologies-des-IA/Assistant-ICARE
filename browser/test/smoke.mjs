@@ -23,7 +23,8 @@ function createTextPdf(text){
  pdf+="trailer\n<< /Size "+(objects.length+1)+" /Root 1 0 R >>\nstartxref\n"+xref+"\n%%EOF";
  return Buffer.from(pdf,"ascii");
 }
-\nconst server=createServer(async(req,res)=>{try{let pathname=decodeURIComponent(new URL(req.url,"http://localhost").pathname);if(pathname==="/")pathname="/index.html";const file=resolve(root,"."+pathname);if(file!==root&&!file.startsWith(root+sep)){res.writeHead(403).end();return;}const body=await readFile(file);res.writeHead(200,{"Content-Type":mime[extname(file)]||"application/octet-stream"}).end(body);}catch{res.writeHead(404).end("Not found");}});
+
+const server=createServer(async(req,res)=>{try{let pathname=decodeURIComponent(new URL(req.url,"http://localhost").pathname);if(pathname==="/")pathname="/index.html";const file=resolve(root,"."+pathname);if(file!==root&&!file.startsWith(root+sep)){res.writeHead(403).end();return;}const body=await readFile(file);res.writeHead(200,{"Content-Type":mime[extname(file)]||"application/octet-stream"}).end(body);}catch{res.writeHead(404).end("Not found");}});
 await new Promise(resolveListen=>server.listen(0,"127.0.0.1",resolveListen));
 const address=server.address(),url="http://127.0.0.1:"+address.port+"/";
 let browser,chatPayloads=[];
