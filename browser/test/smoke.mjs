@@ -51,7 +51,7 @@ try{
   assert.equal(await page.locator("#icare-doc-open").count(),1,"le référentiel doit être accessible au-dessus du projet");
   await page.locator("#icare-doc-open").click();
   await page.waitForFunction(()=>document.querySelector("#icare-doc-content h1"));
-  assert.match(await page.locator("#icare-doc-content h1").textContent(),/Référentiel d’un accompagnement systémique/);
+  assert.match(await page.locator("#icare-doc-content h1").textContent(),/Référentiel d'un accompagnement systémique/);
   assert.equal(await page.locator("#icare-doc-dialog").evaluate(dialog=>dialog.open),true);
   await page.locator("#close-icare-doc").click();
   const fullDocument="Document complet ICARE de test.\n"+("Contenu intégral conservé. ".repeat(260));

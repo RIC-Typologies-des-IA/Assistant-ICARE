@@ -116,6 +116,25 @@ test("le chat consulte l'ontologie et l'état puis enregistre une proposition is
   assert.equal(renders, 3);
 });
 
+test("la recherche documentaire restitue le contenu textuel intégral sans exposer le binaire", async () => {
+  const fullText = "Début du document.\\n" + "Contenu intégral conservé. ".repeat(420);
+  const project = workspace();
+  project.referenceDocuments.push({
+    id: "attachment-full",
+    kind: "attachment",
+    title: "cahier-projet.md",
+    fileName: "cahier-projet.md",
+    content: fullText,
+    dataBase64: "U0VDUkVULUJJT kFSWQ=="
+  });
+  const execute = createIcareToolExecutor({ workspace: project, ontology });
+  const result = await execute("search_reference_documents", { query: "cahier-projet" });
+  const document = result.results.find(item => item.id === "attachment-full");
+  assert.equal(document.content, fullText);
+  assert.ok(document.content.length > 5000);
+  assert.equal(document.dataBase64, undefined);
+});
+
 test("une simple consultation ne modifie ni le projet ni son historique", async () => {
   const project = workspace();
   let writes = 0;
