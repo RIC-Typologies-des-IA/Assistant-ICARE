@@ -88,14 +88,14 @@ try{
   assert.ok(await userAverageControl.evaluate(el=>el.classList.contains("is-hidden")),"une série masquée doit être visuellement grisée dans la légende");
   assert.equal(await page.locator("#radar-user-average").evaluate(el=>getComputedStyle(el).display),"none","une série désactivée doit disparaître du radar");
   assert.notEqual(await page.locator("#radar-assistant-average").evaluate(el=>getComputedStyle(el).display),"none","les autres séries doivent rester visibles");
-  assert.notEqual(await page.locator("#radar-user-average-outline").evaluate(el=>getComputedStyle(el).display),"none","masquer le remplissage utilisateur ne doit jamais masquer son contour");
+  assert.equal(await page.locator("#radar-user-average-outline").evaluate(el=>getComputedStyle(el).display),"none","masquer la moyenne utilisateur doit aussi masquer intégralement son contour");
   assert.notEqual(await page.locator("#radar-assistant-average-outline").evaluate(el=>getComputedStyle(el).display),"none","le contour ICARE doit rester visible lorsque le remplissage utilisateur est masqué");
   assert.equal(await page.locator("#radar-overlap-hatch").evaluate(el=>getComputedStyle(el).display),"none","la hachure de recouvrement doit disparaître si l’un des deux remplissages est masqué");
   assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem("icare-radar-series-visibility-v1"))["radar-user-average"]),false,"le choix d’affichage doit être mémorisé localement");
   await userAverageControl.click();
   assert.equal(await userAverageControl.getAttribute("aria-pressed"),"true","un second clic doit réafficher la série");
   assert.notEqual(await page.locator("#radar-user-average").evaluate(el=>getComputedStyle(el).display),"none","la série réactivée doit réapparaître");
-  assert.notEqual(await page.locator("#radar-user-average-outline").evaluate(el=>getComputedStyle(el).display),"none","le contour doit rester affiché après restauration du remplissage");
+  assert.notEqual(await page.locator("#radar-user-average-outline").evaluate(el=>getComputedStyle(el).display),"none","le contour doit réapparaître après restauration du remplissage");
   assert.deepEqual(await page.locator("#radar-labels text").allTextContents(),["Intention","Contexte","Action","Régulation","Évolution"],"le radar doit afficher les noms complets des cinq dimensions");
   assert.equal(await page.locator("#dimensions").count(),0,"la rangée de dimensions au-dessus du dialogue ne doit plus être affichée");
   assert.equal(await page.locator(".brand-affiliation a").count(),1,"le lien institutionnel doit rester dans la ligne d’affiliation");
