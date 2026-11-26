@@ -68,9 +68,16 @@ try{
   await page.locator("#project-document-list button").filter({hasText:"Lire"}).click();
   assert.equal(await page.locator("#project-document-content").textContent(),fullDocument,"la consultation doit restituer l’intégralité du document, sans troncature");
   await page.locator("#close-project-document").click();
+  const pdfBytes=Buffer.from("%PDF-1.4\\n% ICARE binary preservation fixture\\n%%EOF");
+  await page.locator("#project-document-files").setInputFiles({name:"annexe.pdf",mimeType:"application/pdf",buffer:pdfBytes});
+  await page.locator("#project-document-add").click();
+  await page.waitForFunction(()=>document.querySelectorAll("#project-document-list .project-document-item").length===2);
+  const pdfRow=page.locator("#project-document-list .project-document-item").filter({hasText:"annexe.pdf"});
+  const [pdfDownload]=await Promise.all([page.waitForEvent("download"),pdfRow.locator("button").filter({hasText:"Télécharger"}).click()]);
+  assert.deepEqual(await readFile(await pdfDownload.path()),pdfBytes,"le PDF téléchargé doit être identique octet pour octet au fichier joint");
   await page.reload();
   await page.waitForFunction(()=>document.querySelector("#project-document-list")?.dataset.ready==="true");
-  await page.waitForFunction(()=>document.querySelectorAll("#project-document-list .project-document-item").length===1);
+  await page.waitForFunction(()=>document.querySelectorAll("#project-document-list .project-document-item").length===2);
   assert.match(await page.locator("#project-document-list").textContent(),/cahier-projet.md/);
 
   await page.waitForFunction(()=>getComputedStyle(document.querySelector(".workspace")).display==="grid");
