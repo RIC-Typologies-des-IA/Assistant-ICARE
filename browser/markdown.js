@@ -239,6 +239,9 @@ function initializeMermaid(engine) {
   engine.initialize({
     startOnLoad: false,
     securityLevel: "strict",
+    // Mermaid otherwise injects its own large red error diagram into the page
+    // when parsing fails, outside the isolated sanitized SVG flow below.
+    suppressErrorRendering: true,
     htmlLabels: false,
     theme: dark ? "dark" : "default",
     flowchart: { htmlLabels: false, curve: "basis", nodeSpacing: 42, rankSpacing: 52 },
