@@ -98,10 +98,13 @@ try{
   const radarDomIntegrity=await page.evaluate(()=>{const ids=[...document.querySelectorAll("[id]")].map(el=>el.id);return {duplicates:[...new Set(ids.filter((id,index)=>ids.indexOf(id)!==index))],latestSeries:document.querySelectorAll("#radar-latest [data-radar-series]").length,averageSeries:document.querySelectorAll("#radar-accumulation [data-radar-series]").length};});
   assert.deepEqual(radarDomIntegrity,{duplicates:[],latestSeries:2,averageSeries:2},"chaque nouveau rendu doit remplacer les séries radar sans dupliquer les polygones ni les identifiants");
   assert.equal(await page.locator("svg#radar-accumulation [data-radar-series=radar-user-average]").evaluate(el=>getComputedStyle(el).display),"none");
+  assert.equal(await page.locator("svg#radar-accumulation [data-overlap-hatch]").evaluate(el=>getComputedStyle(el).display),"none","les hachures doivent disparaître si une des deux moyennes est masquée");
   assert.notEqual(await page.locator("svg#radar-accumulation [data-radar-series=radar-assistant-average]").evaluate(el=>getComputedStyle(el).display),"none");
   assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem("icare-radar-series-visibility-v1"))["radar-user-average"]),false);
   await userAverageControl.click();
   assert.equal(await userAverageControl.getAttribute("aria-pressed"),"true");
+  assert.notEqual(await page.locator("svg#radar-accumulation [data-overlap-hatch]").evaluate(el=>getComputedStyle(el).display),"none","les hachures doivent réapparaître lorsque les deux moyennes sont visibles");
+  assert.equal(await page.locator("svg#radar-accumulation defs#radar-accumulation-overlap-defs").count(),1,"un nouveau rendu ne doit pas dupliquer les définitions SVG");
   assert.equal(await page.locator("#dimensions").count(),0,"la rangée de dimensions au-dessus du dialogue ne doit plus être affichée");
   assert.equal(await page.locator(".brand-affiliation a").count(),1,"le lien institutionnel doit rester dans la ligne d’affiliation");
   assert.equal(await page.locator(".brand-affiliation").evaluate(el=>el.parentElement.classList.contains("brand-copy")),true,"l’affiliation doit partager le même conteneur que le titre et le sous-titre");
