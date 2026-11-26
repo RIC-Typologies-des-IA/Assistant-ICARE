@@ -78,6 +78,14 @@ try{
   for(const id of ["svg#radar-accumulation [data-radar-series=radar-user-average]","svg#radar-accumulation [data-radar-series=radar-assistant-average]"])assert.ok(Number(await page.locator(id).getAttribute("fill-opacity"))>=.5);
   assert.equal(await page.locator("svg#radar-accumulation [data-radar-series=radar-user-average]").getAttribute("fill"),"#258da5");
   assert.equal(await page.locator("svg#radar-accumulation [data-radar-series=radar-assistant-average]").getAttribute("fill"),"#d66b4d");
+  assert.equal(await page.locator(".radar-legend-group").count(),2,"les légendes doivent être séparées par radar");
+  assert.equal(await page.locator(".radar-legend-group").nth(0).locator("h4").textContent(),"Dernier message","la première légende doit nommer le radar du dernier message");
+  assert.equal(await page.locator(".radar-legend-group").nth(1).locator("h4").textContent(),"Accumulation","la seconde légende doit nommer le radar d’accumulation");
+  assert.deepEqual(await page.locator(".radar-legend-group").nth(0).locator("button").allTextContents(),["Utilisateur","ICARE"]);
+  assert.deepEqual(await page.locator(".radar-legend-group").nth(1).locator("button").allTextContents(),["Utilisateur","ICARE"]);
+  assert.equal(await page.locator("svg#radar-accumulation defs pattern#radar-accumulation-overlap-hatch").count(),1,"le radar d’accumulation doit définir le motif de hachures");
+  assert.equal(await page.locator("svg#radar-accumulation [data-overlap-hatch]").count(),1,"la zone de recouvrement doit être hachurée");
+  assert.equal(await page.locator("svg#radar-accumulation [data-overlap-hatch]").getAttribute("clip-path"),"url(#radar-accumulation-overlap-clip)","les hachures doivent être limitées à l’intersection des deux séries");
   assert.equal(await page.locator("svg#radar-latest [data-radar-series=radar-user-latest]").getAttribute("stroke"),"#4caec0");
   assert.equal(await page.locator("svg#radar-latest [data-radar-series=radar-assistant-latest]").getAttribute("stroke"),"#e58a6b");
   for(const id of ["svg#radar-latest [data-radar-series=radar-user-latest]","svg#radar-accumulation [data-radar-series=radar-user-average]","svg#radar-latest [data-radar-series=radar-assistant-latest]","svg#radar-accumulation [data-radar-series=radar-assistant-average]"])assert.equal(await page.locator(id).count(),1);
