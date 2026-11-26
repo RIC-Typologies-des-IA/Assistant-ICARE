@@ -87,6 +87,8 @@ try{
   const userAverageControl=page.locator("[data-radar-series=radar-user-average]");
   await userAverageControl.click();
   assert.equal(await userAverageControl.getAttribute("aria-pressed"),"false");
+  const radarDomIntegrity=await page.evaluate(()=>{const ids=[...document.querySelectorAll("[id]")].map(el=>el.id);return {duplicates:[...new Set(ids.filter((id,index)=>ids.indexOf(id)!==index))],latestSeries:document.querySelectorAll("#radar-latest [data-radar-series]").length,averageSeries:document.querySelectorAll("#radar-accumulation [data-radar-series]").length};});
+  assert.deepEqual(radarDomIntegrity,{duplicates:[],latestSeries:2,averageSeries:2},"chaque nouveau rendu doit remplacer les séries radar sans dupliquer les polygones ni les identifiants");
   assert.equal(await page.locator("svg#radar-accumulation [data-radar-series=radar-user-average]").evaluate(el=>getComputedStyle(el).display),"none");
   assert.notEqual(await page.locator("svg#radar-accumulation [data-radar-series=radar-assistant-average]").evaluate(el=>getComputedStyle(el).display),"none");
   assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem("icare-radar-series-visibility-v1"))["radar-user-average"]),false);
