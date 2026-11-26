@@ -322,6 +322,8 @@ function renderScoringRadar(turnCount=state.turns.length){
  const draw=(svgId,kind)=>{
   const svg=$(svgId);if(!svg)return;
   const grid=svg.querySelector(".radar-grid"),labels=svg.querySelector(".radar-labels");
+  // Un rendu remplace les séries précédentes : ne jamais empiler les polygones ni dupliquer leurs IDs.
+  svg.querySelectorAll("[data-radar-series]").forEach(polygon=>polygon.remove());
   grid.replaceChildren();labels.replaceChildren();
   const cx=160,cy=128,r=91,angles=order.map((_,i)=>-Math.PI/2+i*2*Math.PI/5);
   const make=(tag,attrs,text)=>{const el=document.createElementNS(ns,tag);for(const [k,v] of Object.entries(attrs))el.setAttribute(k,String(v));if(text)el.textContent=text;return el;};
