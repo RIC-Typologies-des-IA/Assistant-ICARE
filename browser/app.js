@@ -315,6 +315,37 @@ async function backfillHistoricalScores(){
 }
 async function loadWorkspace(){state.workspace=normaliseWorkspace(await get(db,"settings","workspace:"+state.projectId));if(!state.workspace.referenceDocuments.length){state.workspace.referenceDocuments=[{id:"guide-icare",title:"Guide de la démarche ICARE",content:await (await fetch("./guide-icare.md")).text(),createdAt:now()},{id:"ontology-icare",title:"Ontologie ICARE (JSON)",content:JSON.stringify(ontology,null,2),createdAt:now()}];await saveWorkspace();}if(!state.workspace.snapshots.length)captureSnapshot("Initialisation",false);await backfillHistoricalScores();renderWorkspace();}
 async function saveWorkspace(){await put(db,"settings",{id:"workspace:"+state.projectId,...state.workspace});}
+const MAX_PROJECT_DOCUMENT_BYTES=25*1024*1024;
+const TEXT_DOCUMENT_EXTENSIONS=new Set(["txt","md","markdown","csv","tsv","json","html","htm","xml","yaml","yml","log","rtf"]);
+function documentExtension(name){return String(name||"").split(".").pop().toLowerCase();}
+function encodeBase64(buffer){const bytes=new Uint8Array(buffer);let binary="";for(let offset=0;offset<bytes.length;offset+=0x8000)binary+=String.fromCharCode(...bytes.subarray(offset,Math.min(offset+0x8000,bytes.length)));return btoa(binary);}
+function documentBlob(document){const binary=atob(document.dataBase64||"");const bytes=new Uint8Array(binary.length);for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);return new Blob([bytes],{type:document.mimeType||"application/octet-stream"});}
+function renderProjectDocuments(){
+ const list=$("project-document-list"),status=$("project-document-status");if(!list||!state.workspace)return;
+ list.replaceChildren();const documents=(state.workspace.referenceDocuments||[]).filter(document=>document.kind==="attachment");
+ status.textContent=documents.length?documents.length+" document(s) joint(s) à ce projet. Les fichiers originaux sont conservés intégralement dans le stockage local du navigateur.":"Aucun document joint. Taille maximale : 25 Mo par fichier.";
+ for(const document of documents){
+  const item=document.createElement("li");item.className="project-document-item";item.dataset.documentId=document.id;
+  const details=document.createElement("div");details.className="project-document-info";
+  const title=document.createElement("strong");title.textContent=document.fileName||document.title;const meta=document.createElement("small");
+  const size=document.size<1048576?Math.max(1,Math.round(document.size/1024))+" Ko":(document.size/1048576).toFixed(1)+" Mo";
+  meta.textContent=size+" · "+(document.content?"texte intégral indexable":"fichier original conservé");details.append(title,meta);
+  const actions=document.createElement("div");actions.className="project-document-actions";
+  if(document.content){const read=document.createElement("button");read.type="button";read.className="button secondary";read.textContent="Lire";read.addEventListener("click",()=>showProjectDocument(document));actions.append(read);}
+  else if(document.mimeType==="application/pdf"){const open=document.createElement("button");open.type="button";open.className="button secondary";open.textContent="Ouvrir";open.addEventListener("click",()=>{const url=URL.createObjectURL(documentBlob(document));const link=document.createElement("a");link.href=url;link.target="_blank";link.rel="noopener noreferrer";link.click();setTimeout(()=>URL.revokeObjectURL(url),60000);});actions.append(open);}
+  const dl=document.createElement("button");dl.type="button";dl.className="button secondary";dl.textContent="Télécharger";dl.addEventListener("click",()=>{const url=URL.createObjectURL(documentBlob(document));const link=document.createElement("a");link.href=url;link.download=document.fileName||document.title;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});
+  const remove=document.createElement("button");remove.type="button";remove.className="button secondary project-document-remove";remove.textContent="Retirer";remove.setAttribute("aria-label","Retirer "+(document.fileName||document.title));remove.addEventListener("click",async()=>{state.workspace.referenceDocuments=state.workspace.referenceDocuments.filter(entry=>entry.id!==document.id);await saveWorkspace();renderProjectDocuments();});
+  actions.append(dl,remove);item.append(details,actions);list.append(item);
+ }
+}
+function showProjectDocument(document){$("project-document-title").textContent=document.fileName||document.title;$("project-document-content").textContent=document.content||"";$("project-document-dialog").showModal();}
+async function addProjectDocuments(files){
+ if(!state.workspace)throw new Error("Aucun projet actif.");const selected=[...files];if(!selected.length)return;
+ for(const file of selected)if(file.size>MAX_PROJECT_DOCUMENT_BYTES)throw new Error("Le fichier « "+file.name+" » dépasse la limite de 25 Mo.");
+ const additions=[];
+ for(const file of selected){const extension=documentExtension(file.name),buffer=await file.arrayBuffer();const content=TEXT_DOCUMENT_EXTENSIONS.has(extension)?new TextDecoder("utf-8",{fatal:false}).decode(buffer):"";additions.push({id:uid(),kind:"attachment",title:file.name,fileName:file.name,mimeType:file.type||"application/octet-stream",size:file.size,dataBase64:encodeBase64(buffer),content,createdAt:now()});}
+ state.workspace.referenceDocuments.push(...additions);await saveWorkspace();renderProjectDocuments();$("project-document-status").textContent=additions.length+" document(s) ajouté(s) au projet.";
+}
 function renderScoringRadar(turnCount=state.turns.length){
  const turns=state.turns.slice(0,Math.max(0,Math.min(state.turns.length,Number(turnCount)||0)));
  const scores=calculateScoreRadar(turns),order=SCORE_DIMENSIONS,names={I:"Intention",C:"Contexte",A:"Action",R:"Régulation",E:"Évolution"};
@@ -396,10 +427,17 @@ function showProjectHistory(index){
 }
 $("project-history-slider")?.addEventListener("input",event=>showProjectHistory(event.target.value));
 function captureSnapshot(reason="Échange",persist=true){if(!state.workspace)return;const snapshot={at:now(),reason,turns:state.turns?.length||0,dimensions:{...state.workspace.dimensions},proposals:state.workspace.proposals.length},last=state.workspace.snapshots.at(-1);if(!last||last.turns!==snapshot.turns||JSON.stringify(last.dimensions)!==JSON.stringify(snapshot.dimensions)||last.proposals!==snapshot.proposals){state.workspace.snapshots.push(snapshot);if(persist)saveWorkspace();renderProjectTimeline();}}
-function renderWorkspace(){if(replaySnapshotIndex===null){renderConversation(state.turns.length);renderScoringRadar(state.turns.length);}else showProjectHistory(replaySnapshotIndex);renderProjectTimeline();}
+function renderWorkspace(){if(replaySnapshotIndex===null){renderConversation(state.turns.length);renderScoringRadar(state.turns.length);}else showProjectHistory(replaySnapshotIndex);renderProjectTimeline();renderProjectDocuments();}
 $("api-preset")?.addEventListener("change",event=>{const preset=event.target.value,presets={openai:"https://api.openai.com/v1",ollama:"http://localhost:11434/v1",lemonade:"http://127.0.0.1:13305/v1"};if(presets[preset])$("api-base").value=presets[preset];const help={openai:"OpenAI : endpoint public HTTPS. Saisissez une clé API et chargez les modèles disponibles.",ollama:"Ollama local : http://localhost:11434/v1. Pour un site HTTPS distant, Ollama doit autoriser l’origine GitHub Pages via OLLAMA_ORIGINS. localhost désigne votre propre ordinateur.",lemonade:"Lemonade local : http://127.0.0.1:13305/v1. Pour un site HTTPS distant, le serveur doit autoriser l’origine GitHub Pages (CORS).", "":"API compatible OpenAI Chat Completions. Saisissez l’URL de base terminée par /v1."};$("provider-help").textContent=help[preset]||help[""];});
 
-renderScoringRadar();await loadOntology();gatewayRoutingConfig=await initGatewayConfiguration({db,get,set:put,loadScoringKey:async()=>(await loadCredentialVault(db)).scoring,saveLegacy:async({config,scoringApiKey})=>{
+renderScoringRadar();
+async function loadIcareDocumentation(){try{const response=await fetch("./icare-referentiel.md");if(!response.ok)throw new Error("Référentiel indisponible ("+response.status+").");$("icare-doc-content").replaceChildren(renderMarkdown(await response.text()));}catch(error){$("icare-doc-content").textContent="Impossible de charger le référentiel : "+error.message;}}
+$("icare-doc-open").addEventListener("click",()=>$("icare-doc-dialog").showModal());
+$("close-icare-doc").addEventListener("click",()=>$("icare-doc-dialog").close());
+$("close-project-document").addEventListener("click",()=>$("project-document-dialog").close());
+$("project-document-files").addEventListener("change",event=>{$("project-document-add").disabled=!event.target.files?.length;$("project-document-status").textContent=event.target.files?.length?event.target.files.length+" fichier(s) sélectionné(s).":"Sélectionnez un ou plusieurs documents.";});
+$("project-document-add").addEventListener("click",async()=>{const input=$("project-document-files"),button=$("project-document-add");button.disabled=true;button.textContent="Ajout…";try{await addProjectDocuments(input.files);input.value="";}catch(error){$("project-document-status").textContent=error.message;}finally{button.textContent="Joindre au projet";button.disabled=!input.files?.length;}});
+await loadIcareDocumentation();gatewayRoutingConfig=await initGatewayConfiguration({db,get,set:put,loadScoringKey:async()=>(await loadCredentialVault(db)).scoring,saveLegacy:async({config,scoringApiKey})=>{
  const modelCache=new Map();
  async function gatewayConfig(url){
   if(!modelCache.has(url)){const base=url.replace(/\/+$/,""),endpoint=(base.endsWith("/v1")?base:base+"/v1")+"/icare/config";const response=await fetch(endpoint,{credentials:"include",cache:"no-store"});if(!response.ok)throw Error("Impossible de lire la configuration de la Gateway ("+response.status+").");modelCache.set(url,await response.json());}

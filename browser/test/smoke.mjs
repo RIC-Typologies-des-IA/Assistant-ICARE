@@ -47,6 +47,26 @@ try{
 
 
   await page.waitForFunction(()=>document.querySelector("#project-select").options.length===1);
+  assert.equal(await page.locator("#icare-reference-heading").textContent(),"Documentation ICARE");
+  assert.equal(await page.locator("#icare-doc-open").count(),1,"le référentiel doit être accessible au-dessus du projet");
+  await page.locator("#icare-doc-open").click();
+  await page.waitForFunction(()=>document.querySelector("#icare-doc-content h1"));
+  assert.match(await page.locator("#icare-doc-content h1").textContent(),/Référentiel d’un accompagnement systémique/);
+  assert.equal(await page.locator("#icare-doc-dialog").evaluate(dialog=>dialog.open),true);
+  await page.locator("#close-icare-doc").click();
+  const fullDocument="Document complet ICARE de test.\n"+("Contenu intégral conservé. ".repeat(260));
+  await page.locator("#project-document-files").setInputFiles({name:"cahier-projet.md",mimeType:"text/markdown",buffer:Buffer.from(fullDocument)});
+  await page.locator("#project-document-add").click();
+  await page.waitForFunction(()=>document.querySelectorAll("#project-document-list .project-document-item").length===1);
+  assert.match(await page.locator("#project-document-list").textContent(),/cahier-projet.md/);
+  assert.match(await page.locator("#project-document-list").textContent(),/texte intégral indexable/);
+  await page.locator("#project-document-list button").filter({hasText:"Lire"}).click();
+  assert.equal(await page.locator("#project-document-content").textContent(),fullDocument,"la consultation doit restituer l’intégralité du document, sans troncature");
+  await page.locator("#close-project-document").click();
+  await page.reload();
+  await page.waitForFunction(()=>document.querySelectorAll("#project-document-list .project-document-item").length===1);
+  assert.match(await page.locator("#project-document-list").textContent(),/cahier-projet.md/);
+
   await page.waitForFunction(()=>getComputedStyle(document.querySelector(".workspace")).display==="grid");
   assert.ok((await page.locator(".project-heading").evaluate(el=>getComputedStyle(el).gridArea)).includes("heading"),"l’en-tête projet doit occuper sa propre zone de grille");
   assert.ok((await page.locator(".chat-panel").evaluate(el=>getComputedStyle(el).gridArea)).includes("chat"),"le dialogue doit occuper la zone principale");

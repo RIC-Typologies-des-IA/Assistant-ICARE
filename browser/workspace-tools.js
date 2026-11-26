@@ -63,7 +63,7 @@ export function createIcareToolExecutor({
         ok: true,
         results: documents
           .filter(document => !query || (document.title + "\n" + document.content).toLocaleLowerCase("fr").includes(query))
-          .map(({ id, title, content }) => ({ id, title, excerpt: content.slice(0, 5000) }))
+          .map(({ id, title, content, fileName, mimeType, size, kind }) => ({ id, title, fileName: fileName || null, mimeType: mimeType || null, size: size || null, kind: kind || "reference", content: String(content || ""), excerpt: String(content || "").slice(0, 5000) }))
       };
     }
     if (name === "list_propositions") {
