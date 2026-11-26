@@ -274,6 +274,14 @@ try{
   const listSelection=await page.locator("#trace-diagram .trace-payload-link.is-current").evaluateAll(nodes=>[...new Set(nodes.map(node=>node.dataset.traceIndex))]);
   assert.deepEqual(listSelection,[listTargetIndex],"sélectionner un payload dans la liste doit déplacer le surlignage du diagramme");
   assert.equal(await page.locator("#trace-steps .trace-payload-highlight").count(),1,"la sélection depuis la liste doit remplacer le surlignage précédent");
+  const stepSlider=page.locator("#trace-diagram .trace-playback-controls input[type=range]");
+  assert.ok(await stepSlider.count(),"le lecteur doit permettre de choisir directement une étape");
+  await stepSlider.evaluate(el=>{el.value="1";el.dispatchEvent(new Event("input",{bubbles:true}));});
+  assert.equal(await page.locator("#trace-steps .trace-payload-highlight").getAttribute("data-trace-index"),"1","le curseur doit sauter directement à l’étape choisie");
+  await page.locator("#trace-diagram .trace-playback-controls button").filter({hasText:"Suivant"}).click();
+  assert.equal(await page.locator("#trace-steps .trace-payload-highlight").getAttribute("data-trace-index"),"2","Suivant doit avancer d’une étape");
+  await page.locator("#trace-diagram .trace-playback-controls button").filter({hasText:"Précédent"}).click();
+  assert.equal(await page.locator("#trace-steps .trace-payload-highlight").getAttribute("data-trace-index"),"1","Précédent doit revenir à l’étape précédente");
   const fullscreen=page.locator("#trace-panel .trace-fullscreen-toggle");
   await fullscreen.click();
   assert.ok(await page.locator("#trace-panel").evaluate(el=>el.classList.contains("trace-panel-fullscreen")),"le schéma doit pouvoir occuper tout l’écran");
