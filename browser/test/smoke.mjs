@@ -54,7 +54,7 @@ try{
   assert.match(await page.locator("#icare-doc-content h1").textContent(),/Référentiel d'un accompagnement systémique/);
   assert.equal(await page.locator("#icare-doc-dialog").evaluate(dialog=>dialog.open),true);
   await page.locator("#close-icare-doc").click();
-  await page.waitForFunction(()=>document.querySelector("#project-document-status")?.textContent.includes("Aucun document joint"));
+  await page.waitForFunction(()=>document.querySelector("#project-document-list")?.dataset.ready==="true");
   const fullDocument="Document complet ICARE de test.\n"+("Contenu intégral conservé. ".repeat(260));
   await page.locator("#project-document-files").setInputFiles({name:"cahier-projet.md",mimeType:"text/markdown",buffer:Buffer.from(fullDocument)});
   await page.locator("#project-document-add").click();
@@ -65,6 +65,7 @@ try{
   assert.equal(await page.locator("#project-document-content").textContent(),fullDocument,"la consultation doit restituer l’intégralité du document, sans troncature");
   await page.locator("#close-project-document").click();
   await page.reload();
+  await page.waitForFunction(()=>document.querySelector("#project-document-list")?.dataset.ready==="true");
   await page.waitForFunction(()=>document.querySelectorAll("#project-document-list .project-document-item").length===1);
   assert.match(await page.locator("#project-document-list").textContent(),/cahier-projet.md/);
 

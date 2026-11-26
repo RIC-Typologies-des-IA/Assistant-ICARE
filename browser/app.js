@@ -322,6 +322,7 @@ function encodeBase64(buffer){const bytes=new Uint8Array(buffer);let binary="";f
 function documentBlob(document){const binary=atob(document.dataBase64||"");const bytes=new Uint8Array(binary.length);for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);return new Blob([bytes],{type:document.mimeType||"application/octet-stream"});}
 function renderProjectDocuments(){
  const list=$("project-document-list"),status=$("project-document-status");if(!list||!state.workspace)return;
+ list.dataset.ready="true";$("project-document-add").disabled=!$("project-document-files").files?.length;
  list.replaceChildren();const documents=(state.workspace.referenceDocuments||[]).filter(document=>document.kind==="attachment");
  status.textContent=documents.length?documents.length+" document(s) joint(s) à ce projet. Les fichiers originaux sont conservés intégralement dans le stockage local du navigateur.":"Aucun document joint. Taille maximale : 25 Mo par fichier.";
  for(const document of documents){
@@ -435,7 +436,7 @@ async function loadIcareDocumentation(){try{const response=await fetch("./icare-
 $("icare-doc-open").addEventListener("click",()=>$("icare-doc-dialog").showModal());
 $("close-icare-doc").addEventListener("click",()=>$("icare-doc-dialog").close());
 $("close-project-document").addEventListener("click",()=>$("project-document-dialog").close());
-$("project-document-files").addEventListener("change",event=>{$("project-document-add").disabled=!event.target.files?.length;$("project-document-status").textContent=event.target.files?.length?event.target.files.length+" fichier(s) sélectionné(s).":"Sélectionnez un ou plusieurs documents.";});
+$("project-document-files").addEventListener("change",event=>{$("project-document-add").disabled=!event.target.files?.length||!state.workspace;$("project-document-status").textContent=event.target.files?.length?event.target.files.length+" fichier(s) sélectionné(s).":"Sélectionnez un ou plusieurs documents.";});
 $("project-document-add").addEventListener("click",async()=>{const input=$("project-document-files"),button=$("project-document-add");button.disabled=true;button.textContent="Ajout…";try{await addProjectDocuments(input.files);input.value="";}catch(error){$("project-document-status").textContent=error.message;}finally{button.textContent="Joindre au projet";button.disabled=!input.files?.length;}});
 await loadIcareDocumentation();gatewayRoutingConfig=await initGatewayConfiguration({db,get,set:put,loadScoringKey:async()=>(await loadCredentialVault(db)).scoring,saveLegacy:async({config,scoringApiKey})=>{
  const modelCache=new Map();
