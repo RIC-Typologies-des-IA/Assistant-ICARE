@@ -64,6 +64,11 @@ try{
 
   await page.waitForFunction(()=>document.querySelectorAll("#radar-labels text").length===5);
   assert.equal(await page.locator("#radar").count(),1,"le radar ICARE doit être présent");
+  assert.equal(await page.locator("#radar-observation-count").textContent(),"0 échange(s) pris en compte","le radar doit être dessiné avant le premier échange");
+  assert.equal(await page.locator("#radar-grid polygon").count(),4,"la grille du radar doit être visible dès l’ouverture");
+  assert.equal(await page.locator("#radar-labels text").count(),5,"les cinq dimensions ICARE doivent rester visibles à zéro");
+  for(const id of ["#radar-user-latest","#radar-assistant-latest"])assert.equal(await page.locator(id).getAttribute("fill"),"none","le dernier message doit être représenté uniquement par un contour : "+id);
+  for(const id of ["#radar-user-average","#radar-assistant-average"])assert.ok(Number(await page.locator(id).getAttribute("fill-opacity"))>=.4,"la moyenne cumulée doit être une surface pleine et contrastée : "+id);
   for(const id of ["#radar-user-latest","#radar-user-average","#radar-assistant-latest","#radar-assistant-average"])assert.equal(await page.locator(id).count(),1,"le radar doit afficher les deux couches de chaque acteur : "+id);
   assert.deepEqual(await page.locator("#radar-labels text").allTextContents(),["Intention","Contexte","Action","Régulation","Évolution"],"le radar doit afficher les noms complets des cinq dimensions");
   assert.equal(await page.locator("#dimensions").count(),0,"la rangée de dimensions au-dessus du dialogue ne doit plus être affichée");
@@ -200,7 +205,7 @@ try{
   await page.locator("#trace-diagram .trace-zoom-canvas svg").waitFor({state:"visible"});
   await page.waitForFunction(()=>document.querySelectorAll("#trace-steps .trace-step").length>0);
   const scoringTraceDetails=await page.locator("#trace-steps .trace-step").filter({hasText:"Scoring ICARE"}).count();
-  assert.equal(scoringTraceDetails,2,"la trace doit distinguer le scoring du message utilisateur et celui de la réponse ICAR");
+  assert.equal(scoringTraceDetails,2,"la trace doit distinguer le scoring du message utilisateur et celui de la réponse ICARE");
   const scoringTracePayloads=await page.locator("#trace-steps .trace-step").filter({hasText:"Scoring ICARE"}).allTextContents();
   assert.ok(scoringTracePayloads.some(value=>value.includes('"side": "user"'))&&scoringTracePayloads.some(value=>value.includes('"side": "assistant"')),"les deux scores doivent être tracés séparément");
   const noToolDiagram=await page.locator("#trace-diagram .trace-zoom-canvas svg").evaluate(svg=>svg.textContent);
