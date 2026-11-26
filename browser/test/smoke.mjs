@@ -6,7 +6,24 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 
 const root=resolve(fileURLToPath(new URL("..",import.meta.url)));
-const mime={".html":"text/html; charset=utf-8",".js":"text/javascript; charset=utf-8",".css":"text/css; charset=utf-8",".json":"application/json; charset=utf-8",".webmanifest":"application/manifest+json",".svg":"image/svg+xml",".md":"text/markdown; charset=utf-8"};
+const mime={".mjs":"text/javascript; charset=utf-8",".wasm":"application/wasm",".html":"text/html; charset=utf-8",".js":"text/javascript; charset=utf-8",".css":"text/css; charset=utf-8",".json":"application/json; charset=utf-8",".webmanifest":"application/manifest+json",".svg":"image/svg+xml",".md":"text/markdown; charset=utf-8"};
+function createTextPdf(text){
+ const stream="BT /F1 18 Tf 72 720 Td ("+text+") Tj ET\n";
+ const objects=[
+  "<< /Type /Catalog /Pages 2 0 R >>",
+  "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+  "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+  "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+  "<< /Length "+Buffer.byteLength(stream)+" >>\nstream\n"+stream+"endstream"
+ ];
+ let pdf="%PDF-1.4\n",offsets=[0];
+ for(let i=0;i<objects.length;i++){offsets.push(Buffer.byteLength(pdf));pdf+=(i+1)+" 0 obj\n"+objects[i]+"\nendobj\n";}
+ const xref=Buffer.byteLength(pdf);pdf+="xref\n0 "+(objects.length+1)+"\n0000000000 65535 f \n";
+ for(const offset of offsets.slice(1))pdf+=String(offset).padStart(10,"0")+" 00000 n \n";
+ pdf+="trailer\n<< /Size "+(objects.length+1)+" /Root 1 0 R >>\nstartxref\n"+xref+"\n%%EOF";
+ return Buffer.from(pdf,"ascii");
+}
+
 const server=createServer(async(req,res)=>{try{let pathname=decodeURIComponent(new URL(req.url,"http://localhost").pathname);if(pathname==="/")pathname="/index.html";const file=resolve(root,"."+pathname);if(file!==root&&!file.startsWith(root+sep)){res.writeHead(403).end();return;}const body=await readFile(file);res.writeHead(200,{"Content-Type":mime[extname(file)]||"application/octet-stream"}).end(body);}catch{res.writeHead(404).end("Not found");}});
 await new Promise(resolveListen=>server.listen(0,"127.0.0.1",resolveListen));
 const address=server.address(),url="http://127.0.0.1:"+address.port+"/";
@@ -68,11 +85,16 @@ try{
   await page.locator("#project-document-list button").filter({hasText:"Lire"}).click();
   assert.equal(await page.locator("#project-document-content").textContent(),fullDocument,"la consultation doit restituer l’intégralité du document, sans troncature");
   await page.locator("#close-project-document").click();
-  const pdfBytes=Buffer.from("%PDF-1.4\\n% ICARE binary preservation fixture\\n%%EOF");
+  const pdfBytes=createTextPdf("ICARE PDF native extraction test contains a sufficiently long line for the text layer.");
   await page.locator("#project-document-files").setInputFiles({name:"annexe.pdf",mimeType:"application/pdf",buffer:pdfBytes});
   await page.locator("#project-document-add").click();
   await page.waitForFunction(()=>document.querySelectorAll("#project-document-list .project-document-item").length===2);
+  await page.waitForFunction(()=>document.querySelector("#project-document-status").textContent.includes("PDF lu : annexe.pdf"));
+  assert.match(await page.locator("#project-document-list").textContent(),/texte intégral indexable/,"le PDF natif doit être extrait automatiquement sans OCR");
   const pdfRow=page.locator("#project-document-list .project-document-item").filter({hasText:"annexe.pdf"});
+  await pdfRow.locator("button").filter({hasText:"Lire"}).click();
+  assert.match(await page.locator("#project-document-content").textContent(),/ICARE PDF native extraction test/,"le texte PDF doit être consultable dans le projet");
+  await page.locator("#close-project-document").click();
   const [pdfDownload]=await Promise.all([page.waitForEvent("download"),pdfRow.locator("button").filter({hasText:"Télécharger"}).click()]);
   assert.deepEqual(await readFile(await pdfDownload.path()),pdfBytes,"le PDF téléchargé doit être identique octet pour octet au fichier joint");
   await page.reload();

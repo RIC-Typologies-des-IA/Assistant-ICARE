@@ -1,4 +1,5 @@
 import { openDatabase, getAll, put, get, deleteProjectData } from "./storage.js";
+import { extractPdfText } from "./pdf-processing.js";
 import { renderMarkdown } from "./markdown.js";
 import { chatCompletion, chatCompletionMessage, listModels, transcribeAudio, audioBlobToWav, resolveInferenceRoute, listLemonadeTranscriptionModels } from "./inference.js";
 import { runAgentTurn } from "./agent.js";
@@ -330,8 +331,13 @@ function renderProjectDocuments(){
   const details=document.createElement("div");details.className="project-document-info";
   const title=document.createElement("strong");title.textContent=entry.fileName||entry.title;const meta=document.createElement("small");
   const size=entry.size<1048576?Math.max(1,Math.round(entry.size/1024))+" Ko":(entry.size/1048576).toFixed(1)+" Mo";
-  meta.textContent=size+" · "+(entry.content?"texte intégral indexable":"fichier original conservé");details.append(title,meta);
+  meta.textContent=size+" · "+(entry.content?(entry.contentSource==="ocr"||entry.contentSource==="native+ocr"?"texte extrait · OCR "+(entry.contentOcrPages||0)+" page(s)": "texte intégral indexable"):"fichier original conservé");details.append(title,meta);
   const actions=document.createElement("div");actions.className="project-document-actions";
+  if(entry.mimeType==="application/pdf"||documentExtension(entry.fileName)==="pdf"){
+   const extract=document.createElement("button");extract.type="button";extract.className="button secondary";extract.textContent=entry.content?"Réextraire / OCR":"Extraire le texte / OCR";
+   extract.addEventListener("click",async()=>{extract.disabled=true;status.textContent="Lecture du PDF « "+(entry.fileName||entry.title)+" »…";try{const result=await extractPdfText(await documentBlob(entry).arrayBuffer(),{onProgress:progress=>{status.textContent="PDF "+progress.page+"/"+progress.total+" · "+(progress.stage==="ocr"?"OCR en cours":"Extraction du texte")+"…";}});entry.content=result.content;entry.contentSource=result.source;entry.contentPages=result.pageCount;entry.contentOcrPages=result.ocrPages;entry.extractedAt=now();await saveWorkspace();renderProjectDocuments();status.textContent="Texte extrait de « "+(entry.fileName||entry.title)+" » : "+result.pageCount+" page(s), dont "+result.ocrPages+" par OCR."; }catch(error){status.textContent="Extraction PDF impossible : "+error.message;}finally{extract.disabled=false;}});
+   actions.append(extract);
+  }
   if(entry.content){const read=document.createElement("button");read.type="button";read.className="button secondary";read.textContent="Lire";read.addEventListener("click",()=>showProjectDocument(entry));actions.append(read);}
   else if(entry.mimeType==="application/pdf"){const open=document.createElement("button");open.type="button";open.className="button secondary";open.textContent="Ouvrir";open.addEventListener("click",()=>{const url=URL.createObjectURL(documentBlob(entry));const link=document.createElement("a");link.href=url;link.target="_blank";link.rel="noopener noreferrer";link.click();setTimeout(()=>URL.revokeObjectURL(url),60000);});actions.append(open);}
   const dl=document.createElement("button");dl.type="button";dl.className="button secondary";dl.textContent="Télécharger";dl.addEventListener("click",()=>{const url=URL.createObjectURL(documentBlob(entry));const link=document.createElement("a");link.href=url;link.download=entry.fileName||entry.title;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});
@@ -344,8 +350,11 @@ async function addProjectDocuments(files){
  if(!state.workspace)throw new Error("Aucun projet actif.");const selected=[...files];if(!selected.length)return;
  for(const file of selected)if(file.size>MAX_PROJECT_DOCUMENT_BYTES)throw new Error("Le fichier « "+file.name+" » dépasse la limite de 25 Mo.");
  const additions=[];
- for(const file of selected){const extension=documentExtension(file.name),buffer=await file.arrayBuffer();const content=TEXT_DOCUMENT_EXTENSIONS.has(extension)?new TextDecoder("utf-8",{fatal:false}).decode(buffer):"";additions.push({id:uid(),kind:"attachment",title:file.name,fileName:file.name,mimeType:file.type||"application/octet-stream",size:file.size,dataBase64:encodeBase64(buffer),content,createdAt:now()});}
- state.workspace.referenceDocuments.push(...additions);await saveWorkspace();renderProjectDocuments();$("project-document-status").textContent=additions.length+" document(s) ajouté(s) au projet.";
+ for(const file of selected){const extension=documentExtension(file.name),buffer=await file.arrayBuffer(),isPdf=extension==="pdf"||file.type==="application/pdf",content=TEXT_DOCUMENT_EXTENSIONS.has(extension)?new TextDecoder("utf-8",{fatal:false}).decode(buffer):"";additions.push({id:uid(),kind:"attachment",title:file.name,fileName:file.name,mimeType:file.type||(isPdf?"application/pdf":"application/octet-stream"),size:file.size,dataBase64:encodeBase64(buffer),content,createdAt:now()});}
+ state.workspace.referenceDocuments.push(...additions);await saveWorkspace();renderProjectDocuments();
+ const pdfs=additions.filter(entry=>entry.mimeType==="application/pdf"||documentExtension(entry.fileName)==="pdf");
+ if(!pdfs.length){$("project-document-status").textContent=additions.length+" document(s) ajouté(s) au projet.";return;}
+ for(const entry of pdfs){$("project-document-status").textContent="Extraction du PDF « "+entry.fileName+" »…";try{const result=await extractPdfText(await documentBlob(entry).arrayBuffer(),{onProgress:progress=>{$("project-document-status").textContent="PDF "+progress.page+"/"+progress.total+" · "+(progress.stage==="ocr"?"OCR en cours":"Extraction du texte")+" : "+entry.fileName;}});entry.content=result.content;entry.contentSource=result.source;entry.contentPages=result.pageCount;entry.contentOcrPages=result.ocrPages;entry.extractedAt=now();await saveWorkspace();renderProjectDocuments();$("project-document-status").textContent="PDF lu : "+entry.fileName+" · "+result.pageCount+" page(s), OCR "+result.ocrPages+" page(s).";}catch(error){$("project-document-status").textContent="PDF ajouté, mais extraction impossible pour « "+entry.fileName+" » : "+error.message+" Vous pouvez réessayer avec le bouton d’extraction.";} }
 }
 function renderScoringRadar(turnCount=state.turns.length){
  const turns=state.turns.slice(0,Math.max(0,Math.min(state.turns.length,Number(turnCount)||0)));
