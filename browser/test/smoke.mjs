@@ -77,7 +77,7 @@ try{
   assert.ok((await page.locator("#radar-overlap-pattern path").count())>=2,"la hachure doit alterner les deux couleurs pastel");
   assert.equal(await page.locator("#radar-user-latest").getAttribute("stroke"),"#4caec0","le dernier message utilisateur doit rester en contour turquoise pastel");
   assert.equal(await page.locator("#radar-assistant-latest").getAttribute("stroke"),"#e58a6b","la dernière réponse ICARE doit rester en contour corail pastel");
-  for(const [latest,average] of [["#radar-user-latest","#radar-user-average"],["#radar-assistant-latest","#radar-assistant-average"]])assert.ok(Number(await page.locator(latest).getAttribute("stroke-width"))<Number(await page.locator(average).getAttribute("stroke-width")),"le contour du dernier message doit être plus discret que la moyenne cumulée");
+  for(const [latest,average] of [["#radar-user-latest","#radar-user-average-outline"],["#radar-assistant-latest","#radar-assistant-average-outline"]])assert.ok(Number(await page.locator(latest).getAttribute("stroke-width"))<Number(await page.locator(average).getAttribute("stroke-width")),"le contour du dernier message doit être plus discret que la moyenne cumulée");
   for(const id of ["#radar-user-latest","#radar-user-average","#radar-assistant-latest","#radar-assistant-average"])assert.equal(await page.locator(id).count(),1,"le radar doit afficher les deux couches de chaque acteur : "+id);
   const radarControls=page.locator(".radar-legend button[data-radar-series]");
   assert.equal(await radarControls.count(),4,"la légende doit proposer un contrôle pour chacune des quatre séries");
