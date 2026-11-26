@@ -29,7 +29,7 @@ test("HTML has no parser errors, duplicate IDs, or dangling structural reference
   assert.deepEqual([...ids].filter(([, count]) => count > 1), [], "un id HTML ne doit apparaître qu'une seule fois");
   assert.deepEqual(references.filter(({ id }) => !ids.has(id)), [], "les références for/ARIA/ancres doivent toutes cibler un id existant");
   assert.ok(ids.has("radar-latest") && ids.has("radar-accumulation"), "les deux radars doivent conserver leurs conteneurs");
-  for (const id of ["project-history-slider", "project-history-summary", "chat-messages", "settings-dialog"]) {
+  for (const id of ["project-history-slider", "project-history-summary", "messages", "settings-dialog"]) {
     assert.ok(ids.has(id), "élément structurel requis absent : " + id);
   }
 });
