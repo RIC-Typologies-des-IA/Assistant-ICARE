@@ -207,6 +207,18 @@ try{
   const summaryTable=page.locator(".message.assistant table").nth(1);
   assert.equal(await summaryTable.locator("thead th").count(),2,"le tableau Champ/Valeur doit être rendu en deux colonnes");
   assert.equal(await summaryTable.locator("tbody tr").count(),2,"les deux champs du tableau doivent être conservés");
+  const userScoreLine=page.locator(".message.assistant .icare-score-user").first();
+  const assistantScoreLine=page.locator(".message.assistant .icare-score-assistant").first();
+  assert.match(await userScoreLine.textContent(),/Votre message · I 91 % · C 72 % · A 84 % · R 63 % · E 58 %/,"le score utilisateur doit être lisible sous la réponse");
+  assert.match(await assistantScoreLine.textContent(),/Réponse ICARE · I 91 % · C 72 % · A 84 % · R 63 % · E 58 %/,"le score de la réponse doit être lisible sous la réponse");
+  const chatSystem=chatPayloads.at(-1)?.messages?.find(message=>message.role==="system")?.content||"";
+  assert.match(chatSystem,/ÉVALUATION AUTOMATIQUE ICARE/,"le LLM doit être informé du scoring applicatif automatique");
+  assert.match(chatSystem,/traitement applicatif postérieur à ta génération/,"le LLM doit comprendre que le scoring intervient après sa réponse");
+  await page.reload();
+  await page.waitForFunction(()=>document.querySelectorAll(".message.assistant .icare-score-line").length>=2);
+  assert.equal(await page.locator(".message.assistant .icare-score-user").first().textContent(),"Votre message · I 91 % · C 72 % · A 84 % · R 63 % · E 58 %","le score utilisateur doit être reconstruit depuis IndexedDB après rechargement");
+  assert.equal(await page.locator(".message.assistant .icare-score-assistant").first().textContent(),"Réponse ICARE · I 91 % · C 72 % · A 84 % · R 63 % · E 58 %","le score ICARE doit survivre au rechargement");
+
   assert.equal(await summaryTable.locator("tbody tr").nth(0).locator("td code").textContent(),"proj-foret-I-001","le code inline doit être interprété dans une cellule");
   assert.equal(await summaryTable.locator("tbody tr").nth(1).locator("td em").textContent(),"Instruire les politiques publiques de la forêt.","l’italique doit être interprété dans une cellule");
   assert.equal((await page.locator(".message.assistant blockquote").last().textContent()).trim(),"undefined","les citations Markdown doivent être rendues");
