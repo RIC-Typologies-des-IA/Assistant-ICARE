@@ -64,6 +64,7 @@ try{
 
 
   await page.waitForFunction(()=>document.querySelector("#project-select").options.length===1);
+  await page.locator(".message.assistant").waitFor({state:"visible"});
   assert.equal(await page.locator(".message.assistant").count(),1,"un projet neuf doit afficher son invitation initiale");
   assert.equal(await page.locator(".message.assistant .trace-button").count(),0,"l’invitation initiale hors conversation ne doit pas proposer de séquence");
   assert.equal(await page.locator(".message.assistant .icare-score-line").count(),0,"l’invitation initiale ne doit recevoir aucun scoring");
