@@ -16,7 +16,7 @@ Deux méthodes sont actuellement directement utilisables. Elles reposent sur le 
 
 **[Ouvrir l’assistant ICARE](https://ric-typologies-des-ia.github.io/Assistant-ICARE/)**
 
-L’application est publiée sur GitHub Pages. Il suffit d’ouvrir cette URL dans un navigateur : aucune installation de serveur ICARE, aucun compte ICARE et aucune infrastructure partagée ne sont nécessaires. Elle peut aussi être installée comme Progressive Web App depuis le navigateur.
+La version publiée du client est **0.11.8**. L’application est hébergée sur GitHub Pages. Il suffit d’ouvrir cette URL dans un navigateur : aucune installation de serveur ICARE, aucun compte ICARE et aucune infrastructure partagée ne sont nécessaires. Elle peut aussi être installée comme Progressive Web App depuis le navigateur.
 
 Le navigateur héberge l’interface et conserve localement les projets, conversations et documents dans son stockage. L’utilisateur configure le fournisseur d’inférence qu’il souhaite utiliser ; les échanges sont adressés à ce fournisseur. Les données de projet ne sont pas envoyées à GitHub. L’application permet notamment de gérer plusieurs projets, de conserver leur historique, d’importer et d’exporter les données, de joindre des documents et d’utiliser les fonctions agentiques et les composants disponibles dans le client.
 
@@ -27,7 +27,7 @@ La publication est mise à jour depuis le dépôt. À l’ouverture ou au retour
 
 ### 2. Approche par prompt
 
-### 1. Approche par prompt — la forme initiale
+#### La forme initiale
 
 La méthode est portée par des instructions données à un modèle conversationnel. Elle est simple à déployer et ne nécessite pas d'application dédiée.
 
