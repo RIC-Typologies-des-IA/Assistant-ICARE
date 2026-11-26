@@ -24,6 +24,7 @@ try {
   await page.goto("http://127.0.0.1:" + server.address().port + "/index.html");
   const result = await page.evaluate(async () => {
     const { renderMarkdown } = await import("./markdown.js");
+    const bodyChildrenBeforeHost = document.body.children.length;
     const host = document.createElement("div");
     host.className = "message-content mermaid-test-host";
     document.body.append(host);
@@ -240,6 +241,8 @@ try {
       highlighted: host.querySelectorAll("pre code .hljs-keyword, pre code .hljs-number").length,
       mermaid: host.querySelectorAll(".mermaid-diagram svg").length,
       mermaidErrors: host.querySelectorAll(".mermaid-error").length,
+      bodyChildrenAfterMermaidError: document.body.children.length,
+      bodyChildrenBeforeHost,
       mermaidNodeClasses: host.querySelectorAll(".mermaid-diagram svg .node").length,
       pieSlices: host.querySelectorAll(".mermaid-diagram .pieCircle, .mermaid-diagram .slice").length,
       pieColors: [...host.querySelectorAll(".mermaid-diagram .pieCircle")].map(node => getComputedStyle(node).fill).filter(Boolean),
@@ -349,6 +352,7 @@ try {
   assert.ok(result.highlighted > 0, "les blocs de code doivent être colorisés");
   assert.equal(result.mermaid, 17, "toutes les familles Mermaid prises en charge doivent produire un SVG, même lorsqu’un diagramme voisin est invalide");
   assert.equal(result.mermaidErrors, 1, "un diagramme invalide doit afficher sa propre erreur sans bloquer les diagrammes suivants");
+  assert.equal(result.bodyChildrenAfterMermaidError, result.bodyChildrenBeforeHost + 1, "Mermaid ne doit pas injecter son icône SVG d'erreur globale hors du conteneur Markdown");
   assert.ok(result.mermaidNodeClasses > 0, "les classes SVG Mermaid doivent être conservées pour appliquer le thème accessible");
   assert.ok(result.pieSlices >= 3, "le diagramme circulaire doit conserver ses secteurs colorés");
   assert.ok(new Set(result.pieColors).size >= 3 && result.pieColors.every(fill => !/^#?000(?:000)?$/i.test(fill)), "les secteurs du diagramme circulaire doivent conserver des couleurs distinctes");
