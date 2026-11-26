@@ -343,7 +343,7 @@ function renderScoringRadar(turnCount=state.turns.length){
   for(const [id,values,color,filled] of series){
    const points=order.map((code,i)=>{const value=Math.max(0,Math.min(1,Number(values?.[code])||0));return (cx+Math.cos(angles[i])*r*value)+","+(cy+Math.sin(angles[i])*r*value);}).join(" ");
    const polygon=make("polygon",{points,fill:filled?color:"none","fill-opacity":filled?".58":"0",stroke:color,"stroke-width":filled?2.8:3,"stroke-linejoin":"round","stroke-linecap":"round"});
-   polygon.id=id;polygon.dataset.radarSeries=id;polygon.style.display=visibility[id]?"":"none";svg.append(polygon);
+   polygon.id=svgId+"-"+id;polygon.dataset.radarSeries=id;polygon.style.display=visibility[id]?"":"none";svg.append(polygon);
   }
  };
  draw("radar-latest","latest");draw("radar-accumulation","average");
