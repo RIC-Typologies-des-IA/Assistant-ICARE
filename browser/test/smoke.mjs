@@ -69,6 +69,12 @@ try{
   assert.equal(await page.locator("#radar-labels text").count(),5,"les cinq dimensions ICARE doivent rester visibles à zéro");
   for(const id of ["#radar-user-latest","#radar-assistant-latest"])assert.equal(await page.locator(id).getAttribute("fill"),"none","le dernier message doit être représenté uniquement par un contour : "+id);
   for(const id of ["#radar-user-average","#radar-assistant-average"])assert.ok(Number(await page.locator(id).getAttribute("fill-opacity"))>=.4,"la moyenne cumulée doit être une surface pleine et contrastée : "+id);
+  assert.equal(await page.locator("#radar-user-average").getAttribute("fill"),"#258da5","la moyenne utilisateur doit conserver le turquoise pastel");
+  assert.equal(await page.locator("#radar-assistant-average").getAttribute("fill"),"#d66b4d","la moyenne ICARE doit conserver le corail pastel");
+  for(const id of ["#radar-user-average","#radar-assistant-average"])assert.ok(Number(await page.locator(id).getAttribute("fill-opacity"))>=.7,"les moyennes cumulées doivent dominer visuellement les derniers messages : "+id);
+  assert.equal(await page.locator("#radar-user-latest").getAttribute("stroke"),"#4caec0","le dernier message utilisateur doit rester en contour turquoise pastel");
+  assert.equal(await page.locator("#radar-assistant-latest").getAttribute("stroke"),"#e58a6b","la dernière réponse ICARE doit rester en contour corail pastel");
+  for(const [latest,average] of [["#radar-user-latest","#radar-user-average"],["#radar-assistant-latest","#radar-assistant-average"]])assert.ok(Number(await page.locator(latest).getAttribute("stroke-width"))<Number(await page.locator(average).getAttribute("stroke-width")),"le contour du dernier message doit être plus discret que la moyenne cumulée");
   for(const id of ["#radar-user-latest","#radar-user-average","#radar-assistant-latest","#radar-assistant-average"])assert.equal(await page.locator(id).count(),1,"le radar doit afficher les deux couches de chaque acteur : "+id);
   assert.deepEqual(await page.locator("#radar-labels text").allTextContents(),["Intention","Contexte","Action","Régulation","Évolution"],"le radar doit afficher les noms complets des cinq dimensions");
   assert.equal(await page.locator("#dimensions").count(),0,"la rangée de dimensions au-dessus du dialogue ne doit plus être affichée");
