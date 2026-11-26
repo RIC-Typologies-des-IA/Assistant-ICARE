@@ -320,6 +320,7 @@ try{
   await page.locator("#trace-panel").waitFor({state:"visible"});
   assert.equal(await page.locator("#trace-panel").evaluate(el=>el.tagName.toLowerCase()),"section","la séquence doit être intégrée à la page et non modale");
   assert.equal(await page.locator("#trace-panel").evaluate(el=>el.closest("aside")===null),true,"le panneau de séquence doit être sorti de la colonne latérale du radar");
+  assert.deepEqual(await page.locator("#trace-panel").evaluate(el=>{const style=getComputedStyle(el);return [style.gridColumnStart,style.gridColumnEnd]}),["1","-1"],"la trace doit occuper toutes les colonnes du layout, que le volet projets soit ouvert ou fermé");
   assert.equal(await page.locator("#trace-panel").evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(" ").length>=2),true,"diagramme et payloads doivent être présentés en deux colonnes sur grand écran");
   await page.locator("#trace-diagram .trace-zoom-canvas svg").waitFor({state:"visible"});
   await page.waitForFunction(()=>document.querySelectorAll("#trace-steps .trace-step").length>0);
