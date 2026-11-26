@@ -64,6 +64,12 @@ try{
 
 
   await page.waitForFunction(()=>document.querySelector("#project-select").options.length===1);
+  const initialInvitation=page.locator("#messages .message.assistant").first();
+  await initialInvitation.waitFor({state:"visible"});
+  assert.match(await initialInvitation.textContent(),/Bienvenue dans votre espace ICARE/,"le message d’accueil doit rester visible dans un projet neuf");
+  assert.equal(await initialInvitation.locator(".trace-button").count(),0,"le tour zéro d’invitation ne doit pas proposer de séquence");
+  assert.equal(await initialInvitation.locator(".icare-score-line").count(),0,"le tour zéro d’invitation ne doit recevoir aucun scoring");
+  assert.equal(await page.locator("#messages .message").count(),1,"un projet neuf doit commencer par la seule invitation, sans faux tour de conversation");
   assert.equal(await page.locator("#icare-reference-heading").textContent(),"Documentation ICARE");
   assert.equal(await page.locator("#icare-doc-open").count(),1,"le référentiel doit être accessible au-dessus du projet");
   await page.locator("#icare-doc-open").click();
