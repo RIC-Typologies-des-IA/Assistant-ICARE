@@ -10,7 +10,7 @@ function normalisePageText(items) {
 }
 
 export async function extractPdfText(buffer, { onProgress = () => {}, ocr = true, createOcrWorker = null } = {}) {
-  const loadingTask = pdfjsLib.getDocument({ data: buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer), useWorkerFetch: false, isEvalSupported: false });
+  const loadingTask = pdfjsLib.getDocument({ data: buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer), useWorkerFetch: false, isEvalSupported: false, cMapUrl: new URL("./vendor/cmaps/", import.meta.url).href, cMapPacked: true, standardFontDataUrl: new URL("./vendor/standard_fonts/", import.meta.url).href });
   let pdf;
   let worker;
   const pages = [];
