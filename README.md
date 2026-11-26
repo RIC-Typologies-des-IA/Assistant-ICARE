@@ -8,15 +8,35 @@ ICARE est une méthode de dialogue et de réflexion systémique. Elle aide à co
 
 L'assistant ICARE est un partenaire intellectuel exigeant et non directif, inspiré de la maïeutique. Il questionne, reformule et met les hypothèses à l'épreuve. L'utilisateur reste maître de l'intention, des arbitrages et des décisions.
 
-## Utiliser ICARE dans le navigateur
+## Utiliser ICARE maintenant
 
-La décision d'architecture détaillée est consignée dans [ADR 0002 — version autonome navigateur en priorité](docs/adr/0002-autonomous-browser-first.md).
+Deux méthodes sont actuellement directement utilisables. Elles reposent sur le même référentiel ICARE et répondent à des usages différents.
 
-**URL cible :** https://ric-typologies-des-ia.github.io/Assistant-ICARE/ (après fusion et activation de GitHub Pages).
+### 1. Application web — Progressive Web App
 
-La priorité de développement est le client Web autonome, local-first et sans serveur ICARE personnel. Il conserve projets et conversations dans le navigateur, permet de configurer directement un fournisseur d'inférence et propose l'import/export des données. La première tranche est en cours dans le dossier browser/. Les fonctions avancées (propositions structurées, relations, tableaux de bord ontologiques, CRDT et migration des anciens projets) seront réintégrées progressivement.
+**[Ouvrir l’assistant ICARE](https://ric-typologies-des-ia.github.io/Assistant-ICARE/)**
 
-Discord, le bot et toute infrastructure partagée sont hors du chemin critique de cette version autonome. Le runtime Pi/Node.js historique reste une base de transition pour préserver et porter les fonctions métier existantes.
+L’application est publiée sur GitHub Pages. Il suffit d’ouvrir cette URL dans un navigateur : aucune installation de serveur ICARE, aucun compte ICARE et aucune infrastructure partagée ne sont nécessaires. Elle peut aussi être installée comme Progressive Web App depuis le navigateur.
+
+Le navigateur héberge l’interface et conserve localement les projets, conversations et documents dans son stockage. L’utilisateur configure le fournisseur d’inférence qu’il souhaite utiliser ; les échanges sont adressés à ce fournisseur. Les données de projet ne sont pas envoyées à GitHub. L’application permet notamment de gérer plusieurs projets, de conserver leur historique, d’importer et d’exporter les données, de joindre des documents et d’utiliser les fonctions agentiques et les composants disponibles dans le client.
+
+La publication est mise à jour depuis le dépôt. À l’ouverture ou au retour sur l’application, le mécanisme PWA vérifie les nouvelles versions et actualise le client sans effacer les données locales. Comme pour tout stockage navigateur, il reste recommandé d’exporter régulièrement les projets importants.
+
+- [Documentation du client navigateur](browser/README.md)
+- [Décision d’architecture — application autonome navigateur](docs/adr/0002-autonomous-browser-first.md)
+
+### 2. Approche par prompt
+
+### 1. Approche par prompt — la forme initiale
+
+La méthode est portée par des instructions données à un modèle conversationnel. Elle est simple à déployer et ne nécessite pas d'application dédiée.
+
+Trois niveaux sont conservés :
+- **Standard** : agent configurable ou projet ChatGPT ;
+- **Local** : modèle exécuté sur une machine ou une infrastructure maîtrisée ;
+- **Web compacte** : prompt court à coller au début d'une conversation.
+
+Consulter le [README de l'approche par prompt](prompt/README.md) pour choisir et installer la bonne version.
 
 ## La boussole ICARE
 
@@ -30,20 +50,25 @@ Les cinq dimensions sont interdépendantes ; elles ne forment ni une checklist n
 
 Le référentiel commun est décrit dans [ICARE_referentiel.md](ICARE_referentiel.md).
 
-## Deux façons d'utiliser ICARE
 
-Le dépôt conserve deux approches complémentaires. Elles partagent la même méthode, mais ne répondent pas aux mêmes besoins.
 
-### 1. Approche par prompt — la forme initiale
+## Modèle formel exécutable
 
-La méthode est portée par des instructions données à un modèle conversationnel. Elle est simple à déployer et ne nécessite pas d'application dédiée.
+ICARE commence à formaliser un modèle de système indépendant du LLM : assertions typées, états, invariants, transitions et objectifs, avec une sémantique de possible et de souhaitable. La spécification initiale et un exemple de système fini sont dans [formal-model/](formal-model/README.md). Le noyau évoluera par versions et tests de référence afin que ses réponses soient déterministes et explicables.
 
-Trois niveaux sont conservés :
-- **Standard** : agent configurable ou projet ChatGPT ;
-- **Local** : modèle exécuté sur une machine ou une infrastructure maîtrisée ;
-- **Web compacte** : prompt court à coller au début d'une conversation.
+## Références
 
-Consulter le [README de l'approche par prompt](prompt/README.md) pour choisir et installer la bonne version.
+Consulter la [bibliographie technique et conceptuelle](REFERENCES.md), qui distingue les logiciels réellement employés des inspirations théoriques de l'ontologie complémentaire.
+
+## Faire évoluer ICARE
+
+Les deux approches doivent rester cohérentes avec le référentiel commun. Une évolution méthodologique se discute d'abord au niveau du référentiel, puis se répercute sur les prompts et sur le comportement de l'agent. Les propositions d'adaptation peuvent être discutées dans les [issues du dépôt](https://github.com/RIC-Typologies-des-IA/Assistant-ICARE/issues).
+
+**ICARE aide à voir plus largement, relier plus finement, questionner plus rigoureusement et apprendre de ce qui advient, sans retirer à l'utilisateur la maîtrise de son intention ni de ses décisions.**
+
+## Référence historique — ancienne application Nix / Pi
+
+La méthode ICARE a également été expérimentée dans une application agentique historique reposant sur Pi, Lemonade, SQLite, QEMU, NixOS et nono. Cette installation n’est plus l’une des deux méthodes actuellement mises en avant pour commencer à utiliser ICARE. Elle est conservée ci-dessous comme référence technique et pour préserver l’historique du projet.
 
 ### 2. Prototype historique — application Pi, Lemonade, QEMU et nono
 
@@ -81,17 +106,3 @@ Aucun identifiant de modèle n'est imposé dans le dépôt. Pi interroge le cata
 - Cette version est expérimentale ; la CI vérifie les tests Node.js et la construction de la VM, pas l'intégration réelle avec le NPU de chaque machine.
 
 Les détails techniques, la réplication CRDT et l’intégration Discord sont décrits dans [pi-runtime/README.md](pi-runtime/README.md), [docs/crdt-operation-journal.md](docs/crdt-operation-journal.md), [docs/discord-integration.md](docs/discord-integration.md), [docs/project-access-control.md](docs/project-access-control.md) et [nixos/icare-vm.nix](nixos/icare-vm.nix). Les [références et documentations externes](REFERENCES.md) recensent les sources primaires des composants et des cadres conceptuels cités.
-
-## Modèle formel exécutable
-
-ICARE commence à formaliser un modèle de système indépendant du LLM : assertions typées, états, invariants, transitions et objectifs, avec une sémantique de possible et de souhaitable. La spécification initiale et un exemple de système fini sont dans [formal-model/](formal-model/README.md). Le noyau évoluera par versions et tests de référence afin que ses réponses soient déterministes et explicables.
-
-## Références
-
-Consulter la [bibliographie technique et conceptuelle](REFERENCES.md), qui distingue les logiciels réellement employés des inspirations théoriques de l'ontologie complémentaire.
-
-## Faire évoluer ICARE
-
-Les deux approches doivent rester cohérentes avec le référentiel commun. Une évolution méthodologique se discute d'abord au niveau du référentiel, puis se répercute sur les prompts et sur le comportement de l'agent. Les propositions d'adaptation peuvent être discutées dans les [issues du dépôt](https://github.com/RIC-Typologies-des-IA/Assistant-ICARE/issues).
-
-**ICARE aide à voir plus largement, relier plus finement, questionner plus rigoureusement et apprendre de ce qui advient, sans retirer à l'utilisateur la maîtrise de son intention ni de ses décisions.**
