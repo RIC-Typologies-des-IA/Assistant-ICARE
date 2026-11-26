@@ -189,7 +189,20 @@ try{
   await page.locator("#composer").evaluate(form=>form.requestSubmit());
   await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Réponse locale de test."));
   await page.waitForFunction(()=>document.querySelector("#radar-observation-count")?.textContent==="1 échange(s) pris en compte");
-  assert.equal(await page.locator("#radar-observation-count").textContent(),"1 échange(s) pris en compte","un échange doit alimenter les moyennes cumulées");
+  assert.equal(await page.locator("#radar-accumulation-count").textContent(),"1 échange(s) pris en compte","un échange doit alimenter les moyennes cumulées");
+  assert.equal(await page.locator("#radar-latest").count(),1,"le radar du dernier échange doit être distinct");
+  assert.equal(await page.locator("#radar-accumulation").count(),1,"le radar d’accumulation doit être distinct");
+  const historySlider=page.locator("#project-history-slider");
+  assert.equal(await historySlider.count(),1,"le curseur de rejeu de l’historique du projet doit être présent sous le radar");
+  assert.equal(await historySlider.isDisabled(),false,"le curseur doit être activé dès qu’au moins deux snapshots existent");
+  assert.equal(await historySlider.getAttribute("max"),"1","un échange doit créer un deuxième point de navigation temporelle");
+  await historySlider.evaluate(el=>{el.value="0";el.dispatchEvent(new Event("input",{bubbles:true}));});
+  assert.equal(await page.locator(".message.user").count(),0,"revenir au snapshot initial doit masquer les échanges futurs sans les supprimer");
+  assert.equal(await page.locator("#radar-observation-count").textContent(),"0 échange(s) pris en compte","le radar doit recalculer les scores au point historique sélectionné");
+  assert.match(await page.locator("#project-history-summary").textContent(),/consultation historique/,"le curseur doit signaler la consultation d’un état passé");
+  await historySlider.evaluate(el=>{el.value="1";el.dispatchEvent(new Event("input",{bubbles:true}));});
+  assert.equal(await page.locator(".message.user").count(),1,"revenir au dernier snapshot doit restaurer la conversation complète");
+  assert.equal(await page.locator("#radar-observation-count").textContent(),"1 échange(s) pris en compte","le radar doit retrouver le scoring courant après le rejeu");
   const scoringTrace=await page.locator(".message.assistant .trace-button").last().count();assert.equal(scoringTrace,1,"la réponse doit conserver sa séquence de communication");
   for (const [level,title] of [[1,"Niveau 1"],[2,"Niveau 2"],[3,"Votre avis"],[4,"Auto-évaluation"],[5,"Niveau 5"],[6,"Niveau 6"]]) {
     assert.equal(await page.locator(".message.assistant h"+level).first().textContent(),title,"le titre Markdown de niveau "+level+" doit être rendu sans dièses visibles");
