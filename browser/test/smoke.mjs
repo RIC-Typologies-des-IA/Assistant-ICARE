@@ -8,19 +8,19 @@ import { chromium } from "playwright";
 const root=resolve(fileURLToPath(new URL("..",import.meta.url)));
 const mime={".mjs":"text/javascript; charset=utf-8",".html":"text/html; charset=utf-8",".js":"text/javascript; charset=utf-8",".css":"text/css; charset=utf-8",".json":"application/json; charset=utf-8",".webmanifest":"application/manifest+json",".svg":"image/svg+xml",".md":"text/markdown; charset=utf-8"};
 function createTextPdf(text){
- const stream="BT /F1 18 Tf 72 720 Td ("+text+") Tj ET\\n";
+ const stream="BT /F1 18 Tf 72 720 Td ("+text+") Tj ET\n";
  const objects=[
   "<< /Type /Catalog /Pages 2 0 R >>",
   "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
   "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
   "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-  "<< /Length "+Buffer.byteLength(stream)+" >>\\nstream\\n"+stream+"endstream"
+  "<< /Length "+Buffer.byteLength(stream)+" >>\nstream\n"+stream+"endstream"
  ];
- let pdf="%PDF-1.4\\n",offsets=[0];
- for(let i=0;i<objects.length;i++){offsets.push(Buffer.byteLength(pdf));pdf+=(i+1)+" 0 obj\\n"+objects[i]+"\\nendobj\\n";}
- const xref=Buffer.byteLength(pdf);pdf+="xref\\n0 "+(objects.length+1)+"\\n0000000000 65535 f \\n";
- for(const offset of offsets.slice(1))pdf+=String(offset).padStart(10,"0")+" 00000 n \\n";
- pdf+="trailer\\n<< /Size "+(objects.length+1)+" /Root 1 0 R >>\\nstartxref\\n"+xref+"\\n%%EOF";
+ let pdf="%PDF-1.4\n",offsets=[0];
+ for(let i=0;i<objects.length;i++){offsets.push(Buffer.byteLength(pdf));pdf+=(i+1)+" 0 obj\n"+objects[i]+"\nendobj\n";}
+ const xref=Buffer.byteLength(pdf);pdf+="xref\n0 "+(objects.length+1)+"\n0000000000 65535 f \n";
+ for(const offset of offsets.slice(1))pdf+=String(offset).padStart(10,"0")+" 00000 n \n";
+ pdf+="trailer\n<< /Size "+(objects.length+1)+" /Root 1 0 R >>\nstartxref\n"+xref+"\n%%EOF";
  return Buffer.from(pdf,"ascii");
 }
 \nconst server=createServer(async(req,res)=>{try{let pathname=decodeURIComponent(new URL(req.url,"http://localhost").pathname);if(pathname==="/")pathname="/index.html";const file=resolve(root,"."+pathname);if(file!==root&&!file.startsWith(root+sep)){res.writeHead(403).end();return;}const body=await readFile(file);res.writeHead(200,{"Content-Type":mime[extname(file)]||"application/octet-stream"}).end(body);}catch{res.writeHead(404).end("Not found");}});
