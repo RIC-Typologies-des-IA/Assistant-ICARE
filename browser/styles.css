@@ -1209,3 +1209,14 @@ html[data-theme="dark"] .trace-zoom-canvas svg .activation1{
 .trace-panel{display:flex;flex-direction:column;gap:10px;padding:12px;min-width:0}.trace-panel[hidden]{display:none!important}.trace-panel .dialog-heading{padding:0 0 8px;border-bottom:1px solid #e7ebf1}.trace-panel .dialog-heading h2{font-size:14px;margin:0}.trace-panel .dialog-heading .eyebrow{margin:0 0 3px}.trace-panel-intro{font-size:11px;line-height:1.5;margin:0}.trace-panel .trace-diagram-panel,.trace-panel .trace-steps-panel{min-width:0;border:1px solid #e1e6ed;border-radius:9px;padding:8px;background:#f8fafc}.trace-panel .trace-diagram-panel h3,.trace-panel .trace-steps-panel h3{font-size:12px;margin:0 0 8px;color:#35445a}.trace-panel .trace-zoom-viewport{height:380px;max-height:48vh}.trace-panel .trace-zoom-canvas{transform-origin:0 0}.trace-panel .trace-sequence-caption{font-size:10px}.trace-panel .trace-step{margin:6px 0}.trace-panel-fullscreen{position:fixed!important;inset:12px;z-index:1000;overflow:auto;background:var(--panel,#fff);padding:18px;box-shadow:0 20px 80px #0d1b2d66}.trace-panel-fullscreen .trace-zoom-viewport{height:65vh;max-height:none}
 html[data-theme="dark"] .scoring-radar-panel #radar{color:#e1eaf5}html[data-theme="dark"] .radar-legend,html[data-theme="dark"] .radar-observation-count{color:#b7c6d8}html[data-theme="dark"] .trace-panel .dialog-heading{border-color:#40536b}html[data-theme="dark"] .trace-panel .dialog-heading h2,html[data-theme="dark"] .trace-panel .trace-diagram-panel h3,html[data-theme="dark"] .trace-panel .trace-steps-panel h3{color:#e6eef8}html[data-theme="dark"] .trace-panel .trace-diagram-panel,html[data-theme="dark"] .trace-panel .trace-steps-panel{background:#172538;border-color:#40536b}html[data-theme="dark"] .trace-panel-fullscreen{background:#101827}
 @media(max-width:600px){.radar-legend{grid-template-columns:1fr 1fr;font-size:9px}.trace-panel{padding:9px}.trace-panel .trace-zoom-viewport{height:320px}}
+
+/* Radar ICARE : contraste renforcé pour les quatre lectures superposées. */
+.scoring-radar-panel #radar{color:#24364d}
+.scoring-radar-panel .radar-legend{color:#26384f;font-weight:650}
+.scoring-radar-panel .legend-swatch.user-light{background:#fff;border:3px solid #005b78}
+.scoring-radar-panel .legend-swatch.assistant-light{background:#fff;border:3px solid #9d321b}
+.scoring-radar-panel .legend-swatch.user-dark{background:#168ba3;border:1px solid #086b82}
+.scoring-radar-panel .legend-swatch.assistant-dark{background:#d96c4c;border:1px solid #a93e24}
+.scoring-radar-panel .radar-observation-count{color:#40516a;font-weight:650}
+html[data-theme="dark"] .scoring-radar-panel #radar{color:#f0f5fc}
+html[data-theme="dark"] .scoring-radar-panel .radar-legend,html[data-theme="dark"] .scoring-radar-panel .radar-observation-count{color:#e2ebf7}
