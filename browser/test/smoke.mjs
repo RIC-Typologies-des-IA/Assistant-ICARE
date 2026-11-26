@@ -47,6 +47,39 @@ try{
 
 
   await page.waitForFunction(()=>document.querySelector("#project-select").options.length===1);
+  assert.equal(await page.locator("#icare-reference-heading").textContent(),"Documentation ICARE");
+  assert.equal(await page.locator("#icare-doc-open").count(),1,"le référentiel doit être accessible au-dessus du projet");
+  await page.locator("#icare-doc-open").click();
+  await page.waitForFunction(()=>document.querySelector("#icare-doc-content h1"));
+  assert.match(await page.locator("#icare-doc-content h1").textContent(),/Référentiel d'un accompagnement systémique/);
+  assert.equal(await page.locator("#icare-doc-dialog").evaluate(dialog=>dialog.open),true);
+  await page.locator("#close-icare-doc").click();
+  await page.waitForFunction(()=>document.querySelector("#project-document-list")?.dataset.ready==="true");
+  const fullDocument="Document complet ICARE de test.\n"+("Contenu intégral conservé. ".repeat(260));
+  await page.locator("#project-document-files").setInputFiles({name:"cahier-projet.md",mimeType:"text/markdown",buffer:Buffer.from(fullDocument)});
+  const uploadReady=await page.evaluate(()=>({disabled:document.querySelector("#project-document-add").disabled,files:document.querySelector("#project-document-files").files.length,ready:document.querySelector("#project-document-list").dataset.ready,status:document.querySelector("#project-document-status").textContent}));
+  assert.equal(uploadReady.disabled,false,"le bouton de pièce jointe doit être actif après sélection : "+JSON.stringify(uploadReady));
+  await page.locator("#project-document-add").click();
+  await page.waitForFunction(()=>!document.querySelector("#project-document-status").textContent.includes("fichier(s) sélectionné(s)"));
+  assert.match(await page.locator("#project-document-status").textContent(),/document\(s\) ajouté\(s\)/,"échec de l’ajout : "+await page.locator("#project-document-status").textContent());
+  assert.equal(await page.locator("#project-document-list .project-document-item").count(),1,"échec de l’ajout : "+await page.locator("#project-document-status").textContent);
+  assert.match(await page.locator("#project-document-list").textContent(),/cahier-projet.md/);
+  assert.match(await page.locator("#project-document-list").textContent(),/texte intégral indexable/);
+  await page.locator("#project-document-list button").filter({hasText:"Lire"}).click();
+  assert.equal(await page.locator("#project-document-content").textContent(),fullDocument,"la consultation doit restituer l’intégralité du document, sans troncature");
+  await page.locator("#close-project-document").click();
+  const pdfBytes=Buffer.from("%PDF-1.4\\n% ICARE binary preservation fixture\\n%%EOF");
+  await page.locator("#project-document-files").setInputFiles({name:"annexe.pdf",mimeType:"application/pdf",buffer:pdfBytes});
+  await page.locator("#project-document-add").click();
+  await page.waitForFunction(()=>document.querySelectorAll("#project-document-list .project-document-item").length===2);
+  const pdfRow=page.locator("#project-document-list .project-document-item").filter({hasText:"annexe.pdf"});
+  const [pdfDownload]=await Promise.all([page.waitForEvent("download"),pdfRow.locator("button").filter({hasText:"Télécharger"}).click()]);
+  assert.deepEqual(await readFile(await pdfDownload.path()),pdfBytes,"le PDF téléchargé doit être identique octet pour octet au fichier joint");
+  await page.reload();
+  await page.waitForFunction(()=>document.querySelector("#project-document-list")?.dataset.ready==="true");
+  await page.waitForFunction(()=>document.querySelectorAll("#project-document-list .project-document-item").length===2);
+  assert.match(await page.locator("#project-document-list").textContent(),/cahier-projet.md/);
+
   await page.waitForFunction(()=>getComputedStyle(document.querySelector(".workspace")).display==="grid");
   assert.ok((await page.locator(".project-heading").evaluate(el=>getComputedStyle(el).gridArea)).includes("heading"),"l’en-tête projet doit occuper sa propre zone de grille");
   assert.ok((await page.locator(".chat-panel").evaluate(el=>getComputedStyle(el).gridArea)).includes("chat"),"le dialogue doit occuper la zone principale");
