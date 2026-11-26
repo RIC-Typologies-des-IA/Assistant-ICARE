@@ -54,6 +54,7 @@ try{
   assert.match(await page.locator("#icare-doc-content h1").textContent(),/Référentiel d'un accompagnement systémique/);
   assert.equal(await page.locator("#icare-doc-dialog").evaluate(dialog=>dialog.open),true);
   await page.locator("#close-icare-doc").click();
+  await page.waitForFunction(()=>document.querySelector("#project-document-status")?.textContent.includes("Aucun document joint"));
   const fullDocument="Document complet ICARE de test.\n"+("Contenu intégral conservé. ".repeat(260));
   await page.locator("#project-document-files").setInputFiles({name:"cahier-projet.md",mimeType:"text/markdown",buffer:Buffer.from(fullDocument)});
   await page.locator("#project-document-add").click();
