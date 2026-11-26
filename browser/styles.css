@@ -1220,3 +1220,13 @@ html[data-theme="dark"] .scoring-radar-panel #radar{color:#e1eaf5}html[data-them
 .scoring-radar-panel .radar-observation-count{color:#40516a;font-weight:650}
 html[data-theme="dark"] .scoring-radar-panel #radar{color:#f0f5fc}
 html[data-theme="dark"] .scoring-radar-panel .radar-legend,html[data-theme="dark"] .scoring-radar-panel .radar-observation-count{color:#e2ebf7}
+
+
+/* Recentrage et navigation pas à pas dans les traces ICARE. */
+.trace-zoom-viewport.trace-focus-pulse{outline:3px solid #d97706;outline-offset:-3px;animation:trace-focus-confirm .85s ease-out}
+@keyframes trace-focus-confirm{0%{outline-color:#f59e0b;box-shadow:inset 0 0 0 5px rgba(245,158,11,.2)}100%{outline-color:transparent;box-shadow:inset 0 0 0 0 transparent}}
+@media(prefers-reduced-motion:reduce){.trace-zoom-viewport.trace-focus-pulse{animation:none}}
+.trace-playback-controls{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;padding:.65rem .8rem;margin:.5rem 0 .8rem;border:1px solid var(--border);border-radius:10px;background:var(--surface)}
+.trace-playback-controls input[type=range]{flex:1 1 150px;min-width:100px;accent-color:var(--accent)}
+.trace-playback-position{min-width:4.5rem;text-align:right;font-variant-numeric:tabular-nums;color:var(--muted);font-size:.85rem}
+.trace-playback-controls button:disabled{opacity:.45;cursor:not-allowed}
