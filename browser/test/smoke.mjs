@@ -57,8 +57,11 @@ try{
   await page.waitForFunction(()=>document.querySelector("#project-document-list")?.dataset.ready==="true");
   const fullDocument="Document complet ICARE de test.\n"+("Contenu intégral conservé. ".repeat(260));
   await page.locator("#project-document-files").setInputFiles({name:"cahier-projet.md",mimeType:"text/markdown",buffer:Buffer.from(fullDocument)});
+  const uploadReady=await page.evaluate(()=>({disabled:document.querySelector("#project-document-add").disabled,files:document.querySelector("#project-document-files").files.length,ready:document.querySelector("#project-document-list").dataset.ready,status:document.querySelector("#project-document-status").textContent}));
+  assert.equal(uploadReady.disabled,false,"le bouton de pièce jointe doit être actif après sélection : "+JSON.stringify(uploadReady));
   await page.locator("#project-document-add").click();
-  await page.waitForFunction(()=>document.querySelectorAll("#project-document-list .project-document-item").length===1);
+  await page.waitForFunction(()=>document.querySelector("#project-document-status").textContent.includes("document(s) ajouté(s)")||document.querySelector("#project-document-status").textContent==="Aucun projet actif.");
+  assert.equal(await page.locator("#project-document-list .project-document-item").count(),1,"échec de l’ajout : "+await page.locator("#project-document-status").textContent);
   assert.match(await page.locator("#project-document-list").textContent(),/cahier-projet.md/);
   assert.match(await page.locator("#project-document-list").textContent(),/texte intégral indexable/);
   await page.locator("#project-document-list button").filter({hasText:"Lire"}).click();
