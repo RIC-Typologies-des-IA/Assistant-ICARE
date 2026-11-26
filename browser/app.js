@@ -438,7 +438,7 @@ $("close-icare-doc").addEventListener("click",()=>$("icare-doc-dialog").close())
 $("close-project-document").addEventListener("click",()=>$("project-document-dialog").close());
 $("project-document-files").addEventListener("change",event=>{$("project-document-add").disabled=!event.target.files?.length||!state.workspace;$("project-document-status").textContent=event.target.files?.length?event.target.files.length+" fichier(s) sélectionné(s).":"Sélectionnez un ou plusieurs documents.";});
 $("project-document-add").addEventListener("click",async()=>{const input=$("project-document-files"),button=$("project-document-add");button.disabled=true;button.textContent="Ajout…";try{await addProjectDocuments(input.files);input.value="";}catch(error){$("project-document-status").textContent=error.message;}finally{button.textContent="Joindre au projet";button.disabled=!input.files?.length;}});
-await loadIcareDocumentation();gatewayRoutingConfig=await initGatewayConfiguration({db,get,set:put,loadScoringKey:async()=>(await loadCredentialVault(db)).scoring,saveLegacy:async({config,scoringApiKey})=>{
+await loadOntology();await loadIcareDocumentation();gatewayRoutingConfig=await initGatewayConfiguration({db,get,set:put,loadScoringKey:async()=>(await loadCredentialVault(db)).scoring,saveLegacy:async({config,scoringApiKey})=>{
  const modelCache=new Map();
  async function gatewayConfig(url){
   if(!modelCache.has(url)){const base=url.replace(/\/+$/,""),endpoint=(base.endsWith("/v1")?base:base+"/v1")+"/icare/config";const response=await fetch(endpoint,{credentials:"include",cache:"no-store"});if(!response.ok)throw Error("Impossible de lire la configuration de la Gateway ("+response.status+").");modelCache.set(url,await response.json());}
