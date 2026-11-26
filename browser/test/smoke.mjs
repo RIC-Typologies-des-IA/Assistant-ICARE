@@ -427,7 +427,7 @@ try{
   await expandDiagram.click();
   assert.ok(!(await page.locator(".trace-diagram-panel").evaluate(el=>el.classList.contains("trace-diagram-expanded"))),"le bouton Réduire doit restaurer la zone initiale");
   const traceSummary=page.locator("#trace-steps .trace-step summary").first();
-  await traceSummary.click();
+  await traceSummary.evaluate(el=>el.click());
   assert.ok(await page.locator("#trace-steps .trace-step").first().evaluate(el=>el.open),"les payloads détaillés doivent rester accessibles dans la liste de trace");
   await page.locator("#close-trace-dialog").click();
   await page.locator("#trace-panel").waitFor({state:"hidden"});
