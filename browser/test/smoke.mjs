@@ -319,8 +319,8 @@ try{
   await page.locator(".message.assistant .trace-button").last().click();
   await page.locator("#trace-panel").waitFor({state:"visible"});
   assert.equal(await page.locator("#trace-panel").evaluate(el=>el.tagName.toLowerCase()),"section","la séquence doit être intégrée à la page et non modale");
-  assert.equal(await page.locator("#trace-panel").evaluate(el=>el.closest("aside")===null),"true","le panneau de séquence doit être sorti de la colonne latérale du radar");
-  assert.equal(await page.locator("#trace-panel").evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(" ").length>=2),"true","diagramme et payloads doivent être présentés en deux colonnes sur grand écran");
+  assert.equal(await page.locator("#trace-panel").evaluate(el=>el.closest("aside")===null),true,"le panneau de séquence doit être sorti de la colonne latérale du radar");
+  assert.equal(await page.locator("#trace-panel").evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(" ").length>=2),true,"diagramme et payloads doivent être présentés en deux colonnes sur grand écran");
   await page.locator("#trace-diagram .trace-zoom-canvas svg").waitFor({state:"visible"});
   await page.waitForFunction(()=>document.querySelectorAll("#trace-steps .trace-step").length>0);
   const scoringTraceDetails=await page.locator("#trace-steps .trace-step").filter({hasText:"Scoring ICARE"}).count();
