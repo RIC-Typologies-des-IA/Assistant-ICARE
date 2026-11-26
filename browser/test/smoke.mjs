@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 
 const root=resolve(fileURLToPath(new URL("..",import.meta.url)));
-const mime={".mjs":"text/javascript; charset=utf-8",".html":"text/html; charset=utf-8",".js":"text/javascript; charset=utf-8",".css":"text/css; charset=utf-8",".json":"application/json; charset=utf-8",".webmanifest":"application/manifest+json",".svg":"image/svg+xml",".md":"text/markdown; charset=utf-8"};
+const mime={".mjs":"text/javascript; charset=utf-8",".wasm":"application/wasm",".html":"text/html; charset=utf-8",".js":"text/javascript; charset=utf-8",".css":"text/css; charset=utf-8",".json":"application/json; charset=utf-8",".webmanifest":"application/manifest+json",".svg":"image/svg+xml",".md":"text/markdown; charset=utf-8"};
 function createTextPdf(text){
  const stream="BT /F1 18 Tf 72 720 Td ("+text+") Tj ET\n";
  const objects=[
