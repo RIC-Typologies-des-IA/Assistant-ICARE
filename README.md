@@ -70,7 +70,7 @@ Les deux approches doivent rester cohérentes avec le référentiel commun. Une 
 
 La méthode ICARE a également été expérimentée dans une application agentique historique reposant sur Pi, Lemonade, SQLite, QEMU, NixOS et nono. Cette installation n’est plus l’une des deux méthodes actuellement mises en avant pour commencer à utiliser ICARE. Elle est conservée ci-dessous comme référence technique et pour préserver l’historique du projet.
 
-### 2. Prototype historique — application Pi, Lemonade, QEMU et nono
+### Ancienne application agentique — Pi, Lemonade, QEMU et nono
 
 Cette approche historique ajoute un runtime applicatif à la méthode ; elle est conservée comme environnement de transition pendant la réalisation du client navigateur : [**Pi**](https://github.com/earendil-works/pi), via son [SDK Node.js](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/sdk.md), dialogue avec les modèles servis par [**Lemonade Server**](https://github.com/lemonade-sdk/lemonade), tandis qu'un backend conserve l'état d'exploration, les propositions et les documents dans [SQLite](https://www.sqlite.org/docs.html).
 
