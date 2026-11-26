@@ -84,7 +84,7 @@ try{
   const radarControls=page.locator(".radar-legend button[data-radar-series]");
   assert.equal(await radarControls.count(),4);
   for(const control of await radarControls.all())assert.equal(await control.getAttribute("aria-pressed"),"true");
-  const userAverageControl=page.locator("[data-radar-series=radar-user-average]");
+  const userAverageControl=page.locator(".radar-legend button[data-radar-series=radar-user-average]");
   await userAverageControl.click();
   assert.equal(await userAverageControl.getAttribute("aria-pressed"),"false");
   const radarDomIntegrity=await page.evaluate(()=>{const ids=[...document.querySelectorAll("[id]")].map(el=>el.id);return {duplicates:[...new Set(ids.filter((id,index)=>ids.indexOf(id)!==index))],latestSeries:document.querySelectorAll("#radar-latest [data-radar-series]").length,averageSeries:document.querySelectorAll("#radar-accumulation [data-radar-series]").length};});
