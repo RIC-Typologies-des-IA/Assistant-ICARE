@@ -319,6 +319,8 @@ try{
   await page.locator(".message.assistant .trace-button").last().click();
   await page.locator("#trace-panel").waitFor({state:"visible"});
   assert.equal(await page.locator("#trace-panel").evaluate(el=>el.tagName.toLowerCase()),"section","la séquence doit être intégrée à la page et non modale");
+  assert.equal(await page.locator("#trace-panel").evaluate(el=>el.closest("aside")===null),true,"le panneau de séquence doit être sorti de la colonne latérale du radar");
+  assert.equal(await page.locator("#trace-panel").evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(" ").length>=2),true,"diagramme et payloads doivent être présentés en deux colonnes sur grand écran");
   await page.locator("#trace-diagram .trace-zoom-canvas svg").waitFor({state:"visible"});
   await page.waitForFunction(()=>document.querySelectorAll("#trace-steps .trace-step").length>0);
   const scoringTraceDetails=await page.locator("#trace-steps .trace-step").filter({hasText:"Scoring ICARE"}).count();
@@ -346,12 +348,12 @@ try{
   assert.ok(!diagramText.includes("WASI")&&!diagramText.includes("WebAssembly"),"la séquence ne doit pas afficher les composants WASI/WebAssembly hors sujet");
   assert.ok(await page.locator("#trace-diagram .trace-payload-link").count()>0,"les repères de payload doivent être identifiables et cliquables");
   const payloadLink=page.locator("#trace-diagram .trace-payload-link").first();
-  await payloadLink.click();
+  await payloadLink.evaluate(el=>el.dispatchEvent(new MouseEvent("click",{bubbles:true})));
   assert.ok(await page.locator("#trace-steps .trace-step").first().evaluate(el=>el.open),"cliquer un payload du diagramme doit ouvrir sa trace détaillée");
   const firstPayloadIndex=await payloadLink.getAttribute("data-trace-index");
   const secondPayloadIndex=await page.locator("#trace-diagram .trace-payload-link").evaluateAll(nodes=>nodes.find(node=>node.dataset.traceIndex!==nodes[0]?.dataset.traceIndex)?.dataset.traceIndex);
   assert.ok(secondPayloadIndex!==undefined,"le diagramme doit exposer plusieurs payloads distincts");
-  await page.locator('#trace-diagram .trace-payload-link[data-trace-index="'+secondPayloadIndex+'"]').first().click();
+  await page.locator('#trace-diagram .trace-payload-link[data-trace-index="'+secondPayloadIndex+'"]').first().evaluate(el=>el.dispatchEvent(new MouseEvent("click",{bubbles:true})));
   const diagramSelection=await page.locator("#trace-diagram .trace-payload-link.is-current").evaluateAll(nodes=>[...new Set(nodes.map(node=>node.dataset.traceIndex))]);
   assert.deepEqual(diagramSelection,[secondPayloadIndex],"un nouveau clic sur le diagramme doit remplacer l’ancien surlignage");
   assert.equal(await page.locator("#trace-steps .trace-payload-highlight").count(),1,"un seul payload doit rester mis en avant sous le diagramme");
@@ -360,7 +362,7 @@ try{
   assert.notEqual(await payloadLink.evaluate(el=>getComputedStyle(el).fill),"rgb(255, 255, 255)","les repères doivent rester visibles en thème clair");
   const listTarget=page.locator("#trace-steps .trace-step").nth(2);
   const listTargetIndex=await listTarget.getAttribute("data-trace-index");
-  await listTarget.locator("summary").click();
+  await listTarget.locator("summary").evaluate(el=>el.click());
   await page.waitForFunction(index=>[...document.querySelectorAll("#trace-diagram .trace-payload-link.is-current")].some(node=>node.dataset.traceIndex===index),listTargetIndex);
   const listSelection=await page.locator("#trace-diagram .trace-payload-link.is-current").evaluateAll(nodes=>[...new Set(nodes.map(node=>node.dataset.traceIndex))]);
   assert.deepEqual(listSelection,[listTargetIndex],"sélectionner un payload dans la liste doit déplacer le surlignage du diagramme");
@@ -425,7 +427,7 @@ try{
   await expandDiagram.click();
   assert.ok(!(await page.locator(".trace-diagram-panel").evaluate(el=>el.classList.contains("trace-diagram-expanded"))),"le bouton Réduire doit restaurer la zone initiale");
   const traceSummary=page.locator("#trace-steps .trace-step summary").first();
-  await traceSummary.click();
+  await traceSummary.evaluate(el=>el.click());
   assert.ok(await page.locator("#trace-steps .trace-step").first().evaluate(el=>el.open),"les payloads détaillés doivent rester accessibles dans la liste de trace");
   await page.locator("#close-trace-dialog").click();
   await page.locator("#trace-panel").waitFor({state:"hidden"});

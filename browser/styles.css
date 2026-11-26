@@ -1309,3 +1309,34 @@ html[data-theme="dark"] .icare-document-content table,html[data-theme="dark"] .i
 html[data-theme="dark"] .icare-document-content td {border-color:#40536b!important}
 html[data-theme="dark"] .icare-document-content th {background:#2c4059!important;color:#f0f5fc!important}
 html[data-theme="dark"] .icare-document-content tbody tr:nth-child(even) {background:#223247!important}
+
+
+/* Full-width synchronized sequence inspector, below the conversation/radar row. */
+#trace-panel.trace-panel{
+  display:grid;
+  grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);
+  grid-template-areas:"heading heading" "intro intro" "diagram steps";
+  align-items:start;
+  gap:12px;
+  width:100%;
+  min-width:0;
+  margin:16px 0 0;
+  padding:14px;
+  border:1px solid var(--border,#dce3ec);
+  border-radius:12px;
+  background:var(--panel,#fff);
+}
+#trace-panel.trace-panel[hidden]{display:none!important}
+#trace-panel>.dialog-heading{grid-area:heading}
+#trace-panel>.trace-panel-intro{grid-area:intro}
+#trace-panel>.trace-diagram-panel{grid-area:diagram;min-width:0}
+#trace-panel>.trace-steps-panel{grid-area:steps;min-width:0;max-height: min(68vh,760px);overflow:auto;overscroll-behavior:contain}
+#trace-panel .trace-zoom-viewport{height: min(58vh,620px);max-height:none}
+#trace-panel .trace-zoom-canvas{transform-origin:0 0}
+#trace-panel .trace-step{scroll-margin:16px}
+html[data-theme="dark"] #trace-panel.trace-panel{background:var(--panel,#101827);border-color:#40536b}
+@media(max-width:760px){
+  #trace-panel.trace-panel{grid-template-columns:minmax(0,1fr);grid-template-areas:"heading" "intro" "diagram" "steps";padding:10px}
+  #trace-panel>.trace-steps-panel{max-height:55vh}
+  #trace-panel .trace-zoom-viewport{height:360px;max-height:52vh}
+}
