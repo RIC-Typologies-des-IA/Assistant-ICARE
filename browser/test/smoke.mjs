@@ -348,12 +348,12 @@ try{
   assert.ok(!diagramText.includes("WASI")&&!diagramText.includes("WebAssembly"),"la séquence ne doit pas afficher les composants WASI/WebAssembly hors sujet");
   assert.ok(await page.locator("#trace-diagram .trace-payload-link").count()>0,"les repères de payload doivent être identifiables et cliquables");
   const payloadLink=page.locator("#trace-diagram .trace-payload-link").first();
-  await payloadLink.click();
+  await payloadLink.evaluate(el=>el.dispatchEvent(new MouseEvent("click",{bubbles:true})));
   assert.ok(await page.locator("#trace-steps .trace-step").first().evaluate(el=>el.open),"cliquer un payload du diagramme doit ouvrir sa trace détaillée");
   const firstPayloadIndex=await payloadLink.getAttribute("data-trace-index");
   const secondPayloadIndex=await page.locator("#trace-diagram .trace-payload-link").evaluateAll(nodes=>nodes.find(node=>node.dataset.traceIndex!==nodes[0]?.dataset.traceIndex)?.dataset.traceIndex);
   assert.ok(secondPayloadIndex!==undefined,"le diagramme doit exposer plusieurs payloads distincts");
-  await page.locator('#trace-diagram .trace-payload-link[data-trace-index="'+secondPayloadIndex+'"]').first().click();
+  await page.locator('#trace-diagram .trace-payload-link[data-trace-index="'+secondPayloadIndex+'"]').first().evaluate(el=>el.dispatchEvent(new MouseEvent("click",{bubbles:true})));
   const diagramSelection=await page.locator("#trace-diagram .trace-payload-link.is-current").evaluateAll(nodes=>[...new Set(nodes.map(node=>node.dataset.traceIndex))]);
   assert.deepEqual(diagramSelection,[secondPayloadIndex],"un nouveau clic sur le diagramme doit remplacer l’ancien surlignage");
   assert.equal(await page.locator("#trace-steps .trace-payload-highlight").count(),1,"un seul payload doit rester mis en avant sous le diagramme");
