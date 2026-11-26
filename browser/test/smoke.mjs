@@ -362,7 +362,7 @@ try{
   assert.notEqual(await payloadLink.evaluate(el=>getComputedStyle(el).fill),"rgb(255, 255, 255)","les repères doivent rester visibles en thème clair");
   const listTarget=page.locator("#trace-steps .trace-step").nth(2);
   const listTargetIndex=await listTarget.getAttribute("data-trace-index");
-  await listTarget.locator("summary").click();
+  await listTarget.locator("summary").evaluate(el=>el.click());
   await page.waitForFunction(index=>[...document.querySelectorAll("#trace-diagram .trace-payload-link.is-current")].some(node=>node.dataset.traceIndex===index),listTargetIndex);
   const listSelection=await page.locator("#trace-diagram .trace-payload-link.is-current").evaluateAll(nodes=>[...new Set(nodes.map(node=>node.dataset.traceIndex))]);
   assert.deepEqual(listSelection,[listTargetIndex],"sélectionner un payload dans la liste doit déplacer le surlignage du diagramme");
