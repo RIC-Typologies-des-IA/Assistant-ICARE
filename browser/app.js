@@ -352,7 +352,7 @@ function renderScoringRadar(turnCount=state.turns.length){
  const latestCount=$("radar-latest-count"),averageCount=$("radar-accumulation-count");
  if(latestCount)latestCount.textContent=turns.length?"Dernier échange affiché":"Aucun échange à cette étape";
  if(averageCount)averageCount.textContent=scores.observations+" échange(s) pris en compte";
- for(const [id,visible] of Object.entries(visibility)){const control=document.querySelector('[data-radar-series="'+id+'"]');if(control){control.setAttribute("aria-pressed",String(visible));control.classList.toggle("is-hidden",!visible);}}
+ for(const [id,visible] of Object.entries(visibility)){const control=document.querySelector('.radar-legend button[data-radar-series="'+id+'"]');if(control){control.setAttribute("aria-pressed",String(visible));control.classList.toggle("is-hidden",!visible);}}
 }
 const RADAR_VISIBILITY_KEY="icare-radar-series-visibility-v1";
 const RADAR_SERIES_IDS=["radar-user-latest","radar-user-average","radar-assistant-latest","radar-assistant-average"];
