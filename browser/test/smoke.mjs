@@ -85,7 +85,7 @@ try{
   await page.locator("#project-document-list button").filter({hasText:"Lire"}).click();
   assert.equal(await page.locator("#project-document-content").textContent(),fullDocument,"la consultation doit restituer l’intégralité du document, sans troncature");
   await page.locator("#close-project-document").click();
-  const pdfBytes=Buffer.from("%PDF-1.4\\n% ICARE binary preservation fixture\\n%%EOF");
+  const pdfBytes=createTextPdf("ICARE PDF native extraction test contains a sufficiently long line for the text layer.");
   await page.locator("#project-document-files").setInputFiles({name:"annexe.pdf",mimeType:"application/pdf",buffer:pdfBytes});
   await page.locator("#project-document-add").click();
   await page.waitForFunction(()=>document.querySelectorAll("#project-document-list .project-document-item").length===2);
