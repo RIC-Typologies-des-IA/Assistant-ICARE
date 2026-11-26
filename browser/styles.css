@@ -1230,3 +1230,21 @@ html[data-theme="dark"] .scoring-radar-panel .radar-legend,html[data-theme="dark
 .trace-playback-controls input[type=range]{flex:1 1 150px;min-width:100px;accent-color:var(--accent)}
 .trace-playback-position{min-width:4.5rem;text-align:right;font-variant-numeric:tabular-nums;color:var(--muted);font-size:.85rem}
 .trace-playback-controls button:disabled{opacity:.45;cursor:not-allowed}
+
+/* Scoring ICARE : séparation des scores instantanés et des moyennes cumulées. */
+.scoring-radar-panel{min-width:0}
+.radar-comparison{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
+.radar-card{min-width:0;border:1px solid var(--border,#dce3ec);border-radius:10px;background:var(--surface,#f7f9fc);padding:8px 5px 4px}
+.radar-card h3{text-align:center;font-size:12px;margin:2px 0 0;color:var(--text,#26384f)}
+.radar-card .radar-wrap{padding:2px 0 0}
+.radar-card svg{display:block;width:100%;height:auto;overflow:visible}
+.radar-card .radar-observation-count{min-height:1.3em;margin:2px 0 5px}
+.radar-legend{margin-top:8px}
+.project-history{margin-top:12px;padding:9px 11px;border:1px solid var(--border,#dce3ec);border-radius:9px;background:var(--surface,#f7f9fc)}
+.project-history-labels{display:flex;justify-content:space-between;gap:8px;font-size:10px;color:var(--muted,#65758a)}
+.project-history input[type=range]{display:block;width:100%;margin:8px 0;accent-color:var(--accent,#4777b8)}
+.project-history-summary{font-size:10px;line-height:1.4;color:var(--muted,#65758a);margin:0}
+html[data-theme="dark"] .radar-card,html[data-theme="dark"] .project-history{background:#172538;border-color:#40536b}
+html[data-theme="dark"] .radar-card h3{color:#e6eef8}
+html[data-theme="dark"] .project-history-labels,html[data-theme="dark"] .project-history-summary{color:#b9c8da}
+@media(max-width:720px){.radar-comparison{grid-template-columns:1fr;gap:8px}.radar-card .radar-wrap{max-width:360px;margin-inline:auto}}

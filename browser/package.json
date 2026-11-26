@@ -10,7 +10,8 @@
   },
   "devDependencies": {
     "playwright": "^1.56.1",
-    "@bytecodealliance/jco": "1.40.0"
+    "@bytecodealliance/jco": "1.40.0",
+    "parse5": "^7.3.0"
   },
   "dependencies": {
     "dompurify": "3.4.18",

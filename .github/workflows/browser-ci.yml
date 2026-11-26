@@ -20,7 +20,7 @@ jobs:
       - name: Install browser test runtime
         working-directory: browser
         run: |
-          npm install --no-save playwright @bytecodealliance/jco@1.40.0
+          npm install --no-save playwright @bytecodealliance/jco@1.40.0 parse5@7.3.0
           npm run build:vendor
           npm run build:components
           npx playwright install --with-deps chromium
