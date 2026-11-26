@@ -22,7 +22,7 @@ test("HTML has no parser errors, duplicate IDs, or dangling structural reference
     const attrs = Object.fromEntries(node.attrs.map(({ name, value }) => [name, value]));
     if (attrs.id) ids.set(attrs.id, (ids.get(attrs.id) || 0) + 1);
     for (const name of ["for", "aria-labelledby", "aria-describedby", "aria-controls", "aria-owns", "aria-activedescendant", "aria-errormessage"]) {
-      if (attrs[name]) for (const id of attrs[name].trim().split(/\\s+/)) references.push({ name, id });
+      if (attrs[name]) for (const id of attrs[name].trim().split(/\s+/)) references.push({ name, id });
     }
     if (attrs.href?.startsWith("#") && attrs.href.length > 1) references.push({ name: "href", id: decodeURIComponent(attrs.href.slice(1)) });
   });
