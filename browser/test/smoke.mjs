@@ -90,6 +90,7 @@ try{
   assert.notEqual(await page.locator("#radar-assistant-average").evaluate(el=>getComputedStyle(el).display),"none","les autres séries doivent rester visibles");
   assert.notEqual(await page.locator("#radar-user-average-outline").evaluate(el=>getComputedStyle(el).display),"none","masquer le remplissage utilisateur ne doit jamais masquer son contour");
   assert.notEqual(await page.locator("#radar-assistant-average-outline").evaluate(el=>getComputedStyle(el).display),"none","le contour ICARE doit rester visible lorsque le remplissage utilisateur est masqué");
+  assert.equal(await page.locator("#radar-overlap-hatch").evaluate(el=>getComputedStyle(el).display),"none","la hachure de recouvrement doit disparaître si l’un des deux remplissages est masqué");
   assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem("icare-radar-series-visibility-v1"))["radar-user-average"]),false,"le choix d’affichage doit être mémorisé localement");
   await userAverageControl.click();
   assert.equal(await userAverageControl.getAttribute("aria-pressed"),"true","un second clic doit réafficher la série");
