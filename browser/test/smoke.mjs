@@ -72,6 +72,9 @@ try{
   assert.equal(await page.locator("#radar-user-average").getAttribute("fill"),"#258da5","la moyenne utilisateur doit conserver le turquoise pastel");
   assert.equal(await page.locator("#radar-assistant-average").getAttribute("fill"),"#d66b4d","la moyenne ICARE doit conserver le corail pastel");
   for(const id of ["#radar-user-average","#radar-assistant-average"])assert.ok(Number(await page.locator(id).getAttribute("fill-opacity"))>=.7,"les moyennes cumulées doivent dominer visuellement les derniers messages : "+id);
+  for(const id of ["#radar-user-average-outline","#radar-assistant-average-outline"])assert.equal(await page.locator(id).getAttribute("fill"),"none","le contour des moyennes cumulées doit être une couche indépendante : "+id);
+  assert.equal(await page.locator("#radar-overlap-hatch").getAttribute("mask"),"url(#radar-user-average-mask)","le recouvrement des deux moyennes doit être rendu par une hachure limitée à leur intersection");
+  assert.ok((await page.locator("#radar-overlap-pattern path").count())>=2,"la hachure doit alterner les deux couleurs pastel");
   assert.equal(await page.locator("#radar-user-latest").getAttribute("stroke"),"#4caec0","le dernier message utilisateur doit rester en contour turquoise pastel");
   assert.equal(await page.locator("#radar-assistant-latest").getAttribute("stroke"),"#e58a6b","la dernière réponse ICARE doit rester en contour corail pastel");
   for(const [latest,average] of [["#radar-user-latest","#radar-user-average"],["#radar-assistant-latest","#radar-assistant-average"]])assert.ok(Number(await page.locator(latest).getAttribute("stroke-width"))<Number(await page.locator(average).getAttribute("stroke-width")),"le contour du dernier message doit être plus discret que la moyenne cumulée");
@@ -84,11 +87,14 @@ try{
   assert.equal(await userAverageControl.getAttribute("aria-pressed"),"false","un clic doit désactiver la série correspondante");
   assert.ok(await userAverageControl.evaluate(el=>el.classList.contains("is-hidden")),"une série masquée doit être visuellement grisée dans la légende");
   assert.equal(await page.locator("#radar-user-average").evaluate(el=>getComputedStyle(el).display),"none","une série désactivée doit disparaître du radar");
-  assert.equal(await page.locator("#radar-assistant-average").evaluate(el=>getComputedStyle(el).display),"","les autres séries doivent rester visibles");
+  assert.notEqual(await page.locator("#radar-assistant-average").evaluate(el=>getComputedStyle(el).display),"none","les autres séries doivent rester visibles");
+  assert.notEqual(await page.locator("#radar-user-average-outline").evaluate(el=>getComputedStyle(el).display),"none","masquer le remplissage utilisateur ne doit jamais masquer son contour");
+  assert.notEqual(await page.locator("#radar-assistant-average-outline").evaluate(el=>getComputedStyle(el).display),"none","le contour ICARE doit rester visible lorsque le remplissage utilisateur est masqué");
   assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem("icare-radar-series-visibility-v1"))["radar-user-average"]),false,"le choix d’affichage doit être mémorisé localement");
   await userAverageControl.click();
   assert.equal(await userAverageControl.getAttribute("aria-pressed"),"true","un second clic doit réafficher la série");
-  assert.equal(await page.locator("#radar-user-average").evaluate(el=>getComputedStyle(el).display),"","la série réactivée doit réapparaître");
+  assert.notEqual(await page.locator("#radar-user-average").evaluate(el=>getComputedStyle(el).display),"none","la série réactivée doit réapparaître");
+  assert.notEqual(await page.locator("#radar-user-average-outline").evaluate(el=>getComputedStyle(el).display),"none","le contour doit rester affiché après restauration du remplissage");
   assert.deepEqual(await page.locator("#radar-labels text").allTextContents(),["Intention","Contexte","Action","Régulation","Évolution"],"le radar doit afficher les noms complets des cinq dimensions");
   assert.equal(await page.locator("#dimensions").count(),0,"la rangée de dimensions au-dessus du dialogue ne doit plus être affichée");
   assert.equal(await page.locator(".brand-affiliation a").count(),1,"le lien institutionnel doit rester dans la ligne d’affiliation");
