@@ -1,10 +1,10 @@
 # Client navigateur autonome ICARE
 
-Première tranche autonome en cours de réalisation, destinée à être publiée en fichiers statiques : pas de serveur Node.js, SQLite ou bot Discord.
+Application autonome publiée sous forme de fichiers statiques sur [GitHub Pages](https://ric-typologies-des-ia.github.io/Assistant-ICARE/). Elle s’exécute dans le navigateur, sans serveur ICARE, base SQLite ni bot Discord obligatoires.
 
-Fonctions : projets locaux, conversations persistées dans IndexedDB, export/import JSON, configuration d'une API compatible OpenAI Chat Completions, PWA et cache statique.
+Fonctions disponibles : projets et conversations locaux persistés dans IndexedDB, historique de projet, import/export, documents et pièces jointes, configuration indépendante des services, scoring ICARE multilabel, transcription, moteur agentique à appels d’outils, composants WASI/WIT, PWA et cache hors ligne. Les capacités et leurs limites évoluent avec les versions du client.
 
-Limites : le fournisseur doit autoriser CORS depuis GitHub Pages ; les données restent dans ce navigateur/profil et ne sont pas synchronisées ; les propositions structurées, relations et CRDT seront réintégrés progressivement. Les clés API sont chiffrées en AES-256-GCM via Web Crypto ; la clé de chiffrement est non exportable et conservée comme objet CryptoKey dans IndexedDB. Les secrets chiffrés persistent dans le profil du navigateur, sont déchiffrés automatiquement à la réouverture et ne sont jamais inclus dans les projets ou exports. Les anciennes clés en clair sont migrées vers le coffre puis supprimées. Le stockage navigateur n'est pas un coffre-fort contre un appareil compromis.
+Les données restent dans le navigateur/profil et ne sont pas synchronisées automatiquement entre appareils. Les fournisseurs d’inférence directs doivent autoriser les requêtes depuis l’origine GitHub Pages ; une Gateway compatible peut également être utilisée. Les fonctions de collaboration et de réplication multi-appareils restent hors du chemin critique du client autonome. Les clés API sont chiffrées en AES-256-GCM via Web Crypto ; la clé de chiffrement est non exportable et conservée comme objet CryptoKey dans IndexedDB. Les secrets chiffrés persistent dans le profil du navigateur, sont déchiffrés automatiquement à la réouverture et ne sont jamais inclus dans les projets ou exports. Les anciennes clés en clair sont migrées vers le coffre puis supprimées. Le stockage navigateur n'est pas un coffre-fort contre un appareil compromis.
 
 Le workflow de déploiement publie le contenu de browser/ sur GitHub Pages. Dans Settings → Pages, sélectionner GitHub Actions comme source de publication. URL cible : https://ric-typologies-des-ia.github.io/Assistant-ICARE/
 
@@ -15,10 +15,9 @@ Le client vérifie la version du Service Worker à chaque ouverture de l’URL, 
 
 ## Versionnement
 
-Le client navigateur suit [Semantic Versioning 2.0.0](https://semver.org/) avec une séquence propre au produit **ICARE Browser**. La version initiale déclarée était **0.6.0**. La version courante est **0.9.0**, qui ajoute le mode gateway d'entreprise distant, tout en conservant le moteur agentique navigateur, les capacités d'écriture contrôlée et la relecture temporelle du dialogue. Le produit reste en développement initial (pré-1.0), sans promesse de stabilité de son interface ou de ses données. Les trois composantes sont toujours conservées (`MAJOR.MINOR.PATCH`). Avant 1.0.0, toute évolution incompatible du contrat public du navigateur incrémente au minimum MINOR ; PATCH est réservé aux corrections compatibles. Les changements éditoriaux ou internes sans changement de contrat ne nécessitent pas d’incrément. Les commits et tags identifient les révisions/publications ; le numéro SemVer ne remplace pas ces identités. Les anciens suffixes de cache `v5` et `v6` étaient des identifiants techniques internes, pas des versions produit, et ne sont pas convertis rétroactivement.
+La version courante du client navigateur est **0.11.8** (source de vérité : `package.json`). Le produit ICARE Browser reste en développement pré-1.0 et suit [Semantic Versioning 2.0.0](https://semver.org/). Les numéros de version sont vérifiés par la CI ; les commits et identifiants de build distinguent les publications successives, y compris lorsque le numéro SemVer ne change pas.
 
-La version produit est définie dans `package.json`, répercutée dans `version.js` pour l’application et le service worker, et vérifiée par la CI. Le cache PWA utilise le nom `icare-browser-<version SemVer>` afin qu’une nouvelle version invalide explicitement les ressources précédentes.
-
+Le cache PWA est versionné afin qu’une publication puisse invalider explicitement les ressources précédentes. Le Service Worker récupère les ressources de la nouvelle version sans effacer les projets, conversations, documents ou paramètres conservés dans IndexedDB/localStorage.
 
 ## Contexte transmis au modèle local
 
@@ -37,7 +36,7 @@ Le client navigateur fournit un moteur agentique à appels d'outils. Les opérat
 Le runtime Pi est distinct : il expose des outils ICARE (état d'exploration, ontologie, recherche documentaire, propositions et relations). Son corpus documentaire est initialisé pour chaque projet local et consultable par `search_reference_documents`.
 
 
-## Moteur agentique navigateur — 0.8.2
+## Architecture du moteur agentique navigateur
 
 Le runtime `browser/agent.js` implémente un cycle tool-calling compatible avec les API OpenAI Chat Completions. Il expose les outils métier ICARE sans embarquer Node.js ni le SDK Pi. Les données sont écrites dans l'espace de travail du projet via IndexedDB.
 
