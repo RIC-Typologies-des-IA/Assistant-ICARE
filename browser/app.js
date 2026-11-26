@@ -325,15 +325,15 @@ function renderProjectDocuments(){
  list.dataset.ready="true";$("project-document-add").disabled=!$("project-document-files").files?.length;
  list.replaceChildren();const documents=(state.workspace.referenceDocuments||[]).filter(document=>document.kind==="attachment");
  status.textContent=documents.length?documents.length+" document(s) joint(s) à ce projet. Les fichiers originaux sont conservés intégralement dans le stockage local du navigateur.":"Aucun document joint. Taille maximale : 25 Mo par fichier.";
- for(const document of documents){
-  const item=document.createElement("li");item.className="project-document-item";item.dataset.documentId=document.id;
+ for(const entry of documents){
+  const item=document.createElement("li");item.className="project-document-item";item.dataset.documentId=entry.id;
   const details=document.createElement("div");details.className="project-document-info";
-  const title=document.createElement("strong");title.textContent=document.fileName||document.title;const meta=document.createElement("small");
-  const size=document.size<1048576?Math.max(1,Math.round(document.size/1024))+" Ko":(document.size/1048576).toFixed(1)+" Mo";
-  meta.textContent=size+" · "+(document.content?"texte intégral indexable":"fichier original conservé");details.append(title,meta);
+  const title=document.createElement("strong");title.textContent=entry.fileName||entry.title;const meta=document.createElement("small");
+  const size=entry.size<1048576?Math.max(1,Math.round(document.size/1024))+" Ko":(document.size/1048576).toFixed(1)+" Mo";
+  meta.textContent=size+" · "+(entry.content?"texte intégral indexable":"fichier original conservé");details.append(title,meta);
   const actions=document.createElement("div");actions.className="project-document-actions";
-  if(document.content){const read=document.createElement("button");read.type="button";read.className="button secondary";read.textContent="Lire";read.addEventListener("click",()=>showProjectDocument(document));actions.append(read);}
-  else if(document.mimeType==="application/pdf"){const open=document.createElement("button");open.type="button";open.className="button secondary";open.textContent="Ouvrir";open.addEventListener("click",()=>{const url=URL.createObjectURL(documentBlob(document));const link=document.createElement("a");link.href=url;link.target="_blank";link.rel="noopener noreferrer";link.click();setTimeout(()=>URL.revokeObjectURL(url),60000);});actions.append(open);}
+  if(document.content){const read=document.createElement("button");read.type="button";read.className="button secondary";read.textContent="Lire";read.addEventListener("click",()=>showProjectDocument(entry));actions.append(read);}
+  else if(entry.mimeType==="application/pdf"){const open=document.createElement("button");open.type="button";open.className="button secondary";open.textContent="Ouvrir";open.addEventListener("click",()=>{const url=URL.createObjectURL(documentBlob(entry));const link=document.createElement("a");link.href=url;link.target="_blank";link.rel="noopener noreferrer";link.click();setTimeout(()=>URL.revokeObjectURL(url),60000);});actions.append(open);}
   const dl=document.createElement("button");dl.type="button";dl.className="button secondary";dl.textContent="Télécharger";dl.addEventListener("click",()=>{const url=URL.createObjectURL(documentBlob(document));const link=document.createElement("a");link.href=url;link.download=document.fileName||document.title;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});
   const remove=document.createElement("button");remove.type="button";remove.className="button secondary project-document-remove";remove.textContent="Retirer";remove.setAttribute("aria-label","Retirer "+(document.fileName||document.title));remove.addEventListener("click",async()=>{state.workspace.referenceDocuments=state.workspace.referenceDocuments.filter(entry=>entry.id!==document.id);await saveWorkspace();renderProjectDocuments();});
   actions.append(dl,remove);item.append(details,actions);list.append(item);
