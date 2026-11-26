@@ -1313,6 +1313,7 @@ html[data-theme="dark"] .icare-document-content tbody tr:nth-child(even) {backgr
 
 /* Full-width synchronized sequence inspector, below the conversation/radar row. */
 #trace-panel.trace-panel{
+  grid-column:1 / -1;
   display:grid;
   grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);
   grid-template-areas:"heading heading" "intro intro" "diagram steps";
