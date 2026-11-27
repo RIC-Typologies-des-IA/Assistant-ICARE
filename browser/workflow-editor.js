@@ -1,5 +1,5 @@
 const TYPES={
- score:{label:"Scoring",input:"Message",output:"ScoreReport",color:"score"},
+ score:{label:"Scoring",input:"Message | LLMResponse | Text",output:"ScoreReport",color:"score"},
  model:{label:"LLM",input:"Message | Text | ScoreReport",output:"LLMResponse",color:"model"},
  tool:{label:"Consultation documentaire",input:"Query | Message",output:"Text",color:"tool"},
  transform:{label:"Transformation",input:"JSON | Text",output:"Text",color:"transform"},
