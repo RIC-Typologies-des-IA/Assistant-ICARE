@@ -82,10 +82,12 @@ function setupTraceZoom(diagram,panel,toolbar){
   const parent=element.parentNode;if(selectionHalo.parentNode!==parent)parent.insertBefore(selectionHalo,element);else parent.insertBefore(selectionHalo,element);
   const padX=Math.max(5,box.height*.32),padY=Math.max(3,box.height*.22);
   selectionHalo.setAttribute("x",String(box.x-padX));selectionHalo.setAttribute("y",String(box.y-padY));selectionHalo.setAttribute("width",String(Math.max(1,box.width+padX*2)));selectionHalo.setAttribute("height",String(Math.max(1,box.height+padY*2)));selectionHalo.setAttribute("rx",String(Math.max(3,box.height*.18)));
+  let focusBox={x:box.x,y:box.y,width:box.width,height:box.height};
+  try{const matrix=element.getCTM();if(matrix){const point=svg.createSVGPoint(),corners=[[box.x,box.y],[box.x+box.width,box.y],[box.x,box.y+box.height],[box.x+box.width,box.y+box.height]].map(([px,py])=>{point.x=px;point.y=py;return point.matrixTransform(matrix);});const xs=corners.map(p=>p.x),ys=corners.map(p=>p.y);focusBox={x:Math.min(...xs),y:Math.min(...ys),width:Math.max(...xs)-Math.min(...xs),height:Math.max(...ys)-Math.min(...ys)};}}catch{}
   const size=dimensions(),safeWidth=Math.max(1,size.width*.84),safeHeight=Math.max(1,size.height*.68);
-  const fitSelected=Math.min(safeWidth/(box.width+padX*2+30),safeHeight/(box.height+padY*2+20));
+  const fitSelected=Math.min(safeWidth/(focusBox.width+padX*2+30),safeHeight/(focusBox.height+padY*2+20));
   const targetScale=clamp(Math.min(2.5,Math.max(1.6,fitScale*2.8),fitSelected));
-  scale=targetScale;x=size.width/2-(box.x+box.width/2)*scale;y=size.height/2-(box.y+box.height/2)*scale;draw();
+  scale=targetScale;x=size.width/2-(focusBox.x+focusBox.width/2)*scale;y=size.height/2-(focusBox.y+focusBox.height/2)*scale;draw();
   viewport.classList.add("trace-step-focused");viewport.classList.remove("trace-focus-pulse");void viewport.offsetWidth;viewport.classList.add("trace-focus-pulse");setTimeout(()=>viewport.classList.remove("trace-focus-pulse"),850);
  }
  return {fit:fitAll,reset100,focus:focusElement};
