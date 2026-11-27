@@ -71,9 +71,9 @@ try{
   assert.match(await page.locator("#active-configuration-status").textContent(),/Version commune/,"la configuration de production doit être visible dans le dialogue");
   await page.locator("#laboratory-quick-open").click();
   await page.waitForFunction(()=>document.querySelector("#laboratory-dialog").open);
-  assert.equal(await page.locator("#laboratory-prompt-presets [data-prompt-preset]").count(),3,"les trois prompts prédéfinis doivent être proposés");
-  await page.locator(".laboratory-prompt-builtins").evaluate(details=>{details.open=true;});
-  await page.locator('#laboratory-prompt-presets [data-prompt-preset="local"]').click();
+  assert.equal(await page.locator("#laboratory-prompt-library-list .laboratory-prompt-row").count(),3,"les trois prompts ICARE doivent être intégrés à la bibliothèque unique");
+  assert.equal(await page.locator("#laboratory-prompt-library-list .laboratory-prompt-row strong").filter({hasText:"[ICARE] Standard"}).count(),1,"le prompt fourni par ICARE doit être identifié dans la bibliothèque");
+  await page.locator("#laboratory-prompt-library-list .laboratory-prompt-row").filter({hasText:"[ICARE] Local"}).getByRole("button",{name:"Utiliser"}).click();
   await page.waitForFunction(()=>document.querySelector("#laboratory-prompt-library-status").textContent.includes("Prompt « Local » sélectionné"));
   assert.match(await page.locator("#laboratory-editor").inputValue(),/CONTEXTE LONG/,"le prompt local sélectionné doit remplacer le prompt actif");
   assert.match(await page.locator("#active-configuration-status").textContent(),/Personnalisations locales actives/,"l’activation du prompt doit être reflétée dans le dialogue");
