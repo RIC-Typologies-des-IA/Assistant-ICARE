@@ -15,7 +15,7 @@ Le client vérifie la version du Service Worker à chaque ouverture de l’URL, 
 
 ## Versionnement
 
-La version courante du client navigateur est **0.11.8** (source de vérité : `package.json`). Le produit ICARE Browser reste en développement pré-1.0 et suit [Semantic Versioning 2.0.0](https://semver.org/). Les numéros de version sont vérifiés par la CI ; les commits et identifiants de build distinguent les publications successives, y compris lorsque le numéro SemVer ne change pas.
+La version courante du client navigateur est **0.11.9** (source de vérité : `package.json`). Le produit ICARE Browser reste en développement pré-1.0 et suit [Semantic Versioning 2.0.0](https://semver.org/). Les numéros de version sont vérifiés par la CI ; les commits et identifiants de build distinguent les publications successives, y compris lorsque le numéro SemVer ne change pas.
 
 Le cache PWA est versionné afin qu’une publication puisse invalider explicitement les ressources précédentes. Le Service Worker récupère les ressources de la nouvelle version sans effacer les projets, conversations, documents ou paramètres conservés dans IndexedDB/localStorage.
 
@@ -75,3 +75,8 @@ Le composant `ontology-validator` exécute dans le guest WASM la validation dét
 Le scoring ICARE est un service indépendant du LLM conversationnel et de la transcription. Pour chaque message utilisateur, il reçoit le texte et les cinq dimensions I/C/A/R/E et renvoie cinq scores indépendants compris entre 0 et 1. Les scores ne sont pas normalisés pour totaliser 1.
 
 Dans la configuration ICARE, le mode recommandé est **Lemonade local · NPU FastFlowLM**. Le bouton « Lister les moteurs compatibles » interroge `GET /v1/models?show_all=true` sur `http://127.0.0.1:13305` et ne conserve que les modèles `recipe=flm` portant les capacités `classification` et `systemone`. `d3-ultra-FLM` est sélectionné par défaut lorsqu’il figure dans le catalogue. Le scoring utilise `POST /v1/systemone` avec cinq questions `noul` indépendantes (I, C, A, R, E) ; les probabilités ne sont donc pas normalisées entre dimensions. Le texte reste sur la machine. Un modèle marqué « à installer » doit d’abord être téléchargé dans Lemonade. D3 Ultra demande FastFlowLM 1.0.11 ou ultérieur et environ 28 Go de mémoire libre ; si cette capacité n’est pas disponible, sélectionner une variante D3 plus petite. Depuis l’application hébergée sur GitHub Pages, autoriser l’origine du navigateur dans Lemonade avec `lemonade config set allowed_origins="https://ric-typologies-des-ia.github.io"` ; les applications web hébergées sur un autre domaine doivent être explicitement autorisées par `allowed_origins`. Le service HTTP(S) personnalisé et les Gateways déclarant la capacité `scoring` restent disponibles en alternative. Aucun modèle ni runtime n’est embarqué dans le navigateur.
+
+
+### Laboratoire d’autopoïèse
+
+Le laboratoire expose les ressources méthodologiques et techniques du client, distingue la configuration de production des brouillons locaux, conserve les jalons et commentaires dans IndexedDB, et permet d’associer des traces de production aux documents. Les propositions sont exportées en Markdown, copiées, préparées par courriel ou ouvertes dans le formulaire GitHub ; aucune création d’issue anonyme ni aucun service intermédiaire n’est requis. Les expérimentations restent propres au profil du navigateur et ne modifient pas les fichiers de production du dépôt.
