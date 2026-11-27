@@ -72,6 +72,7 @@ try{
   await page.locator("#laboratory-quick-open").click();
   await page.waitForFunction(()=>document.querySelector("#laboratory-dialog").open);
   assert.equal(await page.locator("#laboratory-prompt-presets [data-prompt-preset]").count(),3,"les trois prompts prédéfinis doivent être proposés");
+  await page.locator(".laboratory-prompt-builtins").evaluate(details=>{details.open=true;});
   await page.locator('#laboratory-prompt-presets [data-prompt-preset="local"]').click();
   await page.waitForFunction(()=>document.querySelector("#laboratory-prompt-preset-status").textContent.includes("Prompt Local appliqué"));
   assert.match(await page.locator("#laboratory-editor").inputValue(),/CONTEXTE LONG/,"le prompt local sélectionné doit remplacer le prompt actif");
