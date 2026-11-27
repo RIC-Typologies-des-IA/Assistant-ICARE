@@ -38,6 +38,9 @@ Targets(relation, origin) ==
 IsPartialFunction(relation, domain) ==
   \A item \in domain : Cardinality(Targets(relation, item)) <= 1
 
+SetOfSeq(history) ==
+  {history[i] : i \in 1..Len(history)}
+
 PositionOf(history, item) ==
   CHOOSE i \in 1..Len(history) : history[i] = item
 
@@ -148,7 +151,7 @@ ForkConversation(newBranch, parentBranch, sourceMessage, configuration) ==
   /\ branchRunHistory' =
        [branchRunHistory EXCEPT
           ![newBranch] =
-            SelectSeq(@,
+            SelectSeq(branchRunHistory[parentBranch],
               LAMBDA priorRun :
                 PositionOf(branchTimeline[parentBranch],
                   CHOOSE prompt \in messages :
@@ -303,8 +306,8 @@ BranchConfigurationExists ==
 BranchTimelineIsValid ==
   \A branch \in branches :
     /\ Len(branchTimeline[branch]) > 0
-    /\ SeqToSet(branchTimeline[branch]) \subseteq messages
-    /\ Cardinality(SeqToSet(branchTimeline[branch])) =
+    /\ SetOfSeq(branchTimeline[branch]) \subseteq messages
+    /\ Cardinality(SetOfSeq(branchTimeline[branch])) =
          Len(branchTimeline[branch])
 
 BranchTimelinePreservesInheritedPrefix ==
@@ -323,8 +326,8 @@ InheritedPrefixEndsAtForkSource ==
 
 BranchRunHistoryIsValid ==
   \A branch \in branches :
-    /\ SeqToSet(branchRunHistory[branch]) \subseteq runs
-    /\ Cardinality(SeqToSet(branchRunHistory[branch])) =
+    /\ SetOfSeq(branchRunHistory[branch]) \subseteq runs
+    /\ Cardinality(SetOfSeq(branchRunHistory[branch])) =
          Len(branchRunHistory[branch])
 
 BranchRunHistoryPreservesInheritedRuns ==
@@ -335,7 +338,7 @@ BranchRunHistoryPreservesInheritedRuns ==
 
 InheritedRunsRespectForkPoint ==
   \A branch \in branches \ {MainBranch} :
-    \A run \in SeqToSet(branchInheritedRuns[branch]) :
+    \A run \in SetOfSeq(branchInheritedRuns[branch]) :
       \E prompt \in messages :
         /\ <<run, prompt>> \in runPrompt
         /\ PromptAvailableInBranch(prompt, branch)
@@ -364,7 +367,7 @@ RunPromptBelongsToTimeline ==
       /\ <<run, branch>> \in runBranch
       /\ <<run, prompt>> \in runPrompt
       /\ PromptAvailableInBranch(prompt, branch)
-      /\ run \in SeqToSet(branchRunHistory[branch])
+      /\ run \in SetOfSeq(branchRunHistory[branch])
 
 CompletedRunHasOneAnswer ==
   /\ IsPartialFunction(runAnswer, completedRuns)
