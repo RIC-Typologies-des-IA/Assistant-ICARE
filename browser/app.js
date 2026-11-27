@@ -82,11 +82,16 @@ function setupTraceZoom(diagram,panel,toolbar){
   const parent=element.parentNode;if(selectionHalo.parentNode!==parent)parent.insertBefore(selectionHalo,element);else parent.insertBefore(selectionHalo,element);
   const padX=Math.max(5,box.height*.32),padY=Math.max(3,box.height*.22);
   selectionHalo.setAttribute("x",String(box.x-padX));selectionHalo.setAttribute("y",String(box.y-padY));selectionHalo.setAttribute("width",String(Math.max(1,box.width+padX*2)));selectionHalo.setAttribute("height",String(Math.max(1,box.height+padY*2)));selectionHalo.setAttribute("rx",String(Math.max(3,box.height*.18)));
+  const toSvgBox=node=>{const b=node.getBBox(),matrix=node.getCTM();if(!matrix)return {x:b.x,y:b.y,width:b.width,height:b.height};const point=svg.createSVGPoint(),corners=[[b.x,b.y],[b.x+b.width,b.y],[b.x,b.y+b.height],[b.x+b.width,b.y+b.height]].map(([px,py])=>{point.x=px;point.y=py;return point.matrixTransform(matrix);}),xs=corners.map(p=>p.x),ys=corners.map(p=>p.y);return {x:Math.min(...xs),y:Math.min(...ys),width:Math.max(...xs)-Math.min(...xs),height:Math.max(...ys)-Math.min(...ys)};};
   let focusBox={x:box.x,y:box.y,width:box.width,height:box.height};
-  try{const matrix=element.getCTM();if(matrix){const point=svg.createSVGPoint(),corners=[[box.x,box.y],[box.x+box.width,box.y],[box.x,box.y+box.height],[box.x+box.width,box.y+box.height]].map(([px,py])=>{point.x=px;point.y=py;return point.matrixTransform(matrix);});const xs=corners.map(p=>p.x),ys=corners.map(p=>p.y);focusBox={x:Math.min(...xs),y:Math.min(...ys),width:Math.max(...xs)-Math.min(...xs),height:Math.max(...ys)-Math.min(...ys)};}}catch{}
-  const size=dimensions(),safeWidth=Math.max(1,size.width*.84),safeHeight=Math.max(1,size.height*.68);
-  const fitSelected=Math.min(safeWidth/(focusBox.width+padX*2+30),safeHeight/(focusBox.height+padY*2+20));
-  const targetScale=clamp(Math.min(2.5,Math.max(1.6,fitScale*2.8),fitSelected));
+  try{
+   const message=element.closest("g.message");
+   if(message){focusBox=toSvgBox(message);const left=focusBox.x,right=focusBox.x+focusBox.width,actors=[...svg.querySelectorAll("g.actor")].map(node=>({node,box:toSvgBox(node)})).filter(item=>Number.isFinite(item.box.x+item.box.width));if(actors.length){const centers=actors.map(item=>item.box.x+item.box.width/2),nearest=(edge)=>actors.reduce((best,item)=>Math.abs(item.box.x+item.box.width/2-edge)<Math.abs(best.box.x+best.box.width/2-edge)?item:best,actors[0]),ends=[nearest(left),nearest(right)];for(const actor of new Set(ends)){const b=actor.box,minX=Math.min(focusBox.x,b.x),minY=Math.min(focusBox.y,b.y),maxX=Math.max(focusBox.x+focusBox.width,b.x+b.width),maxY=Math.max(focusBox.y+focusBox.height,b.y+b.height);focusBox={x:minX,y:minY,width:maxX-minX,height:maxY-minY};}}}
+   else focusBox=toSvgBox(element);
+  }catch{}
+  const size=dimensions(),safeWidth=Math.max(1,size.width*.9),safeHeight=Math.max(1,size.height*.82);
+  const fitSelected=Math.min(safeWidth/(focusBox.width+padX*2+24),safeHeight/(focusBox.height+padY*2+18));
+  const targetScale=clamp(Math.min(1.65,Math.max(1.05,fitScale*1.65),fitSelected));
   scale=targetScale;x=size.width/2-(focusBox.x+focusBox.width/2)*scale;y=size.height/2-(focusBox.y+focusBox.height/2)*scale;draw();
   viewport.classList.add("trace-step-focused");viewport.classList.remove("trace-focus-pulse");void viewport.offsetWidth;viewport.classList.add("trace-focus-pulse");setTimeout(()=>viewport.classList.remove("trace-focus-pulse"),850);
  }
