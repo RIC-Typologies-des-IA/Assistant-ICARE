@@ -275,8 +275,8 @@ try{
   await page.locator("#message-input").fill("Bonjour ICARE");
   await page.locator("#composer").evaluate(form=>form.requestSubmit());
   await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Réponse locale de test."||p.textContent.startsWith("Réponse impossible")),null,{timeout:30000});const firstTurnError=await page.locator(".message.assistant.error").count()?await page.locator(".message.assistant.error").last().textContent():"";assert.equal(firstTurnError,"","le premier échange ne doit pas échouer");
-  assert.equal(await page.locator("#messages .message.user .conversation-variant-create").count(),1,"chaque message utilisateur envoyé doit proposer la création d’une variante");
-  await page.locator("#messages .message.user .conversation-variant-create").first().click();
+  assert.equal(await page.locator("#messages .message.user > .conversation-variant-create").count(),1,"chaque message utilisateur envoyé doit proposer la création d’une variante");
+  await page.locator("#messages .message.user > .conversation-variant-create").first().click();
   await page.waitForFunction(()=>document.querySelector("#conversation-branch-select").options.length===2);
   await page.waitForFunction(()=>document.querySelector("#send-button")?.disabled===false);
   await page.locator("#conversation-branch-select").selectOption("main");
