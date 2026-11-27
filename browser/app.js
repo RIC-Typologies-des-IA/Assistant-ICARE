@@ -538,10 +538,13 @@ function showProjectHistory(index){
  const snapshots=state.workspace?.snapshots||[];if(!snapshots.length)return;
  replaySnapshotIndex=Math.max(0,Math.min(snapshots.length-1,Number(index)||0));
  const snapshot=snapshots[replaySnapshotIndex];
- // Le rejeu temporel du projet porte sur la conversation canonique, jamais sur une branche expérimentale.
+ // Le rejeu temporel est calculé sur les échanges canoniques présents à la date de l’instantané.
+ // Le compteur historique global peut inclure des exécutions expérimentales ajoutées ultérieurement.
  if(state.activeBranchId!=="main"){state.activeBranchId="main";state.selectedExperimentConfigurationId=null;renderExperimentBranches();}
- renderConversation(snapshot.turns);
- renderScoringRadar(snapshot.turns);
+ const canonicalTurns=state.turns.filter(turn=>!turn.experiment?.branchId);
+ const visibleCount=snapshot.at?canonicalTurns.filter(turn=>!turn.createdAt||turn.createdAt<=snapshot.at).length:Math.min(canonicalTurns.length,Number(snapshot.turns)||0);
+ renderConversation(visibleCount);
+ renderScoringRadar(visibleCount);
  renderProjectTimeline();
 }
 $("project-history-slider")?.addEventListener("input",event=>showProjectHistory(event.target.value));
