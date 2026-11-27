@@ -78,6 +78,36 @@
       "title": "Architecture du client navigateur",
       "category": "Architecture",
       "path": "README.md"
+    },
+    {
+      "id": "credentials",
+      "title": "Coffre des identifiants",
+      "category": "Sécurité et persistance",
+      "path": "credentials.js"
+    },
+    {
+      "id": "storage",
+      "title": "Persistance IndexedDB",
+      "category": "Sécurité et persistance",
+      "path": "storage.js"
+    },
+    {
+      "id": "components",
+      "title": "Runtime des composants",
+      "category": "Sécurité et persistance",
+      "path": "component-runtime.js"
+    },
+    {
+      "id": "pwa",
+      "title": "Mise à jour et mode hors ligne",
+      "category": "Distribution",
+      "path": "pwa.js"
+    },
+    {
+      "id": "service-worker",
+      "title": "Cache et cycle de vie PWA",
+      "category": "Distribution",
+      "path": "sw.js"
     }
   ]
 }
