@@ -10,7 +10,7 @@ Le workflow est un graphe de calcul dirigé. Chaque étape expose une signature 
 - `Context` : contexte de conversation/projet.
 - `Text` : texte ordinaire.
 - `Score`, `Number` : valeur numérique.
-- `ScoreReport` : rapport structuré du scoring, incluant le score et ses dimensions.
+- `ScoreReport` : rapport structuré du scoring, incluant le score et ses dimensions.\n- `ToolResult` : résultat structuré d’un outil (document trouvé, métadonnées ou autre résultat).
 - `LLMResponse` : réponse produite par le modèle.
 - `Boolean` : valeur logique.
 - `JSON` : objet structuré générique.
@@ -21,8 +21,8 @@ Le workflow est un graphe de calcul dirigé. Chaque étape expose une signature 
 | Nœud | Entrées acceptées | Sortie |
 |---|---|---|
 | Scoring | Message, LLMResponse, Text | ScoreReport |
-| LLM | Message, Text, ScoreReport, Context, Document, DocumentSet, JSON | LLMResponse |
-| Consultation documentaire | Query, Message, Text, Document, DocumentSet, Context | Text |
+| LLM | Message, Text, ScoreReport, ToolResult, Context, Document, DocumentSet, JSON | LLMResponse |
+| Consultation documentaire | Query, Message, Text, JSON, LLMResponse | ToolResult |
 | Transformation | JSON, Text, ScoreReport, LLMResponse | Text |
 | Condition | Boolean, Score, ScoreReport, Number, Text | Boolean |
 | Sortie | LLMResponse, Text, ScoreReport, Document, JSON | FinalOutput |
