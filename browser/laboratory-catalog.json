@@ -1,113 +1,15 @@
 {
-  "version": 1,
+  "version": 2,
   "documents": [
-    {
-      "id": "system-prompt",
-      "title": "Prompt système actif",
-      "category": "Instructions actives",
-      "path": "system-prompt.md"
-    },
-    {
-      "id": "guide-icare",
-      "title": "Guide méthodologique",
-      "category": "Instructions actives",
-      "path": "guide-icare.md"
-    },
-    {
-      "id": "ontology",
-      "title": "Ontologie structurée",
-      "category": "Configuration active",
-      "path": "icare.json"
-    },
-    {
-      "id": "referentiel",
-      "title": "Référentiel complet",
-      "category": "Fondements",
-      "path": "icare-referentiel.md"
-    },
-    {
-      "id": "prompt-standard",
-      "title": "Instructions standard",
-      "category": "Variantes de prompt",
-      "path": "lab-sources/ICARE_instructions_standard.md"
-    },
-    {
-      "id": "prompt-local",
-      "title": "Instructions locales",
-      "category": "Variantes de prompt",
-      "path": "lab-sources/ICARE_instructions_locale.md"
-    },
-    {
-      "id": "prompt-compact",
-      "title": "Prompt web compact",
-      "category": "Variantes de prompt",
-      "path": "lab-sources/ICARE_prompt_web_compact.md"
-    },
-    {
-      "id": "agent",
-      "title": "Orchestrateur agentique",
-      "category": "Implémentation",
-      "path": "agent.js"
-    },
-    {
-      "id": "workspace-tools",
-      "title": "Outils ICARE",
-      "category": "Implémentation",
-      "path": "workspace-tools.js"
-    },
-    {
-      "id": "scoring",
-      "title": "Moteur de scoring",
-      "category": "Implémentation",
-      "path": "scoring.js"
-    },
-    {
-      "id": "inference",
-      "title": "Routage et inférence",
-      "category": "Implémentation",
-      "path": "inference.js"
-    },
-    {
-      "id": "gateway",
-      "title": "Configuration Gateway",
-      "category": "Implémentation",
-      "path": "gateway-config.js"
-    },
-    {
-      "id": "browser-readme",
-      "title": "Architecture du client navigateur",
-      "category": "Architecture",
-      "path": "README.md"
-    },
-    {
-      "id": "credentials",
-      "title": "Coffre des identifiants",
-      "category": "Sécurité et persistance",
-      "path": "credentials.js"
-    },
-    {
-      "id": "storage",
-      "title": "Persistance IndexedDB",
-      "category": "Sécurité et persistance",
-      "path": "storage.js"
-    },
-    {
-      "id": "components",
-      "title": "Runtime des composants",
-      "category": "Sécurité et persistance",
-      "path": "component-runtime.js"
-    },
-    {
-      "id": "pwa",
-      "title": "Mise à jour et mode hors ligne",
-      "category": "Distribution",
-      "path": "pwa.js"
-    },
-    {
-      "id": "service-worker",
-      "title": "Cache et cycle de vie PWA",
-      "category": "Distribution",
-      "path": "sw.js"
-    }
+    {"id":"system-prompt","title":"Prompt système actif","category":"Instructions et référentiel","path":"system-prompt.md"},
+    {"id":"guide-icare","title":"Guide méthodologique","category":"Instructions et référentiel","path":"guide-icare.md"},
+    {"id":"referentiel","title":"Référentiel ICARE","category":"Instructions et référentiel","path":"icare-referentiel.md"},
+    {"id":"ontology","title":"Ontologie et schéma des propositions","category":"Payloads structurés","path":"icare.json"},
+    {"id":"prompt-standard","title":"Instructions standard","category":"Variantes de prompts","path":"lab-sources/ICARE_instructions_standard.md"},
+    {"id":"prompt-local","title":"Instructions locales","category":"Variantes de prompts","path":"lab-sources/ICARE_instructions_locale.md"},
+    {"id":"prompt-compact","title":"Prompt web compact","category":"Variantes de prompts","path":"lab-sources/ICARE_prompt_web_compact.md"},
+    {"id":"scoring","title":"Payload de scoring — questions ICARE","category":"Scoring et évaluation","path":"scoring.js"},
+    {"id":"gateway","title":"Configuration des gateways et du scoring","category":"Routage et moteurs","path":"gateway-config.js"},
+    {"id":"inference","title":"Configuration des appels aux modèles","category":"Routage et moteurs","path":"inference.js"}
   ]
 }
