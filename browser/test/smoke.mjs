@@ -254,7 +254,7 @@ try{
   await page.locator("#settings-dialog").waitFor({state:"hidden"});
   await page.locator("#message-input").fill("Bonjour ICARE");
   await page.locator("#composer").evaluate(form=>form.requestSubmit());
-  await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Réponse locale de test."));
+  await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Réponse locale de test."||p.textContent.startsWith("Réponse impossible")),null,{timeout:30000});const firstTurnError=await page.locator(".message.assistant.error").count()?await page.locator(".message.assistant.error").last().textContent():"";assert.equal(firstTurnError,"","le premier échange ne doit pas échouer");
   await page.waitForFunction(()=>document.querySelector("#radar-accumulation-count")?.textContent==="1 échange(s) pris en compte");
   assert.equal(await page.locator("#radar-accumulation-count").textContent(),"1 échange(s) pris en compte","un échange doit alimenter les moyennes cumulées");
   assert.equal(await page.locator("#radar-latest").count(),1,"le radar du dernier échange doit être distinct");
@@ -296,7 +296,7 @@ try{
   assert.match(await assistantScoreLine.textContent(),/Réponse ICARE · I 91 % · C 72 % · A 84 % · R 63 % · E 58 %/,"le score de la réponse doit être lisible sous la réponse");
   const chatSystem=chatPayloads.at(-1)?.messages?.find(message=>message.role==="system")?.content||"";
   assert.match(chatSystem,/ÉVALUATION AUTOMATIQUE ICARE/,"le LLM doit être informé du scoring applicatif automatique");
-  assert.match(chatSystem,/traitement applicatif postérieur à ta génération/,"le LLM doit comprendre que le scoring intervient après sa réponse");
+  assert.match(chatSystem,/évalue le message utilisateur avant la génération/,"le LLM doit comprendre que le scoring utilisateur intervient avant la génération et que le score est transmis au modèle");
   await page.reload();
   await page.waitForFunction(()=>document.querySelectorAll(".message.assistant .icare-score-line").length>=2);
   assert.equal(await page.locator(".message.assistant .icare-score-user").first().textContent(),"Votre message · I 91 % · C 72 % · A 84 % · R 63 % · E 58 %","le score utilisateur doit être reconstruit depuis IndexedDB après rechargement");
