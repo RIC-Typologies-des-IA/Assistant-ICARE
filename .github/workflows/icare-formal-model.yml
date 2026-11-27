@@ -5,6 +5,8 @@ on:
     paths:
       - "spec/ICAREProjectAccess.tla"
       - "spec/ICAREProjectAccess.cfg"
+      - "spec/ICAREConversationForests.tla"
+      - "spec/ICAREConversationForests.cfg"
       - ".github/workflows/icare-formal-model.yml"
   push:
     branches: [main]
