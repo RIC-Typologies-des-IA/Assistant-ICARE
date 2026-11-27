@@ -17,7 +17,7 @@ test("rejects a document result wired directly into scoring",()=>{
   {...step("document","tool","userMessage"),tool:"search_reference_documents",next:"scoring"},
   step("scoring","score","document")
  ]};
- assert.throws(()=>validateWorkflow(workflow),/Connexion incompatible.*Text.*ScoreReport/);
+ assert.throws(()=>validateWorkflow(workflow),/Connexion incompatible.*ToolResult.*Message/);
 });
 test("accepts scoring output as model context and model output as assistant scoring input",()=>{
  const workflow={schemaVersion:1,start:"score",steps:[
