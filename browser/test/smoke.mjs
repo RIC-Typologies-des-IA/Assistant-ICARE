@@ -87,11 +87,7 @@ try{
   assert.equal(await page.locator("#laboratory-prompt-library-list .laboratory-prompt-row").count(),1,"la recherche doit filtrer une bibliothèque de prompts");
   await page.locator("#laboratory-prompt-filter").fill("");
   await page.locator("#laboratory-close").click();
-  await page.locator("#conversation-branch-create").click();
-  await page.waitForFunction(()=>document.querySelector("#conversation-branch-select").options.length===2);
-  assert.notEqual(await page.locator("#conversation-branch-select").inputValue(),"main","une variante doit pouvoir être créée directement depuis le dialogue");
-  await page.locator("#conversation-branch-select").selectOption("main");
-  await page.waitForFunction(()=>document.querySelector("#active-configuration-status").textContent.includes("Personnalisations locales actives"));
+  assert.equal(await page.locator("#conversation-branch-create").count(),0,"la création de variante ne doit plus être une action globale en haut du dialogue");
   assert.equal(await page.locator("#icare-reference-heading").textContent(),"Documentation ICARE");
   assert.equal(await page.locator("#icare-doc-open").count(),1,"le référentiel doit être accessible au-dessus du projet");
   await page.locator("#icare-doc-open").click();
@@ -279,6 +275,15 @@ try{
   await page.locator("#message-input").fill("Bonjour ICARE");
   await page.locator("#composer").evaluate(form=>form.requestSubmit());
   await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Réponse locale de test."||p.textContent.startsWith("Réponse impossible")),null,{timeout:30000});const firstTurnError=await page.locator(".message.assistant.error").count()?await page.locator(".message.assistant.error").last().textContent():"";assert.equal(firstTurnError,"","le premier échange ne doit pas échouer");
+  assert.equal(await page.locator("#messages .message.user > .conversation-variant-create").count(),1,"chaque message utilisateur envoyé doit proposer la création d’une variante");
+  await page.locator("#messages .message.user > .conversation-variant-create").first().click();
+  await page.waitForFunction(()=>document.querySelector("#conversation-branch-select").options.length===2);
+  await page.waitForFunction(()=>document.querySelector("#send-button")?.disabled===false);
+  await page.locator("#conversation-branch-select").selectOption("main");
+  await page.waitForFunction(()=>document.querySelectorAll(".conversation-variant-card").length===1);
+  assert.match(await page.locator(".conversation-variant-card").first().innerText(),/Variante/,"la réponse alternative doit être présentée sous le message source");
+  await page.locator(".conversation-variant-card input[type=radio]").check();
+  assert.equal(await page.locator(".conversation-variant-card input[type=radio]").isChecked(),true,"une réponse variante doit pouvoir être retenue");
   await page.waitForFunction(()=>document.querySelector("#radar-accumulation-count")?.textContent==="1 échange(s) pris en compte");
   assert.equal(await page.locator("#radar-accumulation-count").textContent(),"1 échange(s) pris en compte","un échange doit alimenter les moyennes cumulées");
   assert.equal(await page.locator("#radar-latest").count(),1,"le radar du dernier échange doit être distinct");
