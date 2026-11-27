@@ -384,7 +384,7 @@ try{
   assert.equal(await page.locator("#trace-steps .trace-payload-highlight").getAttribute("data-trace-index"),"2","Suivant doit avancer d’une étape");
   await page.locator("#trace-diagram .trace-playback-controls button").filter({hasText:"Précédent"}).click();
   assert.equal(await page.locator("#trace-steps .trace-payload-highlight").getAttribute("data-trace-index"),"1","Précédent doit revenir à l’étape précédente");
-  const playButton=page.locator("#trace-diagram .trace-playback-controls button").filter({hasText:"Lire"});
+  const playButton=page.locator("#trace-diagram .trace-playback-controls button").nth(1);
   await playButton.click();
   assert.equal(await playButton.getAttribute("aria-pressed"),"true","Lire doit annoncer l'état de lecture actif");
   await page.waitForFunction(()=>document.querySelector("#trace-steps .trace-step.is-current")?.dataset.traceIndex==="2",{},{timeout:2500});
