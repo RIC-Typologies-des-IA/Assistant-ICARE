@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "start": "score-user",
+  "steps": [
+    {
+      "id": "score-user",
+      "type": "score",
+      "side": "user",
+      "input": "userMessage",
+      "next": "model"
+    },
+    {
+      "id": "model",
+      "type": "model",
+      "input": "score-user",
+      "include": [
+        "score-user"
+      ],
+      "next": "score-assistant"
+    },
+    {
+      "id": "score-assistant",
+      "type": "score",
+      "side": "assistant",
+      "input": "model",
+      "next": "finish"
+    },
+    {
+      "id": "finish",
+      "type": "output",
+      "input": "model"
+    }
+  ]
+}
