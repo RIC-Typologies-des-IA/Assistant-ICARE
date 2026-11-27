@@ -48,6 +48,14 @@
       "path": "workflow.json",
       "usage": "Décrit l’ordre réel des étapes du tour : scoring, génération LLM, appels d’outils, transformations, conditions et transmissions entre étapes. Le moteur interprète ce graphe à chaque exécution.",
       "impact": "Direct : détermine quelles opérations sont exécutées, dans quel ordre et quelles sorties sont transmises au modèle."
+    },
+    {
+      "id": "trace-payload",
+      "title": "Payload expérimental sélectionné",
+      "category": "Expérimentation",
+      "path": "trace-payload.json",
+      "usage": "Copie modifiable du payload choisi dans une trace historique. Elle est figée dans l’instantané de configuration associé au rejeu ; elle ne remplace jamais le payload de la conversation originale.",
+      "impact": "Direct selon le type : prompt système, paramètres de requête du modèle ou texte/paramètres du scoring. Les champs non pris en charge restent conservés comme provenance sans effet d’exécution."
     }
   ]
 }
