@@ -352,13 +352,40 @@ function renderExperimentComparisonChoices(){
 }
 $("compare-experiments-open")?.addEventListener("click",()=>{renderExperimentComparisonChoices();$("experiment-comparison-result").replaceChildren();$("experiment-comparison-dialog").showModal();});
 $("experiment-comparison-close")?.addEventListener("click",()=>$("experiment-comparison-dialog").close());
+function comparisonContextTurns(branch){
+ if(!branch)return [];
+ if(Array.isArray(branch.contextTurnIds))return branch.contextTurnIds.map(id=>state.turns.find(turn=>turn.id===id)).filter(Boolean);
+ return Array.isArray(branch.contextTurns)?branch.contextTurns:[];
+}
+function renderComparisonRadar(run){
+ const branch=state.experimentState?.branches?.find(item=>item.id===run.branchId),context=comparisonContextTurns(branch);
+ const branchRuns=(state.experimentState?.runs||[]).filter(item=>item.branchId===run.branchId).sort((a,b)=>String(a.createdAt||"").localeCompare(String(b.createdAt||"")));
+ const scores=calculateExecutionRadar(context,branchRuns,run.id),svg=document.createElementNS("http://www.w3.org/2000/svg","svg");
+ svg.setAttribute("viewBox","0 0 250 220");svg.setAttribute("role","img");svg.setAttribute("aria-label","Radar cumulatif de cette exécution : moyenne utilisateur et moyenne ICARE");
+ const ns="http://www.w3.org/2000/svg",cx=125,cy=106,r=70,angles=SCORE_DIMENSIONS.map((_,i)=>-Math.PI/2+i*2*Math.PI/5);
+ const make=(tag,attrs,text)=>{const el=document.createElementNS(ns,tag);for(const [key,value] of Object.entries(attrs))el.setAttribute(key,String(value));if(text)el.textContent=text;return el;};
+ for(const ring of [.25,.5,.75,1])svg.append(make("polygon",{points:angles.map(angle=>(cx+Math.cos(angle)*r*ring)+","+(cy+Math.sin(angle)*r*ring)).join(" "),fill:"none",stroke:"currentColor","stroke-opacity":".25","stroke-width":1}));
+ for(let i=0;i<angles.length;i++){const angle=angles[i];svg.append(make("line",{x1:cx,y1:cy,x2:cx+Math.cos(angle)*r,y2:cy+Math.sin(angle)*r,stroke:"currentColor","stroke-opacity":".3","stroke-width":1}));svg.append(make("text",{x:cx+Math.cos(angle)*(r+14),y:cy+Math.sin(angle)*(r+14)+3,"text-anchor":"middle","font-size":10,"font-weight":700,fill:"currentColor"},SCORE_DIMENSIONS[i]));}
+ for(const [kind,vector,color] of [["user",scores.userAverage,"#258da5"],["assistant",scores.assistantAverage,"#d66b4d"]]){const points=SCORE_DIMENSIONS.map((code,i)=>(cx+Math.cos(angles[i])*r*vector[code])+","+(cy+Math.sin(angles[i])*r*vector[code])).join(" ");svg.append(make("polygon",{points,fill:color,"fill-opacity":".16",stroke:color,"stroke-width":2,"data-radar-series":kind}));}
+ const caption=document.createElement("p");caption.className="comparison-radar-caption";caption.textContent=scores.observations+" échange(s) cumulés · moyenne par dimension";
+ const wrap=document.createElement("div");wrap.className="experiment-comparison-radar";wrap.append(svg,caption);return wrap;
+}
+function renderComparisonExecutionCard(title,run){
+ const branch=state.experimentState?.branches?.find(item=>item.id===run.branchId),card=document.createElement("article");
+ card.className="experiment-comparison-run-card";
+ const heading=document.createElement("h4");heading.textContent=title+" · "+(branch?.name||"Branche");
+ const configuration=document.createElement("p");configuration.className="muted comparison-run-configuration";configuration.textContent=branch?.configurationSnapshot?.name||run.configurationId||"Configuration";
+ const dialogue=document.createElement("div");dialogue.className="experiment-comparison-dialogue";
+ for(const [label,text] of [["Utilisateur",run.userMessage],["Réponse ICARE",run.assistantMessage]]){const section=document.createElement("section"),strong=document.createElement("strong"),content=document.createElement("pre");strong.textContent=label;content.textContent=text||"Aucun contenu enregistré.";section.append(strong,content);dialogue.append(section);}
+ card.append(heading,configuration,dialogue,renderComparisonRadar(run));return card;
+}
 $("experiment-compare-run")?.addEventListener("click",()=>{
  const runs=state.experimentState?.runs||[],left=runs.find(run=>run.id===$("experiment-compare-left").value),right=runs.find(run=>run.id===$("experiment-compare-right").value),box=$("experiment-comparison-result");box.replaceChildren();
  if(!left||!right){box.textContent="Sélectionnez deux exécutions enregistrées.";return;}
  const result=compareExperimentRuns(left,right),summary=document.createElement("p");summary.textContent="Même message source : "+(result.sameSource?"oui":"non")+" · Message utilisateur identique : "+(result.sameMessage?"oui":"non")+" · Réponse différente : "+(result.assistantChanged?"oui":"non")+" · Configurations : "+result.configurationIds.join(" → ");box.append(summary);
  const scores=document.createElement("table"),head=document.createElement("tr");for(const title of ["Dimension","Utilisateur A","Utilisateur B","Écart utilisateur","Écart réponse"]){const th=document.createElement("th");th.textContent=title;head.append(th);}scores.append(head);
  for(const code of ["I","C","A","R","E"]){const row=document.createElement("tr");for(const value of [code,Math.round((Number(left.scores?.user?.[code]??left.scores?.[code])||0)*100)+" %",Math.round((Number(right.scores?.user?.[code]??right.scores?.[code])||0)*100)+" %",(result.scoreDelta[code]*100).toFixed(1)+" pts",(result.assistantScoreDelta[code]*100).toFixed(1)+" pts"]){const cell=document.createElement("td");cell.textContent=value;row.append(cell);}scores.append(row);}box.append(scores);
- for(const [title,run] of [["Réponse A",left],["Réponse B",right]]){const section=document.createElement("section"),heading=document.createElement("h4"),content=document.createElement("pre");heading.textContent=title;content.textContent=run.assistantMessage||"Aucune réponse enregistrée.";section.append(heading,content);box.append(section);}
+ const runGrid=document.createElement("div");runGrid.className="experiment-comparison-run-grid";runGrid.append(renderComparisonExecutionCard("Exécution A",left),renderComparisonExecutionCard("Exécution B",right));box.append(runGrid);
 });
 
 $("composer").addEventListener("submit",e=>{e.preventDefault();send($("message-input").value);});
