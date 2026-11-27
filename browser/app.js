@@ -426,7 +426,7 @@ async function addProjectDocuments(files){
  for(const entry of pdfs){$("project-document-status").textContent="Extraction du PDF « "+entry.fileName+" »…";try{const result=await extractPdfText(await documentBlob(entry).arrayBuffer(),{onProgress:progress=>{$("project-document-status").textContent="PDF "+progress.page+"/"+progress.total+" · "+(progress.stage==="ocr"?"OCR en cours":"Extraction du texte")+" : "+entry.fileName;}});entry.content=result.content;entry.contentSource=result.source;entry.contentPages=result.pageCount;entry.contentOcrPages=result.ocrPages;entry.extractedAt=now();await saveWorkspace();renderProjectDocuments();$("project-document-status").textContent="PDF lu : "+entry.fileName+" · "+result.pageCount+" page(s), OCR "+result.ocrPages+" page(s).";}catch(error){$("project-document-status").textContent="PDF ajouté, mais extraction impossible pour « "+entry.fileName+" » : "+error.message+" Vous pouvez réessayer avec le bouton d’extraction.";} }
 }
 function renderScoringRadar(turnCount=state.turns.length){
- const turns=state.turns.slice(0,Math.max(0,Math.min(state.turns.length,Number(turnCount)||0)));
+ const source=visibleConversationTurns(),turns=source.slice(0,Math.max(0,Math.min(source.length,Number(turnCount)||0)));
  const scores=calculateScoreRadar(turns),order=SCORE_DIMENSIONS,names={I:"Intention",C:"Contexte",A:"Action",R:"Régulation",E:"Évolution"};
  const visibility=loadRadarVisibility(),ns="http://www.w3.org/2000/svg";
  const draw=(svgId,kind)=>{
