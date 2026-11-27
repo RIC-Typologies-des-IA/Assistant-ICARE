@@ -3,8 +3,8 @@ const ALLOWED_TYPES=new Set(["score","model","tool","transform","condition","out
 const pathValue=(root,path)=>String(path||"").split(".").filter(Boolean).reduce((value,key)=>value==null?undefined:value[key],root);
 const WORKFLOW_TYPES={
  score:{output:"ScoreReport",input:["Message","LLMResponse","Text"]},
- model:{output:"LLMResponse",input:["Message","Text","ScoreReport","Context","Document","DocumentSet","JSON"]},
- tool:{output:"Text",input:["Query","Message","Text","Document","DocumentSet","Context"]},
+ model:{output:"LLMResponse",input:["Message","Text","ScoreReport","Context","Document","DocumentSet","JSON","ToolResult"]},
+ tool:{output:"ToolResult",input:["Query","Message","Text","Document","DocumentSet","Context","JSON","LLMResponse"]},
  transform:{output:"Text",input:["JSON","Text","ScoreReport","LLMResponse"]},
  condition:{output:"Boolean",input:["Boolean","Score","ScoreReport","Number","Text"]},
  output:{output:"FinalOutput",input:["LLMResponse","Text","ScoreReport","Document","JSON"]}
