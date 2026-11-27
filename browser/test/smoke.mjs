@@ -64,6 +64,10 @@ try{
 
 
   await page.waitForFunction(()=>document.querySelector("#project-select").options.length===1);
+  await page.locator(".message.assistant").waitFor({state:"visible"});
+  assert.equal(await page.locator(".message.assistant").count(),1,"un projet neuf doit afficher son invitation initiale");
+  assert.equal(await page.locator(".message.assistant .trace-button").count(),0,"l’invitation initiale hors conversation ne doit pas proposer de séquence");
+  assert.equal(await page.locator(".message.assistant .icare-score-line").count(),0,"l’invitation initiale ne doit recevoir aucun scoring");
   assert.equal(await page.locator("#icare-reference-heading").textContent(),"Documentation ICARE");
   assert.equal(await page.locator("#icare-doc-open").count(),1,"le référentiel doit être accessible au-dessus du projet");
   await page.locator("#icare-doc-open").click();
@@ -376,12 +380,11 @@ try{
   assert.equal(await page.locator("#trace-steps .trace-payload-highlight").getAttribute("data-trace-index"),"2","Suivant doit avancer d’une étape");
   await page.locator("#trace-diagram .trace-playback-controls button").filter({hasText:"Précédent"}).click();
   assert.equal(await page.locator("#trace-steps .trace-payload-highlight").getAttribute("data-trace-index"),"1","Précédent doit revenir à l’étape précédente");
-  const fullscreen=page.locator("#trace-panel .trace-fullscreen-toggle");
-  await fullscreen.click();
-  assert.ok(await page.locator("#trace-panel").evaluate(el=>el.classList.contains("trace-panel-fullscreen")),"le schéma doit pouvoir occuper tout l’écran");
-  assert.equal(await fullscreen.textContent(),"Quitter le plein écran");
-  await fullscreen.click();
-  assert.ok(!(await page.locator("#trace-panel").evaluate(el=>el.classList.contains("trace-panel-fullscreen"))),"le mode plein écran doit pouvoir être quitté");
+  assert.equal(await page.locator("#trace-panel .trace-fullscreen-toggle").count(),0,"le bouton plein écran doit être supprimé");
+  await page.locator(".chat-heading").click();
+  await page.locator("#trace-panel").waitFor({state:"hidden"});
+  await page.locator(".message.assistant .trace-button").last().click();
+  await page.locator("#trace-panel").waitFor({state:"visible"});
   await page.locator("#theme-toggle").evaluate(button=>button.click());
   await page.waitForFunction(()=>document.documentElement.dataset.theme==="dark");
   const darkTraceContrast=await page.locator("#trace-panel").evaluate(el=>({background:getComputedStyle(el).backgroundColor,foreground:getComputedStyle(el).color,summary:getComputedStyle(el.querySelector(".trace-step summary")).color,details:getComputedStyle(el.querySelector(".trace-step pre")).color}));
