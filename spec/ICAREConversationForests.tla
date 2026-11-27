@@ -14,6 +14,7 @@ ASSUME ScoreValues \subseteq Nat
 VARIABLES messages, messageParent, messageBranch,
           branches, branchParent, branchSource, branchConfiguration,
           branchTimeline, branchInheritedPrefix,
+          branchRunHistory, branchInheritedRuns,
           configurations, configurationParent,
           runs, runBranch, runPrompt, runConfiguration,
           completedRuns, runAnswer, comparisons,
@@ -23,6 +24,7 @@ vars ==
   <<messages, messageParent, messageBranch,
     branches, branchParent, branchSource, branchConfiguration,
     branchTimeline, branchInheritedPrefix,
+    branchRunHistory, branchInheritedRuns,
     configurations, configurationParent,
     runs, runBranch, runPrompt, runConfiguration,
     completedRuns, runAnswer, comparisons,
@@ -36,38 +38,37 @@ Targets(relation, origin) ==
 IsPartialFunction(relation, domain) ==
   \A item \in domain : Cardinality(Targets(relation, item)) <= 1
 
-PositionOf(history, message) ==
-  CHOOSE i \in 1..Len(history) : history[i] = message
+PositionOf(history, item) ==
+  CHOOSE i \in 1..Len(history) : history[i] = item
 
 PromptAvailableInBranch(prompt, branch) ==
   \E i \in 1..Len(branchTimeline[branch]) :
     branchTimeline[branch][i] = prompt
 
-HasScore(message, dimension) ==
+RunHasScore(run, dimension) ==
   \E value \in ScoreValues :
-    <<message, dimension, value>> \in scoreEvents
+    <<run, dimension, value>> \in scoreEvents
 
-ScoreValue(message, dimension) ==
-  IF HasScore(message, dimension)
+RunScoreValue(run, dimension) ==
+  IF RunHasScore(run, dimension)
   THEN CHOOSE value \in ScoreValues :
-         <<message, dimension, value>> \in scoreEvents
+         <<run, dimension, value>> \in scoreEvents
   ELSE 0
 
-RECURSIVE SumMessageScores(_, _)
-SumMessageScores(history, dimension) ==
+RECURSIVE SumRunScores(_, _)
+SumRunScores(history, dimension) ==
   IF Len(history) = 0
   THEN 0
-  ELSE ScoreValue(Head(history), dimension)
-       + SumMessageScores(Tail(history), dimension)
+  ELSE RunScoreValue(Head(history), dimension)
+       + SumRunScores(Tail(history), dimension)
 
 RadarAt(branch, position) ==
   [dimension \in ScoreDimensions |->
-    SumMessageScores(SubSeq(branchTimeline[branch], 1, position), dimension)]
+    SumRunScores(SubSeq(branchRunHistory[branch], 1, position), dimension)]
 
 RunRadar(run) ==
   LET branch == CHOOSE b \in branches : <<run, b>> \in runBranch
-      prompt == CHOOSE m \in messages : <<run, m>> \in runPrompt
-  IN RadarAt(branch, PositionOf(branchTimeline[branch], prompt))
+  IN RadarAt(branch, PositionOf(branchRunHistory[branch], run))
 
 Init ==
   /\ messages = {RootMessage}
@@ -81,6 +82,8 @@ Init ==
        [branch \in Branches |->
          IF branch = MainBranch THEN <<RootMessage>> ELSE <<>>]
   /\ branchInheritedPrefix = [branch \in Branches |-> <<>>]
+  /\ branchRunHistory = [branch \in Branches |-> <<>>]
+  /\ branchInheritedRuns = [branch \in Branches |-> <<>>]
   /\ configurations = {RootConfiguration}
   /\ configurationParent = {}
   /\ runs = {}
@@ -103,7 +106,8 @@ AddMessage(newMessage, branch, parentMessage) ==
   /\ branchTimeline' =
        [branchTimeline EXCEPT ![branch] = Append(@, newMessage)]
   /\ UNCHANGED <<branches, branchParent, branchSource, branchConfiguration,
-                 branchInheritedPrefix, configurations, configurationParent, runs, runBranch,
+                 branchInheritedPrefix, branchRunHistory, branchInheritedRuns,
+                 configurations, configurationParent, runs, runBranch,
                  runPrompt, runConfiguration, completedRuns, runAnswer,
                  comparisons, scoreEvents>>
 
@@ -115,7 +119,9 @@ ForkConfiguration(newConfiguration, parentConfiguration) ==
        configurationParent \cup {<<newConfiguration, parentConfiguration>>}
   /\ UNCHANGED <<messages, messageParent, messageBranch,
                  branches, branchParent, branchSource, branchConfiguration,
-                 branchTimeline, branchInheritedPrefix, runs, runBranch, runPrompt, runConfiguration,
+                 branchTimeline, branchInheritedPrefix,
+                 branchRunHistory, branchInheritedRuns,
+                 runs, runBranch, runPrompt, runConfiguration,
                  completedRuns, runAnswer, comparisons, scoreEvents>>
 
 ForkConversation(newBranch, parentBranch, sourceMessage, configuration) ==
@@ -139,6 +145,24 @@ ForkConversation(newBranch, parentBranch, sourceMessage, configuration) ==
           ![newBranch] =
             SubSeq(branchTimeline[parentBranch], 1,
                    PositionOf(branchTimeline[parentBranch], sourceMessage))]
+  /\ branchRunHistory' =
+       [branchRunHistory EXCEPT
+          ![newBranch] =
+            SelectSeq(@,
+              LAMBDA priorRun :
+                PositionOf(branchTimeline[parentBranch],
+                  CHOOSE prompt \in messages :
+                    <<priorRun, prompt>> \in runPrompt)
+                <= PositionOf(branchTimeline[parentBranch], sourceMessage))]
+  /\ branchInheritedRuns' =
+       [branchInheritedRuns EXCEPT
+          ![newBranch] =
+            SelectSeq(branchRunHistory[parentBranch],
+              LAMBDA priorRun :
+                PositionOf(branchTimeline[parentBranch],
+                  CHOOSE prompt \in messages :
+                    <<priorRun, prompt>> \in runPrompt)
+                <= PositionOf(branchTimeline[parentBranch], sourceMessage))]
   /\ UNCHANGED <<messages, messageParent, messageBranch,
                  configurations, configurationParent,
                  runs, runBranch, runPrompt, runConfiguration,
@@ -156,9 +180,12 @@ StartRun(newRun, branch, prompt) ==
        runConfiguration \cup
          {<<newRun, CHOOSE c \in Configurations :
              <<branch, c>> \in branchConfiguration>>}
+  /\ branchRunHistory' =
+       [branchRunHistory EXCEPT ![branch] = Append(@, newRun)]
   /\ UNCHANGED <<messages, messageParent, messageBranch,
                  branches, branchParent, branchSource, branchConfiguration,
-                 branchTimeline, branchInheritedPrefix, configurations, configurationParent,
+                 branchTimeline, branchInheritedPrefix, branchInheritedRuns,
+                 configurations, configurationParent,
                  completedRuns, runAnswer, comparisons, scoreEvents>>
 
 CompleteRun(run, answer) ==
@@ -168,19 +195,23 @@ CompleteRun(run, answer) ==
   /\ runAnswer' = runAnswer \cup {<<run, answer>>}
   /\ UNCHANGED <<messages, messageParent, messageBranch,
                  branches, branchParent, branchSource, branchConfiguration,
-                 branchTimeline, branchInheritedPrefix, configurations, configurationParent,
+                 branchTimeline, branchInheritedPrefix,
+                 branchRunHistory, branchInheritedRuns,
+                 configurations, configurationParent,
                  runs, runBranch, runPrompt, runConfiguration,
                  comparisons, scoreEvents>>
 
-RecordScore(message, dimension, value) ==
-  /\ message \in messages
+RecordScore(run, dimension, value) ==
+  /\ run \in completedRuns
   /\ dimension \in ScoreDimensions
   /\ value \in ScoreValues
-  /\ ~HasScore(message, dimension)
-  /\ scoreEvents' = scoreEvents \cup {<<message, dimension, value>>}
+  /\ ~RunHasScore(run, dimension)
+  /\ scoreEvents' = scoreEvents \cup {<<run, dimension, value>>}
   /\ UNCHANGED <<messages, messageParent, messageBranch,
                  branches, branchParent, branchSource, branchConfiguration,
-                 branchTimeline, branchInheritedPrefix, configurations, configurationParent,
+                 branchTimeline, branchInheritedPrefix,
+                 branchRunHistory, branchInheritedRuns,
+                 configurations, configurationParent,
                  runs, runBranch, runPrompt, runConfiguration,
                  completedRuns, runAnswer, comparisons>>
 
@@ -192,7 +223,9 @@ CompareRuns(left, right) ==
   /\ comparisons' = comparisons \cup {<<left, right>>}
   /\ UNCHANGED <<messages, messageParent, messageBranch,
                  branches, branchParent, branchSource, branchConfiguration,
-                 branchTimeline, branchInheritedPrefix, configurations, configurationParent,
+                 branchTimeline, branchInheritedPrefix,
+                 branchRunHistory, branchInheritedRuns,
+                 configurations, configurationParent,
                  runs, runBranch, runPrompt, runConfiguration,
                  completedRuns, runAnswer, scoreEvents>>
 
@@ -207,8 +240,8 @@ Next ==
   \/ \E r \in Runs, b \in Branches, prompt \in Messages :
        StartRun(r, b, prompt)
   \/ \E r \in Runs, answer \in Answers : CompleteRun(r, answer)
-  \/ \E m \in Messages, d \in ScoreDimensions, v \in ScoreValues :
-       RecordScore(m, d, v)
+  \/ \E r \in Runs, d \in ScoreDimensions, v \in ScoreValues :
+       RecordScore(r, d, v)
   \/ \E left \in Runs, right \in Runs : CompareRuns(left, right)
   \/ UNCHANGED vars
 
@@ -222,6 +255,8 @@ TypeOK ==
   /\ branchConfiguration \subseteq Branches \X Configurations
   /\ branchTimeline \in [Branches -> Seq(Messages)]
   /\ branchInheritedPrefix \in [Branches -> Seq(Messages)]
+  /\ branchRunHistory \in [Branches -> Seq(Runs)]
+  /\ branchInheritedRuns \in [Branches -> Seq(Runs)]
   /\ configurations \subseteq Configurations
   /\ configurationParent \subseteq Configurations \X Configurations
   /\ runs \subseteq Runs
@@ -231,7 +266,7 @@ TypeOK ==
   /\ completedRuns \subseteq runs
   /\ runAnswer \subseteq Runs \X Answers
   /\ comparisons \subseteq Runs \X Runs
-  /\ scoreEvents \subseteq Messages \X ScoreDimensions \X ScoreValues
+  /\ scoreEvents \subseteq Runs \X ScoreDimensions \X ScoreValues
 
 MessageHasOneBranch ==
   IsPartialFunction(messageBranch, messages)
@@ -286,6 +321,27 @@ InheritedPrefixEndsAtForkSource ==
       /\ branchInheritedPrefix[branch]
            [Len(branchInheritedPrefix[branch])] = source
 
+BranchRunHistoryIsValid ==
+  \A branch \in branches :
+    /\ SeqToSet(branchRunHistory[branch]) \subseteq runs
+    /\ Cardinality(SeqToSet(branchRunHistory[branch])) =
+         Len(branchRunHistory[branch])
+
+BranchRunHistoryPreservesInheritedRuns ==
+  \A branch \in branches :
+    SubSeq(branchRunHistory[branch], 1,
+           Len(branchInheritedRuns[branch])) =
+      branchInheritedRuns[branch]
+
+InheritedRunsRespectForkPoint ==
+  \A branch \in branches \ {MainBranch} :
+    \A run \in SeqToSet(branchInheritedRuns[branch]) :
+      \E prompt \in messages :
+        /\ <<run, prompt>> \in runPrompt
+        /\ PromptAvailableInBranch(prompt, branch)
+        /\ PositionOf(branchTimeline[branch], prompt) <=
+             Len(branchInheritedPrefix[branch])
+
 EveryRunHasOneProvenance ==
   /\ IsPartialFunction(runBranch, runs)
   /\ IsPartialFunction(runPrompt, runs)
@@ -308,16 +364,17 @@ RunPromptBelongsToTimeline ==
       /\ <<run, branch>> \in runBranch
       /\ <<run, prompt>> \in runPrompt
       /\ PromptAvailableInBranch(prompt, branch)
+      /\ run \in SeqToSet(branchRunHistory[branch])
 
 CompletedRunHasOneAnswer ==
   /\ IsPartialFunction(runAnswer, completedRuns)
   /\ \A run \in completedRuns :
        Cardinality(Targets(runAnswer, run)) = 1
 
-ScoreIsUniquePerMessageAndDimension ==
-  \A message \in messages, dimension \in ScoreDimensions :
+ScoreIsUniquePerRunAndDimension ==
+  \A run \in runs, dimension \in ScoreDimensions :
     Cardinality({value \in ScoreValues :
-      <<message, dimension, value>> \in scoreEvents}) <= 1
+      <<run, dimension, value>> \in scoreEvents}) <= 1
 
 ComparisonUsesDistinctCompletedRuns ==
   \A pair \in comparisons :
@@ -343,11 +400,14 @@ THEOREM Spec => []BranchConfigurationExists
 THEOREM Spec => []BranchTimelineIsValid
 THEOREM Spec => []BranchTimelinePreservesInheritedPrefix
 THEOREM Spec => []InheritedPrefixEndsAtForkSource
+THEOREM Spec => []BranchRunHistoryIsValid
+THEOREM Spec => []BranchRunHistoryPreservesInheritedRuns
+THEOREM Spec => []InheritedRunsRespectForkPoint
 THEOREM Spec => []EveryRunHasOneProvenance
 THEOREM Spec => []RunUsesBranchConfiguration
 THEOREM Spec => []RunPromptBelongsToTimeline
 THEOREM Spec => []CompletedRunHasOneAnswer
-THEOREM Spec => []ScoreIsUniquePerMessageAndDimension
+THEOREM Spec => []ScoreIsUniquePerRunAndDimension
 THEOREM Spec => []ComparisonUsesDistinctCompletedRuns
 THEOREM Spec => []ComparisonRadarsAreBranchScoped
 ============================================================
