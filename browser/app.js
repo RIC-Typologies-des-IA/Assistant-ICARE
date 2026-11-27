@@ -538,6 +538,8 @@ function showProjectHistory(index){
  const snapshots=state.workspace?.snapshots||[];if(!snapshots.length)return;
  replaySnapshotIndex=Math.max(0,Math.min(snapshots.length-1,Number(index)||0));
  const snapshot=snapshots[replaySnapshotIndex];
+ // Le rejeu temporel du projet porte sur la conversation canonique, jamais sur une branche expérimentale.
+ if(state.activeBranchId!=="main"){state.activeBranchId="main";state.selectedExperimentConfigurationId=null;renderExperimentBranches();}
  renderConversation(snapshot.turns);
  renderScoringRadar(snapshot.turns);
  renderProjectTimeline();
