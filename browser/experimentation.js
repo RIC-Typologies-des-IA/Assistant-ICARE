@@ -23,6 +23,8 @@ export function createConversationBranch(state,{projectId,conversationId=null,pa
  if(!configurationSnapshot?.id)throw Error("Un instantané de configuration est requis.");
  const next=createExperimentState(state);
  const parent=next.branches.find(x=>x.id===parentBranchId)||null;
+ if(parentBranchId&&!parent)throw Error("La branche parente est introuvable.");
+ if(parent&&parent.projectId!==projectId)throw Error("Une branche ne peut pas hériter d’un autre projet.");
  const branch={id:id(),projectId,conversationId,parentBranchId:parent?.id||null,sourceTurnId:sourceTurnId||null,sourceTurnIndex:Number.isInteger(sourceTurnIndex)?sourceTurnIndex:null,configurationSnapshot:clone(configurationSnapshot),kind,name:String(name).trim()||"Nouvelle expérience",createdAt:stamp(),turnIds:[]};
  next.branches.push(branch);next.activeBranchId=branch.id;next.activeConfigurationId=configurationSnapshot.configurationId;return {state:next,branch:clone(branch)};
 }
