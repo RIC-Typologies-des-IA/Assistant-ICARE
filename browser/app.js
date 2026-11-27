@@ -218,7 +218,7 @@ async function saveExperimentAndReplay(replay){
  else settings.tracePayload=payload;
  const created=createConfiguration(experimentState,{name:$("experiment-name").value,parentConfigurationId:experimentState.activeConfigurationId,documents,settings,workflowId:workflow.id});
  created.configuration.workflow=workflow;created.configuration.workflowId=workflow.id;experimentState={...created.state,configurations:created.state.configurations.map(item=>item.id===created.configuration.id?created.configuration:item),workflows:[...created.state.workflows,workflow]};
- const snapshot=snapshotConfiguration(created.configuration),sourceBranch=sourceTurn.branchId||activeExperimentBranchId||null;
+ const snapshot=snapshotConfiguration(created.configuration),sourceBranch=sourceTurn.branchId||null;
  const sourceHistory=sourceBranch?branchHistory(state.turns,experimentState.branches.find(branch=>branch.id===sourceBranch),experimentState.branches):state.turns.filter(turn=>!turn.branchId);
  const branchResult=createConversationBranch(experimentState,{projectId:state.projectId,conversationId:sourceTurn.conversationId||null,parentBranchId:sourceBranch,sourceTurnId:sourceTurn.id,sourceTurnIndex:sourceHistory.findIndex(turn=>turn.id===sourceTurn.id),configurationSnapshot:snapshot,kind:"experiment",name:$("experiment-name").value});
  experimentState=branchResult.state;activeExperimentBranchId=branchResult.branch.id;experimentState.activeConfigurationId=created.configuration.id;await persistExperimentState();renderExperimentBranchChoices();$("experiment-dialog").close();

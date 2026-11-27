@@ -26,15 +26,26 @@ export function createConversationBranch(state,{projectId,conversationId=null,pa
  const branch={id:id(),projectId,conversationId,parentBranchId:parent?.id||null,sourceTurnId:sourceTurnId||null,sourceTurnIndex:Number.isInteger(sourceTurnIndex)?sourceTurnIndex:null,configurationSnapshot:clone(configurationSnapshot),kind,name:String(name).trim()||"Nouvelle expérience",createdAt:stamp(),turnIds:[]};
  next.branches.push(branch);next.activeBranchId=branch.id;next.activeConfigurationId=configurationSnapshot.configurationId;return {state:next,branch:clone(branch)};
 }
-export function branchHistory(turns,branch){
+export function branchHistory(turns,branch,branches=[]){
  if(!branch)throw Error("Branche introuvable.");
- const byId=new Map(turns.map(turn=>[turn.id,turn]));
- const lineage=[];let cursor=branch,guard=0;
- while(cursor&&guard++<1000){lineage.unshift(cursor);cursor=cursor.parentBranchId?null:null;}
- const source=branch.sourceTurnId?byId.get(branch.sourceTurnId):null;
- if(branch.sourceTurnId&&!source)throw Error("Le message historique de départ est introuvable.");
- const sourceIndex=source?turns.indexOf(source):Number.isInteger(branch.sourceTurnIndex)?branch.sourceTurnIndex:-1;
- return sourceIndex<0?[]:turns.slice(0,sourceIndex+1);
+ const byId=new Map(turns.map(turn=>[turn.id,turn])),branchById=new Map(branches.map(item=>[item.id,item]));branchById.set(branch.id,branch);
+ const resolve=(current,seen=new Set())=>{
+  if(!current?.id||seen.has(current.id))throw Error("La lignée des branches contient un cycle ou une référence invalide.");
+  const nextSeen=new Set(seen);nextSeen.add(current.id);let history=[];
+  if(current.parentBranchId){
+   const parent=branchById.get(current.parentBranchId);if(!parent)throw Error("La branche parente est introuvable : "+current.parentBranchId);
+   history=resolve(parent,nextSeen);
+   if(current.sourceTurnId){const index=history.findIndex(turn=>turn.id===current.sourceTurnId);if(index<0)throw Error("Le message source n’appartient pas à la branche parente.");history=history.slice(0,index+1);}
+   else if(Number.isInteger(current.sourceTurnIndex))history=history.slice(0,Math.max(0,current.sourceTurnIndex+1));
+  }else if(current.sourceTurnId){
+   const source=byId.get(current.sourceTurnId);if(!source)throw Error("Le message historique de départ est introuvable.");
+   if(source.branchId){const sourceBranch=branchById.get(source.branchId);if(!sourceBranch)throw Error("La branche du message source est introuvable.");history=resolve(sourceBranch,nextSeen);const index=history.findIndex(turn=>turn.id===source.id);if(index<0)throw Error("Le message source n’appartient pas à sa lignée.");history=history.slice(0,index+1);}
+   else{const originals=turns.filter(turn=>!turn.branchId),index=originals.findIndex(turn=>turn.id===source.id);if(index<0)throw Error("Le message source original est introuvable.");history=originals.slice(0,index+1);}
+  }else if(Number.isInteger(current.sourceTurnIndex))history=turns.filter(turn=>!turn.branchId).slice(0,Math.max(0,current.sourceTurnIndex+1));
+  for(const turnId of current.turnIds||[]){const turn=byId.get(turnId);if(turn&&!history.some(item=>item.id===turnId))history.push(turn);}
+  return history;
+ };
+ return resolve(branch);
 }
 export function appendBranchTurn(branch,turn){
  if(!branch?.id||!turn?.id)throw Error("Branche et tour requis.");
