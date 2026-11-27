@@ -584,7 +584,7 @@ function showProjectHistory(index){
  replayBranchTurnCount=null;
  const snapshot=snapshots[replaySnapshotIndex];
  const canonicalTurns=state.turns.filter(turn=>!turn.experiment?.branchId);
- const visibleCount=snapshot.at?canonicalTurns.filter(turn=>!turn.createdAt||turn.createdAt<=snapshot.at).length:Math.min(canonicalTurns.length,Number(snapshot.turns)||0);
+ const visibleCount=Math.min(canonicalTurns.length,Number(snapshot.turns)||0);
  renderConversation(visibleCount);
  renderScoringRadar(visibleCount);
  renderProjectTimeline();
