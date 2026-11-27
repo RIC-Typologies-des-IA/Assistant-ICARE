@@ -34,3 +34,16 @@ test("exposes stable output types for node registry",()=>{
  assert.equal(workflowOutputType({type:"score"}),"ScoreReport");
  assert.equal(workflowOutputType({type:"model"}),"LLMResponse");
 });
+
+test("allows a document tool result to enrich the LLM but not scoring",()=>{
+ const valid={schemaVersion:1,start:"docs",steps:[
+  {...step("docs","tool","userMessage"),name:"search_reference_documents",next:"model"},
+  {...step("model","model","docs"),include:["docs"]}
+ ]};
+ assert.equal(validateWorkflow(valid),true);
+ const invalid={schemaVersion:1,start:"docs",steps:[
+  {...step("docs","tool","userMessage"),name:"search_reference_documents",next:"score"},
+  step("score","score","docs")
+ ]};
+ assert.throws(()=>validateWorkflow(invalid),/Connexion incompatible.*ToolResult/);
+});
