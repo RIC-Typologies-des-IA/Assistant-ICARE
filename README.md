@@ -56,6 +56,10 @@ Le référentiel commun est décrit dans [ICARE_referentiel.md](ICARE_referentie
 
 ICARE commence à formaliser un modèle de système indépendant du LLM : assertions typées, états, invariants, transitions et objectifs, avec une sémantique de possible et de souhaitable. La spécification initiale et un exemple de système fini sont dans [formal-model/](formal-model/README.md). Le noyau évoluera par versions et tests de référence afin que ses réponses soient déterministes et explicables.
 
+### Modèle formel de l’outil ICARE
+
+Les conversations, branches d’exécution et arbres de configuration de l’application sont spécifiés séparément dans [spec/](spec/README.md) et vérifiés par TLC en intégration continue. Ce modèle interne ne doit pas être confondu avec le [modèle formel des systèmes étudiés par les utilisateurs](formal-model/README.md).
+
 ## Références
 
 Consulter la [bibliographie technique et conceptuelle](REFERENCES.md), qui distingue les logiciels réellement employés des inspirations théoriques de l'ontologie complémentaire.
