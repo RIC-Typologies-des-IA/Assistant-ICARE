@@ -94,6 +94,7 @@ function setupTraceZoom(diagram,panel,toolbar){
  return {fit:fitAll,reset100,focus:focusElement};
 }
 function showTraceDialog(trace){
+ window.openIcareTrace=showTraceDialog;
  const panel=$("trace-panel"),diagram=$("trace-diagram"),steps=$("trace-steps");
  diagram.replaceChildren();steps.replaceChildren();
  const zoomToolbar=document.createElement("div");zoomToolbar.className="trace-zoom-toolbar";
