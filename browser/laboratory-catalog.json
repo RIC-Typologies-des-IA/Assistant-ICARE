@@ -18,6 +18,14 @@
       "impact": "Direct : modifie le raisonnement et le questionnement du modèle."
     },
     {
+      "id": "referentiel",
+      "title": "Référentiel ICARE",
+      "category": "Référentiel méthodologique",
+      "path": "icare-referentiel.md",
+      "usage": "Document de référence complet, chargé dans le corpus documentaire de chaque projet et consultable par l’outil search_reference_documents. Le modèle est invité à le rechercher lorsqu’une définition, une dimension, une relation systémique ou une recommandation méthodologique précise est pertinente pour la demande.",
+      "impact": "Direct lorsqu’il est consulté : fonde les analyses et recommandations sur le cadre ICARE. Les modifications du laboratoire sont synchronisées avec le document effectivement recherché par l’agent."
+    },
+    {
       "id": "ontology",
       "title": "Ontologie ICARE et modèle des propositions",
       "category": "Données structurées utilisées",
