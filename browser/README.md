@@ -15,7 +15,7 @@ Le client vérifie la version du Service Worker à chaque ouverture de l’URL, 
 
 ## Versionnement
 
-La version courante du client navigateur est **0.11.9** (source de vérité : `package.json`). Le produit ICARE Browser reste en développement pré-1.0 et suit [Semantic Versioning 2.0.0](https://semver.org/). Les numéros de version sont vérifiés par la CI ; les commits et identifiants de build distinguent les publications successives, y compris lorsque le numéro SemVer ne change pas.
+La version courante du client navigateur est **0.12.0** (source de vérité : `package.json`). Le produit ICARE Browser reste en développement pré-1.0 et suit [Semantic Versioning 2.0.0](https://semver.org/). Les numéros de version sont vérifiés par la CI ; les commits et identifiants de build distinguent les publications successives, y compris lorsque le numéro SemVer ne change pas.
 
 Le cache PWA est versionné afin qu’une publication puisse invalider explicitement les ressources précédentes. Le Service Worker récupère les ressources de la nouvelle version sans effacer les projets, conversations, documents ou paramètres conservés dans IndexedDB/localStorage.
 
