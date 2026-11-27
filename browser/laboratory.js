@@ -1,5 +1,5 @@
 const KEY="laboratory:workspace",copy=x=>JSON.parse(JSON.stringify(x));
-export const detectCommentNature=t=>{const s=String(t).toLowerCase();return /bug|erreur|défaut|régression|contradiction/.test(s)?"anomalie":/pourquoi|comment|question|incertain/.test(s)?"question":/amélior|proposition|idée|suggère/.test(s)?"amélioration":/test|essai|résultat|observ|trace/.test(s)?"observation":"remarque";};
+export const detectCommentNature=t=>{const s=String(t).toLowerCase();return /bug|erreur|défaut|ne fonctionne|régression|contradiction/.test(s)?"anomalie":/pourquoi|comment|question|incertain/.test(s)?"question":/amélior|proposition|idée|suggère/.test(s)?"amélioration":/test|essai|résultat|observ|trace/.test(s)?"observation":"remarque";};
 export const createLaboratoryState=v=>({schemaVersion:1,activeMode:v?.activeMode==="laboratory"?"laboratory":"production",documents:v?.documents||{},traceLinks:Array.isArray(v?.traceLinks)?v.traceLinks:[]});
 export const documentContent=(s,id,base)=>s.activeMode==="laboratory"&&typeof s.documents[id]?.draft==="string"?s.documents[id].draft:base;
 export function saveDraft(s,id,base,draft){const n=copy(s),e=n.documents[id]||{base,draft:base,history:[],comments:[]};e.base??=base;e.draft=String(draft);e.updatedAt=new Date().toISOString();n.documents[id]=e;return n;}
