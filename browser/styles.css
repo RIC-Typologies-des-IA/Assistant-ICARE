@@ -1428,3 +1428,19 @@ html[data-theme="dark"] .trace-zoom-viewport.trace-step-focused{outline-color:#f
 .conversation-variant-card label{display:flex;align-items:center;gap:.4rem;margin-top:auto;padding-top:.45rem;border-top:1px solid var(--border);font-size:.78rem;font-weight:650;cursor:pointer}
 .conversation-variant-card input{accent-color:var(--accent)}
 html[data-theme="dark"] .conversation-variants,html[data-theme="dark"] .conversation-variant-card{background:var(--panel);border-color:#40536b}
+
+/* Replay par branche et comparaison dialogue + radar propre à chaque exécution. */
+.experiment-comparison-dialog{width:min(96vw,1200px);max-width:1200px}
+.experiment-comparison-run-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;margin-top:1rem;align-items:stretch}
+.experiment-comparison-run-card{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(170px,.75fr);gap:.65rem;min-width:0;padding:1rem;border:1px solid var(--border);border-radius:10px;background:var(--panel)}
+.experiment-comparison-run-card>h4,.comparison-run-configuration{grid-column:1/-1;margin:0}
+.comparison-run-configuration{font-size:.78rem}
+.experiment-comparison-dialogue{grid-column:1;display:grid;gap:.65rem;min-width:0}
+.experiment-comparison-dialogue section{min-width:0;padding:.65rem;border:1px solid var(--border);border-radius:8px;background:var(--surface)}
+.experiment-comparison-dialogue strong{display:block;margin-bottom:.35rem;font-size:.78rem;color:var(--muted)}
+.experiment-comparison-dialogue pre{margin:0;max-height:250px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;font-size:.86rem;line-height:1.5;color:var(--text)}
+.experiment-comparison-radar{grid-column:2;align-self:center;min-width:0;text-align:center}
+.experiment-comparison-radar svg{display:block;width:100%;max-width:280px;height:auto;margin:0 auto;color:var(--muted)}
+.comparison-radar-caption{margin:.25rem 0 0;font-size:.72rem;color:var(--muted);line-height:1.4}
+@media(max-width:850px){.experiment-comparison-run-grid{grid-template-columns:1fr}.experiment-comparison-run-card{grid-template-columns:minmax(0,1fr) minmax(150px,.8fr)}}
+@media(max-width:560px){.experiment-comparison-run-card{grid-template-columns:1fr}.experiment-comparison-dialogue,.experiment-comparison-radar{grid-column:1}.experiment-comparison-radar svg{max-width:240px}}
