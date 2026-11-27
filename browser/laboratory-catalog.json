@@ -40,6 +40,14 @@
       "path": "scoring-payload.json",
       "usage": "Transmis au moteur Lemonade via POST /v1/systemone pour les cinq questions indépendantes I, C, A, R et E. Les autres routes de scoring ne consomment pas nécessairement ce payload.",
       "impact": "Direct sur le scoring Lemonade ; sans effet sur le prompt conversationnel."
+    },
+    {
+      "id": "workflow",
+      "title": "Workflow d’exécution ICARE",
+      "category": "Orchestration comportementale",
+      "path": "workflow.json",
+      "usage": "Décrit l’ordre réel des étapes du tour : scoring, génération LLM, appels d’outils, transformations, conditions et transmissions entre étapes. Le moteur interprète ce graphe à chaque exécution.",
+      "impact": "Direct : détermine quelles opérations sont exécutées, dans quel ordre et quelles sorties sont transmises au modèle."
     }
   ]
 }
