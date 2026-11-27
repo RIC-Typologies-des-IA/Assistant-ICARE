@@ -9,7 +9,7 @@
     {"id":"prompt-local","title":"Instructions locales","category":"Variantes de prompts","path":"lab-sources/ICARE_instructions_locale.md"},
     {"id":"prompt-compact","title":"Prompt web compact","category":"Variantes de prompts","path":"lab-sources/ICARE_prompt_web_compact.md"},
     {"id":"scoring-payload","title":"Payload de scoring — questions ICARE","category":"Scoring et évaluation","path":"scoring-payload.json"},
-    {"id":"gateway-template","title":"Configuration de référence du gateway d'entreprise","category":"Configurations opérationnelles","path":"../enterprise-gateway/config.example.json"},
+    {"id":"gateway-template","title":"Configuration de référence du gateway d'entreprise","category":"Configurations opérationnelles","path":"lab-sources/enterprise-gateway-config.example.json"},
     {"id":"security-policy","title":"Politique de sécurité opérationnelle","category":"Configurations opérationnelles","path":"security-policy.json"},
     {"id":"component-registry","title":"Registre des composants ICARE","category":"Configurations opérationnelles","path":"components/registry.json"}
   ]
