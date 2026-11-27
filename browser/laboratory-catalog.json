@@ -8,7 +8,7 @@
     {"id":"prompt-standard","title":"Instructions standard","category":"Variantes de prompts","path":"lab-sources/ICARE_instructions_standard.md"},
     {"id":"prompt-local","title":"Instructions locales","category":"Variantes de prompts","path":"lab-sources/ICARE_instructions_locale.md"},
     {"id":"prompt-compact","title":"Prompt web compact","category":"Variantes de prompts","path":"lab-sources/ICARE_prompt_web_compact.md"},
-    {"id":"scoring","title":"Payload de scoring — questions ICARE","category":"Scoring et évaluation","path":"scoring.js"},
+    {"id":"scoring-payload","title":"Payload de scoring — questions ICARE","category":"Scoring et évaluation","path":"scoring-payload.json"},
     {"id":"gateway","title":"Configuration des gateways et du scoring","category":"Routage et moteurs","path":"gateway-config.js"},
     {"id":"inference","title":"Configuration des appels aux modèles","category":"Routage et moteurs","path":"inference.js"}
   ]
