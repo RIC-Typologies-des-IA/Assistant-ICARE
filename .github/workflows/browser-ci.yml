@@ -31,6 +31,8 @@ jobs:
           node --check browser/app.js
           node --check browser/experiments.js
           node --check browser/workflow-engine.js
+          node --check browser/workflow-editor.js
+          node --check browser/laboratory.js
           node --check browser/pdf-processing.js
           node --check browser/agent.js
           node --check browser/workspace-tools.js
