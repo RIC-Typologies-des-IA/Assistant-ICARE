@@ -9,6 +9,7 @@ import { registerAppServiceWorker } from "./pwa.js";
 import { createComponentRuntime } from "./component-runtime.js";
 import { initGatewayConfiguration } from "./gateway-config.js";
 import { scoreIcareMultilabel, listLemonadeScoringModels } from "./scoring.js";
+import { createLaboratory } from "./laboratory.js";
 import { calculateScoreRadar, SCORE_DIMENSIONS, backfillConversationScores } from "./scoring-radar.js";
 const $=id=>document.getElementById(id), db=await openDatabase();
 $("app-version").textContent=`— V${window.ICARE_VERSION} Alpha`;
@@ -157,6 +158,7 @@ function showTraceDialog(trace){
   const payload=document.createElement("pre");payload.textContent=traceText(item);details.append(payload);details.addEventListener("click",event=>{if(event.target.closest("summary")){stopPlayback();highlightRecord(index);}});details.addEventListener("toggle",()=>{if(details.open)highlightRecord(index);});
   const documents=item.result?.results;
   if(Array.isArray(documents)){for(const docRef of documents){if(!docRef?.id)continue;const open=document.createElement("button");open.type="button";open.className="button secondary trace-document-open";open.textContent="Consulter le document : "+(docRef.title||docRef.id);open.setAttribute("aria-expanded","false");open.addEventListener("click",()=>{if(documentViewer?.dataset.documentId===docRef.id){documentViewer.remove();documentViewer=null;for(const button of steps.querySelectorAll(".trace-document-open"))button.setAttribute("aria-expanded","false");return;}if(documentViewer)documentViewer.remove();for(const button of steps.querySelectorAll(".trace-document-open"))button.setAttribute("aria-expanded","false");const local=state.workspace?.referenceDocuments?.find(entry=>entry.id===docRef.id);documentViewer=document.createElement("details");documentViewer.className="trace-step trace-document-viewer";documentViewer.dataset.documentId=docRef.id;const heading=document.createElement("summary");heading.textContent=local?.title||docRef.title||docRef.id;const content=document.createElement("pre");content.textContent=local?.content||"Ce document n’est plus présent dans le corpus local de ce projet.";documentViewer.append(heading,content);details.after(documentViewer);documentViewer.open=true;open.setAttribute("aria-expanded","true");});details.append(open);}}
+  const labButton=document.createElement("button");labButton.type="button";labButton.className="button secondary trace-laboratory-link";labButton.textContent="Examiner dans le laboratoire";labButton.addEventListener("click",()=>window.openIcareLaboratory?.({docId:item.type==="prompt"?"system-prompt":item.type==="tool"?"agent":item.type==="scoring"?"scoring":"guide-icare",trace:item,projectId:state.projectId}));details.append(labButton);
   steps.append(details);
  }
  if(!records.length){const p=document.createElement("p");p.textContent="Aucune trace détaillée n’a été enregistrée pour ce tour.";steps.append(p);}
@@ -237,7 +239,8 @@ async function executeIcareTool(name,args){
  });
  return execute(name,args);
 }
-async function systemPrompt(){let prompt="Tu es ICARE, un partenaire méthodologique systémique et maïeutique. Garde en vue I Intention, C Contexte, A Action, R Régulation et E Évolution. Distingue faits, perceptions, hypothèses et incertitudes. Ne décide jamais à la place de la personne. Pose généralement une seule question utile à la fois.";let guide=state.workspace?.referenceDocuments?.find(document=>document.id==="guide-icare")?.content||"";try{const r=await fetch("./system-prompt.md");if(r.ok)prompt=await r.text();}catch{}if(!guide){try{const r=await fetch("./guide-icare.md");if(r.ok)guide=await r.text();}catch{}}return prompt+"\n\nGUIDE MÉTHODOLOGIQUE ICARE (référence)\n"+guide+"\n\nONTOLOGIE STRUCTURÉE ICARE (source de référence)\n"+JSON.stringify(ontology);}
+let icareLaboratory=null;
+async function systemPrompt(){let prompt="Tu es ICARE, un partenaire méthodologique systémique et maïeutique. Garde en vue I Intention, C Contexte, A Action, R Régulation et E Évolution. Distingue faits, perceptions, hypothèses et incertitudes. Ne décide jamais à la place de la personne. Pose généralement une seule question utile à la fois.";let guide=state.workspace?.referenceDocuments?.find(document=>document.id==="guide-icare")?.content||"";try{const r=await fetch("./system-prompt.md");if(r.ok)prompt=await r.text();}catch{}if(icareLaboratory){prompt=await icareLaboratory.getContent("system-prompt")||prompt;guide=await icareLaboratory.getContent("guide-icare")||guide;try{ontology=JSON.parse(await icareLaboratory.getContent("ontology"));}catch{}}if(!guide){try{const r=await fetch("./guide-icare.md");if(r.ok)guide=await r.text();}catch{}}return prompt+"\n\nGUIDE MÉTHODOLOGIQUE ICARE (référence)\n"+guide+"\n\nONTOLOGIE STRUCTURÉE ICARE (source de référence)\n"+JSON.stringify(ontology);}
 async function send(text){
  if(state.busy||!text.trim())return;
  const user=text.trim(),project=state.projects.find(p=>p.id===state.projectId);replaySnapshotIndex=null;renderConversation(state.turns.length);renderScoringRadar(state.turns.length);renderProjectTimeline();bubble("user",user);$("message-input").value="";state.busy=true;$("send-button").disabled=true;$("send-button").textContent="Réponse…";const pending=bubble("assistant","ICARE réfléchit…");
@@ -459,6 +462,7 @@ renderScoringRadar();
 async function loadIcareDocumentation(){try{const response=await fetch("./icare-referentiel.md");if(!response.ok)throw new Error("Référentiel indisponible ("+response.status+").");$("icare-doc-content").replaceChildren(renderMarkdown(await response.text()));}catch(error){$("icare-doc-content").textContent="Impossible de charger le référentiel : "+error.message;}}
 $("icare-doc-open").addEventListener("click",()=>$("icare-doc-dialog").showModal());
 $("close-icare-doc").addEventListener("click",()=>$("icare-doc-dialog").close());
+icareLaboratory=await createLaboratory({db,get,put,renderMarkdown});
 $("close-project-document").addEventListener("click",()=>$("project-document-dialog").close());
 $("project-document-files").addEventListener("change",event=>{$("project-document-add").disabled=!event.target.files?.length||!state.workspace;$("project-document-status").textContent=event.target.files?.length?event.target.files.length+" fichier(s) sélectionné(s).":"Sélectionnez un ou plusieurs documents.";});
 $("project-document-add").addEventListener("click",async()=>{const input=$("project-document-files"),button=$("project-document-add");button.disabled=true;button.textContent="Ajout…";try{await addProjectDocuments(input.files);input.value="";}catch(error){$("project-document-status").textContent=error.message;}finally{button.textContent="Joindre au projet";button.disabled=!input.files?.length;}});
