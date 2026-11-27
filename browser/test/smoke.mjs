@@ -376,7 +376,7 @@ try{
   assert.ok(await stepSlider.count(),"le lecteur doit permettre de choisir directement une étape");
   await stepSlider.evaluate(el=>{el.value="1";el.dispatchEvent(new Event("input",{bubbles:true}));});
   await page.waitForFunction(()=>document.querySelector("#trace-diagram .trace-payload-link.is-current")?.getBoundingClientRect().width>0);
-  const focusedPayload=await page.locator("#trace-diagram .trace-payload-link.is-current").evaluate(el=>{
+  const focusedPayload=await page.locator("#trace-diagram .trace-payload-link.is-current").first().evaluate(el=>{
     const r=el.getBoundingClientRect(),v=document.querySelector("#trace-diagram .trace-zoom-viewport").getBoundingClientRect();
     return {left:r.left-v.left,right:v.right-r.right,top:r.top-v.top,bottom:v.bottom-r.bottom,cx:r.left+r.width/2-(v.left+v.width/2),cy:r.top+r.height/2-(v.top+v.height/2),width:r.width,height:r.height,viewportWidth:v.width,viewportHeight:v.height,halo:el.parentNode.querySelectorAll(".trace-selection-halo").length,fill:getComputedStyle(el).fill,zoom:parseFloat(document.querySelector("#trace-diagram .trace-zoom-percent").textContent)};
   });
@@ -394,7 +394,7 @@ try{
 
   await page.locator("#trace-diagram .trace-playback-controls button").filter({hasText:"Suivant"}).click();
   assert.equal(await page.locator("#trace-steps .trace-payload-highlight").getAttribute("data-trace-index"),"2","Suivant doit avancer d’une étape");
-  const nextFocused=await page.locator("#trace-diagram .trace-payload-link.is-current").evaluate(el=>({index:el.dataset.traceIndex,halo:el.parentNode.querySelectorAll(".trace-selection-halo").length,rect:el.getBoundingClientRect().toJSON(),viewport:document.querySelector("#trace-diagram .trace-zoom-viewport").getBoundingClientRect().toJSON()}));
+  const nextFocused=await page.locator("#trace-diagram .trace-payload-link.is-current").first().evaluate(el=>({index:el.dataset.traceIndex,halo:el.parentNode.querySelectorAll(".trace-selection-halo").length,rect:el.getBoundingClientRect().toJSON(),viewport:document.querySelector("#trace-diagram .trace-zoom-viewport").getBoundingClientRect().toJSON()}));
   assert.equal(nextFocused.index,"2","le repère du diagramme doit suivre l'étape suivante");
   assert.equal(nextFocused.halo,1,"le halo doit suivre le repère courant sans laisser d'anciens halos");
   assert.ok(nextFocused.rect.left>=nextFocused.viewport.left-2&&nextFocused.rect.right<=nextFocused.viewport.right+2,"le repère de l'étape suivante doit rester visible");
