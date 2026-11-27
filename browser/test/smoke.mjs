@@ -76,6 +76,14 @@ try{
   await page.waitForFunction(()=>document.querySelector("#laboratory-prompt-preset-status").textContent.includes("Prompt Local appliqué"));
   assert.match(await page.locator("#laboratory-editor").inputValue(),/CONTEXTE LONG/,"le prompt local sélectionné doit remplacer le prompt actif");
   assert.match(await page.locator("#active-configuration-status").textContent(),/Personnalisations locales actives/,"l’activation du prompt doit être reflétée dans le dialogue");
+  assert.match(await page.locator("#active-configuration-status").textContent(),/Prompt : Local/,"le nom exact du prompt actif doit être visible dans le dialogue");
+  await page.locator("#laboratory-prompt-name").fill("Mon prompt de test");
+  await page.locator("#laboratory-prompt-create").click();
+  await page.waitForFunction(()=>document.querySelector("#laboratory-prompt-active-name").textContent==="Mon prompt de test");
+  assert.match(await page.locator("#active-configuration-status").textContent(),/Prompt : Mon prompt de test/,"un prompt personnel créé doit devenir explicitement actif");
+  await page.locator("#laboratory-prompt-filter").fill("Local");
+  assert.equal(await page.locator("#laboratory-prompt-library-list .laboratory-prompt-row").count(),1,"la recherche doit filtrer une bibliothèque de prompts");
+  await page.locator("#laboratory-prompt-filter").fill("");
   await page.locator("#laboratory-close").click();
   await page.locator("#conversation-branch-create").click();
   await page.waitForFunction(()=>document.querySelector("#conversation-branch-select").options.length===2);
