@@ -30,3 +30,10 @@ test("project import remaps branch and run source references to imported turn id
  assert.equal(remapped.runs[0].sourceTurnId,"new-1");
  assert.equal(remapped.branches[0].turnIds[0],"run-1");
 });
+
+test("experimental branches retain an edited replay message independently from the source",()=>{
+ const config=createConfigurationSnapshot({id:"cfg-replay"});
+ const created=createConversationBranch(createExperimentState(),{sourceTurnId:"turn-1",configurationSnapshot:config,initialMessage:"message expérimental"});
+ assert.equal(created.branch.initialMessage,"message expérimental");
+ assert.equal(created.branch.sourceTurnId,"turn-1");
+});
