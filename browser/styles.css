@@ -1341,3 +1341,15 @@ html[data-theme="dark"] #trace-panel.trace-panel{background:var(--panel,#101827)
   #trace-panel>.trace-steps-panel{max-height:55vh}
   #trace-panel .trace-zoom-viewport{height:360px;max-height:52vh}
 }
+
+
+/* L'étape courante du lecteur doit être repérable sans chercher le payload. */
+.trace-playback-position{flex:1 1 100%;min-width:0;text-align:left;color:var(--text);font-weight:750;line-height:1.45;overflow-wrap:anywhere;padding:.35rem .55rem;border-radius:7px;background:color-mix(in srgb,var(--accent) 10%,var(--surface));border-inline-start:4px solid var(--accent)}
+.trace-step.is-current{border:2px solid #d97706!important;border-inline-start:6px solid #d97706!important;border-radius:9px;background:color-mix(in srgb,#f59e0b 12%,var(--surface));box-shadow:0 0 0 2px color-mix(in srgb,#f59e0b 22%,transparent);scroll-margin-block:35vh}
+.trace-step.is-current>summary{font-weight:800!important;color:var(--text)!important;background:color-mix(in srgb,#f59e0b 18%,var(--surface))!important}
+.trace-step.is-current>summary::after{content:"ÉTAPE ACTIVE";display:inline-block;margin-inline-start:.55rem;padding:.15rem .4rem;border-radius:5px;background:#92400e;color:#fff;font-size:.68rem;font-weight:800;letter-spacing:.03em;vertical-align:middle}
+.trace-payload-link.is-current{font-weight:900!important;text-decoration:underline!important;text-decoration-thickness:3px!important;filter:drop-shadow(0 0 5px #f59e0b)!important}
+html[data-theme="dark"] .trace-playback-position{color:#f3f7fc;background:#24364d;border-inline-start-color:#fbbf24}
+html[data-theme="dark"] .trace-step.is-current{background:#332b1c!important;border-color:#fbbf24!important;border-inline-start-color:#fbbf24!important;box-shadow:0 0 0 2px #fbbf2433}
+html[data-theme="dark"] .trace-step.is-current>summary{color:#fff7e6!important;background:#49391f!important}
+html[data-theme="dark"] .trace-step.is-current>summary::after{background:#fbbf24;color:#241a08}
