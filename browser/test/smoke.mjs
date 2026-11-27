@@ -278,7 +278,7 @@ try{
   assert.equal(await page.locator("#messages .message.user .conversation-variant-create").count(),1,"chaque message utilisateur envoyé doit proposer la création d’une variante");
   await page.locator("#messages .message.user .conversation-variant-create").first().click();
   await page.waitForFunction(()=>document.querySelector("#conversation-branch-select").options.length===2);
-  await page.waitForFunction(()=>document.querySelectorAll("#messages .message.assistant").length>=2);
+  await page.waitForFunction(()=>document.querySelector("#send-button")?.disabled===false);
   await page.locator("#conversation-branch-select").selectOption("main");
   await page.waitForFunction(()=>document.querySelectorAll(".conversation-variant-card").length===1);
   assert.match(await page.locator(".conversation-variant-card").first().innerText(),/Variante/,"la réponse alternative doit être présentée sous le message source");
