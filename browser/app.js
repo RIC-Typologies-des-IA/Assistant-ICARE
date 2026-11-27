@@ -82,12 +82,32 @@ function setupTraceZoom(diagram,panel,toolbar){
   const parent=element.parentNode;if(selectionHalo.parentNode!==parent)parent.insertBefore(selectionHalo,element);else parent.insertBefore(selectionHalo,element);
   const padX=Math.max(5,box.height*.32),padY=Math.max(3,box.height*.22);
   selectionHalo.setAttribute("x",String(box.x-padX));selectionHalo.setAttribute("y",String(box.y-padY));selectionHalo.setAttribute("width",String(Math.max(1,box.width+padX*2)));selectionHalo.setAttribute("height",String(Math.max(1,box.height+padY*2)));selectionHalo.setAttribute("rx",String(Math.max(3,box.height*.18)));
-  let focusBox={x:box.x,y:box.y,width:box.width,height:box.height};
-  try{const matrix=element.getCTM();if(matrix){const point=svg.createSVGPoint(),corners=[[box.x,box.y],[box.x+box.width,box.y],[box.x,box.y+box.height],[box.x+box.width,box.y+box.height]].map(([px,py])=>{point.x=px;point.y=py;return point.matrixTransform(matrix);});const xs=corners.map(p=>p.x),ys=corners.map(p=>p.y);focusBox={x:Math.min(...xs),y:Math.min(...ys),width:Math.max(...xs)-Math.min(...xs),height:Math.max(...ys)-Math.min(...ys)};}}catch{}
-  const size=dimensions(),safeWidth=Math.max(1,size.width*.84),safeHeight=Math.max(1,size.height*.68);
-  const fitSelected=Math.min(safeWidth/(focusBox.width+padX*2+30),safeHeight/(focusBox.height+padY*2+20));
-  const targetScale=clamp(Math.min(2.5,Math.max(1.6,fitScale*2.8),fitSelected));
-  scale=targetScale;x=size.width/2-(focusBox.x+focusBox.width/2)*scale;y=size.height/2-(focusBox.y+focusBox.height/2)*scale;draw();
+  let focusRect=element.getBoundingClientRect(),focusArrow=null,focusActors=[];
+  try{
+   const elementRect=element.getBoundingClientRect(),elementCenterY=elementRect.top+elementRect.height/2;
+   const arrows=[...svg.querySelectorAll('line[class*="messageLine"], path[class*="messageLine"]')];
+   focusArrow=arrows.reduce((best,node)=>{const r=node.getBoundingClientRect(),distance=Math.abs(r.top+r.height/2-elementCenterY);return !best||distance<best.distance?{node,distance}:best;},null)?.node||null;
+   if(focusArrow){
+    const arrowRect=focusArrow.getBoundingClientRect(),left=Math.min(elementRect.left,arrowRect.left),top=Math.min(elementRect.top,arrowRect.top),right=Math.max(elementRect.right,arrowRect.right),bottom=Math.max(elementRect.bottom,arrowRect.bottom);
+    focusRect={left,top,right,bottom,width:right-left,height:bottom-top};
+    const actors=[...svg.querySelectorAll("rect.actor, rect.actor-bottom")].map(node=>({node,rect:node.getBoundingClientRect(),center:node.getBoundingClientRect().left+node.getBoundingClientRect().width/2})).filter(item=>Number.isFinite(item.center));
+    if(actors.length){
+     const nearest=edge=>actors.reduce((best,item)=>Math.abs(item.center-edge)<Math.abs(best.center-edge)?item:best,actors[0]);
+     focusActors=[...new Set([nearest(arrowRect.left).node,nearest(arrowRect.right).node])];
+     for(const actor of focusActors){const r=actor.getBoundingClientRect(),l=Math.min(focusRect.left,r.left),t=Math.min(focusRect.top,r.top),rr=Math.max(focusRect.right,r.right),b=Math.max(focusRect.bottom,r.bottom);focusRect={left:l,top:t,right:rr,bottom:b,width:rr-l,height:b-t};}
+    }
+   }
+  }catch{}
+  const size=dimensions(),viewportRect=viewport.getBoundingClientRect(),safeWidth=Math.max(1,size.width*.9),safeHeight=Math.max(1,size.height*.82);
+  const factor=Math.min(safeWidth/Math.max(1,focusRect.width+24),safeHeight/Math.max(1,focusRect.height+18),1.65/scale);
+  let targetScale=clamp(scale*Math.max(.15,factor)),appliedFactor=targetScale/scale;
+  let centerX=focusRect.left+focusRect.width/2-viewportRect.left,centerY=focusRect.top+focusRect.height/2-viewportRect.top;
+  x=size.width/2-(centerX-x)*appliedFactor;y=size.height/2-(centerY-y)*appliedFactor;scale=targetScale;draw();
+  if(focusArrow&&focusActors.length){
+   const rects=[element,focusArrow,...focusActors].map(node=>node.getBoundingClientRect()),left=Math.min(...rects.map(r=>r.left)),top=Math.min(...rects.map(r=>r.top)),right=Math.max(...rects.map(r=>r.right)),bottom=Math.max(...rects.map(r=>r.bottom)),width=right-left,height=bottom-top;
+   const shrink=Math.min(1,safeWidth/Math.max(1,width+24),safeHeight/Math.max(1,height+18));
+   if(shrink<.999){centerX=(left+right)/2-viewportRect.left;centerY=(top+bottom)/2-viewportRect.top;x=size.width/2-(centerX-x)*shrink;y=size.height/2-(centerY-y)*shrink;scale=clamp(scale*shrink);draw();}
+  }
   viewport.classList.add("trace-step-focused");viewport.classList.remove("trace-focus-pulse");void viewport.offsetWidth;viewport.classList.add("trace-focus-pulse");setTimeout(()=>viewport.classList.remove("trace-focus-pulse"),850);
  }
  return {fit:fitAll,reset100,focus:focusElement};
