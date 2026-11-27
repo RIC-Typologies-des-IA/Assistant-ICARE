@@ -377,7 +377,7 @@ try{
   await stepSlider.evaluate(el=>{el.value="1";el.dispatchEvent(new Event("input",{bubbles:true}));});
   await page.waitForFunction(()=>document.querySelector("#trace-diagram .trace-payload-link.is-current")?.getBoundingClientRect().width>0);
   const focusedPayload=await page.locator("#trace-diagram .trace-payload-link.is-current").first().evaluate(el=>{
-    const v=document.querySelector("#trace-diagram .trace-zoom-viewport").getBoundingClientRect(),message=el.closest("g.message"),r=message?.getBoundingClientRect()||el.getBoundingClientRect(),arrow=[...(message?.querySelectorAll("line, path")||[])].find(node=>/messageLine/.test(node.getAttribute("class")||"")),a=arrow?.getBoundingClientRect()||r,actors=[...document.querySelectorAll("#trace-diagram .trace-zoom-canvas svg rect.actor")].map(node=>({rect:node.getBoundingClientRect(),center:node.getBoundingClientRect().left+node.getBoundingClientRect().width/2})),left=actors.reduce((best,item)=>Math.abs(item.center-a.left)<Math.abs(best.center-a.left)?item:best,actors[0]),right=actors.reduce((best,item)=>Math.abs(item.center-a.right)<Math.abs(best.center-a.right)?item:best,actors[0]);
+    const v=document.querySelector("#trace-diagram .trace-zoom-viewport").getBoundingClientRect(),message=el.closest("g.message"),r=message?.getBoundingClientRect()||el.getBoundingClientRect(),arrow=[...(message?.querySelectorAll("line, path")||[])].find(node=>/messageLine/.test(node.getAttribute("class")||"")),a=arrow?.getBoundingClientRect()||r,actors=[...document.querySelectorAll("#trace-diagram .trace-zoom-canvas svg rect.actor, #trace-diagram .trace-zoom-canvas svg rect.actor-bottom")].map(node=>({rect:node.getBoundingClientRect(),center:node.getBoundingClientRect().left+node.getBoundingClientRect().width/2})),left=actors.reduce((best,item)=>Math.abs(item.center-a.left)<Math.abs(best.center-a.left)?item:best,actors[0]),right=actors.reduce((best,item)=>Math.abs(item.center-a.right)<Math.abs(best.center-a.right)?item:best,actors[0]);
     const inside=rect=>rect&&rect.left>=v.left-2&&rect.right<=v.right+2&&rect.top>=v.top-2&&rect.bottom<=v.bottom+2;
     return {messageVisible:inside(r),leftActorVisible:inside(left?.rect),rightActorVisible:inside(right?.rect),halo:el.parentNode.querySelectorAll(".trace-selection-halo").length,fill:getComputedStyle(el).fill,zoom:parseFloat(document.querySelector("#trace-diagram .trace-zoom-percent").textContent)};
   });
@@ -385,7 +385,7 @@ try{
   assert.ok(focusedPayload.fill.includes("127, 29, 29"),"le repère actif doit avoir une couleur de sélection contrastée");
   assert.ok(focusedPayload.zoom<=165,"le focus automatique ne doit pas agrandir excessivement le diagramme");
   assert.ok(focusedPayload.messageVisible,"la flèche et le libellé du message actif doivent rester entièrement visibles");
-  assert.ok(focusedPayload.leftActorVisible&&focusedPayload.rightActorVisible,"les deux acteurs concernés par le message actif doivent rester visibles");
+  assert.ok(focusedPayload.leftActorVisible&&focusedPayload.rightActorVisible,"les deux acteurs concernés par le message actif doivent rester visibles : "+JSON.stringify(focusedPayload));
 
   assert.equal(await page.locator("#trace-steps .trace-payload-highlight").getAttribute("data-trace-index"),"1","le curseur doit sauter directement à l’étape choisie");
   assert.equal(await page.locator("#trace-steps .trace-step.is-current").getAttribute("data-trace-index"),"1","l’étape choisie doit être visuellement identifiée dans la liste");
