@@ -6,7 +6,8 @@ export function createExperimentState(value={}){
  const branches=Array.isArray(value.branches)?clone(value.branches):[];
  const configurations=Array.isArray(value.configurations)?clone(value.configurations):[];
  const workflows=Array.isArray(value.workflows)?clone(value.workflows):[];
- return {schemaVersion:1,activeBranchId:value.activeBranchId||null,activeConfigurationId:value.activeConfigurationId||null,branches,configurations,workflows};
+ const executions=Array.isArray(value.executions)?clone(value.executions):[];
+ return {schemaVersion:1,activeBranchId:value.activeBranchId||null,activeConfigurationId:value.activeConfigurationId||null,branches,configurations,workflows,executions};
 }
 export function createConfiguration(state,{name="Expérience",parentConfigurationId=null,profileId=null,documents={},settings={},workflowId=null}={}){
  const next=createExperimentState(state),parent=next.configurations.find(x=>x.id===parentConfigurationId)||null;
@@ -18,14 +19,14 @@ export function snapshotConfiguration(configuration){
  const snapshot={id:id(),configurationId:configuration.id,name:configuration.name,revision:configuration.revision||1,documents:clone(configuration.documents||{}),settings:clone(configuration.settings||{}),workflowId:configuration.workflowId||null,workflow:clone(configuration.workflow||null),capturedAt:stamp()};
  return Object.freeze(snapshot);
 }
-export function createConversationBranch(state,{projectId,conversationId=null,parentBranchId=null,sourceTurnId=null,sourceTurnIndex=null,configurationSnapshot,kind="experiment",name="Nouvelle expérience"}={}){
+export function createConversationBranch(state,{projectId,conversationId=null,parentBranchId=null,sourceTurnId=null,sourceTurnIndex=null,configurationSnapshot,kind="experiment",name="Nouvelle expérience",sourceTurnMode="after"}={}){
  if(!projectId)throw Error("Projet de conversation manquant.");
  if(!configurationSnapshot?.id)throw Error("Un instantané de configuration est requis.");
  const next=createExperimentState(state);
  const parent=next.branches.find(x=>x.id===parentBranchId)||null;
  if(parentBranchId&&!parent)throw Error("La branche parente est introuvable.");
  if(parent&&parent.projectId!==projectId)throw Error("Une branche ne peut pas hériter d’un autre projet.");
- const branch={id:id(),projectId,conversationId,parentBranchId:parent?.id||null,sourceTurnId:sourceTurnId||null,sourceTurnIndex:Number.isInteger(sourceTurnIndex)?sourceTurnIndex:null,configurationSnapshot:clone(configurationSnapshot),kind,name:String(name).trim()||"Nouvelle expérience",createdAt:stamp(),turnIds:[]};
+ const branch={id:id(),projectId,conversationId,parentBranchId:parent?.id||null,sourceTurnId:sourceTurnId||null,sourceTurnIndex:Number.isInteger(sourceTurnIndex)?sourceTurnIndex:null,sourceTurnMode:sourceTurnMode==="before"?"before":"after",configurationSnapshot:clone(configurationSnapshot),kind,name:String(name).trim()||"Nouvelle expérience",createdAt:stamp(),turnIds:[]};
  next.branches.push(branch);next.activeBranchId=branch.id;next.activeConfigurationId=configurationSnapshot.configurationId;return {state:next,branch:clone(branch)};
 }
 export function branchHistory(turns,branch,branches=[]){
@@ -37,17 +38,22 @@ export function branchHistory(turns,branch,branches=[]){
   if(current.parentBranchId){
    const parent=branchById.get(current.parentBranchId);if(!parent)throw Error("La branche parente est introuvable : "+current.parentBranchId);
    history=resolve(parent,nextSeen);
-   if(current.sourceTurnId){const index=history.findIndex(turn=>turn.id===current.sourceTurnId);if(index<0)throw Error("Le message source n’appartient pas à la branche parente.");history=history.slice(0,index+1);}
+   if(current.sourceTurnId){const index=history.findIndex(turn=>turn.id===current.sourceTurnId);if(index<0)throw Error("Le message source n’appartient pas à la branche parente.");history=history.slice(0,index+(current.sourceTurnMode==="before"?0:1));}
    else if(Number.isInteger(current.sourceTurnIndex))history=history.slice(0,Math.max(0,current.sourceTurnIndex+1));
   }else if(current.sourceTurnId){
    const source=byId.get(current.sourceTurnId);if(!source)throw Error("Le message historique de départ est introuvable.");
-   if(source.branchId){const sourceBranch=branchById.get(source.branchId);if(!sourceBranch)throw Error("La branche du message source est introuvable.");history=resolve(sourceBranch,nextSeen);const index=history.findIndex(turn=>turn.id===source.id);if(index<0)throw Error("Le message source n’appartient pas à sa lignée.");history=history.slice(0,index+1);}
-   else{const originals=turns.filter(turn=>!turn.branchId),index=originals.findIndex(turn=>turn.id===source.id);if(index<0)throw Error("Le message source original est introuvable.");history=originals.slice(0,index+1);}
+   if(source.branchId){const sourceBranch=branchById.get(source.branchId);if(!sourceBranch)throw Error("La branche du message source est introuvable.");history=resolve(sourceBranch,nextSeen);const index=history.findIndex(turn=>turn.id===source.id);if(index<0)throw Error("Le message source n’appartient pas à sa lignée.");history=history.slice(0,index+(current.sourceTurnMode==="before"?0:1));}
+   else{const originals=turns.filter(turn=>!turn.branchId),index=originals.findIndex(turn=>turn.id===source.id);if(index<0)throw Error("Le message source original est introuvable.");history=originals.slice(0,index+(current.sourceTurnMode==="before"?0:1));}
   }else if(Number.isInteger(current.sourceTurnIndex))history=turns.filter(turn=>!turn.branchId).slice(0,Math.max(0,current.sourceTurnIndex+1));
   for(const turnId of current.turnIds||[]){const turn=byId.get(turnId);if(turn&&!history.some(item=>item.id===turnId))history.push(turn);}
   return history;
  };
  return resolve(branch);
+}
+export function recordExperimentExecution(state,execution){
+ if(!execution?.id||!execution.branchId||!execution.configurationSnapshotId)throw Error("Une exécution expérimentale doit référencer sa branche et son instantané.");
+ const next=createExperimentState(state);if(next.executions.some(item=>item.id===execution.id))throw Error("Identifiant d’exécution déjà utilisé.");
+ next.executions.push(clone(execution));return next;
 }
 export function appendBranchTurn(branch,turn){
  if(!branch?.id||!turn?.id)throw Error("Branche et tour requis.");
