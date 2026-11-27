@@ -13,7 +13,7 @@ ASSUME ScoreValues \subseteq Nat
 
 VARIABLES messages, messageParent, messageBranch,
           branches, branchParent, branchSource, branchConfiguration,
-          branchTimeline,
+          branchTimeline, branchInheritedPrefix,
           configurations, configurationParent,
           runs, runBranch, runPrompt, runConfiguration,
           completedRuns, runAnswer, comparisons,
@@ -22,7 +22,7 @@ VARIABLES messages, messageParent, messageBranch,
 vars ==
   <<messages, messageParent, messageBranch,
     branches, branchParent, branchSource, branchConfiguration,
-    branchTimeline,
+    branchTimeline, branchInheritedPrefix,
     configurations, configurationParent,
     runs, runBranch, runPrompt, runConfiguration,
     completedRuns, runAnswer, comparisons,
@@ -80,6 +80,7 @@ Init ==
   /\ branchTimeline =
        [branch \in Branches |->
          IF branch = MainBranch THEN <<RootMessage>> ELSE <<>>]
+  /\ branchInheritedPrefix = [branch \in Branches |-> <<>>]
   /\ configurations = {RootConfiguration}
   /\ configurationParent = {}
   /\ runs = {}
@@ -133,6 +134,11 @@ ForkConversation(newBranch, parentBranch, sourceMessage, configuration) ==
           ![newBranch] =
             SubSeq(branchTimeline[parentBranch], 1,
                    PositionOf(branchTimeline[parentBranch], sourceMessage))]
+  /\ branchInheritedPrefix' =
+       [branchInheritedPrefix EXCEPT
+          ![newBranch] =
+            SubSeq(branchTimeline[parentBranch], 1,
+                   PositionOf(branchTimeline[parentBranch], sourceMessage))]
   /\ UNCHANGED <<messages, messageParent, messageBranch,
                  configurations, configurationParent,
                  runs, runBranch, runPrompt, runConfiguration,
@@ -152,7 +158,7 @@ StartRun(newRun, branch, prompt) ==
              <<branch, c>> \in branchConfiguration>>}
   /\ UNCHANGED <<messages, messageParent, messageBranch,
                  branches, branchParent, branchSource, branchConfiguration,
-                 branchTimeline, configurations, configurationParent,
+                 branchTimeline, branchInheritedPrefix, configurations, configurationParent,
                  completedRuns, runAnswer, comparisons, scoreEvents>>
 
 CompleteRun(run, answer) ==
@@ -215,6 +221,7 @@ TypeOK ==
   /\ branchSource \subseteq Branches \X Messages
   /\ branchConfiguration \subseteq Branches \X Configurations
   /\ branchTimeline \in [Branches -> Seq(Messages)]
+  /\ branchInheritedPrefix \in [Branches -> Seq(Messages)]
   /\ configurations \subseteq Configurations
   /\ configurationParent \subseteq Configurations \X Configurations
   /\ runs \subseteq Runs
@@ -265,18 +272,19 @@ BranchTimelineIsValid ==
     /\ Cardinality(SeqToSet(branchTimeline[branch])) =
          Len(branchTimeline[branch])
 
-BranchTimelineRespectsForkPoint ==
+BranchTimelinePreservesInheritedPrefix ==
+  \A branch \in branches :
+    SubSeq(branchTimeline[branch], 1,
+           Len(branchInheritedPrefix[branch])) =
+      branchInheritedPrefix[branch]
+
+InheritedPrefixEndsAtForkSource ==
   \A branch \in branches \ {MainBranch} :
-    \E parent \in branches, source \in messages :
-      /\ <<branch, parent>> \in branchParent
+    \E source \in messages :
       /\ <<branch, source>> \in branchSource
-      /\ branchTimeline[branch] =
-           SubSeq(branchTimeline[parent], 1,
-                  PositionOf(branchTimeline[parent], source))
-      \/ /\ <<branch, parent>> \in branchParent
-         /\ <<branch, source>> \in branchSource
-         /\ Len(branchTimeline[branch]) > 0
-         /\ branchTimeline[branch][Len(branchTimeline[branch])] = source
+      /\ Len(branchInheritedPrefix[branch]) > 0
+      /\ branchInheritedPrefix[branch]
+           [Len(branchInheritedPrefix[branch])] = source
 
 EveryRunHasOneProvenance ==
   /\ IsPartialFunction(runBranch, runs)
@@ -333,6 +341,8 @@ THEOREM Spec => []BranchHasOneParentAndSourceAndConfiguration
 THEOREM Spec => []BranchSourceBelongsToParent
 THEOREM Spec => []BranchConfigurationExists
 THEOREM Spec => []BranchTimelineIsValid
+THEOREM Spec => []BranchTimelinePreservesInheritedPrefix
+THEOREM Spec => []InheritedPrefixEndsAtForkSource
 THEOREM Spec => []EveryRunHasOneProvenance
 THEOREM Spec => []RunUsesBranchConfiguration
 THEOREM Spec => []RunPromptBelongsToTimeline
