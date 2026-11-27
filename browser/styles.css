@@ -1353,3 +1353,12 @@ html[data-theme="dark"] .trace-playback-position{color:#f3f7fc;background:#24364
 html[data-theme="dark"] .trace-step.is-current{background:#332b1c!important;border-color:#fbbf24!important;border-inline-start-color:#fbbf24!important;box-shadow:0 0 0 2px #fbbf2433}
 html[data-theme="dark"] .trace-step.is-current>summary{color:#fff7e6!important;background:#49391f!important}
 html[data-theme="dark"] .trace-step.is-current>summary::after{background:#fbbf24;color:#241a08}
+
+
+/* Focalisation forte du payload courant dans le diagramme de séquence. */
+.trace-zoom-canvas svg .trace-selection-halo{fill:#fde047!important;fill-opacity:.98!important;stroke:#7c2d12!important;stroke-width:1.6!important;vector-effect:non-scaling-stroke!important;filter:none!important}
+.trace-zoom-canvas svg text.trace-payload-link.is-current{fill:#7f1d1d!important;stroke:#fff!important;stroke-width:1.8px!important;paint-order:stroke fill!important;text-decoration:none!important;font-weight:950!important;filter:none!important}
+.trace-zoom-viewport.trace-step-focused{outline:3px solid #d97706!important;outline-offset:-3px}
+html[data-theme="dark"] .trace-zoom-canvas svg .trace-selection-halo{fill:#facc15!important;stroke:#713f12!important}
+html[data-theme="dark"] .trace-zoom-canvas svg text.trace-payload-link.is-current{fill:#422006!important;stroke:#fef3c7!important;stroke-width:1.8px!important;paint-order:stroke fill!important}
+html[data-theme="dark"] .trace-zoom-viewport.trace-step-focused{outline-color:#facc15!important}
