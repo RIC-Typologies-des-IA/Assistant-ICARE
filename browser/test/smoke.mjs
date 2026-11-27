@@ -305,7 +305,7 @@ try{
   const branchReplayId=await page.locator("#conversation-branch-select option").nth(1).getAttribute("value");
   await page.locator("#conversation-branch-select").selectOption(branchReplayId);
   assert.equal(await historySlider.getAttribute("max"),"1","le slider doit parcourir la chronologie de la branche active, et non les snapshots globaux");
-  assert.equal(await historySlider.getAttribute("value"),"1","le replay de branche doit démarrer sur son exécution la plus récente");
+  assert.equal(await historySlider.inputValue(),"1","le replay de branche doit démarrer sur son exécution la plus récente");
   assert.equal(await page.locator("#radar-accumulation-count").textContent(),"1 échange(s) pris en compte","le radar de branche doit cumuler son contexte et son exécution");
   await historySlider.evaluate(el=>{el.value="0";el.dispatchEvent(new Event("input",{bubbles:true}));});
   assert.equal(await page.locator("#radar-accumulation-count").textContent(),"0 échange(s) pris en compte","revenir au début de la branche doit recalculer le radar sans l’exécution future");
