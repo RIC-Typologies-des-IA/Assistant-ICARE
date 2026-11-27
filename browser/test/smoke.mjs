@@ -71,6 +71,7 @@ try{
   assert.match(await page.locator("#active-configuration-status").textContent(),/Version commune/,"la configuration de production doit être visible dans le dialogue");
   await page.locator("#laboratory-quick-open").click();
   await page.waitForFunction(()=>document.querySelector("#laboratory-dialog").open);
+  await page.getByRole("button",{name:"Prompt système actif"}).click();
   assert.equal(await page.locator("#laboratory-prompt-library-list .laboratory-prompt-row").count(),3,"les trois prompts ICARE doivent être intégrés à la bibliothèque unique");
   assert.equal(await page.locator("#laboratory-prompt-library-list .laboratory-prompt-row strong").filter({hasText:"[ICARE] Standard"}).count(),1,"le prompt fourni par ICARE doit être identifié dans la bibliothèque");
   await page.locator("#laboratory-prompt-library-list .laboratory-prompt-row").filter({hasText:"[ICARE] Local"}).getByRole("button",{name:"Utiliser"}).click();
