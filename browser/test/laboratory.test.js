@@ -10,3 +10,12 @@ test("les propositions sont exportables et la soumission GitHub reste manuelle",
 test("les profils sont indépendants et comparables",()=>{let s=createLaboratoryState();s=saveDraft(s,"prompt","base","variante A");const first=s.activeProfileId;s=createProfile(s,"Variante B");s=saveDraft(s,"prompt","base","variante B");const second=s.activeProfileId;assert.equal(s.profiles.length,2);assert.equal(compareProfiles(s,first,second).length,1);s=switchProfile(s,first);assert.equal(s.documents.prompt.draft,"variante A");s=switchProfile(s,second);assert.equal(s.documents.prompt.draft,"variante B");});
 test("une proposition peut agréger et sélectionner des contributions de plusieurs profils",()=>{let s=createLaboratoryState();s=saveDraft(s,"prompt","base","prompt A");const created=createCommunityProposal(s,"prompt",{title:"Prompt",path:"system-prompt.md"});s=created.state;s=createProfile(s,"Scoring B");s=saveDraft(s,"scoring","base scoring","scoring B");s=addProposalContribution(s,created.proposal.id,"scoring",{title:"Scoring",path:"scoring.js"},s.documents.scoring,null,"Scoring B").state;let p=s.communityProposals[0];assert.equal(p.items.length,2);s=setProposalContributionSelected(s,p.id,p.items[0].id,false);const md=proposalMarkdown({document:{title:p.title,path:p.path},entry:p.entry,items:s.communityProposals[0].items});assert.match(md,/Contribution 1 — Scoring/);assert.doesNotMatch(md,/Contribution 2 — Prompt/);});
 test("le lien GitHub ne place plus le Markdown dans la query string",()=>{const url=new URL(githubIssueUrl("x".repeat(30000),"Proposition ICARE"));assert.equal(url.searchParams.get("body"),null);assert.equal(url.searchParams.get("title"),"Proposition ICARE");});
+
+test("le payload expérimental reste lié au tour et à l’étape de trace sélectionnés",()=>{
+ const context={projectId:"project-a",sourceTurnId:"turn-9",traceIndex:3,record:{type:"model",request:{temperature:.2}}};
+ const state=createLaboratoryState({tracePayloadContext:context});
+ assert.deepEqual(state.tracePayloadContext,context);
+ const linked=addTraceLink(state,{projectId:"project-a",sourceTurnId:"turn-9",traceIndex:3,trace:{steps:[]}});
+ assert.equal(linked.state.tracePayloadContext.sourceTurnId,"turn-9");
+ assert.equal(linked.link.sourceTurnId,"turn-9");
+});
