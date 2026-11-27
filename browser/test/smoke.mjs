@@ -311,13 +311,22 @@ try{
   assert.equal(await page.locator("#radar-accumulation-count").textContent(),"0 échange(s) pris en compte","revenir au début de la branche doit recalculer le radar sans l’exécution future");
   await historySlider.evaluate(el=>{el.value="1";el.dispatchEvent(new Event("input",{bubbles:true}));});
   assert.equal(await page.locator("#radar-accumulation-count").textContent(),"1 échange(s) pris en compte","le radar doit rétablir l’exécution choisie dans la branche");
+  // Scénario de bout en bout : créer une deuxième branche depuis le même message source,
+  // attendre l'enregistrement de ses runs, puis comparer deux exécutions distinctes.
   await page.locator("#conversation-branch-select").selectOption("main");
   await page.locator("#messages .message.user > .conversation-variant-create").first().click();
   await page.waitForFunction(()=>document.querySelector("#conversation-branch-select").options.length===3);
   await page.waitForFunction(()=>document.querySelector("#send-button")?.disabled===false);
+  assert.equal(await page.locator(".message.assistant.error").count(),0,"la deuxième exécution de branche doit aboutir sans erreur");
   await page.locator("#conversation-branch-select").selectOption("main");
   await page.locator("#compare-experiments-open").click();
   await page.locator("#experiment-comparison-dialog").waitFor({state:"visible"});
+  await page.waitForFunction(()=>document.querySelectorAll("#experiment-compare-left option").length===2 && document.querySelectorAll("#experiment-compare-right option").length===2,"", {timeout:10000});
+  const runChoices=await page.locator("#experiment-compare-left option").evaluateAll(options=>options.map(option=>({value:option.value,label:option.textContent})));
+  assert.equal(new Set(runChoices.map(choice=>choice.value)).size,2,"deux runs persistés et distincts doivent être disponibles à la comparaison");
+  assert.notEqual(runChoices[0].label.split(" · ")[0],runChoices[1].label.split(" · ")[0],"les deux runs doivent provenir de branches conversationnelles différentes");
+  await page.locator("#experiment-compare-left").selectOption(runChoices[0].value);
+  await page.locator("#experiment-compare-right").selectOption(runChoices[1].value);
   await page.locator("#experiment-compare-run").click();
   await page.waitForFunction(()=>document.querySelectorAll(".experiment-comparison-run-card").length===2);
   assert.equal(await page.locator(".experiment-comparison-run-card").count(),2,"la comparaison doit présenter les deux dialogues côte à côte");
