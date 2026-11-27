@@ -21,11 +21,13 @@ vars ==
     runs, runBranch, runPrompt, runConfiguration,
     completedRuns, runAnswer, comparisons>>
 
-Targets(relation, source) ==
-  {target : <<source, target>> \in relation}
+AllIds == Messages \cup Branches \cup Configurations \cup Runs \cup Answers
+
+Targets(relation, origin) ==
+  {target \in AllIds : <<origin, target>> \in relation}
 
 IsPartialFunction(relation, domain) ==
-  \A source \in domain : Cardinality(Targets(relation, source)) <= 1
+  \A item \in domain : Cardinality(Targets(relation, item)) <= 1
 
 PromptAvailableInBranch(prompt, branch) ==
   \/ <<prompt, branch>> \in messageBranch
