@@ -6,3 +6,20 @@ test("conversation branches retain explicit historical and configuration ancestr
 test("workflow validates dependencies and rejects cycles and unknown node types",()=>{assert.deepEqual(validateWorkflow({nodes:[{id:"a",type:"scoring"},{id:"b",type:"llm"}],edges:[{from:"a",to:"b"}]}),[]);assert.ok(validateWorkflow({nodes:[{id:"a",type:"llm"},{id:"b",type:"tool"}],edges:[{from:"a",to:"b"},{from:"b",to:"a"}]}).some(x=>x.includes("cycle")));assert.ok(validateWorkflow({nodes:[{id:"a",type:"eval"}],edges:[]}).length);});
 test("workflow executes scoring before injecting its result into the LLM adapter",async()=>{const order=[];const workflow=createWorkflow({nodes:[{id:"score",type:"scoring",config:{}} ,{id:"answer",type:"llm"}],edges:[{from:"score",to:"answer"}],output:"answer"});const result=await executeWorkflow(workflow,{input:{text:"test"},adapters:{scoring:async({input})=>{order.push("score");return {I:.9,text:input.text};},llm:async({parents})=>{order.push("llm");return {prompt:"Scores : "+JSON.stringify(parents.score)};}}});assert.deepEqual(order,["score","llm"]);assert.match(result.result.prompt,/"I":0.9/);});
 test("workflow refuses execution without the required adapter",async()=>{const workflow=createWorkflow({nodes:[{id:"score",type:"scoring"}]});await assert.rejects(executeWorkflow(workflow),/Aucun adaptateur/);});
+
+test("nested branches reconstruct only their own ancestry and never leak sibling turns",()=>{
+ let state=createExperimentState();const a=createConfiguration(state,{name:"A"});state=a.state;const snap=snapshotConfiguration(a.configuration);
+ const root={id:"root",projectId:"p",turnIds:["t1","t2"]};
+ const child={id:"child",projectId:"p",parentBranchId:"root",sourceTurnId:"t1",configurationSnapshot:snap,turnIds:["t3"]};
+ const sibling={id:"sibling",projectId:"p",parentBranchId:"root",sourceTurnId:"t2",configurationSnapshot:snap,turnIds:["t4"]};
+ const grandchild={id:"grandchild",projectId:"p",parentBranchId:"child",sourceTurnId:"t3",configurationSnapshot:snap,turnIds:["t5"]};
+ const turns=[{id:"t1"},{id:"t2",branchId:"root"},{id:"t3",branchId:"child"},{id:"t4",branchId:"sibling"},{id:"t5",branchId:"grandchild"}];
+ assert.deepEqual(branchHistory(turns,grandchild,[root,child,sibling,grandchild]).map(x=>x.id),["t1","t3","t5"]);
+ assert.deepEqual(branchHistory(turns,sibling,[root,child,sibling,grandchild]).map(x=>x.id),["t1","t2","t4"]);
+});
+test("branch history rejects missing parents and cycles",()=>{
+ const branch={id:"a",parentBranchId:"missing",turnIds:[]};
+ assert.throws(()=>branchHistory([],branch,[branch]),/parente/);
+ const a={id:"a",parentBranchId:"b",turnIds:[]},b={id:"b",parentBranchId:"a",turnIds:[]};
+ assert.throws(()=>branchHistory([],a,[a,b]),/cycle/);
+});

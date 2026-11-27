@@ -15,7 +15,7 @@ export function createConfiguration(state,{name="Expérience",parentConfiguratio
 }
 export function snapshotConfiguration(configuration){
  if(!configuration?.id)throw Error("Configuration expérimentale manquante.");
- const snapshot={id:id(),configurationId:configuration.id,name:configuration.name,revision:configuration.revision||1,documents:clone(configuration.documents||{}),settings:clone(configuration.settings||{}),workflowId:configuration.workflowId||null,capturedAt:stamp()};
+ const snapshot={id:id(),configurationId:configuration.id,name:configuration.name,revision:configuration.revision||1,documents:clone(configuration.documents||{}),settings:clone(configuration.settings||{}),workflowId:configuration.workflowId||null,workflow:clone(configuration.workflow||null),capturedAt:stamp()};
  return Object.freeze(snapshot);
 }
 export function createConversationBranch(state,{projectId,conversationId=null,parentBranchId=null,sourceTurnId=null,sourceTurnIndex=null,configurationSnapshot,kind="experiment",name="Nouvelle expérience"}={}){

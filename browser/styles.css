@@ -1373,3 +1373,5 @@ html[data-theme="dark"] .trace-zoom-viewport.trace-step-focused{outline-color:#f
 #laboratory-proposal-items input{margin-top:.2rem;}
 
 .laboratory-usage{margin:0;padding:10px 12px;border-left:3px solid var(--accent);border-radius:4px;background:var(--surface);color:var(--text);font-size:.9rem;line-height:1.5}.laboratory-usage::first-line{font-weight:600}
+
+.experiment-dialog{width:min(980px,calc(100vw - 24px));max-width:980px}.experiment-dialog .dialog-content{display:grid;gap:12px}.experiment-dialog textarea{width:100%;min-width:0;padding:10px;background:var(--surface);color:var(--text);border:1px solid var(--border);font:12px/1.5 ui-monospace,monospace;resize:vertical}.experiment-dialog label{display:grid;gap:5px}.experiment-dialog input,.experiment-dialog select{width:100%;padding:8px;background:var(--surface);color:var(--text);border:1px solid var(--border)}.trace-experiment-link{margin:8px 0 0 6px}
