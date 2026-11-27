@@ -296,7 +296,7 @@ try{
   assert.match(await assistantScoreLine.textContent(),/Réponse ICARE · I 91 % · C 72 % · A 84 % · R 63 % · E 58 %/,"le score de la réponse doit être lisible sous la réponse");
   const chatSystem=chatPayloads.at(-1)?.messages?.find(message=>message.role==="system")?.content||"";
   assert.match(chatSystem,/ÉVALUATION AUTOMATIQUE ICARE/,"le LLM doit être informé du scoring applicatif automatique");
-  assert.match(chatSystem,/traitement applicatif postérieur à ta génération/,"le LLM doit comprendre que le scoring intervient après sa réponse");
+  assert.match(chatSystem,/évalue le message utilisateur avant la génération/,"le LLM doit comprendre que le scoring utilisateur intervient avant la génération et que le score est transmis au modèle");
   await page.reload();
   await page.waitForFunction(()=>document.querySelectorAll(".message.assistant .icare-score-line").length>=2);
   assert.equal(await page.locator(".message.assistant .icare-score-user").first().textContent(),"Votre message · I 91 % · C 72 % · A 84 % · R 63 % · E 58 %","le score utilisateur doit être reconstruit depuis IndexedDB après rechargement");
