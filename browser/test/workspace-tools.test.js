@@ -135,6 +135,18 @@ test("la recherche documentaire restitue le contenu textuel intégral sans expos
   assert.equal(document.dataBase64, undefined);
 });
 
+test("le référentiel ICARE du projet est retrouvable par la recherche documentaire", async () => {
+  const project = workspace();
+  const reference = "# Référentiel ICARE\n\nLa régulation et l’évolution sont des dimensions du cadre systémique.";
+  project.referenceDocuments.push({ id: "icare-reference", title: "ICARE — Référentiel complet", content: reference });
+  const execute = createIcareToolExecutor({ workspace: project, ontology });
+  const result = await execute("search_reference_documents", { query: "régulation" });
+  assert.equal(result.ok, true);
+  assert.equal(result.results.length, 1);
+  assert.equal(result.results[0].id, "icare-reference");
+  assert.equal(result.results[0].content, reference);
+});
+
 test("une simple consultation ne modifie ni le projet ni son historique", async () => {
   const project = workspace();
   let writes = 0;

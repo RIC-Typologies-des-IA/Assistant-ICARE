@@ -1,16 +1,45 @@
 {
-  "version": 2,
+  "version": 3,
   "documents": [
-    {"id":"system-prompt","title":"Prompt système actif","category":"Instructions et référentiel","path":"system-prompt.md"},
-    {"id":"guide-icare","title":"Guide méthodologique","category":"Instructions et référentiel","path":"guide-icare.md"},
-    {"id":"referentiel","title":"Référentiel ICARE","category":"Instructions et référentiel","path":"icare-referentiel.md"},
-    {"id":"ontology","title":"Ontologie et schéma des propositions","category":"Payloads structurés","path":"icare.json"},
-    {"id":"prompt-standard","title":"Instructions standard","category":"Variantes de prompts","path":"lab-sources/ICARE_instructions_standard.md"},
-    {"id":"prompt-local","title":"Instructions locales","category":"Variantes de prompts","path":"lab-sources/ICARE_instructions_locale.md"},
-    {"id":"prompt-compact","title":"Prompt web compact","category":"Variantes de prompts","path":"lab-sources/ICARE_prompt_web_compact.md"},
-    {"id":"scoring-payload","title":"Payload de scoring — questions ICARE","category":"Scoring et évaluation","path":"scoring-payload.json"},
-    {"id":"gateway-template","title":"Configuration de référence du gateway d'entreprise","category":"Configurations opérationnelles","path":"lab-sources/enterprise-gateway-config.example.json"},
-    {"id":"security-policy","title":"Politique de sécurité opérationnelle","category":"Configurations opérationnelles","path":"security-policy.json"},
-    {"id":"component-registry","title":"Registre des composants ICARE","category":"Configurations opérationnelles","path":"components/registry.json"}
+    {
+      "id": "system-prompt",
+      "title": "Prompt système actif",
+      "category": "Comportement du dialogue",
+      "path": "system-prompt.md",
+      "usage": "Envoyé au modèle dans le message système à chaque tour de conversation. Définit son rôle, sa posture et ses règles de dialogue.",
+      "impact": "Direct : modifie les réponses du modèle."
+    },
+    {
+      "id": "guide-icare",
+      "title": "Guide méthodologique ICARE",
+      "category": "Comportement du dialogue",
+      "path": "guide-icare.md",
+      "usage": "Ajouté intégralement au message système à chaque tour, sous la rubrique « Guide méthodologique ICARE ». Ce n’est pas un document appelé à la demande par un outil.",
+      "impact": "Direct : modifie le raisonnement et le questionnement du modèle."
+    },
+    {
+      "id": "referentiel",
+      "title": "Référentiel ICARE",
+      "category": "Référentiel méthodologique",
+      "path": "icare-referentiel.md",
+      "usage": "Document de référence complet, chargé dans le corpus documentaire de chaque projet et consultable par l’outil search_reference_documents. Le modèle est invité à le rechercher lorsqu’une définition, une dimension, une relation systémique ou une recommandation méthodologique précise est pertinente pour la demande.",
+      "impact": "Direct lorsqu’il est consulté : fonde les analyses et recommandations sur le cadre ICARE. Les modifications du laboratoire sont synchronisées avec le document effectivement recherché par l’agent."
+    },
+    {
+      "id": "ontology",
+      "title": "Ontologie ICARE et modèle des propositions",
+      "category": "Données structurées utilisées",
+      "path": "icare.json",
+      "usage": "Chargé par l’application, ajouté au message système et retourné par l’outil get_ontology. Ses vocabulaires (dimensions, statuts, temporalité, modalités, épistémique, pratique et relations) sont aussi utilisés par l’exécuteur des outils pour contrôler les valeurs acceptées. Le modèle de proposition décrit les champs attendus ; tous ses champs requis ne sont pas automatiquement imposés comme un schéma JSON strict.",
+      "impact": "Direct : influence les réponses et contraint les valeurs des opérations agentiques."
+    },
+    {
+      "id": "scoring-payload",
+      "title": "Questions du scoring ICARE",
+      "category": "Évaluation automatique",
+      "path": "scoring-payload.json",
+      "usage": "Transmis au moteur Lemonade via POST /v1/systemone pour les cinq questions indépendantes I, C, A, R et E. Les autres routes de scoring ne consomment pas nécessairement ce payload.",
+      "impact": "Direct sur le scoring Lemonade ; sans effet sur le prompt conversationnel."
+    }
   ]
 }
