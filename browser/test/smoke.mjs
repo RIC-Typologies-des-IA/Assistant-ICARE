@@ -74,7 +74,7 @@ try{
   assert.equal(await page.locator("#laboratory-prompt-presets [data-prompt-preset]").count(),3,"les trois prompts prédéfinis doivent être proposés");
   await page.locator(".laboratory-prompt-builtins").evaluate(details=>{details.open=true;});
   await page.locator('#laboratory-prompt-presets [data-prompt-preset="local"]').click();
-  await page.waitForFunction(()=>document.querySelector("#laboratory-prompt-preset-status").textContent.includes("Prompt Local appliqué"));
+  await page.waitForFunction(()=>document.querySelector("#laboratory-prompt-library-status").textContent.includes("Prompt « Local » sélectionné"));
   assert.match(await page.locator("#laboratory-editor").inputValue(),/CONTEXTE LONG/,"le prompt local sélectionné doit remplacer le prompt actif");
   assert.match(await page.locator("#active-configuration-status").textContent(),/Personnalisations locales actives/,"l’activation du prompt doit être reflétée dans le dialogue");
   assert.match(await page.locator("#active-configuration-status").textContent(),/Prompt : Local/,"le nom exact du prompt actif doit être visible dans le dialogue");
