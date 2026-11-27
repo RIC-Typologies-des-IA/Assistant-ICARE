@@ -254,7 +254,7 @@ try{
   await page.locator("#settings-dialog").waitFor({state:"hidden"});
   await page.locator("#message-input").fill("Bonjour ICARE");
   await page.locator("#composer").evaluate(form=>form.requestSubmit());
-  await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Réponse locale de test."));
+  await page.waitForFunction(()=>[...document.querySelectorAll(".message.assistant p")].some(p=>p.textContent==="Réponse locale de test."||p.textContent.startsWith("Réponse impossible")),null,{timeout:30000});assert.equal(await page.locator(".message.assistant.error p").last().textContent().catch(()=>""),"","le premier échange ne doit pas échouer");
   await page.waitForFunction(()=>document.querySelector("#radar-accumulation-count")?.textContent==="1 échange(s) pris en compte");
   assert.equal(await page.locator("#radar-accumulation-count").textContent(),"1 échange(s) pris en compte","un échange doit alimenter les moyennes cumulées");
   assert.equal(await page.locator("#radar-latest").count(),1,"le radar du dernier échange doit être distinct");
