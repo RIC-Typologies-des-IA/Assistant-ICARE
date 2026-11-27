@@ -1,12 +1,10 @@
-name: ICARE formal access model
+name: ICARE formal models
 
 on:
   pull_request:
     paths:
       - "spec/ICAREProjectAccess.tla"
       - "spec/ICAREProjectAccess.cfg"
-      - "spec/ICAREConversationForests.tla"
-      - "spec/ICAREConversationForests.cfg"
       - "spec/ICAREConversationForests.tla"
       - "spec/ICAREConversationForests.cfg"
       - ".github/workflows/icare-formal-model.yml"
@@ -40,3 +38,9 @@ jobs:
             -workers 2 \
             -config spec/ICAREProjectAccess.cfg \
             spec/ICAREProjectAccess.tla
+      - name: Check conversation and configuration forests
+        run: |
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -workers 2 \
+            -config spec/ICAREConversationForests.cfg \
+            spec/ICAREConversationForests.tla
