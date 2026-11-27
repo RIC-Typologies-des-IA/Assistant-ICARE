@@ -11,6 +11,7 @@ import { initGatewayConfiguration } from "./gateway-config.js";
 import { scoreIcareMultilabel, listLemonadeScoringModels } from "./scoring.js";
 import { createLaboratory } from "./laboratory.js";
 import { createExperimentState, createConfigurationSnapshot, createConversationBranch, recordExperimentRun } from "./experiments.js";
+import { executeWorkflow, DEFAULT_WORKFLOW } from "./workflow-engine.js";
 import { calculateScoreRadar, SCORE_DIMENSIONS, backfillConversationScores } from "./scoring-radar.js";
 const $=id=>document.getElementById(id), db=await openDatabase();
 $("app-version").textContent=`— V${window.ICARE_VERSION} Alpha`;
