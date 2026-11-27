@@ -103,7 +103,7 @@ AddMessage(newMessage, branch, parentMessage) ==
   /\ branchTimeline' =
        [branchTimeline EXCEPT ![branch] = Append(@, newMessage)]
   /\ UNCHANGED <<branches, branchParent, branchSource, branchConfiguration,
-                 configurations, configurationParent, runs, runBranch,
+                 branchInheritedPrefix, configurations, configurationParent, runs, runBranch,
                  runPrompt, runConfiguration, completedRuns, runAnswer,
                  comparisons, scoreEvents>>
 
@@ -115,7 +115,7 @@ ForkConfiguration(newConfiguration, parentConfiguration) ==
        configurationParent \cup {<<newConfiguration, parentConfiguration>>}
   /\ UNCHANGED <<messages, messageParent, messageBranch,
                  branches, branchParent, branchSource, branchConfiguration,
-                 branchTimeline, runs, runBranch, runPrompt, runConfiguration,
+                 branchTimeline, branchInheritedPrefix, runs, runBranch, runPrompt, runConfiguration,
                  completedRuns, runAnswer, comparisons, scoreEvents>>
 
 ForkConversation(newBranch, parentBranch, sourceMessage, configuration) ==
@@ -168,7 +168,7 @@ CompleteRun(run, answer) ==
   /\ runAnswer' = runAnswer \cup {<<run, answer>>}
   /\ UNCHANGED <<messages, messageParent, messageBranch,
                  branches, branchParent, branchSource, branchConfiguration,
-                 branchTimeline, configurations, configurationParent,
+                 branchTimeline, branchInheritedPrefix, configurations, configurationParent,
                  runs, runBranch, runPrompt, runConfiguration,
                  comparisons, scoreEvents>>
 
@@ -180,7 +180,7 @@ RecordScore(message, dimension, value) ==
   /\ scoreEvents' = scoreEvents \cup {<<message, dimension, value>>}
   /\ UNCHANGED <<messages, messageParent, messageBranch,
                  branches, branchParent, branchSource, branchConfiguration,
-                 branchTimeline, configurations, configurationParent,
+                 branchTimeline, branchInheritedPrefix, configurations, configurationParent,
                  runs, runBranch, runPrompt, runConfiguration,
                  completedRuns, runAnswer, comparisons>>
 
@@ -192,7 +192,7 @@ CompareRuns(left, right) ==
   /\ comparisons' = comparisons \cup {<<left, right>>}
   /\ UNCHANGED <<messages, messageParent, messageBranch,
                  branches, branchParent, branchSource, branchConfiguration,
-                 branchTimeline, configurations, configurationParent,
+                 branchTimeline, branchInheritedPrefix, configurations, configurationParent,
                  runs, runBranch, runPrompt, runConfiguration,
                  completedRuns, runAnswer, scoreEvents>>
 
