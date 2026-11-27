@@ -76,7 +76,18 @@ function setupTraceZoom(diagram,panel,toolbar){
  viewport.addEventListener("click",event=>{if(event.detail===0||suppressClick)return;if(event.target.closest(".trace-payload-link"))return;const target=event.target.closest("g");if(!target||!svg.contains(target)){return;}const box=target.getBBox(),size=dimensions();const targetScale=Math.max(scale,Math.min(1.5,Math.max(size.width/(baseWidth||1),size.height/(baseHeight||1))));setZoom(targetScale);const centerX=box.x+box.width/2,centerY=box.y+box.height/2;x=size.width/2-centerX*scale;y=size.height/2-centerY*scale;draw();});
  const observer=new MutationObserver(()=>{if(ready)return;const found=diagram.querySelector("svg");if(!found)return;svg=found;svg.removeAttribute("width");svg.removeAttribute("height");svg.style.width="";svg.style.maxWidth="none";svg.style.height="";canvas.append(svg);const box=svg.getBBox();baseWidth=Math.max(1,box.width+30);baseHeight=Math.max(1,box.height+30);svg.style.width=baseWidth+"px";svg.style.height=baseHeight+"px";canvas.style.width=baseWidth+"px";canvas.style.height=baseHeight+"px";ready=true;fitWidth();observer.disconnect();});
  observer.observe(diagram,{childList:true,subtree:true});
- function focusElement(element){if(!element||!svg?.contains(element))return;let box;try{box=element.getBBox();}catch{return;}const size=dimensions();const targetScale=clamp(Math.max(scale,Math.min(1.35,Math.max(fitScale*1.35,.9))));scale=targetScale;x=size.width/2-(box.x+box.width/2)*scale;y=size.height/2-(box.y+box.height/2)*scale;draw();viewport.classList.remove("trace-focus-pulse");void viewport.offsetWidth;viewport.classList.add("trace-focus-pulse");setTimeout(()=>viewport.classList.remove("trace-focus-pulse"),850);}
+ let selectionHalo=null;
+ function focusElement(element){if(!element||!svg?.contains(element))return;let box;try{box=element.getBBox();}catch{return;}if(!box||!Number.isFinite(box.width)||!Number.isFinite(box.height))return;
+  if(!selectionHalo){selectionHalo=document.createElementNS("http://www.w3.org/2000/svg","rect");selectionHalo.classList.add("trace-selection-halo");selectionHalo.setAttribute("aria-hidden","true");selectionHalo.setAttribute("pointer-events","none");}
+  const parent=element.parentNode;if(selectionHalo.parentNode!==parent)parent.insertBefore(selectionHalo,element);else parent.insertBefore(selectionHalo,element);
+  const padX=Math.max(5,box.height*.32),padY=Math.max(3,box.height*.22);
+  selectionHalo.setAttribute("x",String(box.x-padX));selectionHalo.setAttribute("y",String(box.y-padY));selectionHalo.setAttribute("width",String(Math.max(1,box.width+padX*2)));selectionHalo.setAttribute("height",String(Math.max(1,box.height+padY*2)));selectionHalo.setAttribute("rx",String(Math.max(3,box.height*.18)));
+  const size=dimensions(),safeWidth=Math.max(1,size.width*.84),safeHeight=Math.max(1,size.height*.68);
+  const fitSelected=Math.min(safeWidth/(box.width+padX*2+30),safeHeight/(box.height+padY*2+20));
+  const targetScale=clamp(Math.min(2.5,Math.max(1.6,fitScale*2.8),fitSelected));
+  scale=targetScale;x=size.width/2-(box.x+box.width/2)*scale;y=size.height/2-(box.y+box.height/2)*scale;draw();
+  viewport.classList.add("trace-step-focused");viewport.classList.remove("trace-focus-pulse");void viewport.offsetWidth;viewport.classList.add("trace-focus-pulse");setTimeout(()=>viewport.classList.remove("trace-focus-pulse"),850);
+ }
  return {fit:fitAll,reset100,focus:focusElement};
 }
 function showTraceDialog(trace){
