@@ -1,0 +1,34 @@
+const TYPES={
+ score:{label:"Scoring",input:"Message",output:"ScoreReport",color:"score"},
+ model:{label:"LLM",input:"Message | Text | ScoreReport",output:"LLMResponse",color:"model"},
+ tool:{label:"Consultation documentaire",input:"Query | Message",output:"Text",color:"tool"},
+ transform:{label:"Transformation",input:"JSON | Text",output:"Text",color:"transform"},
+ condition:{label:"Condition",input:"Boolean | Score",output:"Boolean",color:"condition"},
+ output:{label:"Sortie",input:"LLMResponse | Text | ScoreReport",output:"FinalOutput",color:"output"}
+};
+const compatible=(out,input)=>input.split("|").map(x=>x.trim()).includes(out)||input.split("|").map(x=>x.trim()).includes("Any");
+export function mountWorkflowEditor({container,textarea,onChange=()=>{}}){
+ let selectedSource=null,positions=new Map(),drag=null;
+ const make=(tag,cls,text)=>{const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=text;return el;};
+ const render=()=>{
+  let wf;try{wf=JSON.parse(textarea.value);}catch{container.replaceChildren(make("p","workflow-editor-error","JSON invalide : corrigez le workflow dans l’éditeur texte."));return;}
+  if(!wf||!Array.isArray(wf.steps)){container.replaceChildren(make("p","workflow-editor-error","Le document ne contient pas de workflow schemaVersion 1."));return;}
+  const wrap=make("div","workflow-graph-editor"),toolbar=make("div","workflow-graph-toolbar"),status=make("p","workflow-graph-status","Choisissez une sortie puis une entrée compatible. Les ports compatibles sont signalés.");
+  const palette=make("div","workflow-node-palette");
+  [["score","＋ Scoring"],["model","＋ LLM"],["tool","＋ Document"],["output","＋ Sortie"]].forEach(([type,label])=>{const b=make("button","button secondary",label);b.type="button";b.addEventListener("click",()=>{const id=type+"-"+(wf.steps.length+1);const step={id,type,input:type==="score"?"userMessage":type==="output"?(wf.steps.at(-1)?.id||"userMessage"):"userMessage"};if(type==="score")step.side="user";if(type==="tool")step.tool="search_reference_documents";if(type==="model")step.include=[];wf.steps.push(step);textarea.value=JSON.stringify(wf,null,2);onChange();render();});palette.append(b);});
+  const help=make("small","workflow-graph-help","Aimantation : déplacement sur une grille, alignement proche des autres nœuds. Les connexions incompatibles sont refusées.");
+  toolbar.append(palette,help);
+  const canvas=make("div","workflow-graph-canvas"),svg=document.createElementNS("http://www.w3.org/2000/svg","svg");svg.classList.add("workflow-graph-edges");canvas.append(svg);
+  const nodes=wf.steps.map((step,i)=>{const type=TYPES[step.type]||{label:step.type,input:"Any",output:"Any",color:"unknown"};let pos=positions.get(step.id);if(!pos){pos={x:35+(i%3)*255,y:35+Math.floor(i/3)*165};positions.set(step.id,pos);}const node=make("article","workflow-graph-node type-"+type.color),head=make("header","workflow-graph-node-head",type.label),name=make("strong","",step.id),ports=make("div","workflow-graph-ports"),inp=make("button","workflow-port input-port","● "+type.input),out=make("button","workflow-port output-port","● "+type.output),details=make("small","workflow-node-detail","Entrée : "+(step.input||"entrée du workflow"));node.style.left=pos.x+"px";node.style.top=pos.y+"px";node.dataset.id=step.id;head.append(name);node.append(head,ports,details);ports.append(inp,out);
+    inp.type=out.type="button";inp.title="Entrée attendue : "+type.input;out.title="Sortie : "+type.output;
+    inp.addEventListener("click",()=>{if(!selectedSource){status.textContent="Sélectionnez d’abord une sortie.";return;}const source=wf.steps.find(x=>x.id===selectedSource),st=TYPES[source?.type]||{output:"Any"};if(!source||!compatible(st.output,type.input)){status.textContent="Connexion refusée : "+st.output+" ne peut pas alimenter "+type.input+".";return;}if(source.id===step.id){status.textContent="Un nœud ne peut pas se connecter à lui-même.";return;}step.input=source.id;source.next=step.id;if(step.type==="model"){step.include=[...(step.include||[]).filter(x=>x!==source.id),source.id];}textarea.value=JSON.stringify(wf,null,2);selectedSource=null;onChange();render();});
+    out.addEventListener("click",()=>{selectedSource=step.id;status.textContent="Sortie sélectionnée : "+type.output+". Les entrées compatibles sont mises en évidence.";render();});
+    node.addEventListener("pointerdown",e=>{if(e.target.closest("button"))return;drag={node,startX:e.clientX,startY:e.clientY,origX:pos.x,origY:pos.y};node.setPointerCapture?.(e.pointerId);});node.addEventListener("pointermove",e=>{if(!drag||drag.node!==node)return;let x=drag.origX+e.clientX-drag.startX,y=drag.origY+e.clientY-drag.startY;const snap=12;x=Math.round(x/snap)*snap;y=Math.round(y/snap)*snap;for(const other of wf.steps){if(other.id===step.id)continue;const op=positions.get(other.id);if(op&&Math.abs(x-op.x)<14)x=op.x;if(op&&Math.abs(y-op.y)<14)y=op.y;}pos.x=Math.max(0,x);pos.y=Math.max(0,y);node.style.left=pos.x+"px";node.style.top=pos.y+"px";draw();});node.addEventListener("pointerup",()=>drag=null);node.addEventListener("pointercancel",()=>drag=null);
+    if(selectedSource&&selectedSource!==step.id){const src=wf.steps.find(x=>x.id===selectedSource),st=TYPES[src?.type]||{output:"Any"};if(compatible(st.output,type.input))inp.classList.add("port-compatible");else inp.classList.add("port-incompatible");}
+    canvas.append(node);return {step,node,pos,type};});
+  const draw=()=>{svg.replaceChildren();svg.setAttribute("width",Math.max(canvas.clientWidth,850));svg.setAttribute("height",Math.max(canvas.scrollHeight,420));for(const item of nodes){const target=wf.steps.find(x=>x.id===item.step.id);const src=wf.steps.find(x=>x.id===target.input);if(!src)continue;const a=positions.get(src.id),b=positions.get(target.id);if(!a||!b)continue;const path=document.createElementNS("http://www.w3.org/2000/svg","path");path.setAttribute("d","M "+(a.x+210)+" "+(a.y+95)+" C "+(a.x+260)+" "+(a.y+95)+", "+(b.x-50)+" "+(b.y+55)+", "+b.x+" "+(b.y+55));path.setAttribute("class","workflow-graph-edge");svg.append(path);}};
+  canvas.append(status);wrap.append(toolbar,canvas);container.replaceChildren(wrap);requestAnimationFrame(draw);
+ };
+ textarea.addEventListener("change",render);textarea.addEventListener("input",()=>{if(container.hidden===false)render();});
+ return {render};
+}
