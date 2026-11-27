@@ -376,10 +376,25 @@ try{
   assert.ok(await stepSlider.count(),"le lecteur doit permettre de choisir directement une étape");
   await stepSlider.evaluate(el=>{el.value="1";el.dispatchEvent(new Event("input",{bubbles:true}));});
   assert.equal(await page.locator("#trace-steps .trace-payload-highlight").getAttribute("data-trace-index"),"1","le curseur doit sauter directement à l’étape choisie");
+  assert.equal(await page.locator("#trace-steps .trace-step.is-current").getAttribute("data-trace-index"),"1","l’étape choisie doit être visuellement identifiée dans la liste");
+  assert.equal(await page.locator("#trace-steps .trace-step.is-current").getAttribute("aria-current"),"step","l’étape active doit être annoncée aux technologies d’assistance");
+  assert.ok((await page.locator("#trace-diagram .trace-playback-position").textContent()).includes("Étape 2 /"),"le lecteur doit afficher explicitement le numéro de l’étape active");
+
   await page.locator("#trace-diagram .trace-playback-controls button").filter({hasText:"Suivant"}).click();
   assert.equal(await page.locator("#trace-steps .trace-payload-highlight").getAttribute("data-trace-index"),"2","Suivant doit avancer d’une étape");
   await page.locator("#trace-diagram .trace-playback-controls button").filter({hasText:"Précédent"}).click();
   assert.equal(await page.locator("#trace-steps .trace-payload-highlight").getAttribute("data-trace-index"),"1","Précédent doit revenir à l’étape précédente");
+  const playButton=page.locator("#trace-diagram .trace-playback-controls button").filter({hasText:"Lire"});
+  await playButton.click();
+  assert.equal(await playButton.getAttribute("aria-pressed"),"true","Lire doit annoncer l'état de lecture actif");
+  await page.waitForFunction(()=>document.querySelector("#trace-steps .trace-step.is-current")?.dataset.traceIndex==="2",{},{timeout:2500});
+  assert.ok((await page.locator("#trace-diagram .trace-playback-position").textContent()).includes("Étape 3 /"),"la lecture automatique doit synchroniser le libellé de l'étape");
+  await playButton.click();
+  assert.equal(await playButton.getAttribute("aria-pressed"),"false","Pause doit arrêter la lecture et réinitialiser son état accessible");
+  const pausedAt=await page.locator("#trace-steps .trace-step.is-current").getAttribute("data-trace-index");
+  await page.waitForTimeout(1700);
+  assert.equal(await page.locator("#trace-steps .trace-step.is-current").getAttribute("data-trace-index"),pausedAt,"l'étape ne doit plus avancer après Pause");
+
   assert.equal(await page.locator("#trace-panel .trace-fullscreen-toggle").count(),0,"le bouton plein écran doit être supprimé");
   await page.locator(".chat-heading").click();
   await page.locator("#trace-panel").waitFor({state:"hidden"});
