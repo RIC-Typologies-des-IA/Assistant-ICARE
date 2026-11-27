@@ -1,4 +1,4 @@
-import test from "node:test";import assert from "node:assert/strict";import {createLaboratoryState,documentContent,saveDraft,checkpointDraft,restoreProduction,addComment,addTraceLink,detectCommentNature,proposalMarkdown,githubIssueUrl,createCommunityProposal,personalBackup,restorePersonalBackup,createProfile,switchProfile,compareProfiles,addProposalContribution,setProposalContributionSelected} from "../laboratory.js";
+import test from "node:test";import assert from "node:assert/strict";import {createLaboratoryState,documentContent,saveDraft,checkpointDraft,restoreProduction,addComment,addTraceLink,detectCommentNature,proposalMarkdown,githubIssueUrl,createCommunityProposal,personalBackup,restorePersonalBackup,createProfile,switchProfile,compareProfiles,addProposalContribution,setProposalContributionSelected,PROMPT_PRESETS} from "../laboratory.js";
 test("la production reste intacte tant que les personnalisations ne sont pas activées",()=>{let s=saveDraft(createLaboratoryState(),"p","prod","draft");assert.equal(documentContent(s,"p","prod"),"prod");s.activeMode="laboratory";assert.equal(documentContent(s,"p","prod"),"draft");});
 test("jalons, commentaires et restauration sont non destructifs",()=>{let s=saveDraft(createLaboratoryState(),"p","base","v1");s=checkpointDraft(s,"p","Essai");s=addComment(s,"p","Améliorer ce passage.",undefined,"le passage sélectionné").state;s=restoreProduction(s,"p");assert.equal(s.documents.p.draft,"base");assert.equal(s.documents.p.history.length,1);assert.equal(s.documents.p.comments.length,1);assert.equal(s.documents.p.comments[0].anchor,"le passage sélectionné");});
 test("la nature des commentaires est détectée",()=>{assert.equal(detectCommentNature("Le bouton ne fonctionne pas"),"anomalie");assert.equal(detectCommentNature("Pourquoi cette règle ?"),"question");});
@@ -19,3 +19,5 @@ test("le payload expérimental reste lié au tour et à l’étape de trace sél
  assert.equal(linked.state.tracePayloadContext.sourceTurnId,"turn-9");
  assert.equal(linked.link.sourceTurnId,"turn-9");
 });
+
+test("les trois prompts prédéfinis restent disponibles dans le laboratoire",()=>{assert.deepEqual(PROMPT_PRESETS.map(item=>item.id),["standard","local","web-compact"]);assert.deepEqual(PROMPT_PRESETS.map(item=>item.path),["ICARE_instructions_standard.md","ICARE_instructions_locale.md","ICARE_prompt_web_compact.md"]);});
