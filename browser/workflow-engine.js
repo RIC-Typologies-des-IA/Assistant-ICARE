@@ -19,7 +19,7 @@ export function validateWorkflow(workflow){
   for(const target of targets)if(!ids.has(target))throw Error("Transition vers une étape inconnue : "+target);
   const inputRef=String(step.input||"").split(".")[0],source=workflow.steps.find(candidate=>candidate.id===inputRef);
   if(source){const produced=workflowOutputType(source),accepted=WORKFLOW_TYPES[step.type]?.input||["Any"];if(!accepted.includes(produced)&&!accepted.includes("Any"))throw Error("Connexion incompatible : "+source.id+" produit "+produced+", mais "+step.id+" attend "+accepted.join(" ou ")+".");}
-  if(step.include!==undefined&&(!Array.isArray(step.include)||step.include.some(id=>!ids.has(id))))throw Error("La liste include de "+step.id+" contient une étape inconnue.");
+  if(step.include!==undefined){if(!Array.isArray(step.include)||step.include.some(id=>!ids.has(id)))throw Error("La liste include de "+step.id+" contient une étape inconnue.");for(const includedId of step.include){const included=workflow.steps.find(candidate=>candidate.id===includedId),produced=workflowOutputType(included),accepted=WORKFLOW_TYPES[step.type]?.input||["Any"];if(!accepted.includes(produced)&&!accepted.includes("Any"))throw Error("Donnée include incompatible : "+includedId+" produit "+produced+", mais "+step.id+" ne l’accepte pas.");}}
  }
  return true;
 }
