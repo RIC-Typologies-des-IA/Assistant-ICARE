@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "description": "Questions indépendantes envoyées à Lemonade /v1/systemone pour évaluer chaque dimension ICARE.",
+  "dimensions": {
+    "I": "Ce texte exprime-t-il une intention, une finalité, un objectif, un besoin explicite ou une orientation du système ?",
+    "C": "Ce texte apporte-t-il des éléments sur le contexte, la situation, les acteurs, l'environnement, les contraintes ou les relations du système ?",
+    "A": "Ce texte décrit-il une action, une opération, une activité, une mise en œuvre ou une intervention concrète ?",
+    "R": "Ce texte décrit-il une régulation, un retour d'information, une évaluation, une réflexivité, un ajustement ou une gouvernance ?",
+    "E": "Ce texte décrit-il une évolution, une transformation, un apprentissage, une émergence, une dynamique temporelle ou une nouveauté ?"
+  }
+}
