@@ -1466,3 +1466,23 @@ html[data-theme="dark"] .branch-explorer{background:#172538;border-color:#40536b
 html[data-theme="dark"] .branch-tree-choice{color:#e6eef8}
 html[data-theme="dark"] .branch-tree-choice.is-active{background:#263e5a;border-color:#80a9e0}
 html[data-theme="dark"] .branch-compare-control select{background:#101b2a;color:#e6eef8;border-color:#40536b}
+
+/* Explorateur temporel des branches */
+.branch-tree-row{display:grid;grid-template-columns:minmax(0,1fr);gap:2px;padding-bottom:5px}
+.branch-tree-context{display:block;padding:0 8px 0 15px;color:var(--muted,#65758a);font-size:10px;line-height:1.35;overflow-wrap:anywhere}
+.branch-tree-config{display:inline-block;padding:0 8px 3px 15px;color:var(--accent,#4777b8);font-size:9px;text-decoration:underline;text-underline-offset:2px}
+.branch-tree-choice:focus-visible{outline:2px solid var(--accent,#4777b8);outline-offset:2px}
+.branch-keyboard-hint{margin:5px 0 2px;color:var(--muted,#65758a);font-size:9px;line-height:1.45}
+.branch-tree-row:before{z-index:0;pointer-events:none}
+.branch-tree-row>.branch-tree-choice{position:relative;z-index:1}
+html[data-theme="dark"] .branch-tree-context{color:#aebed2}
+html[data-theme="dark"] .branch-tree-config{color:#9fc3fa}
+
+/* Les variantes sœurs rejoignent visuellement le même point de bifurcation. */
+.branch-tree-children{position:relative;margin-left:12px;padding-left:9px;border-left:1px solid var(--border,#dce3ec)}
+.branch-tree-children>.branch-tree-row{padding-left:0}
+.branch-tree-children>.branch-tree-row:before{left:-9px;top:15px;bottom:auto;width:9px;height:0;border-left:0;border-bottom:1px solid var(--border,#dce3ec)}
+.branch-tree-children>.branch-tree-row:last-child:after{content:"";position:absolute;left:-10px;top:16px;bottom:0;width:1px;background:var(--surface,#fff)}
+.branch-tree-children>.branch-tree-row:last-child:after{display:none}
+html[data-theme="dark"] .branch-tree-children{border-color:#40536b}
+html[data-theme="dark"] .branch-tree-children>.branch-tree-row:before{border-color:#40536b}

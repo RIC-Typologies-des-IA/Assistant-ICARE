@@ -223,26 +223,44 @@ function renderExperimentBranches(){
  const configurations=$("experiment-configuration-select");if(configurations){const previous=state.selectedExperimentConfigurationId;configurations.replaceChildren(new Option("Configuration de production",""));const seen=new Set();for(const branch of state.experimentState?.branches||[]){const snapshot=branch.configurationSnapshot;if(!snapshot?.id||seen.has(snapshot.id))continue;seen.add(snapshot.id);configurations.add(new Option(snapshot.name+" · "+new Date(snapshot.createdAt).toLocaleString("fr-FR"),snapshot.id));}configurations.value=seen.has(previous)?previous:"";}
  renderBranchExplorer();
 }
+function activateBranchExplorerNode(branchId,{focus=true,turnCount=null}={}){
+ state.activeBranchId=branchId||"main";
+ const branch=state.experimentState?.branches?.find(item=>item.id===state.activeBranchId);
+ state.selectedExperimentConfigurationId=branch?.configurationSnapshot?.id||null;
+ replaySnapshotIndex=null;
+ replayBranchTurnCount=turnCount;
+ if(state.activeBranchId==="main"&&turnCount!==null){const snapshots=state.workspace?.snapshots||[];const targetTurns=Math.max(0,Number(turnCount)+1);const eligible=snapshots.map((snapshot,index)=>({snapshot,index})).filter(item=>Number(item.snapshot.turns||0)<=targetTurns);replaySnapshotIndex=eligible.length?eligible.at(-1).index:0;replayBranchTurnCount=null;}
+ renderExperimentBranches();renderConversation();renderScoringRadar();renderProjectTimeline();renderActiveConfigurationStatus();
+ if(focus)document.querySelector('[data-branch-id="'+CSS.escape(state.activeBranchId)+'"]')?.focus();
+}
 function renderBranchExplorer(){
  const tree=$("conversation-branch-tree"),compare=$("branch-compare-select");if(!tree||!compare)return;
- const branches=state.experimentState?.branches||[],active=state.activeBranchId||"main";
+ const branches=state.experimentState?.branches||[],active=state.activeBranchId||"main",allRuns=state.experimentState?.runs||[];
  const countLabel=$("branch-explorer-count");if(countLabel)countLabel.textContent=branches.length+" branche(s)";
- tree.replaceChildren();
+ tree.replaceChildren();tree.setAttribute("aria-label","Arbre temporel des conversations. Flèches gauche et droite pour parcourir le temps, haut et bas pour changer de branche.");
+ const branchTurns=id=>{if(id==="main")return state.turns.filter(turn=>!turn.experiment?.branchId);const b=branches.find(item=>item.id===id);if(!b)return[];const context=b.contextTurnIds?b.contextTurnIds.map(turnId=>state.turns.find(turn=>turn.id===turnId)).filter(Boolean):(b.contextTurns||[]);return [...context,...state.turns.filter(turn=>turn.experiment?.branchId===id)];};
+ const snippet=id=>{const b=branches.find(item=>item.id===id);const source=b?.initialMessage||state.turns.find(turn=>turn.id===b?.sourceTurnId)?.user||"";return String(source).replace(/\\s+/g," ").trim().slice(0,104);};
  const addNode=(branch,parent,depth)=>{
-  const row=document.createElement("div");row.className="branch-tree-row";row.style.setProperty("--branch-depth",String(depth));row.setAttribute("role","treeitem");row.setAttribute("aria-selected",String(branch.id===active));
-  const button=document.createElement("button");button.type="button";button.className="branch-tree-choice"+(branch.id===active?" is-active":"");button.dataset.branchId=branch.id;button.textContent=branch.name;button.title=(branch.configurationSnapshot?.name||"Configuration commune")+" · "+(state.experimentState?.runs||[]).filter(run=>run.branchId===branch.id).length+" exécution(s)";button.setAttribute("aria-current",branch.id===active?"true":"false");
-  button.addEventListener("click",()=>{state.activeBranchId=branch.id;state.selectedExperimentConfigurationId=branch.configurationSnapshot?.id||null;replaySnapshotIndex=null;replayBranchTurnCount=null;renderExperimentBranches();renderConversation();renderScoringRadar();renderProjectTimeline();renderActiveConfigurationStatus();});
-  row.append(button);parent.append(row);
-  for(const child of branches.filter(item=>(item.parentBranchId||"main")===branch.id))addNode(child,parent,depth+1);
+  const children=branches.filter(item=>(item.parentBranchId||"main")===branch.id);
+  const row=document.createElement("div");row.className="branch-tree-row";row.style.setProperty("--branch-depth",String(depth));row.setAttribute("role","treeitem");row.setAttribute("aria-selected",String(branch.id===active));row.setAttribute("aria-level",String(depth+1));row.setAttribute("aria-posinset",String(branches.filter(item=>(item.parentBranchId||"main")===branch.parentBranchId).indexOf(branch)+1));row.setAttribute("aria-setsize",String(branches.filter(item=>(item.parentBranchId||"main")===branch.parentBranchId).length));
+  const button=document.createElement("button");button.type="button";button.className="branch-tree-choice"+(branch.id===active?" is-active":"");button.dataset.branchId=branch.id;button.setAttribute("aria-current",branch.id===active?"true":"false");button.setAttribute("tabindex",branch.id===active?"0":"-1");button.textContent=branch.name;button.title=(branch.configurationSnapshot?.name||"Configuration commune")+" · "+allRuns.filter(run=>run.branchId===branch.id).length+" exécution(s)";
+  button.addEventListener("click",()=>activateBranchExplorerNode(branch.id));
+  const meta=document.createElement("span");meta.className="branch-tree-context";meta.textContent=snippet(branch.id)||"Point de départ non renseigné";meta.title=snippet(branch.id);
+  const config=document.createElement("a");config.className="branch-tree-config";config.href="#experiment-configuration-select";config.textContent=branch.configurationSnapshot?.name||"Configuration non précisée";config.addEventListener("click",event=>{event.preventDefault();state.selectedExperimentConfigurationId=branch.configurationSnapshot?.id||null;renderActiveConfigurationStatus();$("experiment-configuration-select")?.focus();});
+  row.append(button,meta,config);parent.append(row);
+  if(children.length){const group=document.createElement("div");group.className="branch-tree-children";row.append(group);children.forEach(child=>addNode(child,group,depth+1));}
  };
- const root=document.createElement("div");root.className="branch-tree-row";root.setAttribute("role","treeitem");root.setAttribute("aria-selected",String(active==="main"));
- const rootButton=document.createElement("button");rootButton.type="button";rootButton.className="branch-tree-choice"+(active==="main"?" is-active":"");rootButton.dataset.branchId="main";rootButton.textContent="Conversation originale";rootButton.setAttribute("aria-current",active==="main"?"true":"false");rootButton.addEventListener("click",()=>{state.activeBranchId="main";state.selectedExperimentConfigurationId=null;replaySnapshotIndex=null;replayBranchTurnCount=null;renderExperimentBranches();renderConversation();renderScoringRadar();renderProjectTimeline();renderActiveConfigurationStatus();});root.append(rootButton);tree.append(root);
- for(const branch of branches.filter(item=>(item.parentBranchId||"main")==="main"))addNode(branch,tree,1);
- const previous=compare.value;compare.replaceChildren(new Option("Aucune comparaison",""));for(const branch of branches)if(branch.id!==active)compare.add(new Option(branch.name+" · "+(branch.configurationSnapshot?.name||"Configuration"),branch.id));compare.value=branches.some(item=>item.id===previous&&item.id!==active)?previous:"";
- const compareSlider=$("branch-compare-slider"),compareLabel=$("branch-compare-position"),compareButton=$("branch-compare-open"),selected=branches.find(item=>item.id===compare.value),runs=(state.experimentState?.runs||[]).filter(run=>run.branchId===selected?.id).sort((a,b)=>String(a.createdAt||"").localeCompare(String(b.createdAt||"")));
+ const root=document.createElement("div");root.className="branch-tree-row";root.setAttribute("role","treeitem");root.setAttribute("aria-level","1");root.setAttribute("aria-selected",String(active==="main"));
+ const rootButton=document.createElement("button");rootButton.type="button";rootButton.className="branch-tree-choice"+(active==="main"?" is-active":"");rootButton.dataset.branchId="main";rootButton.textContent="Conversation originale";rootButton.setAttribute("aria-current",active==="main"?"true":"false");rootButton.setAttribute("tabindex",active==="main"?"0":"-1");rootButton.addEventListener("click",()=>activateBranchExplorerNode("main"));root.append(rootButton);
+ const rootMeta=document.createElement("span");rootMeta.className="branch-tree-context";rootMeta.textContent="Conversation de référence";root.append(rootMeta);tree.append(root);
+ const rootChildren=branches.filter(item=>(item.parentBranchId||"main")==="main");if(rootChildren.length){const group=document.createElement("div");group.className="branch-tree-children";root.append(group);rootChildren.forEach(branch=>addNode(branch,group,1));}
+ const previous=compare.value;compare.replaceChildren(new Option("Aucune comparaison",""));
+ for(const candidate of branches){if(candidate.id===active)continue;const current=branches.find(item=>item.id===active);const sameFork=!!current&&!!candidate.sourceTurnId&&candidate.sourceTurnId===current.sourceTurnId;if(sameFork)compare.add(new Option(candidate.name+" · même embranchement",candidate.id));}
+ compare.value=[...compare.options].some(option=>option.value===previous)?previous:"";
+ const compareSlider=$("branch-compare-slider"),compareLabel=$("branch-compare-position"),compareButton=$("branch-compare-open"),selected=branches.find(item=>item.id===compare.value),runs=allRuns.filter(run=>run.branchId===selected?.id).sort((a,b)=>String(a.createdAt||"").localeCompare(String(b.createdAt||"")));
  if(compareSlider){compareSlider.min="0";compareSlider.max=String(runs.length);compareSlider.value=String(runs.length);compareSlider.disabled=!runs.length;}
- if(compareLabel)compareLabel.textContent=runs.length?runs.length+" / "+runs.length+" exécution(s)":"Aucune exécution sur cette branche";
- if(compareButton)compareButton.disabled=active==="main"||!selected||!(state.experimentState?.runs||[]).some(run=>run.branchId===active)||!runs.length;
+ if(compareLabel)compareLabel.textContent=runs.length?runs.length+" / "+runs.length+" exécution(s) · même point de départ":"Choisissez une variante issue du même embranchement";
+ if(compareButton){const sameFork=!!selected&&!!branches.find(item=>item.id===active)?.sourceTurnId&&selected.sourceTurnId===branches.find(item=>item.id===active)?.sourceTurnId;compareButton.textContent="Comparer les réponses au même message";compareButton.disabled=active==="main"||!sameFork||!allRuns.some(run=>run.branchId===active)||!runs.length;}
 }
 function visibleConversationTurns(){if(!state.activeBranchId||state.activeBranchId==="main")return state.turns.filter(turn=>!turn.experiment?.branchId);const branch=state.experimentState?.branches?.find(item=>item.id===state.activeBranchId);if(!branch)return state.turns.filter(turn=>!turn.experiment?.branchId);const context=branch.contextTurnIds?branch.contextTurnIds.map(id=>state.turns.find(turn=>turn.id===id)).filter(Boolean):(branch.contextTurns||[]),runs=state.turns.filter(turn=>turn.experiment?.branchId===branch.id);return [...context,...runs];}
 async function loadProjects(){state.projects=(await getAll(db,"projects")).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));if(!state.projects.length){const p={id:uid(),name:"Mon premier projet",intention:"",createdAt:now(),updatedAt:now()};await put(db,"projects",p);state.projects=[p];}if(!state.projects.some(p=>p.id===state.projectId))state.projectId=state.projects[0].id;renderProjects();await loadTurns();}
@@ -574,14 +592,33 @@ function loadRadarVisibility(){let saved={};try{saved=JSON.parse(localStorage.ge
 document.querySelector(".radar-legend")?.addEventListener("click",event=>{const control=event.target.closest("[data-radar-series]");if(!control)return;const id=control.dataset.radarSeries;if(!RADAR_SERIES_IDS.includes(id))return;const visibility=loadRadarVisibility();visibility[id]=!visibility[id];try{localStorage.setItem(RADAR_VISIBILITY_KEY,JSON.stringify(visibility));}catch{}renderScoringRadar();});
 function compareSelectedBranches(){
  const active=state.experimentState?.branches?.find(item=>item.id===state.activeBranchId),other=$("branch-compare-select")?.value;
- if(!active||!other){return;}
- const allRuns=(state.experimentState?.runs||[]),runsA=allRuns.filter(run=>run.branchId===active.id).sort((a,b)=>String(a.createdAt||"").localeCompare(String(b.createdAt||""))),runsB=allRuns.filter(run=>run.branchId===other).sort((a,b)=>String(a.createdAt||"").localeCompare(String(b.createdAt||"")));
- const branchContext=active.contextTurnIds?.length??active.contextTurns?.length??0,countA=replayBranchTurnCount===null?runsA.length:Math.max(0,Math.min(runsA.length,replayBranchTurnCount-branchContext)),countB=Number($("branch-compare-slider")?.value||runsB.length);
- const left=runsA[Math.max(0,countA-1)],right=runsB[Math.max(0,Math.min(runsB.length,countB)-1)];
- if(!left||!right){alert("Chaque branche doit contenir au moins une exécution pour être comparée.");return;}
+ const candidate=state.experimentState?.branches?.find(item=>item.id===other);
+ if(!active||!candidate||!active.sourceTurnId||active.sourceTurnId!==candidate.sourceTurnId){alert("Pour une comparaison côte à côte, choisissez deux variantes issues du même message de départ.");return;}
+ const allRuns=state.experimentState?.runs||[];
+ const firstRun=branchId=>allRuns.filter(run=>run.branchId===branchId).sort((a,b)=>String(a.createdAt||"").localeCompare(String(b.createdAt||"")))[0];
+ const left=firstRun(active.id),right=firstRun(candidate.id);
+ if(!left||!right){alert("Chaque variante doit avoir au moins une exécution pour comparer les réponses au même message.");return;}
  renderExperimentComparisonChoices();$("experiment-compare-left").value=left.id;$("experiment-compare-right").value=right.id;$("experiment-comparison-result").replaceChildren();$("experiment-comparison-dialog").showModal();$("experiment-compare-run").click();
 }
 $("branch-compare-open")?.addEventListener("click",compareSelectedBranches);
+$("conversation-branch-tree")?.addEventListener("keydown",event=>{
+ if(!["ArrowLeft","ArrowRight","ArrowUp","ArrowDown","Home","End"].includes(event.key))return;
+ if(event.target.closest("a"))return;
+ const branches=state.experimentState?.branches||[],active=state.activeBranchId||"main",current=branches.find(item=>item.id===active),slider=$("project-history-slider");
+ const visible=visibleConversationTurns(),max=visible.length,currentCount=replayBranchTurnCount===null?max:Math.max(0,Math.min(max,replayBranchTurnCount));
+ const siblings=branches.filter(item=>(item.parentBranchId||"main")===(current?.parentBranchId||"main"));
+ let target=null,turnCount=null;
+ if(event.key==="ArrowRight"||event.key==="ArrowLeft"){
+  event.preventDefault();const next=Math.max(0,Math.min(max,currentCount+(event.key==="ArrowRight"?1:-1)));replayBranchTurnCount=next;if(slider){slider.value=String(next);slider.dispatchEvent(new Event("input",{bubbles:true}));}else renderProjectTimeline();return;
+ }
+ if(event.key==="ArrowDown"){event.preventDefault();target=branches.find(item=>(item.parentBranchId||"main")===active);if(target)turnCount=target.contextTurnIds?.length??target.contextTurns?.length??null;}
+ if(event.key==="ArrowUp"){event.preventDefault();if(current){target=current.parentBranchId||"main";turnCount=current.sourceIndex??null;} }
+ if(event.key==="ArrowDown"&&event.shiftKey||event.key==="ArrowUp"&&event.shiftKey){event.preventDefault();const list=active==="main"?branches.filter(item=>(item.parentBranchId||"main")==="main"):siblings;const index=list.findIndex(item=>item.id===active),step=event.key==="ArrowDown"?1:-1;target=list[index+step]?.id||null;turnCount=target==="main"?null:(branches.find(item=>item.id===target)?.contextTurnIds?.length??null);}
+ if(event.key==="Home"){event.preventDefault();if(active==="main"){replaySnapshotIndex=0;showProjectHistory(0);}else showBranchHistory(0);return;}
+ if(event.key==="End"){event.preventDefault();if(active==="main"){replaySnapshotIndex=null;renderConversation();renderScoringRadar();renderProjectTimeline();}else showBranchHistory(max);return;}
+ if(target!==null&&target!==undefined)activateBranchExplorerNode(target,{turnCount});
+});
+
 $("branch-compare-select")?.addEventListener("change",()=>{renderBranchExplorer();renderProjectTimeline();});
 $("branch-compare-slider")?.addEventListener("input",()=>{const select=$("branch-compare-select"),branch=state.experimentState?.branches?.find(item=>item.id===select?.value),runs=(state.experimentState?.runs||[]).filter(run=>run.branchId===branch?.id).sort((a,b)=>String(a.createdAt||"").localeCompare(String(b.createdAt||""))),count=Number($("branch-compare-slider").value);const label=$("branch-compare-position");if(label)label.textContent=count+" / "+runs.length+" exécution(s)";const button=$("branch-compare-open");if(button)button.disabled=!count||!runs.length||!state.activeBranchId||state.activeBranchId==="main";});
 function renderProjectTimeline(){

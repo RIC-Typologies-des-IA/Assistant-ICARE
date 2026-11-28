@@ -37,3 +37,12 @@ test("experimental branches retain an edited replay message independently from t
  assert.equal(created.branch.initialMessage,"message expérimental");
  assert.equal(created.branch.sourceTurnId,"turn-1");
 });
+
+test("sibling variants share a fork point and retain independent configurations",()=>{
+ const base=createExperimentState(),sourceTurnId="turn-shared";
+ const first=createConversationBranch(base,{name:"Variante A",sourceTurnId,sourceIndex:4,configurationSnapshot:createConfigurationSnapshot({id:"cfg-a"})});
+ const second=createConversationBranch(first.state,{name:"Variante B",sourceTurnId,sourceIndex:4,configurationSnapshot:createConfigurationSnapshot({id:"cfg-b"})});
+ assert.equal(first.branch.sourceTurnId,second.branch.sourceTurnId);
+ assert.notEqual(first.branch.configurationSnapshot.id,second.branch.configurationSnapshot.id);
+ assert.equal(second.branch.parentBranchId,"main");
+});
