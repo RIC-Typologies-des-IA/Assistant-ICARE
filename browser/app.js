@@ -234,11 +234,8 @@ function activateBranchExplorerNode(branchId,{focus=true,turnCount=null}={}){
  if(state.activeBranchId==="main"&&turnCount===null)replayMainTurnCount=null;
  let visibleCount=turnCount;
  if(state.activeBranchId==="main"&&turnCount!==null){
-  const snapshots=state.workspace?.snapshots||[],targetTurns=Math.max(0,Number(turnCount));
-  const eligible=snapshots.map((snapshot,index)=>({snapshot,index})).filter(item=>Number(item.snapshot.turns||0)<=targetTurns);
-  replaySnapshotIndex=eligible.length?eligible.at(-1).index:null;
-  visibleCount=replaySnapshotIndex===null?targetTurns:Math.min(state.turns.filter(turn=>!turn.experiment?.branchId).length,Number(snapshots[replaySnapshotIndex].turns)||0);
-  replayMainTurnCount=visibleCount;replayBranchTurnCount=null;
+  visibleCount=Math.max(0,Math.min(state.turns.filter(turn=>!turn.experiment?.branchId).length,Number(turnCount)||0));
+  replayMainTurnCount=visibleCount;replaySnapshotIndex=null;replayBranchTurnCount=null;
  }
  renderExperimentBranches();renderConversation(visibleCount??undefined);renderScoringRadar(visibleCount??undefined);renderProjectTimeline();renderActiveConfigurationStatus();
  if(focus)$("conversation-branch-tree")?.focus({preventScroll:true});
@@ -253,7 +250,7 @@ function renderBranchExplorer(){
  const makeDot=(parent,{label,kind="turn",branchId="main",position=1,selectPosition=position,activeDot=false})=>{
   const dot=document.createElement("button");dot.type="button";dot.className="branch-time-dot"+(kind==="fork"?" is-fork":"")+(activeDot?" is-current":"");dot.style.gridColumn=String(position);dot.title=label;dot.setAttribute("aria-label",label);dot.dataset.branchId=branchId;
   dot.addEventListener("click",()=>{
-   if(branchId==="main"){state.replayPreferredBranchId=null;activateBranchExplorerNode("main",{focus:false});const snapshots=state.workspace?.snapshots||[];const targetTurns=Math.min(canonical.length,position);let index=-1;snapshots.forEach((snapshot,i)=>{if(Number(snapshot.turns||0)<=targetTurns)index=i;});if(index>=0)showProjectHistory(index);else{replaySnapshotIndex=null;replayMainTurnCount=targetTurns;renderConversation(targetTurns);renderScoringRadar(targetTurns);renderProjectTimeline();renderBranchExplorer();}tree.focus({preventScroll:true});}
+   if(branchId==="main"){state.replayPreferredBranchId=null;activateBranchExplorerNode("main",{focus:false});const targetTurns=Math.min(canonical.length,position);replaySnapshotIndex=null;replayMainTurnCount=targetTurns;renderConversation(targetTurns);renderScoringRadar(targetTurns);renderProjectTimeline();renderBranchExplorer();tree.focus({preventScroll:true});}
    else{activateBranchExplorerNode(branchId,{focus:false});showBranchHistory(selectPosition);tree.focus({preventScroll:true});}
   });parent.append(dot);return dot;
  };
@@ -620,14 +617,14 @@ $("conversation-branch-tree")?.addEventListener("keydown",event=>{
  let target=null,turnCount=null;
  if(event.key==="ArrowRight"||event.key==="ArrowLeft"){
   event.preventDefault();const next=Math.max(0,Math.min(max,currentCount+(event.key==="ArrowRight"?1:-1)));
-  if(active==="main"){const snapshots=state.workspace?.snapshots||[];let snapshotIndex=-1;snapshots.forEach((snapshot,index)=>{if(Number(snapshot.turns||0)<=next)snapshotIndex=index;});if(snapshotIndex>=0&&Number(snapshots[snapshotIndex].turns||0)===next)showProjectHistory(snapshotIndex);else{replaySnapshotIndex=null;replayMainTurnCount=next;renderConversation(next);renderScoringRadar(next);renderProjectTimeline();renderBranchExplorer();}}
+  if(active==="main"){replaySnapshotIndex=null;replayMainTurnCount=next;renderConversation(next);renderScoringRadar(next);renderProjectTimeline();renderBranchExplorer();}
   else showBranchHistory(next);
   tree.focus({preventScroll:true});return;
  }
  if(event.key==="ArrowDown"){event.preventDefault();target=branches.find(item=>(item.parentBranchId||"main")===active);if(target)turnCount=Number(target.sourceIndex??target.contextTurnIds?.length??target.contextTurns?.length??0)+1;}
  if(event.key==="ArrowUp"){event.preventDefault();if(current){target=current.parentBranchId||"main";turnCount=Number(current.sourceIndex??current.contextTurnIds?.length??0)+1;} }
  if(event.key==="ArrowDown"&&event.shiftKey||event.key==="ArrowUp"&&event.shiftKey){event.preventDefault();const list=active==="main"?branches.filter(item=>(item.parentBranchId||"main")==="main"):siblings;const index=list.findIndex(item=>item.id===active),step=event.key==="ArrowDown"?1:-1;target=list[index+step]?.id||null;turnCount=target==="main"?null:(Number(branches.find(item=>item.id===target)?.sourceIndex??0)+1);}
- if(event.key==="Home"){event.preventDefault();if(active==="main"){replaySnapshotIndex=0;showProjectHistory(0);}else showBranchHistory(0);tree.focus({preventScroll:true});return;}
+ if(event.key==="Home"){event.preventDefault();if(active==="main"){replaySnapshotIndex=null;replayMainTurnCount=0;renderConversation(0);renderScoringRadar(0);renderProjectTimeline();renderBranchExplorer();}else showBranchHistory(0);tree.focus({preventScroll:true});return;}
  if(event.key==="End"){event.preventDefault();if(active==="main"){replaySnapshotIndex=null;replayMainTurnCount=null;renderConversation();renderScoringRadar();renderProjectTimeline();renderBranchExplorer();}else showBranchHistory(max);tree.focus({preventScroll:true});return;}
  if(target!==null&&target!==undefined)activateBranchExplorerNode(target,{turnCount});
 });
@@ -657,10 +654,7 @@ function showBranchHistory(index){
  const forkContext=Number(branch?.sourceIndex??branch?.contextTurnIds?.length??0);
  if(shouldReturnToParentBranch(branch,selected)){
   state.replayPreferredBranchId=branch.id;state.activeBranchId="main";replayBranchTurnCount=null;replayMainTurnCount=forkContext;
-  const snapshots=state.workspace?.snapshots||[];let snapshotIndex=-1;
-  snapshots.forEach((snapshot,i)=>{if(Number(snapshot.turns||0)<=forkContext)snapshotIndex=i;});
-  if(snapshotIndex>=0)showProjectHistory(snapshotIndex);
-  else{replaySnapshotIndex=null;renderConversation(forkContext);renderScoringRadar(forkContext);renderProjectTimeline();renderBranchExplorer();}
+  replaySnapshotIndex=null;replayMainTurnCount=forkContext;renderConversation(forkContext);renderScoringRadar(forkContext);renderProjectTimeline();renderBranchExplorer();
   return;
  }
  replayBranchTurnCount=selected;
