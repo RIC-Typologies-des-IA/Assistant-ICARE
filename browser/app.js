@@ -221,6 +221,27 @@ async function loadTurns(){state.turns=(await getAll(db,"turns")).filter(t=>t.pr
 function renderExperimentBranches(){
  const select=$("conversation-branch-select");if(select){const previous=state.activeBranchId||"main";select.replaceChildren(new Option("Conversation originale","main"));for(const branch of state.experimentState?.branches||[])select.add(new Option(branch.name+" · "+branch.configurationSnapshot?.name,branch.id));select.value=previous;}
  const configurations=$("experiment-configuration-select");if(configurations){const previous=state.selectedExperimentConfigurationId;configurations.replaceChildren(new Option("Configuration de production",""));const seen=new Set();for(const branch of state.experimentState?.branches||[]){const snapshot=branch.configurationSnapshot;if(!snapshot?.id||seen.has(snapshot.id))continue;seen.add(snapshot.id);configurations.add(new Option(snapshot.name+" · "+new Date(snapshot.createdAt).toLocaleString("fr-FR"),snapshot.id));}configurations.value=seen.has(previous)?previous:"";}
+ renderBranchExplorer();
+}
+function renderBranchExplorer(){
+ const tree=$("conversation-branch-tree"),compare=$("branch-compare-select");if(!tree||!compare)return;
+ const branches=state.experimentState?.branches||[],active=state.activeBranchId||"main";
+ tree.replaceChildren();
+ const addNode=(branch,parent,depth)=>{
+  const row=document.createElement("div");row.className="branch-tree-row";row.style.setProperty("--branch-depth",String(depth));row.setAttribute("role","treeitem");row.setAttribute("aria-selected",String(branch.id===active));
+  const button=document.createElement("button");button.type="button";button.className="branch-tree-choice"+(branch.id===active?" is-active":"");button.dataset.branchId=branch.id;button.textContent=branch.name;button.title=(branch.configurationSnapshot?.name||"Configuration commune")+" · "+(state.experimentState?.runs||[]).filter(run=>run.branchId===branch.id).length+" exécution(s)";button.setAttribute("aria-current",branch.id===active?"true":"false");
+  button.addEventListener("click",()=>{state.activeBranchId=branch.id;state.selectedExperimentConfigurationId=branch.configurationSnapshot?.id||null;replaySnapshotIndex=null;replayBranchTurnCount=null;renderExperimentBranches();renderConversation();renderScoringRadar();renderProjectTimeline();renderActiveConfigurationStatus();});
+  row.append(button);parent.append(row);
+  for(const child of branches.filter(item=>(item.parentBranchId||"main")===branch.id))addNode(child,parent,depth+1);
+ };
+ const root=document.createElement("div");root.className="branch-tree-row";root.setAttribute("role","treeitem");root.setAttribute("aria-selected",String(active==="main"));
+ const rootButton=document.createElement("button");rootButton.type="button";rootButton.className="branch-tree-choice"+(active==="main"?" is-active":"");rootButton.dataset.branchId="main";rootButton.textContent="Conversation originale";rootButton.setAttribute("aria-current",active==="main"?"true":"false");rootButton.addEventListener("click",()=>{state.activeBranchId="main";state.selectedExperimentConfigurationId=null;replaySnapshotIndex=null;replayBranchTurnCount=null;renderExperimentBranches();renderConversation();renderScoringRadar();renderProjectTimeline();renderActiveConfigurationStatus();});root.append(rootButton);tree.append(root);
+ for(const branch of branches.filter(item=>(item.parentBranchId||"main")==="main"))addNode(branch,tree,1);
+ const previous=compare.value;compare.replaceChildren(new Option("Aucune comparaison",""));for(const branch of branches)if(branch.id!==active)compare.add(new Option(branch.name+" · "+(branch.configurationSnapshot?.name||"Configuration"),branch.id));compare.value=branches.some(item=>item.id===previous&&item.id!==active)?previous:"";
+ const compareSlider=$("branch-compare-slider"),compareLabel=$("branch-compare-position"),compareButton=$("branch-compare-open"),selected=branches.find(item=>item.id===compare.value),runs=(state.experimentState?.runs||[]).filter(run=>run.branchId===selected?.id).sort((a,b)=>String(a.createdAt||"").localeCompare(String(b.createdAt||"")));
+ if(compareSlider){compareSlider.min="0";compareSlider.max=String(runs.length);compareSlider.value=String(runs.length);compareSlider.disabled=!runs.length;}
+ if(compareLabel)compareLabel.textContent=runs.length?runs.length+" / "+runs.length+" exécution(s)":"Aucune exécution sur cette branche";
+ if(compareButton)compareButton.disabled=active==="main"||!selected||!(state.experimentState?.runs||[]).some(run=>run.branchId===active)||!runs.length;
 }
 function visibleConversationTurns(){if(!state.activeBranchId||state.activeBranchId==="main")return state.turns.filter(turn=>!turn.experiment?.branchId);const branch=state.experimentState?.branches?.find(item=>item.id===state.activeBranchId);if(!branch)return state.turns.filter(turn=>!turn.experiment?.branchId);const context=branch.contextTurnIds?branch.contextTurnIds.map(id=>state.turns.find(turn=>turn.id===id)).filter(Boolean):(branch.contextTurns||[]),runs=state.turns.filter(turn=>turn.experiment?.branchId===branch.id);return [...context,...runs];}
 async function loadProjects(){state.projects=(await getAll(db,"projects")).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));if(!state.projects.length){const p={id:uid(),name:"Mon premier projet",intention:"",createdAt:now(),updatedAt:now()};await put(db,"projects",p);state.projects=[p];}if(!state.projects.some(p=>p.id===state.projectId))state.projectId=state.projects[0].id;renderProjects();await loadTurns();}
@@ -550,6 +571,18 @@ const RADAR_VISIBILITY_KEY="icare-radar-series-visibility-v1";
 const RADAR_SERIES_IDS=["radar-user-latest","radar-user-average","radar-assistant-latest","radar-assistant-average"];
 function loadRadarVisibility(){let saved={};try{saved=JSON.parse(localStorage.getItem(RADAR_VISIBILITY_KEY)||"{}")||{};}catch{}return Object.fromEntries(RADAR_SERIES_IDS.map(id=>[id,saved[id]!==false]));}
 document.querySelector(".radar-legend")?.addEventListener("click",event=>{const control=event.target.closest("[data-radar-series]");if(!control)return;const id=control.dataset.radarSeries;if(!RADAR_SERIES_IDS.includes(id))return;const visibility=loadRadarVisibility();visibility[id]=!visibility[id];try{localStorage.setItem(RADAR_VISIBILITY_KEY,JSON.stringify(visibility));}catch{}renderScoringRadar();});
+function compareSelectedBranches(){
+ const active=state.experimentState?.branches?.find(item=>item.id===state.activeBranchId),other=$("branch-compare-select")?.value;
+ if(!active||!other){return;}
+ const allRuns=(state.experimentState?.runs||[]),runsA=allRuns.filter(run=>run.branchId===active.id).sort((a,b)=>String(a.createdAt||"").localeCompare(String(b.createdAt||""))),runsB=allRuns.filter(run=>run.branchId===other).sort((a,b)=>String(a.createdAt||"").localeCompare(String(b.createdAt||"")));
+ const countA=replayBranchTurnCount===null?runsA.length:Math.min(runsA.length,replayBranchTurnCount),countB=Number($("branch-compare-slider")?.value||runsB.length);
+ const left=runsA[Math.max(0,countA-1)],right=runsB[Math.max(0,Math.min(runsB.length,countB)-1)];
+ if(!left||!right){alert("Chaque branche doit contenir au moins une exécution pour être comparée.");return;}
+ renderExperimentComparisonChoices();$("experiment-compare-left").value=left.id;$("experiment-compare-right").value=right.id;$("experiment-comparison-result").replaceChildren();$("experiment-comparison-dialog").showModal();$("experiment-compare-run").click();
+}
+$("branch-compare-open")?.addEventListener("click",compareSelectedBranches);
+$("branch-compare-select")?.addEventListener("change",()=>{renderBranchExplorer();renderProjectTimeline();});
+$("branch-compare-slider")?.addEventListener("input",()=>{const select=$("branch-compare-select"),branch=state.experimentState?.branches?.find(item=>item.id===select?.value),runs=(state.experimentState?.runs||[]).filter(run=>run.branchId===branch?.id).sort((a,b)=>String(a.createdAt||"").localeCompare(String(b.createdAt||""))),count=Number($("branch-compare-slider").value);const label=$("branch-compare-position");if(label)label.textContent=count+" / "+runs.length+" exécution(s)";const button=$("branch-compare-open");if(button)button.disabled=!count||!runs.length||!state.activeBranchId||state.activeBranchId==="main";});
 function renderProjectTimeline(){
  const slider=$("project-history-slider"),start=$("project-history-start"),position=$("project-history-position"),summary=$("project-history-summary");
  if(!slider||!state.workspace)return;
