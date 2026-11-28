@@ -6,6 +6,7 @@ import { parse } from "parse5";
 const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
 const app = await readFile(new URL("../app.js", import.meta.url), "utf8");
 const styles = await readFile(new URL("../styles.css", import.meta.url), "utf8");
+const branchNavigation = await readFile(new URL("../branch-navigation.js", import.meta.url), "utf8");
 function walk(node, visit) {
   visit(node);
   for (const child of node.childNodes || []) walk(child, visit);
@@ -62,7 +63,7 @@ test("variant lineage includes its source exchange and makes the source node sel
 
 test("aborted variants expose an explicit non-selectable empty marker",()=>{
  assert.match(app,/className="branch-time-dot is-empty"/);
- assert.match(app,/Variante avortée : aucun échange produit/);
+ assert.match(branchNavigation,/Variante avortée : aucun échange produit/);
  assert.match(styles,/\.branch-time-dot\.is-empty/);
 });
 
