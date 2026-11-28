@@ -240,11 +240,11 @@ function renderBranchExplorer(){
  tree.replaceChildren();tree.setAttribute("aria-label","Chronologie arborescente des conversations. Chaque point représente un échange. Sélectionnez un point pour rejouer la conversation à cet instant.");
  const canonical=state.turns.filter(turn=>!turn.experiment?.branchId);
  const maxColumns=Math.max(1,canonical.length,...branches.map(branch=>(branch.contextTurnIds?.length??branch.contextTurns?.length??branch.sourceIndex??0)+state.turns.filter(turn=>turn.experiment?.branchId===branch.id).length+1));
- const makeDot=(parent,{label,kind="turn",branchId="main",position=0,turn=null,activeDot=false})=>{
+ const makeDot=(parent,{label,kind="turn",branchId="main",position=0,selectPosition=position,activeDot=false})=>{
   const dot=document.createElement("button");dot.type="button";dot.className="branch-time-dot"+(kind==="fork"?" is-fork":"")+(kind==="shared"?" is-shared":"")+(activeDot?" is-current":"");dot.style.gridColumn=String(position);dot.title=label;dot.setAttribute("aria-label",label);dot.dataset.branchId=branchId;
   dot.addEventListener("click",()=>{
    if(branchId==="main"){activateBranchExplorerNode("main",{focus:false});const snapshots=state.workspace?.snapshots||[];const targetTurns=Math.min(canonical.length,position);let index=-1;snapshots.forEach((snapshot,i)=>{if(Number(snapshot.turns||0)<=targetTurns)index=i;});if(index>=0)showProjectHistory(index);else{replaySnapshotIndex=null;renderConversation(targetTurns);renderScoringRadar(targetTurns);renderProjectTimeline();}}
-   else{activateBranchExplorerNode(branchId,{focus:false});showBranchHistory(position);}
+   else{activateBranchExplorerNode(branchId,{focus:false});showBranchHistory(selectPosition);}
   });parent.append(dot);return dot;
  };
  const makeLane=(branch,parent,{root=false,forkColumn=0}={})=>{
@@ -267,8 +267,8 @@ function renderBranchExplorer(){
   else{
    context.forEach((turn,index)=>makeDot(track,{label:"Contexte partagé · échange "+(index+1),kind:"shared",branchId:id,position:index+1}));
    const forkAt=context.length+1;
-   makeDot(track,{label:"Point de bifurcation · "+(branch.name||"variante"),kind:"fork",branchId:id,position:forkAt,activeDot:active===id&&replayBranchTurnCount===context.length});
-   own.forEach((turn,index)=>makeDot(track,{label:"Réponse de la variante · échange "+(context.length+index+1)+(turn.createdAt?" · "+new Date(turn.createdAt).toLocaleString("fr-FR"):""),branchId:id,position:forkAt+index+1,activeDot:active===id&&replayBranchTurnCount===context.length+index+1}));
+   makeDot(track,{label:"Point de bifurcation · "+(branch.name||"variante"),kind:"fork",branchId:id,position:forkAt,selectPosition:context.length,activeDot:active===id&&replayBranchTurnCount===context.length});
+   own.forEach((turn,index)=>makeDot(track,{label:"Réponse de la variante · échange "+(context.length+index+1)+(turn.createdAt?" · "+new Date(turn.createdAt).toLocaleString("fr-FR"):""),branchId:id,position:forkAt+index+1,selectPosition:context.length+index+1,activeDot:active===id&&(replayBranchTurnCount===context.length+index+1||(replayBranchTurnCount===null&&index===own.length-1))}));
   }
   lane.append(track);parent.append(lane);
   const children=branches.filter(item=>(item.parentBranchId||"main")===id);
@@ -282,7 +282,7 @@ function renderBranchExplorer(){
  }
  };
  makeLane(null,tree,{root:true});
- // Each sibling group is shifted to its shared fork point; retain deterministic ordering.
+ // Les variantes sœurs sont regroupées par échange source, sur la même colonne.
  const previous=compare.value;compare.replaceChildren(new Option("Aucune comparaison",""));
  const current=branches.find(item=>item.id===active);
  for(const candidate of branches){if(candidate.id!==active&&current?.sourceTurnId&&candidate.sourceTurnId===current.sourceTurnId)compare.add(new Option(candidate.name+" · même message source",candidate.id));}
