@@ -24,7 +24,7 @@ test("HTML has no parser errors, duplicate IDs, or dangling structural reference
     const attrs = Object.fromEntries(node.attrs.map(({ name, value }) => [name, value]));
     if (attrs.id) ids.set(attrs.id, (ids.get(attrs.id) || 0) + 1);
     for (const name of ["for", "aria-labelledby", "aria-describedby", "aria-controls", "aria-owns", "aria-activedescendant", "aria-errormessage"]) {
-      if (attrs[name]) for (const id of attrs[name].trim().split(/\\s+/)) references.push({ name, id });
+      if (attrs[name]) for (const id of attrs[name].trim().split(/\s+/)) references.push({ name, id });
     }
     if (attrs.href?.startsWith("#") && attrs.href.length > 1) references.push({ name: "href", id: decodeURIComponent(attrs.href.slice(1)) });
   });
@@ -35,29 +35,29 @@ test("HTML has no parser errors, duplicate IDs, or dangling structural reference
 });
 
 test("conversation tree is focusable and is the only replay navigation control", () => {
-  assert.match(html, /id="conversation-branch-tree"[^>]*role="tree"[^>]*tabindex="0"/);
-  assert.match(html, /← \\/ → messages/);
-  assert.doesNotMatch(html, /type="range"/);
-  assert.doesNotMatch(app, /project-history-slider/);
-  assert.match(app, /conversation-branch-tree.*addEventListener\("keydown"/s);
-  assert.match(app, /tree\\.focus\\(\\{preventScroll:true\\}\\)/);
+  assert.ok(html.includes('id="conversation-branch-tree" class="branch-tree" role="tree" tabindex="0"'));
+  assert.ok(html.includes("← / → messages"));
+  assert.ok(!html.includes('type="range"'));
+  assert.ok(!app.includes("project-history-slider"));
+  assert.ok(app.includes('$("conversation-branch-tree")?.addEventListener("keydown"'));
+  assert.ok(app.includes('tree.focus({preventScroll:true})'));
 });
 
 test("application delegates lineage and source-node navigation to the tested branch model", () => {
-  assert.match(app, /buildBranchReplayTimeline\\(state\\.turns,branch\\)\\.turns/);
-  assert.match(app, /lineage\\.sourceSelectionCount/);
-  assert.match(app, /lineage\\.variantNodes\\.forEach/);
-  assert.match(app, /shouldReturnToParentBranch\\(branch,selected\\)/);
-  assert.match(branchNavigation, /sourceSelectionCount: sourceIndex \\+ 1/);
-  assert.match(branchNavigation, /selectionCount: sourceIndex \\+ index \\+ 2/);
+  assert.ok(app.includes("buildBranchReplayTimeline(state.turns,branch).turns"));
+  assert.ok(app.includes("lineage.sourceSelectionCount"));
+  assert.ok(app.includes("lineage.variantNodes.forEach"));
+  assert.ok(app.includes("shouldReturnToParentBranch(branch,selected)"));
+  assert.ok(branchNavigation.includes("sourceSelectionCount: sourceIndex + 1"));
+  assert.ok(branchNavigation.includes("selectionCount: sourceIndex + index + 2"));
 });
 
 test("aborted variants expose a visible non-selectable marker", () => {
-  assert.match(app, /className="branch-time-dot is-empty"/);
-  assert.match(branchNavigation, /Variante avortée : aucun échange produit/);
-  assert.match(styles, /\\.branch-time-dot\\.is-empty/);
+  assert.ok(app.includes('className="branch-time-dot is-empty"'));
+  assert.ok(branchNavigation.includes("Variante avortée : aucun échange produit"));
+  assert.ok(styles.includes(".branch-time-dot.is-empty"));
 });
 
 test("selected branch label remains readable in dark mode", () => {
-  assert.match(styles, /html\\[data-theme="dark"\\] \\.branch-lane-choice\\.is-active\\{background:#29496c;color:#fff/);
+  assert.ok(styles.includes('html[data-theme="dark"] .branch-lane-choice.is-active{background:#29496c;color:#fff'));
 });
