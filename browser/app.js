@@ -250,7 +250,7 @@ function renderBranchExplorer(){
  const makeLane=(branch,parent,{root=false,forkColumn=0}={})=>{
   const id=root?"main":branch.id,own=root?canonical:state.turns.filter(turn=>turn.experiment?.branchId===id);
   const context=root?[]:(branch.contextTurnIds?branch.contextTurnIds.map(turnId=>state.turns.find(turn=>turn.id===turnId)).filter(Boolean):(branch.contextTurns||[]));
-  const lane=document.createElement("section");lane.className="branch-lane"+(root?" branch-lane-root":"")+(id===active?" is-active":"");lane.dataset.branchId=id;
+  const lane=document.createElement("section");lane.className="branch-lane"+(root?" branch-lane-root":"")+(id===active?" is-active":"");lane.dataset.branchId=id;lane.setAttribute("role","treeitem");lane.setAttribute("aria-selected",String(id===active));lane.setAttribute("aria-level",String(root?1:2));
   const heading=document.createElement("div");heading.className="branch-lane-heading";
   const choice=document.createElement("button");choice.type="button";choice.className="branch-lane-choice"+(id===active?" is-active":"");choice.dataset.branchId=id;choice.textContent=root?"Conversation originale":branch.name;choice.setAttribute("aria-current",String(id===active));choice.title=root?"Conversation de référence":(branch.configurationSnapshot?.name||"Configuration de la variante");choice.addEventListener("click",()=>activateBranchExplorerNode(id));heading.append(choice);
   const info=document.createElement("div");info.className="branch-lane-info";
@@ -272,14 +272,14 @@ function renderBranchExplorer(){
   }
   lane.append(track);parent.append(lane);
   const children=branches.filter(item=>(item.parentBranchId||"main")===id);
-  if(children.length){
-   const childGroup=document.createElement("div");childGroup.className="branch-lane-children";
-   const branchSource=root?0:(branch.contextTurnIds?.length??branch.contextTurns?.length??branch.sourceIndex??0);
-   const childFork=root?Math.max(1,children[0].sourceIndex+1):Math.max(1,children[0].sourceIndex+1);
-   childGroup.style.setProperty("--child-offset",String(Math.max(0,childFork-1)));
-   lane.append(childGroup);
-   children.forEach(child=>makeLane(child,childGroup,{forkColumn:child.sourceIndex+1}));
+ if(children.length){
+  const groups=new Map();
+  for(const child of children){const fork=Number.isFinite(Number(child.sourceIndex))?Math.max(0,Number(child.sourceIndex)):Number(child.contextTurnIds?.length||0);if(!groups.has(fork))groups.set(fork,[]);groups.get(fork).push(child);}
+  for(const [fork,siblings] of groups){
+   const childGroup=document.createElement("div");childGroup.className="branch-lane-children";childGroup.style.setProperty("--fork-column",String(fork+1));childGroup.setAttribute("aria-label",siblings.length+" variante(s) issues du même échange");
+   lane.append(childGroup);siblings.forEach(child=>makeLane(child,childGroup));
   }
+ }
  };
  makeLane(null,tree,{root:true});
  // Each sibling group is shifted to its shared fork point; retain deterministic ordering.
