@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildBranchReplayTimeline, shouldReturnToParentBranch } from "../branch-navigation.js";
+import { buildBranchReplayTimeline, shouldReturnToParentBranch, shouldResumeBranchOnForward } from "../branch-navigation.js";
 
 const turn = (id, branchId = null) => ({ id, experiment: branchId ? { branchId } : null });
 const fixture = () => {
@@ -55,4 +55,11 @@ test("repeated forward/backward navigation preserves the same branch boundary", 
     assert.equal(shouldReturnToParentBranch(branch, 3), false);
     assert.equal(shouldReturnToParentBranch(branch, 4), false);
   }
+});
+
+test("forward replay resumes the remembered branch exactly when it reaches the source message", () => {
+  const { branch } = fixture();
+  for (let count = 0; count <= 2; count++) assert.equal(shouldResumeBranchOnForward(branch, count), false);
+  assert.equal(shouldResumeBranchOnForward(branch, 3), true);
+  assert.equal(shouldResumeBranchOnForward(branch, 4), true);
 });
