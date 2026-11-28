@@ -229,6 +229,7 @@ function activateBranchExplorerNode(branchId,{focus=true,turnCount=null}={}){
  state.selectedExperimentConfigurationId=branch?.configurationSnapshot?.id||null;
  replaySnapshotIndex=null;
  replayBranchTurnCount=turnCount;
+ if(state.activeBranchId==="main"&&turnCount!==null){const snapshots=state.workspace?.snapshots||[];const targetTurns=Math.max(0,Number(turnCount)+1);const eligible=snapshots.map((snapshot,index)=>({snapshot,index})).filter(item=>Number(item.snapshot.turns||0)<=targetTurns);replaySnapshotIndex=eligible.length?eligible.at(-1).index:0;replayBranchTurnCount=null;}
  renderExperimentBranches();renderConversation();renderScoringRadar();renderProjectTimeline();renderActiveConfigurationStatus();
  if(focus)document.querySelector('[data-branch-id="'+CSS.escape(state.activeBranchId)+'"]')?.focus();
 }
@@ -613,8 +614,8 @@ $("conversation-branch-tree")?.addEventListener("keydown",event=>{
  if(event.key==="ArrowDown"){event.preventDefault();target=branches.find(item=>(item.parentBranchId||"main")===active);if(target)turnCount=target.contextTurnIds?.length??target.contextTurns?.length??null;}
  if(event.key==="ArrowUp"){event.preventDefault();if(current){target=current.parentBranchId||"main";turnCount=current.sourceIndex??null;} }
  if(event.key==="ArrowDown"&&event.shiftKey||event.key==="ArrowUp"&&event.shiftKey){event.preventDefault();const list=active==="main"?branches.filter(item=>(item.parentBranchId||"main")==="main"):siblings;const index=list.findIndex(item=>item.id===active),step=event.key==="ArrowDown"?1:-1;target=list[index+step]?.id||null;turnCount=target==="main"?null:(branches.find(item=>item.id===target)?.contextTurnIds?.length??null);}
- if(event.key==="Home"){event.preventDefault();replayBranchTurnCount=0;renderConversation(0);renderProjectTimeline();return;}
- if(event.key==="End"){event.preventDefault();replayBranchTurnCount=null;renderConversation();renderProjectTimeline();return;}
+ if(event.key==="Home"){event.preventDefault();if(active==="main"){replaySnapshotIndex=0;showProjectHistory(0);}else showBranchHistory(0);return;}
+ if(event.key==="End"){event.preventDefault();if(active==="main"){replaySnapshotIndex=null;renderConversation();renderScoringRadar();renderProjectTimeline();}else showBranchHistory(max);return;}
  if(target!==null&&target!==undefined)activateBranchExplorerNode(target,{turnCount});
 });
 
