@@ -296,7 +296,7 @@ try{
   await page.locator("#conversation-branch-select").selectOption(branchReplayId);
   assert.equal(await page.locator(".message.user").count(),2,"la lignée de variante doit inclure le message source puis sa propre exécution");
   assert.equal(await page.locator("#radar-accumulation-count").textContent(),"2 échange(s) pris en compte","le radar de variante doit cumuler le message source et sa réponse propre");
-  const sourceNode=historyTree.locator(".branch-lane:not(.branch-lane-root) .branch-time-dot.is-fork").first();
+  const sourceNode=historyTree.locator(".branch-lane-root .branch-time-dot").first();
   await sourceNode.click();
   assert.equal(await page.locator(".message.user").count(),1,"le nœud source doit être sélectionnable sans sauter au message suivant");
   assert.equal(await page.locator("#radar-accumulation-count").textContent(),"1 échange(s) pris en compte","le radar doit suivre le nœud source sélectionné");
