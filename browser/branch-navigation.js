@@ -31,3 +31,9 @@ export function shouldReturnToParentBranch(branch, selectedCount) {
   const sourceIndex = Math.max(0, Number(branch.sourceIndex ?? branch.contextTurnIds?.length ?? 0) || 0);
   return Number(selectedCount) <= sourceIndex;
 }
+
+export function shouldResumeBranchOnForward(branch, selectedCount) {
+  if (!branch) return false;
+  const sourceIndex = Math.max(0, Number(branch.sourceIndex ?? branch.contextTurnIds?.length ?? 0) || 0);
+  return Number(selectedCount) >= sourceIndex + 1;
+}
