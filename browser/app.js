@@ -244,7 +244,7 @@ function renderBranchExplorer(){
  const makeDot=(parent,{label,kind="turn",branchId="main",position=1,selectPosition=position,activeDot=false})=>{
   const dot=document.createElement("button");dot.type="button";dot.className="branch-time-dot"+(kind==="fork"?" is-fork":"")+(activeDot?" is-current":"");dot.style.gridColumn=String(position);dot.title=label;dot.setAttribute("aria-label",label);dot.dataset.branchId=branchId;
   dot.addEventListener("click",()=>{
-   if(branchId==="main"){state.replayPreferredBranchId=null;activateBranchExplorerNode("main",{focus:false});const snapshots=state.workspace?.snapshots||[];const targetTurns=Math.min(canonical.length,position);let index=-1;snapshots.forEach((snapshot,i)=>{if(Number(snapshot.turns||0)<=targetTurns)index=i;});if(index>=0)showProjectHistory(index);else{replaySnapshotIndex=null;renderConversation(targetTurns);renderScoringRadar(targetTurns);renderProjectTimeline();renderBranchExplorer();}}
+   if(branchId==="main"){state.replayPreferredBranchId=null;activateBranchExplorerNode("main",{focus:false});const snapshots=state.workspace?.snapshots||[];const targetTurns=Math.min(canonical.length,position);let index=-1;snapshots.forEach((snapshot,i)=>{if(Number(snapshot.turns||0)<=targetTurns)index=i;});if(index>=0)showProjectHistory(index);else{replaySnapshotIndex=null;replayMainTurnCount=targetTurns;renderConversation(targetTurns);renderScoringRadar(targetTurns);renderProjectTimeline();renderBranchExplorer();}tree.focus({preventScroll:true});}
    else{activateBranchExplorerNode(branchId,{focus:false});showBranchHistory(selectPosition);tree.focus({preventScroll:true});}
   });parent.append(dot);return dot;
  };
