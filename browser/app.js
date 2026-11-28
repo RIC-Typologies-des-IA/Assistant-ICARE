@@ -231,6 +231,7 @@ function activateBranchExplorerNode(branchId,{focus=true,turnCount=null}={}){
  state.selectedExperimentConfigurationId=branch?.configurationSnapshot?.id||null;
  replaySnapshotIndex=null;
  replayBranchTurnCount=turnCount;
+ if(state.activeBranchId==="main"&&turnCount===null)replayMainTurnCount=null;
  let visibleCount=turnCount;
  if(state.activeBranchId==="main"&&turnCount!==null){
   const snapshots=state.workspace?.snapshots||[],targetTurns=Math.max(0,Number(turnCount));
