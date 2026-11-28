@@ -246,7 +246,7 @@ function renderBranchExplorer(){
  const countLabel=$("branch-explorer-count");if(countLabel)countLabel.textContent=branches.length+" branche(s)";
  tree.replaceChildren();tree.setAttribute("aria-label","Arbre temporel des conversations. Les échanges hérités sont représentés une seule fois sur leur branche d'origine.");
  const canonical=state.turns.filter(turn=>!turn.experiment?.branchId);
- const maxColumns=Math.max(1,canonical.length,...branches.map(branch=>Number(branch.sourceIndex??branch.contextTurnIds?.length??0)+1+state.turns.filter(turn=>turn.experiment?.branchId===branch.id).length));
+ const maxColumns=Math.max(1,canonical.length,...branches.map(branch=>Number(branch.sourceIndex??branch.contextTurnIds?.length??0)+1+Math.max(1,state.turns.filter(turn=>turn.experiment?.branchId===branch.id).length)));
  const makeDot=(parent,{label,branchId="main",position=1,selectPosition=position,activeDot=false})=>{
   const dot=document.createElement("button");dot.type="button";dot.className="branch-time-dot"+(activeDot?" is-current":"");dot.style.gridColumn=String(position);dot.title=label;dot.setAttribute("aria-label",label);dot.dataset.branchId=branchId;
   dot.addEventListener("click",()=>{
