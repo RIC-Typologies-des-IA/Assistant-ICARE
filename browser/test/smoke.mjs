@@ -315,7 +315,7 @@ try{
   await page.keyboard.press("ArrowRight");
   assert.equal(await page.locator(".message.user").count(),2,"un nouvel avancement doit afficher le premier message propre à la variante");
   assert.equal(await page.locator("#radar-accumulation-count").textContent(),"2 échange(s) pris en compte","le radar doit retrouver le cumul complet de la variante");
-  const originalChoice=historyTree.locator(".branch-lane-root .branch-lane-choice");
+  const originalChoice=historyTree.locator(".branch-lane-root > .branch-lane-heading .branch-lane-choice");
   await originalChoice.click();
   const darkLabel=await originalChoice.evaluate(el=>{document.documentElement.dataset.theme="dark";const style=getComputedStyle(el);return {color:style.color,background:style.backgroundColor};});
   assert.equal(darkLabel.background,"rgb(41, 73, 108)","le libellé sélectionné doit avoir un fond bleu sombre lisible");
