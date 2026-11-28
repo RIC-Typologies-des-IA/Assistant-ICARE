@@ -12,7 +12,7 @@ import { scoreIcareMultilabel, listLemonadeScoringModels } from "./scoring.js";
 import { createLaboratory } from "./laboratory.js";
 import { createExperimentState, createConfigurationSnapshot, createConversationBranch, recordExperimentRun, compareExperimentRuns, experimentStorageKey, remapExperimentState } from "./experiments.js";
 import { executeWorkflow, DEFAULT_WORKFLOW } from "./workflow-engine.js";
-import { buildBranchReplayTimeline, shouldReturnToParentBranch } from "./branch-navigation.js";
+import { buildBranchReplayTimeline, shouldReturnToParentBranch, shouldResumeBranchOnForward } from "./branch-navigation.js";
 import { calculateScoreRadar, calculateExecutionRadar, SCORE_DIMENSIONS, backfillConversationScores } from "./scoring-radar.js";
 const $=id=>document.getElementById(id), db=await openDatabase();
 $("app-version").textContent=`— V${window.ICARE_VERSION} Alpha`;
@@ -617,7 +617,7 @@ $("conversation-branch-tree")?.addEventListener("keydown",event=>{
  let target=null,turnCount=null;
  if(event.key==="ArrowRight"||event.key==="ArrowLeft"){
   event.preventDefault();const next=Math.max(0,Math.min(max,currentCount+(event.key==="ArrowRight"?1:-1)));
-  if(active==="main"){replaySnapshotIndex=null;replayMainTurnCount=next;renderConversation(next);renderScoringRadar(next);renderProjectTimeline();renderBranchExplorer();}
+  if(active==="main"){const preferred=event.key==="ArrowRight"&&state.replayPreferredBranchId?branches.find(item=>item.id===state.replayPreferredBranchId):null;if(preferred&&shouldResumeBranchOnForward(preferred,next)){activateBranchExplorerNode(preferred.id,{focus:false,turnCount:Number(preferred.sourceIndex??preferred.contextTurnIds?.length??0)+1});}else{replaySnapshotIndex=null;replayMainTurnCount=next;renderConversation(next);renderScoringRadar(next);renderProjectTimeline();renderBranchExplorer();}}
   else showBranchHistory(next);
   tree.focus({preventScroll:true});return;
  }
