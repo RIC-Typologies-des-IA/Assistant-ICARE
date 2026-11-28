@@ -1477,3 +1477,12 @@ html[data-theme="dark"] .branch-compare-control select{background:#101b2a;color:
 .branch-tree-row>.branch-tree-choice{position:relative;z-index:1}
 html[data-theme="dark"] .branch-tree-context{color:#aebed2}
 html[data-theme="dark"] .branch-tree-config{color:#9fc3fa}
+
+/* Les variantes sœurs rejoignent visuellement le même point de bifurcation. */
+.branch-tree-children{position:relative;margin-left:12px;padding-left:9px;border-left:1px solid var(--border,#dce3ec)}
+.branch-tree-children>.branch-tree-row{padding-left:0}
+.branch-tree-children>.branch-tree-row:before{left:-9px;top:15px;bottom:auto;width:9px;height:0;border-left:0;border-bottom:1px solid var(--border,#dce3ec)}
+.branch-tree-children>.branch-tree-row:last-child:after{content:"";position:absolute;left:-10px;top:16px;bottom:0;width:1px;background:var(--surface,#fff)}
+.branch-tree-children>.branch-tree-row:last-child:after{display:none}
+html[data-theme="dark"] .branch-tree-children{border-color:#40536b}
+html[data-theme="dark"] .branch-tree-children>.branch-tree-row:before{border-color:#40536b}
