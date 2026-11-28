@@ -1444,3 +1444,25 @@ html[data-theme="dark"] .conversation-variants,html[data-theme="dark"] .conversa
 .comparison-radar-caption{margin:.25rem 0 0;font-size:.72rem;color:var(--muted);line-height:1.4}
 @media(max-width:850px){.experiment-comparison-run-grid{grid-template-columns:1fr}.experiment-comparison-run-card{grid-template-columns:minmax(0,1fr) minmax(150px,.8fr)}}
 @media(max-width:560px){.experiment-comparison-run-card{grid-template-columns:1fr}.experiment-comparison-dialogue,.experiment-comparison-radar{grid-column:1}.experiment-comparison-radar svg{max-width:240px}}
+
+/* Explorateur de branches et points temporels synchronisables. */
+.branch-explorer{margin-top:12px;padding:10px;border:1px solid var(--border,#dce3ec);border-radius:10px;background:var(--surface,#f7f9fc);min-width:0}
+.branch-explorer-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;margin-bottom:7px}
+.branch-explorer-heading span{font-size:10px;color:var(--muted,#65758a)}
+.branch-tree{display:grid;gap:3px;max-height:180px;overflow:auto;padding:2px 0 6px}
+.branch-tree-row{padding-left:calc(var(--branch-depth,0)*15px);position:relative;min-width:0}
+.branch-tree-row:before{content:"";position:absolute;left:calc(var(--branch-depth,0)*15px - 8px);top:0;bottom:50%;border-left:1px solid var(--border,#dce3ec);border-bottom:1px solid var(--border,#dce3ec);width:8px}
+.branch-tree-row:first-child:before{display:none}
+.branch-tree-choice{display:block;width:100%;text-align:left;border:1px solid transparent;border-radius:6px;padding:6px 8px;background:transparent;color:var(--text,#26384f);font:inherit;font-size:11px;overflow-wrap:anywhere;cursor:pointer}
+.branch-tree-choice:hover{background:rgba(100,130,170,.12)}
+.branch-tree-choice.is-active{background:var(--accent-soft,#e7eef9);border-color:var(--accent,#4777b8);font-weight:750}
+.branch-time-label{display:block;font-size:10px;color:var(--muted,#65758a);margin:7px 0 2px}
+.branch-compare-control{margin-top:9px;padding-top:9px;border-top:1px solid var(--border,#dce3ec);display:grid;gap:5px}
+.branch-compare-control>label:first-child{font-size:11px;font-weight:700}
+.branch-compare-control select{width:100%;min-width:0;font:inherit;font-size:11px;padding:6px;border:1px solid var(--border,#dce3ec);border-radius:6px;background:var(--surface,#fff);color:var(--text,#26384f)}
+.branch-compare-control input[type=range]{width:100%;margin:2px 0;accent-color:var(--accent,#4777b8)}
+.branch-compare-control .button{width:100%;font-size:11px;padding:7px}
+html[data-theme="dark"] .branch-explorer{background:#172538;border-color:#40536b}
+html[data-theme="dark"] .branch-tree-choice{color:#e6eef8}
+html[data-theme="dark"] .branch-tree-choice.is-active{background:#263e5a;border-color:#80a9e0}
+html[data-theme="dark"] .branch-compare-control select{background:#101b2a;color:#e6eef8;border-color:#40536b}
