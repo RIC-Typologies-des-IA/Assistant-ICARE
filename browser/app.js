@@ -247,12 +247,12 @@ function renderBranchExplorer(){
   const meta=document.createElement("span");meta.className="branch-tree-context";meta.textContent=snippet(branch.id)||"Point de départ non renseigné";meta.title=snippet(branch.id);
   const config=document.createElement("a");config.className="branch-tree-config";config.href="#experiment-configuration-select";config.textContent=branch.configurationSnapshot?.name||"Configuration non précisée";config.addEventListener("click",event=>{event.preventDefault();state.selectedExperimentConfigurationId=branch.configurationSnapshot?.id||null;renderActiveConfigurationStatus();$("experiment-configuration-select")?.focus();});
   row.append(button,meta,config);parent.append(row);
-  children.forEach(child=>addNode(child,parent,depth+1));
+  if(children.length){const group=document.createElement("div");group.className="branch-tree-children";row.append(group);children.forEach(child=>addNode(child,group,depth+1));}
  };
  const root=document.createElement("div");root.className="branch-tree-row";root.setAttribute("role","treeitem");root.setAttribute("aria-level","1");root.setAttribute("aria-selected",String(active==="main"));
  const rootButton=document.createElement("button");rootButton.type="button";rootButton.className="branch-tree-choice"+(active==="main"?" is-active":"");rootButton.dataset.branchId="main";rootButton.textContent="Conversation originale";rootButton.setAttribute("aria-current",active==="main"?"true":"false");rootButton.setAttribute("tabindex",active==="main"?"0":"-1");rootButton.addEventListener("click",()=>activateBranchExplorerNode("main"));root.append(rootButton);
  const rootMeta=document.createElement("span");rootMeta.className="branch-tree-context";rootMeta.textContent="Conversation de référence";root.append(rootMeta);tree.append(root);
- branches.filter(item=>(item.parentBranchId||"main")==="main").forEach(branch=>addNode(branch,tree,1));
+ const rootChildren=branches.filter(item=>(item.parentBranchId||"main")==="main");if(rootChildren.length){const group=document.createElement("div");group.className="branch-tree-children";root.append(group);rootChildren.forEach(branch=>addNode(branch,group,1));}
  const previous=compare.value;compare.replaceChildren(new Option("Aucune comparaison",""));
  for(const candidate of branches){if(candidate.id===active)continue;const current=branches.find(item=>item.id===active);const sameFork=!!current&&!!candidate.sourceTurnId&&candidate.sourceTurnId===current.sourceTurnId;if(sameFork)compare.add(new Option(candidate.name+" · même embranchement",candidate.id));}
  compare.value=[...compare.options].some(option=>option.value===previous)?previous:"";
