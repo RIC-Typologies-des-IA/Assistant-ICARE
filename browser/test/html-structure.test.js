@@ -45,7 +45,8 @@ test("conversation tree is focusable and is the only replay navigation control",
 
 test("application delegates lineage and source-node navigation to the tested branch model", () => {
   assert.ok(app.includes("buildBranchReplayTimeline(state.turns,branch).turns"));
-  assert.ok(app.includes("lineage.sourceSelectionCount"));
+  assert.ok(app.includes("selectedChildLineage.sourceSelectionCount"));
+  assert.ok(app.includes("activeLineage.sourceSelectionCount"));
   assert.ok(!app.includes("kind:\"fork\""));
   assert.ok(!app.includes("is-fork"));
   assert.ok(app.includes("lineage.variantNodes.forEach"));
