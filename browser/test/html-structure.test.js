@@ -43,25 +43,29 @@ test("branch explorer exposes temporal keyboard guidance and an accessible tree"
 });
 
 
-test("branch explorer renders exchange dots and fork markers with an integrated replay control",()=>{
- assert.match(app,/className="branch-time-dot"/);
- assert.match(app,/kind==="fork"/);
- assert.match(app,/className="branch-lane-track"/);
- assert.match(styles,/\.branch-lane-track/);
- assert.match(styles,/\.branch-lane-children:before/);
- assert.match(html,/class="project-history branch-primary-timeline"/);
- assert.doesNotMatch(html,/branch-compare-(select|slider|open)/);
- assert.match(html,/id="project-history-slider"/);
+
+test("branch explorer is the keyboard-first replay control, without a separate range slider",()=>{
+ assert.match(html,/id="conversation-branch-tree"[^>]*tabindex="0"/);
+ assert.doesNotMatch(html,/id="project-history-slider"/);
+ assert.match(html,/← \/ → messages/);
+ assert.match(app,/tree\.focus\(\{preventScroll:true\}\)/);
+ assert.match(app,/if\(active==="main"\)\{const snapshots=/);
 });
 
-
-test("branch tree keeps inherited turns on the original timeline and removes branch comparison controls",()=>{
- assert.match(html,/id="conversation-branch-tree"/);
- assert.doesNotMatch(html,/branch-compare-(select|slider|open)/);
- assert.match(app,/kind==="fork"/);
- assert.doesNotMatch(app,/kind:"shared"/);
- assert.match(app,/state\.replayPreferredBranchId/);
+test("variant lineage includes its source exchange and makes the source node selectable",()=>{
+ assert.match(app,/source=branch\.sourceTurnId\?state\.turns\.find/);
+ assert.match(app,/source\?\[source\]:\[\]/);
+ assert.match(app,/selectPosition:sourceIndex\+1/);
+ assert.match(app,/selectPosition:sourceIndex\+index\+2/);
  assert.match(app,/selected<=forkContext/);
- assert.match(app,/renderBranchExplorer\(\);/);
- assert.match(styles,/\.branch-lane-track\.is-branch-track \.branch-time-line/);
+});
+
+test("aborted variants expose an explicit non-selectable empty marker",()=>{
+ assert.match(app,/className="branch-time-dot is-empty"/);
+ assert.match(app,/Variante avortée : aucun échange produit/);
+ assert.match(styles,/\.branch-time-dot\.is-empty/);
+});
+
+test("dark theme keeps the selected original conversation label readable",()=>{
+ assert.match(styles,/html\[data-theme="dark"\] \.branch-lane-choice\.is-active\{background:#29496c;color:#fff/);
 });
