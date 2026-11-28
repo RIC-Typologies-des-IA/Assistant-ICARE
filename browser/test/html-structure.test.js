@@ -33,3 +33,9 @@ test("HTML has no parser errors, duplicate IDs, or dangling structural reference
     assert.ok(ids.has(id), "élément structurel requis absent : " + id);
   }
 });
+
+test("branch explorer exposes temporal keyboard guidance and an accessible tree",()=>{
+ assert.match(html,/id="conversation-branch-tree"[^>]*role="tree"/);
+ assert.match(html,/← \/ → temps/);
+ assert.match(html,/↑ \/ ↓ branches/);
+});
