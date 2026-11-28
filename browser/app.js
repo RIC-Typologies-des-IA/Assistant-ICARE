@@ -651,7 +651,7 @@ function showBranchHistory(index){
  const forkContext=Number(branch?.sourceIndex??branch?.contextTurnIds?.length??0);
  if(shouldReturnToParentBranch(branch,selected)){
   state.replayPreferredBranchId=branch.id;state.activeBranchId="main";replayBranchTurnCount=null;replayMainTurnCount=forkContext;
-  replaySnapshotIndex=null;replayMainTurnCount=forkContext;renderConversation(forkContext);renderScoringRadar(forkContext);renderProjectTimeline();renderBranchExplorer();
+  replaySnapshotIndex=null;replayMainTurnCount=forkContext;renderConversation(forkContext);renderScoringRadar(forkContext);renderProjectTimeline();renderExperimentBranches();
   return;
  }
  replayBranchTurnCount=selected;
