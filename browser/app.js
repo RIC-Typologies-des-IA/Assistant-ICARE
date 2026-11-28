@@ -606,8 +606,8 @@ document.querySelector(".radar-legend")?.addEventListener("click",event=>{const 
 $("conversation-branch-tree")?.addEventListener("keydown",event=>{
  if(!["ArrowLeft","ArrowRight","ArrowUp","ArrowDown","Home","End"].includes(event.key))return;
  if(event.target.closest("a"))return;
- const branches=state.experimentState?.branches||[],active=state.activeBranchId||"main",current=branches.find(item=>item.id===active),slider=$("project-history-slider");
- const visible=visibleConversationTurns(),max=visible.length,mainTurns=state.turns.filter(turn=>!turn.experiment?.branchId),mainCount=active==="main"?(replaySnapshotIndex===null?mainTurns.length:Math.min(mainTurns.length,Number(state.workspace?.snapshots?.[replaySnapshotIndex]?.turns)||0)):max,currentCount=active==="main"?mainCount:(replayBranchTurnCount===null?max:Math.max(0,Math.min(max,replayBranchTurnCount)));
+ const branches=state.experimentState?.branches||[],active=state.activeBranchId||"main",current=branches.find(item=>item.id===active);
+ const visible=visibleConversationTurns(),max=visible.length,mainTurns=state.turns.filter(turn=>!turn.experiment?.branchId),mainCount=active==="main"?(replaySnapshotIndex===null?(replayMainTurnCount??mainTurns.length):Math.min(mainTurns.length,Number(state.workspace?.snapshots?.[replaySnapshotIndex]?.turns)||0)):max,currentCount=active==="main"?mainCount:(replayBranchTurnCount===null?max:Math.max(0,Math.min(max,replayBranchTurnCount)));
  const siblings=branches.filter(item=>(item.parentBranchId||"main")===(current?.parentBranchId||"main"));
  let target=null,turnCount=null;
  if(event.key==="ArrowRight"||event.key==="ArrowLeft"){
