@@ -247,8 +247,8 @@ function renderBranchExplorer(){
  tree.replaceChildren();tree.setAttribute("aria-label","Arbre temporel des conversations. Les échanges hérités sont représentés une seule fois sur leur branche d'origine.");
  const canonical=state.turns.filter(turn=>!turn.experiment?.branchId);
  const maxColumns=Math.max(1,canonical.length,...branches.map(branch=>Number(branch.sourceIndex??branch.contextTurnIds?.length??0)+1+state.turns.filter(turn=>turn.experiment?.branchId===branch.id).length));
- const makeDot=(parent,{label,kind="turn",branchId="main",position=1,selectPosition=position,activeDot=false})=>{
-  const dot=document.createElement("button");dot.type="button";dot.className="branch-time-dot"+(kind==="fork"?" is-fork":"")+(activeDot?" is-current":"");dot.style.gridColumn=String(position);dot.title=label;dot.setAttribute("aria-label",label);dot.dataset.branchId=branchId;
+ const makeDot=(parent,{label,branchId="main",position=1,selectPosition=position,activeDot=false})=>{
+  const dot=document.createElement("button");dot.type="button";dot.className="branch-time-dot"+(activeDot?" is-current":"");dot.style.gridColumn=String(position);dot.title=label;dot.setAttribute("aria-label",label);dot.dataset.branchId=branchId;
   dot.addEventListener("click",()=>{
    const activeBranch=branches.find(item=>item.id===active),activeParent=(activeBranch?.parentBranchId||"main")===branchId,activeLineage=activeParent?buildBranchReplayTimeline(state.turns,activeBranch):null;
    if(activeLineage&&position===activeLineage.sourceSelectionCount){showBranchHistory(activeLineage.sourceSelectionCount);tree.focus({preventScroll:true});return;}
