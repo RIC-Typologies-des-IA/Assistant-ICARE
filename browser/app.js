@@ -347,7 +347,7 @@ $("experiment-configuration-select")?.addEventListener("change",event=>{state.se
 function renderExperimentComparisonChoices(){
  const left=$("experiment-compare-left"),right=$("experiment-compare-right"),runs=state.experimentState?.runs||[];
  const label=run=>{const branch=state.experimentState?.branches?.find(item=>item.id===run.branchId);return (branch?.name||"Branche")+" · "+new Date(run.createdAt).toLocaleString("fr-FR")+" · "+String(run.userMessage||"").slice(0,70);};
- for(const select of [left,right]){const previous=select.value;select.replaceChildren();for(const run of runs)select.add(new Option(label(run),run.id));if(runs.some(run=>run.id===previous))select.value=previous;}
+ for(const select of [left,right]){const previous=select.value;select.replaceChildren();for(const run of runs){const option=new Option(label(run),run.id);option.dataset.branchId=run.branchId;select.add(option);}if(runs.some(run=>run.id===previous))select.value=previous;}
  if(runs.length>1){left.selectedIndex=0;right.selectedIndex=runs.length-1;}
 }
 $("compare-experiments-open")?.addEventListener("click",()=>{renderExperimentComparisonChoices();$("experiment-comparison-result").replaceChildren();$("experiment-comparison-dialog").showModal();});
