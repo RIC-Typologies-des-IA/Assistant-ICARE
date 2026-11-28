@@ -48,6 +48,7 @@ test("application delegates lineage and source-node navigation to the tested bra
   assert.ok(app.includes("lineage.sourceSelectionCount"));
   assert.ok(app.includes("lineage.variantNodes.forEach"));
   assert.ok(app.includes("shouldReturnToParentBranch(branch,selected)"));
+  assert.ok(app.includes("shouldResumeBranchOnForward(preferred,next)"));
   assert.ok(branchNavigation.includes("sourceSelectionCount: sourceIndex + 1"));
   assert.ok(branchNavigation.includes("selectionCount: sourceIndex + index + 2"));
 });
