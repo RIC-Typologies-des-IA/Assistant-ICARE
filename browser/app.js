@@ -12,6 +12,7 @@ import { scoreIcareMultilabel, listLemonadeScoringModels } from "./scoring.js";
 import { createLaboratory } from "./laboratory.js";
 import { createExperimentState, createConfigurationSnapshot, createConversationBranch, recordExperimentRun, compareExperimentRuns, experimentStorageKey, remapExperimentState } from "./experiments.js";
 import { executeWorkflow, DEFAULT_WORKFLOW } from "./workflow-engine.js";
+import { buildBranchReplayTimeline, shouldReturnToParentBranch } from "./branch-navigation.js";
 import { calculateScoreRadar, calculateExecutionRadar, SCORE_DIMENSIONS, backfillConversationScores } from "./scoring-radar.js";
 const $=id=>document.getElementById(id), db=await openDatabase();
 $("app-version").textContent=`— V${window.ICARE_VERSION} Alpha`;
@@ -249,8 +250,8 @@ function renderBranchExplorer(){
   });parent.append(dot);return dot;
  };
  const makeLane=(branch,parent,{root=false,depth=1}={})=>{
-  const id=root?"main":branch.id,own=root?canonical:state.turns.filter(turn=>turn.experiment?.branchId===id);
-  const sourceIndex=root?0:Number(branch.sourceIndex??branch.contextTurnIds?.length??0),forkColumn=sourceIndex+1;
+  const id=root?"main":branch.id,own=root?canonical:state.turns.filter(turn=>turn.experiment?.branchId===id),lineage=root?null:buildBranchReplayTimeline(state.turns,branch);
+  const sourceIndex=root?0:lineage.sourceIndex,forkColumn=root?1:lineage.sourcePosition;
   const lane=document.createElement("section");lane.className="branch-lane"+(root?" branch-lane-root":"")+(id===active?" is-active":"");lane.dataset.branchId=id;lane.setAttribute("role","treeitem");lane.setAttribute("aria-selected",String(id===active));lane.setAttribute("aria-level",String(depth));
   const heading=document.createElement("div");heading.className="branch-lane-heading";
   const choice=document.createElement("button");choice.type="button";choice.className="branch-lane-choice"+(id===active?" is-active":"");choice.dataset.branchId=id;choice.textContent=root?"Conversation originale":branch.name;choice.setAttribute("aria-current",String(id===active));choice.title=root?"Conversation de référence":(branch.configurationSnapshot?.name||"Configuration de la variante");choice.addEventListener("click",()=>activateBranchExplorerNode(id));heading.append(choice);
@@ -262,9 +263,9 @@ function renderBranchExplorer(){
   const line=document.createElement("span");line.className="branch-time-line";line.setAttribute("aria-hidden","true");track.append(line);
   if(root){const mainVisibleCount=replaySnapshotIndex===null?(replayMainTurnCount??canonical.length):Math.min(canonical.length,Number(state.workspace?.snapshots?.[replaySnapshotIndex]?.turns)||0);own.forEach((turn,index)=>makeDot(track,{label:"Échange "+(index+1)+(turn.createdAt?" · "+new Date(turn.createdAt).toLocaleString("fr-FR"):""),branchId:"main",position:index+1,activeDot:active==="main"&&index===mainVisibleCount-1}));}
   else{
-   makeDot(track,{label:"Message source · échange "+forkColumn,kind:"fork",branchId:id,position:forkColumn,selectPosition:sourceIndex+1,activeDot:active===id&&(replayBranchTurnCount===sourceIndex+1||(replayBranchTurnCount===null&&!own.length))});
-   own.forEach((turn,index)=>makeDot(track,{label:"Échange de la variante "+(index+1)+(turn.createdAt?" · "+new Date(turn.createdAt).toLocaleString("fr-FR"):""),branchId:id,position:forkColumn+index+1,selectPosition:sourceIndex+index+2,activeDot:active===id&&(replayBranchTurnCount===sourceIndex+index+2||(replayBranchTurnCount===null&&index===own.length-1))}));
-   if(!own.length){const empty=document.createElement("span");empty.className="branch-time-dot is-empty";empty.style.gridColumn=String(forkColumn+1);empty.textContent="×";empty.setAttribute("role","img");empty.setAttribute("aria-label","Variante avortée : aucun échange produit");empty.title="Variante avortée · aucun message produit";track.append(empty);}
+   makeDot(track,{label:"Message source · échange "+forkColumn,kind:"fork",branchId:id,position:forkColumn,selectPosition:lineage.sourceSelectionCount,activeDot:active===id&&(replayBranchTurnCount===lineage.sourceSelectionCount||(replayBranchTurnCount===null&&!own.length))});
+   lineage.variantNodes.forEach(({turn,position,selectionCount},index)=>makeDot(track,{label:"Échange de la variante "+(index+1)+(turn.createdAt?" · "+new Date(turn.createdAt).toLocaleString("fr-FR"):""),branchId:id,position,selectPosition:selectionCount,activeDot:active===id&&(replayBranchTurnCount===selectionCount||(replayBranchTurnCount===null&&index===lineage.variantNodes.length-1))}));
+   if(lineage.emptyMarker){const empty=document.createElement("span");empty.className="branch-time-dot is-empty";empty.style.gridColumn=String(lineage.emptyMarker.position);empty.textContent="×";empty.setAttribute("role","img");empty.setAttribute("aria-label",lineage.emptyMarker.label);empty.title=lineage.emptyMarker.label;track.append(empty);}
   }
   lane.append(track);parent.append(lane);
   const children=branches.filter(item=>(item.parentBranchId||"main")===id);
@@ -274,7 +275,7 @@ function renderBranchExplorer(){
  };
  makeLane(null,tree,{root:true,depth:1});
 }
-function visibleConversationTurns(){if(!state.activeBranchId||state.activeBranchId==="main")return state.turns.filter(turn=>!turn.experiment?.branchId);const branch=state.experimentState?.branches?.find(item=>item.id===state.activeBranchId);if(!branch)return state.turns.filter(turn=>!turn.experiment?.branchId);const context=branch.contextTurnIds?branch.contextTurnIds.map(id=>state.turns.find(turn=>turn.id===id)).filter(Boolean):(branch.contextTurns||[]),source=branch.sourceTurnId?state.turns.find(turn=>turn.id===branch.sourceTurnId):null,runs=state.turns.filter(turn=>turn.experiment?.branchId===branch.id);return [...context,...(source&&!context.some(turn=>turn.id===source.id)?[source]:[]),...runs];}
+function visibleConversationTurns(){if(!state.activeBranchId||state.activeBranchId==="main")return state.turns.filter(turn=>!turn.experiment?.branchId);const branch=state.experimentState?.branches?.find(item=>item.id===state.activeBranchId);if(!branch)return state.turns.filter(turn=>!turn.experiment?.branchId);return buildBranchReplayTimeline(state.turns,branch).turns;}
 async function loadProjects(){state.projects=(await getAll(db,"projects")).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));if(!state.projects.length){const p={id:uid(),name:"Mon premier projet",intention:"",createdAt:now(),updatedAt:now()};await put(db,"projects",p);state.projects=[p];}if(!state.projects.some(p=>p.id===state.projectId))state.projectId=state.projects[0].id;renderProjects();await loadTurns();}
 function detectPreset(url=""){return url.includes("api.openai.com")?"openai":url.includes(":11434")?"ollama":url.includes(":13305")?"lemonade":"";}
 async function loadSettings(){
@@ -646,7 +647,7 @@ function showBranchHistory(index){
  const branch=state.experimentState?.branches?.find(item=>item.id===state.activeBranchId);
  const turns=visibleConversationTurns(),selected=Math.max(0,Math.min(turns.length,Number(index)||0));
  const forkContext=Number(branch?.sourceIndex??branch?.contextTurnIds?.length??0);
- if(branch&&selected<=forkContext){
+ if(shouldReturnToParentBranch(branch,selected)){
   state.replayPreferredBranchId=branch.id;state.activeBranchId="main";replayBranchTurnCount=null;replayMainTurnCount=forkContext;
   const snapshots=state.workspace?.snapshots||[];let snapshotIndex=-1;
   snapshots.forEach((snapshot,i)=>{if(Number(snapshot.turns||0)<=forkContext)snapshotIndex=i;});
