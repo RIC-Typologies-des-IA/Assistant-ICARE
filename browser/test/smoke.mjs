@@ -33,8 +33,8 @@ try{
   const context=await browser.newContext({serviceWorkers:"block"});
   const page=await context.newPage();
   const clickBackdrop=async selector=>page.locator(selector).evaluate(el=>el.dispatchEvent(new MouseEvent("click",{bubbles:true})));
-  const nativeDialogs=[];
-  page.on("dialog",dialog=>{nativeDialogs.push(dialog.type);dialog.accept();});
+  const nativeDialogs=[];let variantPromptCount=0;
+  page.on("dialog",dialog=>{nativeDialogs.push(dialog.type);if(dialog.type==="prompt")dialog.accept("Branche scénario "+(++variantPromptCount));else dialog.accept();});
   await page.addInitScript(()=>{const original=window.fetch;window.__icareFetchCalls=[];window.__confirmCalls=[];window.confirm=message=>{window.__confirmCalls.push(String(message));return true;};window.fetch=(input,init={})=>{window.__icareFetchCalls.push({url:String(input),credentials:init.credentials||"same-origin",authorization:new Headers(init.headers||{}).get("Authorization"),body:typeof init.body==="string"?init.body:""});return original(input,init);};});
   await page.route("http://127.0.0.1:13305/**",route=>{const request=route.request();if(request.url().endsWith("/v1/models?show_all=true"))return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({data:[{id:"d3-ultra-FLM",recipe:"flm",labels:["classification","systemone"],downloaded:true,size:28},{id:"whisper-v3-turbo-FLM",recipe:"flm",labels:["transcription"],downloaded:true,size:1.6},{id:"Whisper-Large-v3-Turbo",recipe:"whispercpp",labels:["transcription"],downloaded:true,size:1.6}]})});if(request.url().endsWith("/v1/systemone"))return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({answers:{I:{type:"noul",noul:.91},C:{type:"noul",noul:.72},A:{type:"noul",noul:.84},R:{type:"noul",noul:.63},E:{type:"noul",noul:.58}}})});return route.fulfill({status:404,body:"Not found"});});
   await page.route("https://mock-provider.example/**",route=>{assert.equal(route.request().headers()["authorization"],"Bearer test-secret","la clé doit être disponible en mémoire de session");const requestBody=route.request().postDataJSON();if(Array.isArray(requestBody?.messages))chatPayloads.push(requestBody);let body=route.request().url().endsWith("/models")?{data:[{id:"test-model"}]}:{choices:[{message:{content:["Réponse locale de test.","","# Niveau 1","","## Niveau 2","","### Votre avis","","#### Auto-évaluation","","#### Points d’attention / tensions éventuelles","","##### Niveau 5","","###### Niveau 6","","####Titre sans espace","","**Texte en gras**.","","| Étape | Ce qui a été réalisé | Conformité aux principes ICARE & maïeutiques |","|-------|----------------------|----------------------------------------------|","| **1. Capture de l’intention (I)** | - Vous avez exprimé votre **but** : fournir des connaissances. | ✅ Reformulation pour vérification ; ✅ distinction claire. |","| **2. Confirmation de l’intention** | Vous avez confirmé la reformulation (« Oui »). | ✅ Attente d’un accord avant de passer à la suite. |","| **3. Passage à la dimension suivante (C)** | J’ai présenté les cinq axes possibles du **Contexte**. | ✅ Question unique, ouverte. |","","### Synthèse de la dimension I","","| Champ | Valeur |","|-------|--------|","| **id** | `proj-foret-I-001` |","| **text** | *Instruire les politiques publiques de la forêt.* |","","> undefined","","<img src=x onerror=alert(1)>","[lien dangereux](javascript:alert(1))"].join("\n")}}]};if(requestBody?.messages?.some(message=>message.role==="tool"&&message.tool_call_id==="call-documents"))body={choices:[{message:{content:"Documents consultés."}}]};else if(requestBody?.messages?.some(message=>message.role==="user"&&message.content==="Tester les documents consultés"))body={choices:[{message:{content:null,tool_calls:[{id:"call-documents",type:"function",function:{name:"search_reference_documents",arguments:JSON.stringify({query:""})}}]}}]};return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(body)});});
@@ -311,13 +311,23 @@ try{
   assert.equal(await page.locator("#radar-accumulation-count").textContent(),"0 échange(s) pris en compte","revenir au début de la branche doit recalculer le radar sans l’exécution future");
   await historySlider.evaluate(el=>{el.value="1";el.dispatchEvent(new Event("input",{bubbles:true}));});
   assert.equal(await page.locator("#radar-accumulation-count").textContent(),"1 échange(s) pris en compte","le radar doit rétablir l’exécution choisie dans la branche");
+  // Scénario de bout en bout : créer une deuxième branche depuis le même message source,
+  // attendre l'enregistrement de ses runs, puis comparer deux exécutions distinctes.
   await page.locator("#conversation-branch-select").selectOption("main");
   await page.locator("#messages .message.user > .conversation-variant-create").first().click();
   await page.waitForFunction(()=>document.querySelector("#conversation-branch-select").options.length===3);
   await page.waitForFunction(()=>document.querySelector("#send-button")?.disabled===false);
+  assert.equal(await page.locator(".message.assistant.error").count(),0,"la deuxième exécution de branche doit aboutir sans erreur");
   await page.locator("#conversation-branch-select").selectOption("main");
   await page.locator("#compare-experiments-open").click();
   await page.locator("#experiment-comparison-dialog").waitFor({state:"visible"});
+  await page.waitForFunction(()=>document.querySelectorAll("#experiment-compare-left option").length===2 && document.querySelectorAll("#experiment-compare-right option").length===2,"", {timeout:10000});
+  const runChoices=await page.locator("#experiment-compare-left option").evaluateAll(options=>options.map(option=>({value:option.value,label:option.textContent,branchId:option.dataset.branchId})));
+  assert.equal(new Set(runChoices.map(choice=>choice.value)).size,2,"deux runs persistés et distincts doivent être disponibles à la comparaison");
+  assert.ok(runChoices.every(choice=>choice.branchId),"chaque choix de comparaison doit exposer son identifiant de branche");
+  assert.notEqual(runChoices[0].branchId,runChoices[1].branchId,"les deux runs doivent provenir de branches conversationnelles différentes");
+  await page.locator("#experiment-compare-left").selectOption(runChoices[0].value);
+  await page.locator("#experiment-compare-right").selectOption(runChoices[1].value);
   await page.locator("#experiment-compare-run").click();
   await page.waitForFunction(()=>document.querySelectorAll(".experiment-comparison-run-card").length===2);
   assert.equal(await page.locator(".experiment-comparison-run-card").count(),2,"la comparaison doit présenter les deux dialogues côte à côte");
