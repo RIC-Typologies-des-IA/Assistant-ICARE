@@ -640,13 +640,10 @@ function renderProjectTimeline(){
   if(summary){const turn=selected?turns[selected-1]:null,date=turn?.createdAt?new Date(turn.createdAt).toLocaleString("fr-FR"):"";summary.textContent=[branch?.name||"Branche expérimentale",selected===0?"Contexte initial":selected+" échange(s) affiché(s)",date,selected===max?"historique complet":"replay de branche"].filter(Boolean).join(" · ");}
   return;
  }
- const snapshots=state.workspace.snapshots||[];
- if(!snapshots.length){if(start)start.textContent="Début du projet";if(position)position.textContent="État actuel";if(summary)summary.textContent="L’historique apparaîtra au fil des échanges.";return;}
- const selected=replaySnapshotIndex===null?snapshots.length-1:Math.max(0,Math.min(snapshots.length-1,replaySnapshotIndex));
- const first=snapshots[0],snap=snapshots[selected];
- if(start)start.textContent=new Date(first.at).toLocaleDateString("fr-FR");
- if(position)position.textContent=selected===snapshots.length-1?"État actuel":(selected+1)+" / "+snapshots.length;
- if(summary){const date=snap.at?new Date(snap.at).toLocaleString("fr-FR"):"";summary.textContent=[date,snap.reason||"Étape du projet",snap.turns+" échange(s)"].filter(Boolean).join(" · ")+(selected===snapshots.length-1?" · état courant":" · consultation historique");}
+ const total=state.turns.filter(turn=>!turn.experiment?.branchId).length,visible=Math.max(0,Math.min(total,replayMainTurnCount??total));
+ if(start)start.textContent="Conversation originale";
+ if(position)position.textContent=visible===total?"Conversation complète":visible+" / "+total+" échange(s)";
+ if(summary)summary.textContent=visible===total?"Tous les messages de la conversation originale sont affichés.":visible+" échange(s) affiché(s) sur "+total+" · navigation dans l’arbre";
 }
 function showBranchHistory(index){
  const branch=state.experimentState?.branches?.find(item=>item.id===state.activeBranchId);
