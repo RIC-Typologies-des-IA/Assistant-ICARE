@@ -12,10 +12,12 @@ import { scoreIcareMultilabel, listLemonadeScoringModels } from "./scoring.js";
 import { createLaboratory } from "./laboratory.js";
 import { createExperimentState, createConfigurationSnapshot, createConversationBranch, recordExperimentRun, compareExperimentRuns, experimentStorageKey, remapExperimentState } from "./experiments.js";
 import { executeWorkflow, DEFAULT_WORKFLOW } from "./workflow-engine.js";
+import { buildBranchReplayTimeline, shouldReturnToParentBranch, shouldResumeBranchOnForward } from "./branch-navigation.js";
 import { calculateScoreRadar, calculateExecutionRadar, SCORE_DIMENSIONS, backfillConversationScores } from "./scoring-radar.js";
 const $=id=>document.getElementById(id), db=await openDatabase();
 $("app-version").textContent=`— V${window.ICARE_VERSION} Alpha`;
 let replaySnapshotIndex=null;
+let replayMainTurnCount=null;
 let replayBranchTurnCount=null;
 const state={projectId:null,projects:[],turns:[],settings:{},transcriptionSettings:{},routing:{text:"local",audio:"local"},gateways:{text:"",audio:""},gatewayModels:{text:"",audio:""},sameGateway:true,scoringSettings:{apiKey:""},workspace:null,busy:false,activeBranchId:"main",replayPreferredBranchId:null,experimentState:null,selectedExperimentConfigurationId:null};
 const componentRuntime=createComponentRuntime({
@@ -217,7 +219,7 @@ function appendConversationVariants(host,sourceTurn){const branches=(state.exper
 async function createConversationVariant(sourceTurn,button){if(state.busy)throw Error("Attendez la fin de la réponse en cours avant de créer une variante.");const sourceLine=visibleConversationTurns(),sourceIndex=sourceLine.findIndex(turn=>turn.id===sourceTurn.id);if(sourceIndex<0)throw Error("Le message source n’est plus disponible dans cette conversation.");const name=prompt("Nom de cette variante :","Variante "+(new Date().toLocaleString("fr-FR")));if(name===null)return;button.disabled=true;button.textContent="Préparation…";try{const selectedBranch=state.experimentState?.branches?.find(branch=>branch.configurationSnapshot?.id===state.selectedExperimentConfigurationId),selected=selectedBranch?.configurationSnapshot||null,documents=selected?JSON.parse(JSON.stringify(selected.documents||{})):await icareLaboratory.getSnapshot(),target=resolveInferenceTarget("text"),route=gatewayRoutingConfig?.routes?.scoring||"direct",gatewayId=route.startsWith("gateway-")?Number(route.slice(-1)):0,gatewayUrl=gatewayRoutingConfig?.gateways?.find(g=>g.id===gatewayId)?.url||"",profileId=selected?.profileId||documents.profileId||null;let workflow=selected?.workflow||null;try{if(!workflow&&documents.workflow)workflow=JSON.parse(documents.workflow);}catch(error){throw new Error("Configuration du workflow invalide : "+error.message);}const configuration=createConfigurationSnapshot({name:name.trim()||"Variante",parentId:selected?.id||sourceTurn.experiment?.configurationSnapshot?.id||profileId||"production",profileId,documents,workflow,model:selected?.model||target.model,parameters:{...(selected?.parameters||{}),inference:selected?.parameters?.inference||{baseUrl:target.baseUrl,model:target.model},scoring:selected?.parameters?.scoring||{route,provider:route==="direct"?(gatewayRoutingConfig?.directScoringProvider||"custom"):"gateway",gatewayUrl,directUrl:gatewayRoutingConfig?.directScoringUrl||"",lemonadeBaseUrl:gatewayRoutingConfig?.directScoringBaseUrl||"http://127.0.0.1:13305",model:gatewayRoutingConfig?.directScoringModel||""}}});const contextTurns=sourceLine.slice(0,sourceIndex),project=state.projects.find(item=>item.id===state.projectId),workspaceSnapshot=sourceTurn.workspaceSnapshotBefore||sourceTurn.workspaceSnapshot||snapshotWorkspaceForReplay(state.workspace),projectSnapshot=sourceTurn.projectSnapshot||{name:project?.name||"",intention:project?.intention||""},created=createConversationBranch(state.experimentState,{name:configuration.name,parentBranchId:sourceTurn.experiment?.branchId||"main",sourceTurnId:sourceTurn.id,sourceIndex,configurationSnapshot:configuration,contextTurns,workspaceSnapshot,projectSnapshot,initialMessage:sourceTurn.user});state.experimentState=created.state;state.activeBranchId=created.branch.id;state.selectedExperimentConfigurationId=configuration.id;await put(db,"settings",{id:experimentStoreKey(),...state.experimentState});renderExperimentBranches();renderConversation();renderActiveConfigurationStatus();await send(sourceTurn.user,{branch:created.branch,configurationSnapshot:configuration,sourceTurnId:sourceTurn.id,sourceTraceIndex:null,contextTurns,workspaceSnapshot,projectSnapshot});}finally{button.disabled=false;button.textContent="Créer une variante";}}
 function renderConversation(turnCount=state.turns.length){const all=visibleConversationTurns(),requested=Number(turnCount),count=Number.isFinite(requested)?Math.max(0,Math.min(all.length,requested)):all.length,turns=all.slice(0,count);$("messages").replaceChildren();if(!turns.length){bubble("assistant","Bienvenue dans votre espace ICARE. Vos données restent dans ce navigateur. Décrivez le système que vous souhaitez explorer.",false,false);return;}for(const t of turns){const user=bubble("user",t.user);const variantButton=document.createElement("button");variantButton.type="button";variantButton.className="button secondary conversation-variant-create";variantButton.textContent="Créer une variante";variantButton.addEventListener("click",async()=>{try{await createConversationVariant(t,variantButton);}catch(error){alert("Création de la variante impossible : "+error.message);variantButton.disabled=false;variantButton.textContent="Créer une variante";}});user.append(variantButton);const answer=bubble("assistant",t.assistant,false,false);if(t.trace)attachTraceButton(answer,t.trace,t.id);if(t.userScores||t.scores||t.assistantScores||t.scoringError)appendScoreLines(answer,t.userScores??t.scores,t.assistantScores,t.userScoringError??t.scoringError,t.assistantScoringError??t.scoringError);if(!state.activeBranchId||state.activeBranchId==="main")appendConversationVariants(answer,t);}}
 const experimentStoreKey=()=>experimentStorageKey(state.projectId);
-async function loadTurns(){state.turns=(await getAll(db,"turns")).filter(t=>t.projectId===state.projectId).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));state.experimentState=createExperimentState(await get(db,"settings",experimentStoreKey())||{});state.activeBranchId="main";state.selectedExperimentConfigurationId=null;replaySnapshotIndex=null;replayBranchTurnCount=null;renderExperimentBranches();renderConversation(state.turns.length);renderScoringRadar();renderProjectTimeline();renderActiveConfigurationStatus();}
+async function loadTurns(){state.turns=(await getAll(db,"turns")).filter(t=>t.projectId===state.projectId).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));state.experimentState=createExperimentState(await get(db,"settings",experimentStoreKey())||{});state.activeBranchId="main";state.replayPreferredBranchId=null;state.selectedExperimentConfigurationId=null;replaySnapshotIndex=null;replayMainTurnCount=null;replayBranchTurnCount=null;renderExperimentBranches();renderConversation(state.turns.length);renderScoringRadar();renderProjectTimeline();renderActiveConfigurationStatus();}
 function renderExperimentBranches(){
  const select=$("conversation-branch-select");if(select){const previous=state.activeBranchId||"main";select.replaceChildren(new Option("Conversation originale","main"));for(const branch of state.experimentState?.branches||[])select.add(new Option(branch.name+" · "+branch.configurationSnapshot?.name,branch.id));select.value=previous;}
  const configurations=$("experiment-configuration-select");if(configurations){const previous=state.selectedExperimentConfigurationId;configurations.replaceChildren(new Option("Configuration de production",""));const seen=new Set();for(const branch of state.experimentState?.branches||[]){const snapshot=branch.configurationSnapshot;if(!snapshot?.id||seen.has(snapshot.id))continue;seen.add(snapshot.id);configurations.add(new Option(snapshot.name+" · "+new Date(snapshot.createdAt).toLocaleString("fr-FR"),snapshot.id));}configurations.value=seen.has(previous)?previous:"";}
@@ -229,27 +231,34 @@ function activateBranchExplorerNode(branchId,{focus=true,turnCount=null}={}){
  state.selectedExperimentConfigurationId=branch?.configurationSnapshot?.id||null;
  replaySnapshotIndex=null;
  replayBranchTurnCount=turnCount;
- if(state.activeBranchId==="main"&&turnCount!==null){const snapshots=state.workspace?.snapshots||[];const targetTurns=Math.max(0,Number(turnCount)+1);const eligible=snapshots.map((snapshot,index)=>({snapshot,index})).filter(item=>Number(item.snapshot.turns||0)<=targetTurns);replaySnapshotIndex=eligible.length?eligible.at(-1).index:0;replayBranchTurnCount=null;}
- renderExperimentBranches();renderConversation();renderScoringRadar();renderProjectTimeline();renderActiveConfigurationStatus();
- if(focus)document.querySelector('[data-branch-id="'+CSS.escape(state.activeBranchId)+'"]')?.focus();
+ if(state.activeBranchId==="main"&&turnCount===null)replayMainTurnCount=null;
+ let visibleCount=turnCount;
+ if(state.activeBranchId==="main"&&turnCount!==null){
+  visibleCount=Math.max(0,Math.min(state.turns.filter(turn=>!turn.experiment?.branchId).length,Number(turnCount)||0));
+  replayMainTurnCount=visibleCount;replaySnapshotIndex=null;replayBranchTurnCount=null;
+ }
+ renderExperimentBranches();renderConversation(visibleCount??undefined);renderScoringRadar(visibleCount??undefined);renderProjectTimeline();renderActiveConfigurationStatus();
+ if(focus)$("conversation-branch-tree")?.focus({preventScroll:true});
 }
 function renderBranchExplorer(){
- const tree=$("conversation-branch-tree");if(!tree)return;
+ const tree=$("conversation-branch-tree");if(!tree)return;tree.tabIndex=0;
  const branches=state.experimentState?.branches||[],active=state.activeBranchId||"main";
  const countLabel=$("branch-explorer-count");if(countLabel)countLabel.textContent=branches.length+" branche(s)";
  tree.replaceChildren();tree.setAttribute("aria-label","Arbre temporel des conversations. Les échanges hérités sont représentés une seule fois sur leur branche d'origine.");
  const canonical=state.turns.filter(turn=>!turn.experiment?.branchId);
- const maxColumns=Math.max(1,canonical.length,...branches.map(branch=>Number(branch.sourceIndex??branch.contextTurnIds?.length??0)+1+state.turns.filter(turn=>turn.experiment?.branchId===branch.id).length));
- const makeDot=(parent,{label,kind="turn",branchId="main",position=1,selectPosition=position,activeDot=false})=>{
-  const dot=document.createElement("button");dot.type="button";dot.className="branch-time-dot"+(kind==="fork"?" is-fork":"")+(activeDot?" is-current":"");dot.style.gridColumn=String(position);dot.title=label;dot.setAttribute("aria-label",label);dot.dataset.branchId=branchId;
+ const maxColumns=Math.max(1,canonical.length,...branches.map(branch=>Number(branch.sourceIndex??branch.contextTurnIds?.length??0)+1+Math.max(1,state.turns.filter(turn=>turn.experiment?.branchId===branch.id).length)));
+ const makeDot=(parent,{label,branchId="main",position=1,selectPosition=position,activeDot=false})=>{
+  const dot=document.createElement("button");dot.type="button";dot.className="branch-time-dot"+(activeDot?" is-current":"");dot.style.gridColumn=String(position);dot.title=label;dot.setAttribute("aria-label",label);dot.dataset.branchId=branchId;
   dot.addEventListener("click",()=>{
-   if(branchId==="main"){state.replayPreferredBranchId=null;activateBranchExplorerNode("main",{focus:false});const snapshots=state.workspace?.snapshots||[];const targetTurns=Math.min(canonical.length,position);let index=-1;snapshots.forEach((snapshot,i)=>{if(Number(snapshot.turns||0)<=targetTurns)index=i;});if(index>=0)showProjectHistory(index);else{replaySnapshotIndex=null;renderConversation(targetTurns);renderScoringRadar(targetTurns);renderProjectTimeline();renderBranchExplorer();}}
-   else{activateBranchExplorerNode(branchId,{focus:false});showBranchHistory(selectPosition);}
+   const activeBranch=branches.find(item=>item.id===active),activeParent=(activeBranch?.parentBranchId||"main")===branchId,activeLineage=activeParent?buildBranchReplayTimeline(state.turns,activeBranch):null;
+   if(activeLineage&&position===activeLineage.sourceSelectionCount){showBranchHistory(activeLineage.sourceSelectionCount);tree.focus({preventScroll:true});return;}
+   if(branchId==="main"){state.replayPreferredBranchId=null;activateBranchExplorerNode("main",{focus:false});const targetTurns=Math.min(canonical.length,position);replaySnapshotIndex=null;replayMainTurnCount=targetTurns;renderConversation(targetTurns);renderScoringRadar(targetTurns);renderProjectTimeline();renderBranchExplorer();tree.focus({preventScroll:true});}
+   else{activateBranchExplorerNode(branchId,{focus:false});showBranchHistory(selectPosition);tree.focus({preventScroll:true});}
   });parent.append(dot);return dot;
  };
  const makeLane=(branch,parent,{root=false,depth=1}={})=>{
-  const id=root?"main":branch.id,own=root?canonical:state.turns.filter(turn=>turn.experiment?.branchId===id);
-  const sourceIndex=root?0:Number(branch.sourceIndex??branch.contextTurnIds?.length??0),forkColumn=sourceIndex+1;
+  const id=root?"main":branch.id,own=root?canonical:state.turns.filter(turn=>turn.experiment?.branchId===id),lineage=root?null:buildBranchReplayTimeline(state.turns,branch);
+  const forkColumn=root?1:lineage.sourcePosition,selectedChild=branches.find(item=>item.id===active&&(item.parentBranchId||"main")===id),selectedChildLineage=selectedChild?buildBranchReplayTimeline(state.turns,selectedChild):null;
   const lane=document.createElement("section");lane.className="branch-lane"+(root?" branch-lane-root":"")+(id===active?" is-active":"");lane.dataset.branchId=id;lane.setAttribute("role","treeitem");lane.setAttribute("aria-selected",String(id===active));lane.setAttribute("aria-level",String(depth));
   const heading=document.createElement("div");heading.className="branch-lane-heading";
   const choice=document.createElement("button");choice.type="button";choice.className="branch-lane-choice"+(id===active?" is-active":"");choice.dataset.branchId=id;choice.textContent=root?"Conversation originale":branch.name;choice.setAttribute("aria-current",String(id===active));choice.title=root?"Conversation de référence":(branch.configurationSnapshot?.name||"Configuration de la variante");choice.addEventListener("click",()=>activateBranchExplorerNode(id));heading.append(choice);
@@ -259,10 +268,10 @@ function renderBranchExplorer(){
   heading.append(info);lane.append(heading);
   const track=document.createElement("div");track.className="branch-lane-track"+(root?"":" is-branch-track");track.style.setProperty("--timeline-columns",String(maxColumns));track.style.setProperty("--fork-column",String(forkColumn));
   const line=document.createElement("span");line.className="branch-time-line";line.setAttribute("aria-hidden","true");track.append(line);
-  if(root){const mainVisibleCount=replaySnapshotIndex===null?canonical.length:Math.min(canonical.length,Number(state.workspace?.snapshots?.[replaySnapshotIndex]?.turns)||0);own.forEach((turn,index)=>makeDot(track,{label:"Échange "+(index+1)+(turn.createdAt?" · "+new Date(turn.createdAt).toLocaleString("fr-FR"):""),branchId:"main",position:index+1,activeDot:active==="main"&&index===mainVisibleCount-1}));}
+  if(root){const mainVisibleCount=replaySnapshotIndex===null?(replayMainTurnCount??canonical.length):Math.min(canonical.length,Number(state.workspace?.snapshots?.[replaySnapshotIndex]?.turns)||0);own.forEach((turn,index)=>{const sourceSelected=selectedChildLineage?.sourceSelectionCount===index+1&&(replayBranchTurnCount===selectedChildLineage.sourceSelectionCount||(replayBranchTurnCount===null&&!selectedChildLineage.ownTurns.length));makeDot(track,{label:"Échange "+(index+1)+(turn.createdAt?" · "+new Date(turn.createdAt).toLocaleString("fr-FR"):""),branchId:"main",position:index+1,activeDot:(active==="main"&&index===mainVisibleCount-1)||sourceSelected});});}
   else{
-   makeDot(track,{label:"Bifurcation depuis l’échange "+forkColumn,kind:"fork",branchId:id,position:forkColumn,selectPosition:sourceIndex,activeDot:active===id&&replayBranchTurnCount===sourceIndex});
-   own.forEach((turn,index)=>makeDot(track,{label:"Échange de la variante "+(index+1)+(turn.createdAt?" · "+new Date(turn.createdAt).toLocaleString("fr-FR"):""),branchId:id,position:forkColumn+index+1,selectPosition:sourceIndex+index+1,activeDot:active===id&&(replayBranchTurnCount===sourceIndex+index+1||(replayBranchTurnCount===null&&index===own.length-1))}));
+   lineage.variantNodes.forEach(({turn,position,selectionCount},index)=>{const sourceSelected=selectedChildLineage?.sourceSelectionCount===position&&(replayBranchTurnCount===selectedChildLineage.sourceSelectionCount||(replayBranchTurnCount===null&&!selectedChildLineage.ownTurns.length));makeDot(track,{label:"Échange de la variante "+(index+1)+(turn.createdAt?" · "+new Date(turn.createdAt).toLocaleString("fr-FR"):""),branchId:id,position,selectPosition:selectionCount,activeDot:(active===id&&(replayBranchTurnCount===selectionCount||(replayBranchTurnCount===null&&index===lineage.variantNodes.length-1)))||sourceSelected});});
+   if(lineage.emptyMarker){const empty=document.createElement("span");empty.className="branch-time-dot is-empty";empty.style.gridColumn=String(lineage.emptyMarker.position);empty.textContent="×";empty.setAttribute("role","img");empty.setAttribute("aria-label",lineage.emptyMarker.label);empty.title=lineage.emptyMarker.label;track.append(empty);}
   }
   lane.append(track);parent.append(lane);
   const children=branches.filter(item=>(item.parentBranchId||"main")===id);
@@ -272,7 +281,7 @@ function renderBranchExplorer(){
  };
  makeLane(null,tree,{root:true,depth:1});
 }
-function visibleConversationTurns(){if(!state.activeBranchId||state.activeBranchId==="main")return state.turns.filter(turn=>!turn.experiment?.branchId);const branch=state.experimentState?.branches?.find(item=>item.id===state.activeBranchId);if(!branch)return state.turns.filter(turn=>!turn.experiment?.branchId);const context=branch.contextTurnIds?branch.contextTurnIds.map(id=>state.turns.find(turn=>turn.id===id)).filter(Boolean):(branch.contextTurns||[]),runs=state.turns.filter(turn=>turn.experiment?.branchId===branch.id);return [...context,...runs];}
+function visibleConversationTurns(){if(!state.activeBranchId||state.activeBranchId==="main")return state.turns.filter(turn=>!turn.experiment?.branchId);const branch=state.experimentState?.branches?.find(item=>item.id===state.activeBranchId);if(!branch)return state.turns.filter(turn=>!turn.experiment?.branchId);return buildBranchReplayTimeline(state.turns,branch).turns;}
 async function loadProjects(){state.projects=(await getAll(db,"projects")).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));if(!state.projects.length){const p={id:uid(),name:"Mon premier projet",intention:"",createdAt:now(),updatedAt:now()};await put(db,"projects",p);state.projects=[p];}if(!state.projects.some(p=>p.id===state.projectId))state.projectId=state.projects[0].id;renderProjects();await loadTurns();}
 function detectPreset(url=""){return url.includes("api.openai.com")?"openai":url.includes(":11434")?"ollama":url.includes(":13305")?"lemonade":"";}
 async function loadSettings(){
@@ -603,55 +612,47 @@ document.querySelector(".radar-legend")?.addEventListener("click",event=>{const 
 $("conversation-branch-tree")?.addEventListener("keydown",event=>{
  if(!["ArrowLeft","ArrowRight","ArrowUp","ArrowDown","Home","End"].includes(event.key))return;
  if(event.target.closest("a"))return;
- const branches=state.experimentState?.branches||[],active=state.activeBranchId||"main",current=branches.find(item=>item.id===active),slider=$("project-history-slider");
- const visible=visibleConversationTurns(),max=visible.length,currentCount=replayBranchTurnCount===null?max:Math.max(0,Math.min(max,replayBranchTurnCount));
+ const branches=state.experimentState?.branches||[],active=state.activeBranchId||"main",current=branches.find(item=>item.id===active);
+ const visible=visibleConversationTurns(),max=visible.length,mainTurns=state.turns.filter(turn=>!turn.experiment?.branchId),mainCount=active==="main"?(replaySnapshotIndex===null?(replayMainTurnCount??mainTurns.length):Math.min(mainTurns.length,Number(state.workspace?.snapshots?.[replaySnapshotIndex]?.turns)||0)):max,currentCount=active==="main"?mainCount:(replayBranchTurnCount===null?max:Math.max(0,Math.min(max,replayBranchTurnCount)));
  const siblings=branches.filter(item=>(item.parentBranchId||"main")===(current?.parentBranchId||"main"));
  let target=null,turnCount=null;
  if(event.key==="ArrowRight"||event.key==="ArrowLeft"){
   event.preventDefault();const next=Math.max(0,Math.min(max,currentCount+(event.key==="ArrowRight"?1:-1)));
-  if(active==="main"){const snapshots=state.workspace?.snapshots||[];let snapshotIndex=-1;snapshots.forEach((snapshot,index)=>{if(Number(snapshot.turns||0)<=next)snapshotIndex=index;});if(snapshotIndex>=0)showProjectHistory(snapshotIndex);else{replaySnapshotIndex=null;renderConversation(next);renderScoringRadar(next);renderProjectTimeline();}}
+  if(active==="main"){const preferred=event.key==="ArrowRight"&&state.replayPreferredBranchId?branches.find(item=>item.id===state.replayPreferredBranchId):null;if(preferred&&shouldResumeBranchOnForward(preferred,next)){activateBranchExplorerNode(preferred.id,{focus:false,turnCount:Number(preferred.sourceIndex??preferred.contextTurnIds?.length??0)+1});}else{replaySnapshotIndex=null;replayMainTurnCount=next;renderConversation(next);renderScoringRadar(next);renderProjectTimeline();renderBranchExplorer();}}
   else showBranchHistory(next);
-  return;
+  tree.focus({preventScroll:true});return;
  }
- if(event.key==="ArrowDown"){event.preventDefault();target=branches.find(item=>(item.parentBranchId||"main")===active);if(target)turnCount=target.contextTurnIds?.length??target.contextTurns?.length??null;}
- if(event.key==="ArrowUp"){event.preventDefault();if(current){target=current.parentBranchId||"main";turnCount=current.sourceIndex??null;} }
- if(event.key==="ArrowDown"&&event.shiftKey||event.key==="ArrowUp"&&event.shiftKey){event.preventDefault();const list=active==="main"?branches.filter(item=>(item.parentBranchId||"main")==="main"):siblings;const index=list.findIndex(item=>item.id===active),step=event.key==="ArrowDown"?1:-1;target=list[index+step]?.id||null;turnCount=target==="main"?null:(branches.find(item=>item.id===target)?.contextTurnIds?.length??null);}
- if(event.key==="Home"){event.preventDefault();if(active==="main"){replaySnapshotIndex=0;showProjectHistory(0);}else showBranchHistory(0);return;}
- if(event.key==="End"){event.preventDefault();if(active==="main"){replaySnapshotIndex=null;renderConversation();renderScoringRadar();renderProjectTimeline();}else showBranchHistory(max);return;}
+ if(event.key==="ArrowDown"){event.preventDefault();target=branches.find(item=>(item.parentBranchId||"main")===active);if(target)turnCount=Number(target.sourceIndex??target.contextTurnIds?.length??target.contextTurns?.length??0)+1;}
+ if(event.key==="ArrowUp"){event.preventDefault();if(current){target=current.parentBranchId||"main";turnCount=Number(current.sourceIndex??current.contextTurnIds?.length??0)+1;} }
+ if(event.key==="ArrowDown"&&event.shiftKey||event.key==="ArrowUp"&&event.shiftKey){event.preventDefault();const list=active==="main"?branches.filter(item=>(item.parentBranchId||"main")==="main"):siblings;const index=list.findIndex(item=>item.id===active),step=event.key==="ArrowDown"?1:-1;target=list[index+step]?.id||null;turnCount=target==="main"?null:(Number(branches.find(item=>item.id===target)?.sourceIndex??0)+1);}
+ if(event.key==="Home"){event.preventDefault();if(active==="main"){replaySnapshotIndex=null;replayMainTurnCount=0;renderConversation(0);renderScoringRadar(0);renderProjectTimeline();renderBranchExplorer();}else showBranchHistory(0);tree.focus({preventScroll:true});return;}
+ if(event.key==="End"){event.preventDefault();if(active==="main"){replaySnapshotIndex=null;replayMainTurnCount=null;renderConversation();renderScoringRadar();renderProjectTimeline();renderBranchExplorer();}else showBranchHistory(max);tree.focus({preventScroll:true});return;}
  if(target!==null&&target!==undefined)activateBranchExplorerNode(target,{turnCount});
 });
 
 function renderProjectTimeline(){
- const slider=$("project-history-slider"),start=$("project-history-start"),position=$("project-history-position"),summary=$("project-history-summary");
- if(!slider||!state.workspace)return;
+ const start=$("project-history-start"),position=$("project-history-position"),summary=$("project-history-summary");
+ if(!state.workspace)return;
  if(state.activeBranchId&&state.activeBranchId!=="main"){
   const branch=state.experimentState?.branches?.find(item=>item.id===state.activeBranchId),turns=visibleConversationTurns(),max=turns.length;
   const selected=replayBranchTurnCount===null?max:Math.max(0,Math.min(max,replayBranchTurnCount));
-  slider.min="0";slider.max=String(max);slider.value=String(selected);slider.disabled=max<1;
   if(start)start.textContent=branch?.name||"Début de la branche";
   if(position)position.textContent=selected===max?"Branche complète":selected+" / "+max;
   if(summary){const turn=selected?turns[selected-1]:null,date=turn?.createdAt?new Date(turn.createdAt).toLocaleString("fr-FR"):"";summary.textContent=[branch?.name||"Branche expérimentale",selected===0?"Contexte initial":selected+" échange(s) affiché(s)",date,selected===max?"historique complet":"replay de branche"].filter(Boolean).join(" · ");}
   return;
  }
- const snapshots=state.workspace.snapshots||[];
- if(!snapshots.length){slider.min="0";slider.max="0";slider.value="0";slider.disabled=true;if(start)start.textContent="Début du projet";if(position)position.textContent="État actuel";if(summary)summary.textContent="L’historique apparaîtra au fil des échanges.";return;}
- const selected=replaySnapshotIndex===null?snapshots.length-1:Math.max(0,Math.min(snapshots.length-1,replaySnapshotIndex));
- slider.min="0";slider.max=String(snapshots.length-1);slider.value=String(selected);slider.disabled=snapshots.length<2;
- const first=snapshots[0],snap=snapshots[selected];
- if(start)start.textContent=new Date(first.at).toLocaleDateString("fr-FR");
- if(position)position.textContent=selected===snapshots.length-1?"État actuel":(selected+1)+" / "+snapshots.length;
- if(summary){const date=snap.at?new Date(snap.at).toLocaleString("fr-FR"):"";summary.textContent=[date,snap.reason||"Étape du projet",snap.turns+" échange(s)"].filter(Boolean).join(" · ")+(selected===snapshots.length-1?" · état courant":" · consultation historique");}
+ const total=state.turns.filter(turn=>!turn.experiment?.branchId).length,visible=Math.max(0,Math.min(total,replayMainTurnCount??total));
+ if(start)start.textContent="Conversation originale";
+ if(position)position.textContent=visible===total?"Conversation complète":visible+" / "+total+" échange(s)";
+ if(summary)summary.textContent=visible===total?"Tous les messages de la conversation originale sont affichés.":visible+" échange(s) affiché(s) sur "+total+" · navigation dans l’arbre";
 }
 function showBranchHistory(index){
  const branch=state.experimentState?.branches?.find(item=>item.id===state.activeBranchId);
  const turns=visibleConversationTurns(),selected=Math.max(0,Math.min(turns.length,Number(index)||0));
  const forkContext=Number(branch?.sourceIndex??branch?.contextTurnIds?.length??0);
- if(branch&&selected<=forkContext){
-  state.replayPreferredBranchId=branch.id;state.activeBranchId="main";replayBranchTurnCount=null;
-  const snapshots=state.workspace?.snapshots||[];let snapshotIndex=-1;
-  snapshots.forEach((snapshot,i)=>{if(Number(snapshot.turns||0)<=forkContext)snapshotIndex=i;});
-  if(snapshotIndex>=0)showProjectHistory(snapshotIndex);
-  else{replaySnapshotIndex=null;renderConversation(forkContext);renderScoringRadar(forkContext);renderProjectTimeline();renderBranchExplorer();}
+ if(shouldReturnToParentBranch(branch,selected)){
+  state.replayPreferredBranchId=branch.id;state.activeBranchId="main";replayBranchTurnCount=null;replayMainTurnCount=forkContext;
+  replaySnapshotIndex=null;replayMainTurnCount=forkContext;renderConversation(forkContext);renderScoringRadar(forkContext);renderProjectTimeline();renderExperimentBranches();
   return;
  }
  replayBranchTurnCount=selected;
@@ -663,22 +664,13 @@ function showProjectHistory(index){
  replayBranchTurnCount=null;
  const snapshot=snapshots[replaySnapshotIndex];
  const canonicalTurns=state.turns.filter(turn=>!turn.experiment?.branchId);
- const visibleCount=Math.min(canonicalTurns.length,Number(snapshot.turns)||0);
+ const visibleCount=Math.min(canonicalTurns.length,Number(snapshot.turns)||0);replayMainTurnCount=visibleCount;
  renderConversation(visibleCount);
  renderScoringRadar(visibleCount);
  renderProjectTimeline();renderBranchExplorer();
 }
-$("project-history-slider")?.addEventListener("input",event=>{
- if(state.activeBranchId&&state.activeBranchId!=="main"){showBranchHistory(event.target.value);return;}
- const snapshots=state.workspace?.snapshots||[],snapshot=snapshots[Number(event.target.value)],preferred=state.replayPreferredBranchId&&state.experimentState?.branches?.find(item=>item.id===state.replayPreferredBranchId);
- if(preferred&&snapshot&&Number(snapshot.turns||0)>=Number(preferred.sourceIndex??preferred.contextTurnIds?.length??0)+1){
-  state.activeBranchId=preferred.id;replaySnapshotIndex=null;
-  const branchTurns=visibleConversationTurns();showBranchHistory(Math.min(branchTurns.length,Number(snapshot.turns||0)));return;
- }
- showProjectHistory(event.target.value);
-});
 function captureSnapshot(reason="Échange",persist=true){if(!state.workspace)return;const snapshot={at:now(),reason,turns:state.turns?.length||0,dimensions:{...state.workspace.dimensions},proposals:state.workspace.proposals.length},last=state.workspace.snapshots.at(-1);if(!last||last.turns!==snapshot.turns||JSON.stringify(last.dimensions)!==JSON.stringify(snapshot.dimensions)||last.proposals!==snapshot.proposals){state.workspace.snapshots.push(snapshot);if(persist)saveWorkspace();renderProjectTimeline();}}
-function renderWorkspace(){if(state.activeBranchId&&state.activeBranchId!=="main"){if(replayBranchTurnCount===null){renderConversation();renderScoringRadar();}else showBranchHistory(replayBranchTurnCount);}else if(replaySnapshotIndex===null){renderConversation(state.turns.length);renderScoringRadar(state.turns.length);}else showProjectHistory(replaySnapshotIndex);renderProjectTimeline();renderProjectDocuments();}
+function renderWorkspace(){if(state.activeBranchId&&state.activeBranchId!=="main"){if(replayBranchTurnCount===null){renderConversation();renderScoringRadar();}else showBranchHistory(replayBranchTurnCount);}else if(replaySnapshotIndex===null){const visibleCount=replayMainTurnCount??state.turns.length;renderConversation(visibleCount);renderScoringRadar(visibleCount);}else showProjectHistory(replaySnapshotIndex);renderProjectTimeline();renderProjectDocuments();}
 $("api-preset")?.addEventListener("change",event=>{const preset=event.target.value,presets={openai:"https://api.openai.com/v1",ollama:"http://localhost:11434/v1",lemonade:"http://127.0.0.1:13305/v1"};if(presets[preset])$("api-base").value=presets[preset];const help={openai:"OpenAI : endpoint public HTTPS. Saisissez une clé API et chargez les modèles disponibles.",ollama:"Ollama local : http://localhost:11434/v1. Pour un site HTTPS distant, Ollama doit autoriser l’origine GitHub Pages via OLLAMA_ORIGINS. localhost désigne votre propre ordinateur.",lemonade:"Lemonade local : http://127.0.0.1:13305/v1. Pour un site HTTPS distant, le serveur doit autoriser l’origine GitHub Pages (CORS).", "":"API compatible OpenAI Chat Completions. Saisissez l’URL de base terminée par /v1."};$("provider-help").textContent=help[preset]||help[""];});
 
 renderScoringRadar();

@@ -6,6 +6,8 @@ import { parse } from "parse5";
 const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
 const app = await readFile(new URL("../app.js", import.meta.url), "utf8");
 const styles = await readFile(new URL("../styles.css", import.meta.url), "utf8");
+const branchNavigation = await readFile(new URL("../branch-navigation.js", import.meta.url), "utf8");
+
 function walk(node, visit) {
   visit(node);
   for (const child of node.childNodes || []) walk(child, visit);
@@ -15,10 +17,8 @@ function walk(node, visit) {
 test("HTML has no parser errors, duplicate IDs, or dangling structural references", () => {
   const parseErrors = [];
   const document = parse(html, { onParseError: error => parseErrors.push(error) });
-  assert.deepEqual(parseErrors.map(({ code, startLine, startCol }) => ({ code, startLine, startCol })), [],
-    "le document HTML doit être analysable sans erreur de syntaxe");
-  const ids = new Map();
-  const references = [];
+  assert.deepEqual(parseErrors.map(({ code, startLine, startCol }) => ({ code, startLine, startCol })), []);
+  const ids = new Map(), references = [];
   walk(document, node => {
     if (!node.attrs) return;
     const attrs = Object.fromEntries(node.attrs.map(({ name, value }) => [name, value]));
@@ -28,40 +28,40 @@ test("HTML has no parser errors, duplicate IDs, or dangling structural reference
     }
     if (attrs.href?.startsWith("#") && attrs.href.length > 1) references.push({ name: "href", id: decodeURIComponent(attrs.href.slice(1)) });
   });
-  assert.deepEqual([...ids].filter(([, count]) => count > 1), [], "un id HTML ne doit apparaître qu'une seule fois");
-  assert.deepEqual(references.filter(({ id }) => !ids.has(id)), [], "les références for/ARIA/ancres doivent toutes cibler un id existant");
-  assert.ok(ids.has("radar-latest") && ids.has("radar-accumulation"), "les deux radars doivent conserver leurs conteneurs");
-  for (const id of ["project-history-slider", "project-history-summary", "messages", "settings-dialog"]) {
-    assert.ok(ids.has(id), "élément structurel requis absent : " + id);
-  }
+  assert.deepEqual([...ids].filter(([, count]) => count > 1), []);
+  assert.deepEqual(references.filter(({ id }) => !ids.has(id)), []);
+  for (const id of ["radar-latest", "radar-accumulation", "project-history-summary", "messages", "settings-dialog"]) assert.ok(ids.has(id));
+  assert.equal(ids.has("project-history-slider"), false);
 });
 
-test("branch explorer exposes temporal keyboard guidance and an accessible tree",()=>{
- assert.match(html,/id="conversation-branch-tree"[^>]*role="tree"/);
- assert.match(html,/← \/ → temps/);
- assert.match(html,/↑ \/ ↓ branches/);
+test("conversation tree is focusable and is the only replay navigation control", () => {
+  assert.ok(html.includes('id="conversation-branch-tree" class="branch-tree" role="tree" tabindex="0"'));
+  assert.ok(html.includes("← / → messages"));
+  assert.ok(!html.includes('type="range"'));
+  assert.ok(!app.includes("project-history-slider"));
+  assert.ok(app.includes('$("conversation-branch-tree")?.addEventListener("keydown"'));
+  assert.ok(app.includes('tree.focus({preventScroll:true})'));
 });
 
-
-test("branch explorer renders exchange dots and fork markers with an integrated replay control",()=>{
- assert.match(app,/className="branch-time-dot"/);
- assert.match(app,/kind==="fork"/);
- assert.match(app,/className="branch-lane-track"/);
- assert.match(styles,/\.branch-lane-track/);
- assert.match(styles,/\.branch-lane-children:before/);
- assert.match(html,/class="project-history branch-primary-timeline"/);
- assert.doesNotMatch(html,/branch-compare-(select|slider|open)/);
- assert.match(html,/id="project-history-slider"/);
+test("application delegates lineage and source-node navigation to the tested branch model", () => {
+  assert.ok(app.includes("buildBranchReplayTimeline(state.turns,branch).turns"));
+  assert.ok(app.includes("selectedChildLineage.sourceSelectionCount"));
+  assert.ok(app.includes("activeLineage.sourceSelectionCount"));
+  assert.ok(!app.includes("kind:\"fork\""));
+  assert.ok(!app.includes("is-fork"));
+  assert.ok(app.includes("lineage.variantNodes.forEach"));
+  assert.ok(app.includes("shouldReturnToParentBranch(branch,selected)"));
+  assert.ok(app.includes("shouldResumeBranchOnForward(preferred,next)"));
+  assert.ok(branchNavigation.includes("sourceSelectionCount: sourceIndex + 1"));
+  assert.ok(branchNavigation.includes("selectionCount: sourceIndex + index + 2"));
 });
 
+test("aborted variants expose a visible non-selectable marker", () => {
+  assert.ok(app.includes('className="branch-time-dot is-empty"'));
+  assert.ok(branchNavigation.includes("Variante avortée : aucun échange produit"));
+  assert.ok(styles.includes(".branch-time-dot.is-empty"));
+});
 
-test("branch tree keeps inherited turns on the original timeline and removes branch comparison controls",()=>{
- assert.match(html,/id="conversation-branch-tree"/);
- assert.doesNotMatch(html,/branch-compare-(select|slider|open)/);
- assert.match(app,/kind==="fork"/);
- assert.doesNotMatch(app,/kind:"shared"/);
- assert.match(app,/state\.replayPreferredBranchId/);
- assert.match(app,/selected<=forkContext/);
- assert.match(app,/renderBranchExplorer\(\);/);
- assert.match(styles,/\.branch-lane-track\.is-branch-track \.branch-time-line/);
+test("selected branch label remains readable in dark mode", () => {
+  assert.ok(styles.includes('html[data-theme="dark"] .branch-lane-choice.is-active{background:#29496c;color:#fff'));
 });

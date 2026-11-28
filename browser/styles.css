@@ -1505,7 +1505,6 @@ html[data-theme="dark"] .branch-tree-children>.branch-tree-row:before{border-col
 .branch-time-dot:hover,.branch-time-dot:focus-visible{transform:scale(1.35);outline:2px solid var(--accent,#4777b8);outline-offset:3px}
 .branch-time-dot.is-current{width:15px;height:15px;background:var(--accent,#4777b8);border-color:var(--surface,#fff);box-shadow:0 0 0 2px var(--accent,#4777b8)}
 .branch-time-dot.is-shared{width:8px;height:8px;border-color:#94a3b8;background:var(--surface,#fff);opacity:.75}
-.branch-time-dot.is-fork{width:14px;height:14px;border:3px double var(--accent,#4777b8);background:var(--surface,#fff)}
 .branch-lane-children{position:relative;margin:0 0 0 0;padding:5px 0 0}
 .branch-lane-children:before{content:"";position:absolute;left:calc(var(--fork-column)*24px - 12px);top:-7px;bottom:15px;width:1px;background:var(--accent,#8aa4c7);opacity:.8}
 .branch-lane-children>.branch-lane:before{content:"";position:absolute;left:calc(var(--fork-column,1)*24px - 12px);top:16px;width:12px;height:1px;background:var(--accent,#8aa4c7)}
@@ -1521,7 +1520,7 @@ html[data-theme="dark"] .branch-tree-children>.branch-tree-row:before{border-col
 html[data-theme="dark"] .branch-lane-choice{color:#e6eef8}
 html[data-theme="dark"] .branch-time-dot{background:#172538;box-shadow:0 0 0 2px #172538}
 html[data-theme="dark"] .branch-time-dot.is-current{background:var(--accent,#4777b8);box-shadow:0 0 0 2px var(--accent,#4777b8)}
-html[data-theme="dark"] .branch-time-dot.is-fork{background:#172538}
+html[data-theme="dark"] 
 @media(max-width:700px){.branch-lane-info{max-width:260px}.branch-lane-prompt{max-width:150px}.branch-lane-choice{max-width:140px}}
 
 /* Les variantes prolongent le fil principal au point de bifurcation :
@@ -1532,3 +1531,10 @@ html[data-theme="dark"] .branch-time-dot.is-fork{background:#172538}
 .branch-lane-children>.branch-lane{position:relative;margin-top:3px;padding:0}
 .branch-lane-children>.branch-lane:before{content:"";position:absolute;left:calc(var(--fork-column,1)*24px - 12px);top:16px;width:12px;height:1px;background:var(--accent,#8aa4c7)}
 .branch-lane-children .branch-lane-children:before{top:-5px}
+
+
+/* Contraste et repères des branches dans l’arbre de navigation. */
+html[data-theme="dark"] .branch-lane-choice.is-active{background:#29496c;color:#fff;border-color:#a8c7f0;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.branch-tree:focus-visible{outline:2px solid var(--accent,#4777b8);outline-offset:3px;border-radius:6px}
+.branch-time-dot.is-empty{display:grid;place-items:center;width:16px;height:16px;min-width:16px;border:1px dashed #b45309;border-radius:3px;background:transparent;color:#b45309;font-size:13px;font-weight:800;line-height:1;box-shadow:none;cursor:default}
+html[data-theme="dark"] .branch-time-dot.is-empty{border-color:#f0b35b;color:#f0b35b;background:rgba(240,179,91,.08);box-shadow:none}
