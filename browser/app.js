@@ -231,7 +231,7 @@ function activateBranchExplorerNode(branchId,{focus=true,turnCount=null}={}){
  replayBranchTurnCount=turnCount;
  if(state.activeBranchId==="main"&&turnCount!==null){const snapshots=state.workspace?.snapshots||[];const targetTurns=Math.max(0,Number(turnCount));const eligible=snapshots.map((snapshot,index)=>({snapshot,index})).filter(item=>Number(item.snapshot.turns||0)<=targetTurns);replaySnapshotIndex=eligible.length?eligible.at(-1).index:null;replayBranchTurnCount=null;}
  renderExperimentBranches();renderConversation();renderScoringRadar();renderProjectTimeline();renderActiveConfigurationStatus();
- if(focus)document.querySelector('[data-branch-id="'+CSS.escape(state.activeBranchId)+'"]')?.focus();
+ if(focus)$("conversation-branch-tree")?.focus({preventScroll:true});
 }
 function renderBranchExplorer(){
  const tree=$("conversation-branch-tree");if(!tree)return;tree.tabIndex=0;
@@ -612,13 +612,13 @@ $("conversation-branch-tree")?.addEventListener("keydown",event=>{
   event.preventDefault();const next=Math.max(0,Math.min(max,currentCount+(event.key==="ArrowRight"?1:-1)));
   if(active==="main"){const snapshots=state.workspace?.snapshots||[];let snapshotIndex=-1;snapshots.forEach((snapshot,index)=>{if(Number(snapshot.turns||0)<=next)snapshotIndex=index;});if(snapshotIndex>=0&&Number(snapshots[snapshotIndex].turns||0)===next)showProjectHistory(snapshotIndex);else{replaySnapshotIndex=null;renderConversation(next);renderScoringRadar(next);renderProjectTimeline();renderBranchExplorer();}}
   else showBranchHistory(next);
-  return;
+  tree.focus({preventScroll:true});return;
  }
  if(event.key==="ArrowDown"){event.preventDefault();target=branches.find(item=>(item.parentBranchId||"main")===active);if(target)turnCount=Number(target.sourceIndex??target.contextTurnIds?.length??target.contextTurns?.length??0)+1;}
  if(event.key==="ArrowUp"){event.preventDefault();if(current){target=current.parentBranchId||"main";turnCount=Number(current.sourceIndex??current.contextTurnIds?.length??0)+1;} }
  if(event.key==="ArrowDown"&&event.shiftKey||event.key==="ArrowUp"&&event.shiftKey){event.preventDefault();const list=active==="main"?branches.filter(item=>(item.parentBranchId||"main")==="main"):siblings;const index=list.findIndex(item=>item.id===active),step=event.key==="ArrowDown"?1:-1;target=list[index+step]?.id||null;turnCount=target==="main"?null:(Number(branches.find(item=>item.id===target)?.sourceIndex??0)+1);}
- if(event.key==="Home"){event.preventDefault();if(active==="main"){replaySnapshotIndex=0;showProjectHistory(0);}else showBranchHistory(0);return;}
- if(event.key==="End"){event.preventDefault();if(active==="main"){replaySnapshotIndex=null;renderConversation();renderScoringRadar();renderProjectTimeline();}else showBranchHistory(max);return;}
+ if(event.key==="Home"){event.preventDefault();if(active==="main"){replaySnapshotIndex=0;showProjectHistory(0);}else showBranchHistory(0);tree.focus({preventScroll:true});return;}
+ if(event.key==="End"){event.preventDefault();if(active==="main"){replaySnapshotIndex=null;renderConversation();renderScoringRadar();renderProjectTimeline();renderBranchExplorer();}else showBranchHistory(max);tree.focus({preventScroll:true});return;}
  if(target!==null&&target!==undefined)activateBranchExplorerNode(target,{turnCount});
 });
 
