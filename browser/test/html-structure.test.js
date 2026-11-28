@@ -54,3 +54,15 @@ test("branch explorer renders exchange dots, fork markers, and an integrated rep
  assert.match(html,/<details class="branch-compare-control">/);
  assert.match(html,/id="project-history-slider"/);
 });
+
+
+test("branch tree keeps inherited turns on the original timeline and removes branch comparison controls",()=>{
+ assert.match(html,/id="conversation-branch-tree"/);
+ assert.doesNotMatch(html,/branch-compare-(select|slider|open)/);
+ assert.match(app,/kind==="fork"/);
+ assert.doesNotMatch(app,/kind:"shared"/);
+ assert.match(app,/state\.replayPreferredBranchId/);
+ assert.match(app,/selected<=forkContext/);
+ assert.match(app,/renderBranchExplorer\(\);/);
+ assert.match(styles,/\.branch-lane-track\.is-branch-track \.branch-time-line/);
+});
