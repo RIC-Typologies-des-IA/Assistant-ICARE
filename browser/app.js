@@ -231,8 +231,15 @@ function activateBranchExplorerNode(branchId,{focus=true,turnCount=null}={}){
  state.selectedExperimentConfigurationId=branch?.configurationSnapshot?.id||null;
  replaySnapshotIndex=null;
  replayBranchTurnCount=turnCount;
- if(state.activeBranchId==="main"&&turnCount!==null){const snapshots=state.workspace?.snapshots||[];const targetTurns=Math.max(0,Number(turnCount));replayMainTurnCount=targetTurns;const eligible=snapshots.map((snapshot,index)=>({snapshot,index})).filter(item=>Number(item.snapshot.turns||0)<=targetTurns);replaySnapshotIndex=eligible.length?eligible.at(-1).index:null;replayBranchTurnCount=null;}
- renderExperimentBranches();renderConversation();renderScoringRadar();renderProjectTimeline();renderActiveConfigurationStatus();
+ let visibleCount=turnCount;
+ if(state.activeBranchId==="main"&&turnCount!==null){
+  const snapshots=state.workspace?.snapshots||[],targetTurns=Math.max(0,Number(turnCount));
+  const eligible=snapshots.map((snapshot,index)=>({snapshot,index})).filter(item=>Number(item.snapshot.turns||0)<=targetTurns);
+  replaySnapshotIndex=eligible.length?eligible.at(-1).index:null;
+  visibleCount=replaySnapshotIndex===null?targetTurns:Math.min(state.turns.filter(turn=>!turn.experiment?.branchId).length,Number(snapshots[replaySnapshotIndex].turns)||0);
+  replayMainTurnCount=visibleCount;replayBranchTurnCount=null;
+ }
+ renderExperimentBranches();renderConversation(visibleCount??undefined);renderScoringRadar(visibleCount??undefined);renderProjectTimeline();renderActiveConfigurationStatus();
  if(focus)$("conversation-branch-tree")?.focus({preventScroll:true});
 }
 function renderBranchExplorer(){
