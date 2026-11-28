@@ -226,6 +226,7 @@ function renderExperimentBranches(){
 function renderBranchExplorer(){
  const tree=$("conversation-branch-tree"),compare=$("branch-compare-select");if(!tree||!compare)return;
  const branches=state.experimentState?.branches||[],active=state.activeBranchId||"main";
+ const countLabel=$("branch-explorer-count");if(countLabel)countLabel.textContent=branches.length+" branche(s)";
  tree.replaceChildren();
  const addNode=(branch,parent,depth)=>{
   const row=document.createElement("div");row.className="branch-tree-row";row.style.setProperty("--branch-depth",String(depth));row.setAttribute("role","treeitem");row.setAttribute("aria-selected",String(branch.id===active));
@@ -575,7 +576,7 @@ function compareSelectedBranches(){
  const active=state.experimentState?.branches?.find(item=>item.id===state.activeBranchId),other=$("branch-compare-select")?.value;
  if(!active||!other){return;}
  const allRuns=(state.experimentState?.runs||[]),runsA=allRuns.filter(run=>run.branchId===active.id).sort((a,b)=>String(a.createdAt||"").localeCompare(String(b.createdAt||""))),runsB=allRuns.filter(run=>run.branchId===other).sort((a,b)=>String(a.createdAt||"").localeCompare(String(b.createdAt||"")));
- const countA=replayBranchTurnCount===null?runsA.length:Math.min(runsA.length,replayBranchTurnCount),countB=Number($("branch-compare-slider")?.value||runsB.length);
+ const branchContext=active.contextTurnIds?.length??active.contextTurns?.length??0,countA=replayBranchTurnCount===null?runsA.length:Math.max(0,Math.min(runsA.length,replayBranchTurnCount-branchContext)),countB=Number($("branch-compare-slider")?.value||runsB.length);
  const left=runsA[Math.max(0,countA-1)],right=runsB[Math.max(0,Math.min(runsB.length,countB)-1)];
  if(!left||!right){alert("Chaque branche doit contenir au moins une exécution pour être comparée.");return;}
  renderExperimentComparisonChoices();$("experiment-compare-left").value=left.id;$("experiment-compare-right").value=right.id;$("experiment-comparison-result").replaceChildren();$("experiment-comparison-dialog").showModal();$("experiment-compare-run").click();
