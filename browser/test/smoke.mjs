@@ -322,9 +322,10 @@ try{
   await page.locator("#compare-experiments-open").click();
   await page.locator("#experiment-comparison-dialog").waitFor({state:"visible"});
   await page.waitForFunction(()=>document.querySelectorAll("#experiment-compare-left option").length===2 && document.querySelectorAll("#experiment-compare-right option").length===2,"", {timeout:10000});
-  const runChoices=await page.locator("#experiment-compare-left option").evaluateAll(options=>options.map(option=>({value:option.value,label:option.textContent})));
+  const runChoices=await page.locator("#experiment-compare-left option").evaluateAll(options=>options.map(option=>({value:option.value,label:option.textContent,branchId:option.dataset.branchId})));
   assert.equal(new Set(runChoices.map(choice=>choice.value)).size,2,"deux runs persistés et distincts doivent être disponibles à la comparaison");
-  assert.notEqual(runChoices[0].label.split(" · ")[0],runChoices[1].label.split(" · ")[0],"les deux runs doivent provenir de branches conversationnelles différentes");
+  assert.ok(runChoices.every(choice=>choice.branchId),"chaque choix de comparaison doit exposer son identifiant de branche");
+  assert.notEqual(runChoices[0].branchId,runChoices[1].branchId,"les deux runs doivent provenir de branches conversationnelles différentes");
   await page.locator("#experiment-compare-left").selectOption(runChoices[0].value);
   await page.locator("#experiment-compare-right").selectOption(runChoices[1].value);
   await page.locator("#experiment-compare-run").click();
