@@ -43,14 +43,25 @@ test("branch explorer exposes temporal keyboard guidance and an accessible tree"
 });
 
 
-test("branch explorer renders exchange dots, fork markers, and an integrated replay control",()=>{
+test("branch explorer renders exchange dots and fork markers with an integrated replay control",()=>{
  assert.match(app,/className="branch-time-dot"/);
  assert.match(app,/kind==="fork"/);
- assert.match(app,/selectPosition:context\.length/);
  assert.match(app,/className="branch-lane-track"/);
  assert.match(styles,/\.branch-lane-track/);
  assert.match(styles,/\.branch-lane-children:before/);
  assert.match(html,/class="project-history branch-primary-timeline"/);
- assert.match(html,/<details class="branch-compare-control">/);
+ assert.doesNotMatch(html,/branch-compare-(select|slider|open)/);
  assert.match(html,/id="project-history-slider"/);
+});
+
+
+test("branch tree keeps inherited turns on the original timeline and removes branch comparison controls",()=>{
+ assert.match(html,/id="conversation-branch-tree"/);
+ assert.doesNotMatch(html,/branch-compare-(select|slider|open)/);
+ assert.match(app,/kind==="fork"/);
+ assert.doesNotMatch(app,/kind:"shared"/);
+ assert.match(app,/state\.replayPreferredBranchId/);
+ assert.match(app,/selected<=forkContext/);
+ assert.match(app,/renderBranchExplorer\(\);/);
+ assert.match(styles,/\.branch-lane-track\.is-branch-track \.branch-time-line/);
 });
