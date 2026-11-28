@@ -4,6 +4,8 @@ import { readFile } from "node:fs/promises";
 import { parse } from "parse5";
 
 const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+const app = await readFile(new URL("../app.js", import.meta.url), "utf8");
+const styles = await readFile(new URL("../styles.css", import.meta.url), "utf8");
 function walk(node, visit) {
   visit(node);
   for (const child of node.childNodes || []) walk(child, visit);
@@ -38,4 +40,17 @@ test("branch explorer exposes temporal keyboard guidance and an accessible tree"
  assert.match(html,/id="conversation-branch-tree"[^>]*role="tree"/);
  assert.match(html,/← \/ → temps/);
  assert.match(html,/↑ \/ ↓ branches/);
+});
+
+
+test("branch explorer renders exchange dots, fork markers, and an integrated replay control",()=>{
+ assert.match(app,/className="branch-time-dot"/);
+ assert.match(app,/kind==="fork"/);
+ assert.match(app,/selectPosition:context\.length/);
+ assert.match(app,/className="branch-lane-track"/);
+ assert.match(styles,/\.branch-lane-track/);
+ assert.match(styles,/\.branch-lane-children:before/);
+ assert.match(html,/class="project-history branch-primary-timeline"/);
+ assert.match(html,/<details class="branch-compare-control">/);
+ assert.match(html,/id="project-history-slider"/);
 });

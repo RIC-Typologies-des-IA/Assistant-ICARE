@@ -1486,3 +1486,40 @@ html[data-theme="dark"] .branch-tree-config{color:#9fc3fa}
 .branch-tree-children>.branch-tree-row:last-child:after{display:none}
 html[data-theme="dark"] .branch-tree-children{border-color:#40536b}
 html[data-theme="dark"] .branch-tree-children>.branch-tree-row:before{border-color:#40536b}
+
+
+/* Chronologie arborescente : chaque point est un échange, les variantes partent du tour source. */
+.branch-explorer{padding:12px;overflow:hidden}
+.branch-tree{display:block;max-height:none;overflow-x:auto;overflow-y:hidden;padding:5px 2px 10px;overscroll-behavior-x:contain}
+.branch-lane{position:relative;display:block;min-width:max-content;padding:0 0 5px;margin:0}
+.branch-lane-heading{display:flex;align-items:center;gap:8px;min-height:25px;margin-bottom:1px}
+.branch-lane-choice{flex:0 0 auto;max-width:180px;padding:4px 8px;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--text,#26384f);font:inherit;font-size:11px;font-weight:700;text-align:left;cursor:pointer}
+.branch-lane-choice:hover{background:rgba(100,130,170,.12)}
+.branch-lane-choice.is-active{background:var(--accent-soft,#e7eef9);border-color:var(--accent,#4777b8)}
+.branch-lane-info{display:flex;align-items:center;gap:7px;min-width:0;max-width:420px;font-size:9px;color:var(--muted,#65758a)}
+.branch-lane-prompt{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.branch-lane-config{flex:0 0 auto;color:var(--accent,#4777b8);text-decoration:underline;text-underline-offset:2px;white-space:nowrap}
+.branch-lane-track{position:relative;display:grid;grid-template-columns:repeat(var(--timeline-columns),24px);grid-auto-rows:24px;width:max-content;min-width:max-content;align-items:center}
+.branch-time-line{position:absolute;left:12px;right:12px;top:11px;height:2px;background:var(--border,#cbd5e1);pointer-events:none}
+.branch-time-dot{position:relative;z-index:1;grid-row:1;justify-self:center;align-self:center;width:11px;height:11px;min-width:11px;padding:0;border:2px solid var(--accent,#4777b8);border-radius:50%;background:var(--surface,#fff);cursor:pointer;box-shadow:0 0 0 2px var(--surface,#fff)}
+.branch-time-dot:hover,.branch-time-dot:focus-visible{transform:scale(1.35);outline:2px solid var(--accent,#4777b8);outline-offset:3px}
+.branch-time-dot.is-current{width:15px;height:15px;background:var(--accent,#4777b8);border-color:var(--surface,#fff);box-shadow:0 0 0 2px var(--accent,#4777b8)}
+.branch-time-dot.is-shared{width:8px;height:8px;border-color:#94a3b8;background:var(--surface,#fff);opacity:.75}
+.branch-time-dot.is-fork{width:14px;height:14px;border:3px double var(--accent,#4777b8);background:var(--surface,#fff)}
+.branch-lane-children{position:relative;margin:0 0 0 0;padding:5px 0 0}
+.branch-lane-children:before{content:"";position:absolute;left:calc(var(--fork-column)*24px - 12px);top:-7px;bottom:15px;width:1px;background:var(--accent,#8aa4c7);opacity:.8}
+.branch-lane-children>.branch-lane:before{content:"";position:absolute;left:calc(var(--fork-column,1)*24px - 12px);top:16px;width:12px;height:1px;background:var(--accent,#8aa4c7)}
+.branch-lane-children>.branch-lane{padding-left:0;margin-top:2px}
+.branch-lane-children>.branch-lane:last-child{padding-bottom:0}
+.branch-primary-timeline{margin-top:5px;padding:8px 2px 3px;border-top:1px solid var(--border,#dce3ec)}
+.branch-primary-timeline .project-history-labels{font-size:10px}
+.branch-primary-timeline input[type=range]{display:block;width:100%;margin:5px 0 2px;accent-color:var(--accent,#4777b8)}
+.branch-primary-timeline .project-history-summary{margin:3px 0 0;font-size:10px}
+.branch-compare-control{margin-top:7px;padding-top:7px}
+.branch-compare-control>summary{font-size:11px;font-weight:700;cursor:pointer;color:var(--accent,#4777b8);padding:3px 0}
+.branch-compare-control[open]{display:grid}
+html[data-theme="dark"] .branch-lane-choice{color:#e6eef8}
+html[data-theme="dark"] .branch-time-dot{background:#172538;box-shadow:0 0 0 2px #172538}
+html[data-theme="dark"] .branch-time-dot.is-current{background:var(--accent,#4777b8);box-shadow:0 0 0 2px var(--accent,#4777b8)}
+html[data-theme="dark"] .branch-time-dot.is-fork{background:#172538}
+@media(max-width:700px){.branch-lane-info{max-width:260px}.branch-lane-prompt{max-width:150px}.branch-lane-choice{max-width:140px}}
